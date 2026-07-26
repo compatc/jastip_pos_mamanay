@@ -347,7 +347,7 @@ export const useStore = create<PosStore>((set, get) => ({
           .maybeSingle();
         const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
 
-        await supabase
+        const { error: smErr } = await supabase
           .from("stock_movements")
           .insert({
             id: uuid(),
@@ -361,6 +361,7 @@ export const useStore = create<PosStore>((set, get) => ({
             unit: product.unit || "SET",
             created_at: now,
           });
+        if (smErr) console.error("stock_movements insert error:", smErr);
       }
     }
 

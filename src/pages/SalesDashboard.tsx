@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useStore } from "../stores/useStore";
+import { supabase } from "../lib/supabase";
 import {
   TrendingUp,
   TrendingDown,
@@ -10,17 +10,15 @@ import {
 
 type TabFilter = "all" | "penjualan" | "pembelian";
 
-interface MovementRow {
+interface OrderRow {
   id: string;
-  product_name: string;
   date: string;
-  transaction_type: string;
-  invoice_no: number;
-  party_name: string;
-  qty: number;
-  qty_after: number;
-  unit: string;
-  amount: number;
+  order_type: string;
+  contact_name: string;
+  total: number;
+  paid_total: number;
+  payment_type: string;
+  items: { product_name: string; quantity: number; price: number; discount: number }[];
 }
 
 function rupiah(n: number): string {
@@ -28,9 +26,8 @@ function rupiah(n: number): string {
 }
 
 export default function SalesDashboard() {
-  const { loadProducts, loadStockMovements } = useStore();
   const [tab, setTab] = useState<TabFilter>("all");
-  const [allMovements, setAllMovements] = useState<MovementRow[]>([]);
+  const [allOrders, setAllOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,71 +36,85 @@ export default function SalesDashboard() {
 
   async function loadData() {
     setLoading(true);
-    await loadProducts();
 
-    const allProducts = useStore.getState().products;
-    const priceMap: Record<string, { cost: number; sell: number }> = {};
-    for (const p of allProducts) {
-      priceMap[p.name] = { cost: p.cost_price, sell: p.sell_price };
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("id, status, total, paid_total, order_type, payment_type, ongkir, notes, created_at, customer_id")
+      .neq("status", "deleted")
+      .order("created_at", { ascending: false });
+
+    if (!orders || orders.length === 0) {
+      setAllOrders([]);
+      setLoading(false);
+      return;
     }
 
-    const rows: MovementRow[] = [];
-    for (const p of allProducts) {
-      await loadStockMovements(p.id);
-      const movements = useStore.getState().stockMovements;
-      for (const m of movements) {
-        const prices = priceMap[p.name];
-        let amount = 0;
-        if (prices) {
-          amount = m.transaction_type === "Penjualan"
-            ? Math.abs(m.qty) * prices.sell
-            : Math.abs(m.qty) * prices.cost;
-        }
-        rows.push({
-          id: m.id,
-          product_name: p.name,
-          date: m.date,
-          transaction_type: m.transaction_type,
-          invoice_no: m.invoice_no,
-          party_name: m.party_name,
-          qty: m.qty,
-          qty_after: m.qty_after,
-          unit: m.unit,
-          amount,
+    const customerIds = [...new Set(orders.map((o) => o.customer_id).filter(Boolean))];
+    const { data: customers } = await supabase
+      .from("customers")
+      .select("id, name")
+      .in("id", customerIds.length > 0 ? customerIds : ["__none__"]);
+
+    const customerMap: Record<string, string> = {};
+    if (customers) {
+      for (const c of customers) {
+        customerMap[c.id] = c.name;
+      }
+    }
+
+    const orderIds = orders.map((o) => o.id);
+    const { data: orderItems } = await supabase
+      .from("order_items")
+      .select("order_id, product_name, quantity, price, discount")
+      .in("order_id", orderIds);
+
+    const itemsByOrder: Record<string, OrderRow["items"]> = {};
+    if (orderItems) {
+      for (const item of orderItems) {
+        if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+        itemsByOrder[item.order_id].push({
+          product_name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount || 0,
         });
       }
     }
 
-    rows.sort((a, b) => {
-      const dateCmp = b.date.localeCompare(a.date);
-      if (dateCmp !== 0) return dateCmp;
-      return b.invoice_no - a.invoice_no;
-    });
+    const rows: OrderRow[] = orders.map((o) => ({
+      id: o.id,
+      date: o.created_at.split("T")[0],
+      order_type: o.order_type,
+      contact_name: customerMap[o.customer_id] || "-",
+      total: o.total,
+      paid_total: o.paid_total,
+      payment_type: o.payment_type,
+      items: itemsByOrder[o.id] || [],
+    }));
 
-    setAllMovements(rows);
+    setAllOrders(rows);
     setLoading(false);
   }
 
-  const filtered = allMovements.filter((m) => {
+  const filtered = allOrders.filter((o) => {
     if (tab === "all") return true;
-    return m.transaction_type.toLowerCase() === tab;
+    return o.order_type === tab;
   });
 
-  const totalPenjualan = allMovements
-    .filter((m) => m.transaction_type === "Penjualan")
-    .reduce((s, m) => s + m.amount, 0);
+  const totalPenjualan = allOrders
+    .filter((o) => o.order_type === "penjualan")
+    .reduce((s, o) => s + o.total, 0);
 
-  const totalPembelian = allMovements
-    .filter((m) => m.transaction_type === "Pembelian")
-    .reduce((s, m) => s + m.amount, 0);
+  const totalPembelian = allOrders
+    .filter((o) => o.order_type === "pembelian")
+    .reduce((s, o) => s + o.total, 0);
 
   const laba = totalPenjualan - totalPembelian;
 
-  const groupedByDate: Record<string, MovementRow[]> = {};
-  for (const m of filtered) {
-    const d = m.date;
-    if (!groupedByDate[d]) groupedByDate[d] = [];
-    groupedByDate[d].push(m);
+  const groupedByDate: Record<string, OrderRow[]> = {};
+  for (const o of filtered) {
+    if (!groupedByDate[o.date]) groupedByDate[o.date] = [];
+    groupedByDate[o.date].push(o);
   }
 
   return (
@@ -171,7 +182,7 @@ export default function SalesDashboard() {
                     : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
                 }`}
               >
-                Semua ({allMovements.length})
+                Semua ({allOrders.length})
               </button>
               <button
                 onClick={() => setTab("penjualan")}
@@ -182,7 +193,7 @@ export default function SalesDashboard() {
                 }`}
               >
                 <ShoppingCart className="w-3 h-3" />
-                Penjualan ({allMovements.filter((m) => m.transaction_type === "Penjualan").length})
+                Penjualan ({allOrders.filter((o) => o.order_type === "penjualan").length})
               </button>
               <button
                 onClick={() => setTab("pembelian")}
@@ -193,7 +204,7 @@ export default function SalesDashboard() {
                 }`}
               >
                 <Package className="w-3 h-3" />
-                Pembelian ({allMovements.filter((m) => m.transaction_type === "Pembelian").length})
+                Pembelian ({allOrders.filter((o) => o.order_type === "pembelian").length})
               </button>
             </div>
 
@@ -208,13 +219,13 @@ export default function SalesDashboard() {
               </div>
             ) : (
               <div className="space-y-5">
-                {Object.entries(groupedByDate).map(([date, items]) => {
-                  const dayPenjualan = items
-                    .filter((m) => m.transaction_type === "Penjualan")
-                    .reduce((s, m) => s + m.amount, 0);
-                  const dayPembelian = items
-                    .filter((m) => m.transaction_type === "Pembelian")
-                    .reduce((s, m) => s + m.amount, 0);
+                {Object.entries(groupedByDate).map(([date, orders]) => {
+                  const dayPenjualan = orders
+                    .filter((o) => o.order_type === "penjualan")
+                    .reduce((s, o) => s + o.total, 0);
+                  const dayPembelian = orders
+                    .filter((o) => o.order_type === "pembelian")
+                    .reduce((s, o) => s + o.total, 0);
                   return (
                     <div key={date}>
                       <div className="flex items-center justify-between mb-3">
@@ -243,39 +254,33 @@ export default function SalesDashboard() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        {items.map((m) => (
+                        {orders.map((o) => (
                           <div
-                            key={m.id}
+                            key={o.id}
                             className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50"
                           >
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <span
                                   className={`px-2 py-0.5 rounded-full text-base font-bold ${
-                                    m.transaction_type === "Penjualan"
+                                    o.order_type === "penjualan"
                                       ? "bg-emerald-50 text-emerald-600"
                                       : "bg-red-50 text-red-500"
                                   }`}
                                 >
-                                  {m.transaction_type === "Penjualan"
-                                    ? "Jual"
-                                    : "Beli"}
+                                  {o.order_type === "penjualan" ? "Jual" : "Beli"}
                                 </span>
                                 <span className="text-base font-semibold text-gray-700">
-                                  {m.product_name}
+                                  {o.contact_name}
                                 </span>
                               </div>
                               <span className="text-base font-bold text-gray-800">
-                                {rupiah(m.amount)}
+                                {rupiah(o.total)}
                               </span>
                             </div>
-                            <div className="flex items-center justify-between text-base text-gray-400">
-                              <span>
-                                {m.party_name} · No. {m.invoice_no}
-                              </span>
-                              <span>
-                                {Math.abs(m.qty)} {m.unit}
-                              </span>
+                            <div className="flex items-center justify-between text-base text-gray-400 mb-1">
+                              <span>{o.items.map((i) => `${i.product_name} x${i.quantity}`).join(", ")}</span>
+                              <span className="uppercase text-xs font-semibold">{o.payment_type}</span>
                             </div>
                           </div>
                         ))}
