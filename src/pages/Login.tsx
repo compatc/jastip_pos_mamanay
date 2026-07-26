@@ -128,15 +128,17 @@ export default function Login() {
               {loading ? "Masuk..." : "Login"}
             </button>
 
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleOfflineLogin}
-                className="w-full py-3.5 bg-white border-2 border-pink-200 hover:bg-pink-50 text-gray-600 font-semibold rounded-2xl transition-all active:scale-[0.98]"
-              >
-                Mulai Offline
-              </button>
-            </div>
+            {import.meta.env.DEV && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleOfflineLogin}
+                  className="w-full py-3.5 bg-white border-2 border-pink-200 hover:bg-pink-50 text-gray-600 font-semibold rounded-2xl transition-all active:scale-[0.98]"
+                >
+                  Mulai Offline
+                </button>
+              </div>
+            )}
           </form>
 
           {!isSupabaseConfigured && (

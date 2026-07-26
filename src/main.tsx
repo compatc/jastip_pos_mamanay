@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 
+if (import.meta.env.DEV) {
+  document.title = "[LOCAL] " + document.title;
+}
+
 const root = document.getElementById("root");
 
 if (!root) {

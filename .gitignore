@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQL seed/cleanup scripts (not needed in repo)
+*.sql
