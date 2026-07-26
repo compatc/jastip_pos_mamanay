@@ -327,15 +327,40 @@ export const useStore = create<PosStore>((set, get) => ({
 
       const { data: product } = await supabase
         .from("products")
-        .select("id, stock")
+        .select("id, stock, unit")
         .eq("id", item.product_id)
         .single();
       if (product) {
         const stockDelta = orderType === "penjualan" ? -item.quantity : item.quantity;
+        const newStock = product.stock + stockDelta;
         await supabase
           .from("products")
-          .update({ stock: product.stock + stockDelta })
+          .update({ stock: newStock })
           .eq("id", product.id);
+
+        const txType = orderType === "penjualan" ? "Penjualan" : "Pembelian";
+        const maxInvoice = await supabase
+          .from("stock_movements")
+          .select("invoice_no")
+          .order("invoice_no", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
+
+        await supabase
+          .from("stock_movements")
+          .insert({
+            id: uuid(),
+            product_id: product.id,
+            date: now.split("T")[0],
+            transaction_type: txType,
+            invoice_no: nextInvoice,
+            party_name: contactName,
+            qty: stockDelta,
+            qty_after: newStock,
+            unit: product.unit || "SET",
+            created_at: now,
+          });
       }
     }
 
@@ -452,15 +477,40 @@ export const useStore = create<PosStore>((set, get) => ({
 
       const { data: product } = await supabase
         .from("products")
-        .select("id, stock")
+        .select("id, stock, unit")
         .eq("name", item.product_name)
         .single();
       if (product) {
         const stockDelta = orderType === "penjualan" ? -item.quantity : item.quantity;
+        const newStock = product.stock + stockDelta;
         await supabase
           .from("products")
-          .update({ stock: product.stock + stockDelta })
+          .update({ stock: newStock })
           .eq("id", product.id);
+
+        const txType = orderType === "penjualan" ? "Penjualan" : "Pembelian";
+        const maxInvoice = await supabase
+          .from("stock_movements")
+          .select("invoice_no")
+          .order("invoice_no", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
+
+        await supabase
+          .from("stock_movements")
+          .insert({
+            id: uuid(),
+            product_id: product.id,
+            date: now.split("T")[0],
+            transaction_type: txType,
+            invoice_no: nextInvoice,
+            party_name: contactName,
+            qty: stockDelta,
+            qty_after: newStock,
+            unit: product.unit || "SET",
+            created_at: now,
+          });
       }
     }
 
