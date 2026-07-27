@@ -27,6 +27,7 @@ function shortId(id: string): string {
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Baru",
+  ready: "Ready",
   paid: "Dibayar",
   shipped: "Dikirim",
   delivered: "Diterima",

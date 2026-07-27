@@ -8,6 +8,10 @@ const statusConfig: Record<
     label: "Baru",
     color: "bg-blue-50 text-blue-600 ring-1 ring-blue-200",
   },
+  ready: {
+    label: "Ready",
+    color: "bg-teal-50 text-teal-600 ring-1 ring-teal-200",
+  },
   paid: {
     label: "Lunas",
     color: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200",

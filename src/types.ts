@@ -1,4 +1,4 @@
-export type OrderStatus = "new" | "paid" | "shipped" | "delivered" | "completed" | "deleted";
+export type OrderStatus = "new" | "ready" | "paid" | "shipped" | "delivered" | "completed" | "deleted";
 
 export type CustomerCategory = "pelanggan" | "supplier";
 

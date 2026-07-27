@@ -42,6 +42,7 @@ const PAYMENT_OPTIONS: { value: PaymentType; label: string }[] = [
 
 const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: "new", label: "Baru" },
+  { value: "ready", label: "Ready" },
   { value: "paid", label: "Dibayar" },
   { value: "shipped", label: "Dikirim" },
   { value: "delivered", label: "Diterima" },
