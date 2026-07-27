@@ -665,7 +665,7 @@ export default function EditOrderForm() {
                   onClick={() => {
                     setPaymentType(opt.value);
                     if (opt.value === "tf") {
-                      const bankAcc = accounts.find((a) => a.type === "bank");
+                      const bankAcc = accounts.find((a) => a.name.toLowerCase().includes("bca")) || accounts.find((a) => a.type === "bank");
                       if (bankAcc && !accountId) setAccountId(bankAcc.id);
                     }
                   }}
