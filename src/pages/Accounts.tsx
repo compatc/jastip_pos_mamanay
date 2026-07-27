@@ -1,20 +1,25 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
-import { Plus, Trash2, Wallet, Landmark } from "lucide-react";
+import { Plus, Trash2, Wallet, Landmark, Pencil } from "lucide-react";
 
 function rupiah(n: number): string {
   return "Rp" + n.toLocaleString("id-ID");
 }
 
 export default function Accounts() {
-  const { accounts, loadAccounts, addAccount, deleteAccount } = useStore();
+  const { accounts, loadAccounts, addAccount, updateAccount, deleteAccount } = useStore();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<"cash" | "bank">("cash");
   const [accountNumber, setAccountNumber] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<"cash" | "bank">("cash");
+  const [editAccountNumber, setEditAccountNumber] = useState("");
+  const [editBalance, setEditBalance] = useState(0);
 
   useEffect(() => {
     loadAccounts();
@@ -30,6 +35,25 @@ export default function Accounts() {
       setShowForm(false);
     } catch (err: any) {
       alert("Gagal simpan akun: " + (err.message || err));
+    }
+  }
+
+  function openEdit(a: typeof accounts[0]) {
+    setEditId(a.id);
+    setEditName(a.name);
+    setEditType(a.type as "cash" | "bank");
+    setEditAccountNumber(a.account_number || "");
+    setEditBalance(a.balance);
+  }
+
+  async function handleUpdate() {
+    if (!editId || !editName.trim()) return;
+    const icon = editType === "cash" ? "💵" : "🏦";
+    try {
+      await updateAccount(editId, editName.trim(), editType, icon, editAccountNumber.trim(), editBalance);
+      setEditId(null);
+    } catch (err: any) {
+      alert("Gagal update akun: " + (err.message || err));
     }
   }
 
@@ -85,6 +109,12 @@ export default function Accounts() {
                   <p className={`text-lg font-bold ${a.balance >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                     {rupiah(a.balance)}
                   </p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openEdit(a); }}
+                    className="p-2 hover:bg-pink-50 rounded-xl transition-all"
+                  >
+                    <Pencil className="w-4 h-4 text-pink-400" />
+                  </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setDeleteConfirm(a.id); }}
                     className="p-2 hover:bg-red-50 rounded-xl transition-all"
@@ -185,6 +215,71 @@ export default function Accounts() {
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-all"
                 >
                   Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {editId && (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+            <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Edit Akun</h3>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nama akun"
+                className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
+              />
+              <input
+                type="number"
+                value={editBalance}
+                onChange={(e) => setEditBalance(Number(e.target.value))}
+                placeholder="Saldo"
+                className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
+              />
+              {editType === "bank" && (
+                <input
+                  value={editAccountNumber}
+                  onChange={(e) => setEditAccountNumber(e.target.value)}
+                  placeholder="Nomor rekening (opsional)"
+                  className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
+                />
+              )}
+              <div className="flex gap-2 mb-5">
+                <button
+                  onClick={() => setEditType("cash")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                    editType === "cash"
+                      ? "bg-pink-500 text-white border-pink-500"
+                      : "bg-pink-50 text-gray-400 border-pink-100 hover:bg-pink-100"
+                  }`}
+                >
+                  <span>💵</span> Kas Tunai
+                </button>
+                <button
+                  onClick={() => setEditType("bank")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                    editType === "bank"
+                      ? "bg-pink-500 text-white border-pink-500"
+                      : "bg-pink-50 text-gray-400 border-pink-100 hover:bg-pink-100"
+                  }`}
+                >
+                  <span>🏦</span> Bank
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditId(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-gray-400 bg-gray-50 hover:bg-gray-100 transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-pink-400 to-rose-500 shadow-md shadow-pink-200/30"
+                >
+                  Simpan
                 </button>
               </div>
             </div>

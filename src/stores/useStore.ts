@@ -126,6 +126,7 @@ interface PosStore {
   accounts: Account[];
   loadAccounts: () => Promise<void>;
   addAccount: (name: string, type: string, icon: string, accountNumber?: string) => Promise<void>;
+  updateAccount: (id: string, name: string, type: string, icon: string, accountNumber: string, balance: number) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
   accountTransactions: AccountTransaction[];
   loadAccountTransactions: (accountId: string) => Promise<void>;
@@ -1001,6 +1002,15 @@ export const useStore = create<PosStore>((set, get) => ({
     const { error } = await supabase
       .from("accounts")
       .insert({ id, name, type, balance: 0, icon, account_number: accountNumber || "", created_at: new Date().toISOString() });
+    if (error) throw error;
+    await get().loadAccounts();
+  },
+
+  updateAccount: async (id, name, type, icon, accountNumber, balance) => {
+    const { error } = await supabase
+      .from("accounts")
+      .update({ name, type, icon, account_number: accountNumber, balance })
+      .eq("id", id);
     if (error) throw error;
     await get().loadAccounts();
   },
