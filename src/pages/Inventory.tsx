@@ -195,7 +195,7 @@ export default function Inventory() {
             <button
               key={tab.key}
               onClick={() => setStockFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                 stockFilter === tab.key
                   ? tab.key === "habis" ? "bg-red-50 text-red-500 border border-red-200" : "bg-pink-50 text-pink-600 border border-pink-200"
                   : "bg-white/60 text-gray-400 border border-gray-100 hover:bg-white"
