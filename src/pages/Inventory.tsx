@@ -49,6 +49,7 @@ export default function Inventory() {
     deleteProductDiscount,
   } = useStore();
   const [search, setSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "habis" | "ada">("all");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
@@ -67,9 +68,11 @@ export default function Inventory() {
     loadAllProductDiscounts();
   }, []);
 
-  const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = products.filter((p) => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchStock = stockFilter === "all" || (stockFilter === "habis" && p.stock === 0) || (stockFilter === "ada" && p.stock > 0);
+    return matchSearch && matchStock;
+  });
 
   function openHistory(productId: string) {
     setHistoryProductId(productId);
@@ -181,6 +184,26 @@ export default function Inventory() {
             <Plus className="w-4 h-4" />
             Produk
           </button>
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          {([
+            { key: "all" as const, label: "Semua", count: products.length },
+            { key: "ada" as const, label: "Ada Stok", count: products.filter((p) => p.stock > 0).length },
+            { key: "habis" as const, label: "Stok Habis", count: products.filter((p) => p.stock === 0).length },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStockFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                stockFilter === tab.key
+                  ? tab.key === "habis" ? "bg-red-50 text-red-500 border border-red-200" : "bg-pink-50 text-pink-600 border border-pink-200"
+                  : "bg-white/60 text-gray-400 border border-gray-100 hover:bg-white"
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
         </div>
 
         {filtered.length > 0 && (
