@@ -60,7 +60,7 @@ function shortId(id: string): string {
 
 export default function EditOrderForm() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { updateOrder, allOrders, loadAllOrders, orderItems, loadOrderItems, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, addCustomer } = useStore();
+  const { updateOrder, allOrders, loadAllOrders, orderItems, loadOrderItems, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, addCustomer, accounts, loadAccounts } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
@@ -75,6 +75,7 @@ export default function EditOrderForm() {
   const [paidTotal, setPaidTotal] = useState("0");
   const [ongkir, setOngkir] = useState("");
   const [notes, setNotes] = useState("");
+  const [accountId, setAccountId] = useState<string | null>(null);
   const [status, setStatus] = useState<OrderStatus>("new");
   const [loading, setLoading] = useState(true);
   const [itemsLoaded, setItemsLoaded] = useState(false);
@@ -97,6 +98,7 @@ export default function EditOrderForm() {
     loadAllOrders();
     loadCustomers();
     loadAllProductDiscounts();
+    loadAccounts();
     async function load() {
       if (!orderId) return;
       await loadOrderItems(orderId);
@@ -269,6 +271,7 @@ export default function EditOrderForm() {
           paidTotal: paid,
           ongkir: ongkirVal,
           notes: notes.trim(),
+          accountId,
         });
         navigate(returnTo || "/orders");
       });
@@ -284,6 +287,7 @@ export default function EditOrderForm() {
       paidTotal: paid,
       ongkir: ongkirVal,
       notes: notes.trim(),
+      accountId,
     });
     navigate(returnTo || "/orders");
   }
@@ -658,7 +662,13 @@ export default function EditOrderForm() {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setPaymentType(opt.value)}
+                  onClick={() => {
+                    setPaymentType(opt.value);
+                    if (opt.value === "tf") {
+                      const bankAcc = accounts.find((a) => a.type === "bank");
+                      if (bankAcc && !accountId) setAccountId(bankAcc.id);
+                    }
+                  }}
                   className={`flex-1 py-3 rounded-2xl text-base font-semibold transition-all ${
                     paymentType === opt.value
                       ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"

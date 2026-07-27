@@ -61,6 +61,7 @@ interface PosStore {
     ongkir: number;
     notes: string;
     orderType: OrderType;
+    accountId?: string | null;
   }) => Promise<void>;
   updateItemStatus: (
     itemId: string,
@@ -435,7 +436,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return items;
   },
 
-  updateOrder: async (orderId, { status, paymentType, contactName, items, paidTotal, ongkir, notes, orderType }) => {
+  updateOrder: async (orderId, { status, paymentType, contactName, items, paidTotal, ongkir, notes, orderType, accountId }) => {
     const now = new Date().toISOString();
 
     const { data: existingOrder } = await supabase
@@ -522,6 +523,7 @@ export const useStore = create<PosStore>((set, get) => ({
         payment_type: paymentType,
         ongkir: ongkir || 0,
         notes: notes || "",
+        account_id: accountId || null,
         updated_at: now,
       })
       .eq("id", orderId);
@@ -689,10 +691,56 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   updateOrderPaidTotal: async (orderId, paidTotal) => {
+    const { data: existing } = await supabase
+      .from("orders")
+      .select("account_id, order_type, customer_id, paid_total, total")
+      .eq("id", orderId)
+      .single();
+
+    const oldPaid = existing?.paid_total || 0;
+    const newPaid = paidTotal;
+    const delta = newPaid - oldPaid;
+
     await supabase
       .from("orders")
       .update({ paid_total: paidTotal, updated_at: new Date().toISOString() })
       .eq("id", orderId);
+
+    if (existing?.account_id && delta !== 0) {
+      const { data: cust } = await supabase
+        .from("customers")
+        .select("name")
+        .eq("id", existing.customer_id)
+        .single();
+      const txAmount = existing.order_type === "penjualan" ? delta : -delta;
+      const txDesc = `${existing.order_type === "penjualan" ? "Penjualan" : "Pembelian"} - ${cust?.name || ""}`;
+      const now = new Date().toISOString();
+      await supabase
+        .from("account_transactions")
+        .insert({
+          id: uuid(),
+          account_id: existing.account_id,
+          order_id: orderId,
+          order_type: existing.order_type,
+          contact_name: cust?.name || "",
+          amount: txAmount,
+          description: txDesc,
+          date: now.split("T")[0],
+          created_at: now,
+        });
+      const { data: acc } = await supabase
+        .from("accounts")
+        .select("balance")
+        .eq("id", existing.account_id)
+        .single();
+      if (acc) {
+        await supabase
+          .from("accounts")
+          .update({ balance: (acc.balance || 0) + txAmount })
+          .eq("id", existing.account_id);
+      }
+      await get().loadAccounts();
+    }
   },
 
   deleteOrder: async (orderId) => {

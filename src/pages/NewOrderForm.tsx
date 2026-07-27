@@ -521,7 +521,13 @@ export default function NewOrderForm() {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setPaymentType(opt.value)}
+                  onClick={() => {
+                    setPaymentType(opt.value);
+                    if (opt.value === "tf") {
+                      const bankAcc = accounts.find((a) => a.type === "bank");
+                      if (bankAcc && !accountId) setAccountId(bankAcc.id);
+                    }
+                  }}
                   className={`flex-1 py-3 rounded-2xl text-base font-semibold transition-all ${
                     paymentType === opt.value
                       ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
