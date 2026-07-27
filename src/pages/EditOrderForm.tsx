@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import type { OrderStatus, OrderType, PaymentType } from "../types";
@@ -60,13 +60,16 @@ function shortId(id: string): string {
 
 export default function EditOrderForm() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { updateOrder, allOrders, loadAllOrders, orderItems, loadOrderItems, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts } = useStore();
+  const { updateOrder, allOrders, loadAllOrders, orderItems, loadOrderItems, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, addCustomer } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
 
   const [orderType, setOrderType] = useState<OrderType>("penjualan");
   const [contactName, setContactName] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
+  const contactRef = useRef<HTMLDivElement>(null);
   const [items, setItems] = useState<OrderItemInput[]>([{ ...emptyItem }]);
   const [paymentType, setPaymentType] = useState<PaymentType>("tf");
   const [paidTotal, setPaidTotal] = useState("0");
@@ -117,11 +120,15 @@ export default function EditOrderForm() {
 
     if (order.customer_name) {
       setContactName(order.customer_name);
+      setContactSearch(order.customer_name);
     } else if (order.customer_id) {
       const db = useStore.getState();
       const customers = db.customers || [];
       const customer = customers.find((c) => c.id === order.customer_id);
-      if (customer) setContactName(customer.name);
+      if (customer) {
+        setContactName(customer.name);
+        setContactSearch(customer.name);
+      }
     }
 
     const mappedItems: OrderItemInput[] = orderItems.map((oi) => {
@@ -140,6 +147,16 @@ export default function EditOrderForm() {
 
     setLoading(false);
   }, [orderId, allOrders, orderItems, products, itemsLoaded]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
+        setShowContactDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   function getDiscountPrice(productId: string, qty: number): number | null {
     const discounts = productDiscounts
@@ -380,23 +397,66 @@ export default function EditOrderForm() {
             </div>
           </div>
 
-          <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
+          <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50 relative" ref={contactRef}>
             <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
               Kontak <span className="text-red-400">*</span>
             </label>
-            <select
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
+            <input
+              type="text"
+              value={contactSearch}
+              onChange={(e) => {
+                setContactSearch(e.target.value);
+                setContactName("");
+                setShowContactDropdown(true);
+              }}
+              onFocus={() => setShowContactDropdown(true)}
+              placeholder="Cari atau ketik nama baru..."
               required
               className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
-            >
-              <option value="" disabled>-- Pilih Pelanggan / Supplier --</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name} ({c.category})
-                </option>
-              ))}
-            </select>
+            />
+            {showContactDropdown && (
+              <div className="absolute left-4 right-4 top-full mt-1 bg-white border border-pink-100 rounded-2xl shadow-xl shadow-pink-100/30 z-50 max-h-52 overflow-y-auto">
+                {customers
+                  .filter((c) =>
+                    c.name.toLowerCase().includes(contactSearch.toLowerCase())
+                  )
+                  .slice(0, 10)
+                  .map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setContactName(c.name);
+                        setContactSearch(c.name);
+                        setShowContactDropdown(false);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-pink-50 transition-all first:rounded-t-2xl"
+                    >
+                      <span className="text-sm font-semibold text-gray-700">{c.name}</span>
+                      <span className="text-xs text-gray-400 bg-pink-50 px-2 py-0.5 rounded-full">{c.category}</span>
+                    </button>
+                  ))}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const name = contactSearch.trim();
+                    if (!name) return;
+                    const cat = orderType === "penjualan" ? "pelanggan" : "supplier";
+                    await addCustomer(name, "", "", cat);
+                    setContactName(name);
+                    setShowContactDropdown(false);
+                    await loadCustomers();
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-pink-50 transition-all text-pink-500 font-semibold text-sm border-t border-pink-50 last:rounded-b-2xl"
+                >
+                  <span className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center text-xs">+</span>
+                  Tambah "{contactSearch.trim()}" sebagai {orderType === "penjualan" ? "Pelanggan" : "Supplier"}
+                </button>
+                {customers.filter((c) => c.name.toLowerCase().includes(contactSearch.toLowerCase())).length === 0 && !contactSearch.trim() && (
+                  <p className="px-4 py-3 text-sm text-gray-400">Ketik nama untuk mencari...</p>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
