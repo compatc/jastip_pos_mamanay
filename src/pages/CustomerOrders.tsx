@@ -119,13 +119,16 @@ export default function CustomerOrders() {
 
   async function exportAs(filter: "all" | "uncompleted") {
     setExportMenuOpen(false);
-    setExporting(true);
     setExportFilter(filter);
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    setExporting(true);
 
     const el = exportRef.current;
     if (!el) { setExporting(false); return; }
 
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 300)));
 
     try {
       const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
