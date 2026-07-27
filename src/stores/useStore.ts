@@ -445,10 +445,12 @@ export const useStore = create<PosStore>((set, get) => ({
 
     const { data: existingOrder } = await supabase
       .from("orders")
-      .select("order_type")
+      .select("order_type, account_id, paid_total")
       .eq("id", orderId)
       .single();
     const oldOrderType = (existingOrder?.order_type as OrderType) || orderType;
+    const oldPaidTotal = existingOrder?.paid_total || 0;
+    const oldAccountId = existingOrder?.account_id;
 
     const { data: oldItems } = await supabase
       .from("order_items")
@@ -533,6 +535,14 @@ export const useStore = create<PosStore>((set, get) => ({
       })
       .eq("id", orderId);
     if (updateError) throw updateError;
+
+    const payDelta = paidTotal - oldPaidTotal;
+    const txAccountId = accountId || oldAccountId;
+    if (txAccountId && payDelta !== 0) {
+      const txAmount = orderType === "penjualan" ? payDelta : -payDelta;
+      const txDesc = `${orderType === "penjualan" ? "Penjualan" : "Pembelian"} - ${contactName}`;
+      await get().createAccountTransaction(txAccountId, orderId, orderType, contactName, txAmount, txDesc, now.split("T")[0]);
+    }
 
     for (const item of items) {
       const itemId = uuid();
