@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Package,
   DollarSign,
+  Wallet,
   LogOut,
 } from "lucide-react";
 
@@ -152,6 +153,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DollarSign className="w-5 h-5" />
               <span className="text-xs font-semibold tracking-wider uppercase">
                 Laporan
+              </span>
+            </button>
+            <button
+              onClick={() => navigate("/accounts")}
+              className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
+                location.pathname.startsWith("/accounts") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
+              }`}
+            >
+              <Wallet className="w-5 h-5" />
+              <span className="text-xs font-semibold tracking-wider uppercase">
+                Akun
               </span>
             </button>
           </div>

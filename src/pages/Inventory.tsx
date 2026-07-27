@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useStore } from "../stores/useStore";
+import type { ProductDiscount } from "../types";
 import {
   Plus,
   Search,
@@ -12,6 +13,7 @@ import {
   History,
   TrendingUp,
   TrendingDown,
+  Tag,
 } from "lucide-react";
 
 interface ProductForm {
@@ -41,6 +43,10 @@ export default function Inventory() {
     deleteProduct,
     stockMovements,
     loadStockMovements,
+    productDiscounts,
+    loadAllProductDiscounts,
+    addProductDiscount,
+    deleteProductDiscount,
   } = useStore();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -52,9 +58,13 @@ export default function Inventory() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [historyProductId, setHistoryProductId] = useState<string | null>(null);
+  const [discountProductId, setDiscountProductId] = useState<string | null>(null);
+  const [discountMinQty, setDiscountMinQty] = useState("");
+  const [discountPrice, setDiscountPrice] = useState("");
 
   useEffect(() => {
     loadProducts();
+    loadAllProductDiscounts();
   }, []);
 
   const filtered = products.filter((p) =>
@@ -260,6 +270,27 @@ export default function Inventory() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      {(() => {
+                        const discounts = productDiscounts.filter((d) => d.product_id === product.id);
+                        return (
+                          <button
+                            onClick={() => {
+                              setDiscountProductId(product.id);
+                              setDiscountMinQty("");
+                              setDiscountPrice("");
+                            }}
+                            className={`p-2 rounded-lg transition-all relative ${discounts.length > 0 ? "bg-amber-50" : "hover:bg-amber-50"}`}
+                            title="Atur Diskon"
+                          >
+                            <Tag className={`w-3.5 h-3.5 ${discounts.length > 0 ? "text-amber-500" : "text-gray-400 hover:text-amber-500"}`} />
+                            {discounts.length > 0 && (
+                              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                                {discounts.length}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })()}
                       <button
                         onClick={() => openHistory(product.id)}
                         className="p-2 hover:bg-blue-50 rounded-lg transition-all"
@@ -608,7 +639,11 @@ export default function Inventory() {
                         )}
                         <div>
                           <p className="text-base font-semibold text-gray-800">
-                            {m.party_name}
+                            {m.transaction_type === "Penyesuaian Stok"
+                              ? "Penyesuaian Stok"
+                              : m.transaction_type === "Pembelian"
+                                ? `Supplier: ${m.party_name}`
+                                : `Pelanggan: ${m.party_name}`}
                           </p>
                           <p className="text-xs text-gray-400">
                             {m.transaction_type} · No. {m.invoice_no}
@@ -642,6 +677,95 @@ export default function Inventory() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {discountProductId && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+          <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">Atur Diskon</h3>
+                <p className="text-sm text-gray-400 mt-0.5">
+                  {products.find((p) => p.id === discountProductId)?.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setDiscountProductId(null)}
+                className="p-2 hover:bg-pink-50 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+              {productDiscounts
+                .filter((d) => d.product_id === discountProductId)
+                .sort((a, b) => a.min_qty - b.min_qty)
+                .map((d) => (
+                  <div key={d.id} className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                    <div>
+                      <span className="text-sm font-semibold text-amber-700">
+                        Beli {d.min_qty}+ → Rp {d.discount_price.toLocaleString("id-ID")}/pcs
+                      </span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await deleteProductDiscount(d.id, discountProductId!);
+                      }}
+                      className="p-1.5 hover:bg-red-100 rounded-lg transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                    </button>
+                  </div>
+                ))}
+              {productDiscounts.filter((d) => d.product_id === discountProductId).length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-3">Belum ada diskon</p>
+              )}
+            </div>
+
+            <div className="border-t border-pink-100 pt-4">
+              <p className="text-sm font-semibold text-gray-500 mb-3">Tambah Diskon Baru</p>
+              <div className="flex gap-2 mb-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Min Qty</label>
+                  <input
+                    type="number"
+                    value={discountMinQty}
+                    onChange={(e) => setDiscountMinQty(e.target.value)}
+                    placeholder="3"
+                    min="1"
+                    className="w-full px-3 py-2.5 bg-pink-50/50 border border-pink-100 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Harga Spesial</label>
+                  <input
+                    type="number"
+                    value={discountPrice}
+                    onChange={(e) => setDiscountPrice(e.target.value)}
+                    placeholder="0"
+                    min="0"
+                    className="w-full px-3 py-2.5 bg-pink-50/50 border border-pink-100 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  const minQty = parseInt(discountMinQty);
+                  const price = parseFloat(discountPrice);
+                  if (!minQty || minQty <= 0 || !price || price < 0 || !discountProductId) return;
+                  await addProductDiscount(discountProductId, minQty, price);
+                  setDiscountMinQty("");
+                  setDiscountPrice("");
+                }}
+                disabled={!discountMinQty || !discountPrice}
+                className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-amber-200/40"
+              >
+                Tambah
+              </button>
+            </div>
           </div>
         </div>
       )}

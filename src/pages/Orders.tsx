@@ -9,6 +9,7 @@ import {
   TrendingUp,
   TrendingDown,
   Trash2,
+  FileSpreadsheet,
 } from "lucide-react";
 
 type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas";
@@ -111,6 +112,13 @@ export default function Orders() {
               className="w-full pl-10 pr-4 py-3 bg-white/80 border border-pink-100 rounded-xl text-gray-700 placeholder-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
             />
           </div>
+          <button
+            onClick={() => navigate("/orders/upload")}
+            className="w-28 px-4 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-[0.97]"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            CSV
+          </button>
           <button
             onClick={() => navigate("/orders/new")}
             className="w-28 px-4 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 shrink-0 active:scale-[0.97]"

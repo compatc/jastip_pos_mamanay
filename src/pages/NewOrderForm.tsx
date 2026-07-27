@@ -30,6 +30,7 @@ const emptyItem: OrderItemInput = {
 };
 
 const PAYMENT_OPTIONS: { value: PaymentType; label: string }[] = [
+  { value: "cash", label: "Cash" },
   { value: "tf", label: "TF" },
   { value: "qris", label: "QRIS" },
   { value: "split", label: "Split" },
@@ -41,7 +42,7 @@ function formatRp(n: number): string {
 }
 
 export default function NewOrderForm() {
-  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers } = useStore();
+  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, accounts, loadAccounts } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
@@ -49,6 +50,8 @@ export default function NewOrderForm() {
   useEffect(() => {
     loadProducts();
     loadCustomers();
+    loadAllProductDiscounts();
+    loadAccounts();
   }, []);
 
   const [orderType, setOrderType] = useState<OrderType>("penjualan");
@@ -58,6 +61,14 @@ export default function NewOrderForm() {
   const [paidTotal, setPaidTotal] = useState("0");
   const [ongkir, setOngkir] = useState("");
   const [notes, setNotes] = useState("");
+  const [accountId, setAccountId] = useState("");
+
+  function getDiscountPrice(productId: string, qty: number): number | null {
+    const discounts = productDiscounts
+      .filter((d) => d.product_id === productId && d.min_qty <= qty)
+      .sort((a, b) => b.min_qty - a.min_qty);
+    return discounts.length > 0 ? discounts[0].discount_price : null;
+  }
 
   function addItem() {
     setItems([...items, { ...emptyItem }]);
@@ -71,14 +82,18 @@ export default function NewOrderForm() {
   function selectProduct(index: number, productId: string) {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
+    const qty = 1;
+    const discountPrice = getDiscountPrice(productId, qty);
     const price =
-      orderType === "penjualan" ? product.sell_price : product.cost_price;
+      orderType === "penjualan"
+        ? (discountPrice ?? product.sell_price)
+        : product.cost_price;
     const updated = [...items];
     updated[index] = {
       product_id: product.id,
       product_name: product.name,
       price: price.toString(),
-      quantity: "1",
+      quantity: qty.toString(),
       discount: "",
     };
     setItems(updated);
@@ -87,6 +102,18 @@ export default function NewOrderForm() {
   function updateItemQty(index: number, qty: string) {
     const updated = [...items];
     updated[index] = { ...updated[index], quantity: qty };
+    const item = updated[index];
+    if (item.product_id && orderType === "penjualan") {
+      const product = products.find((p) => p.id === item.product_id);
+      if (product) {
+        const q = parseInt(qty) || 0;
+        const discountPrice = getDiscountPrice(item.product_id, q);
+        updated[index] = {
+          ...updated[index],
+          price: (discountPrice ?? product.sell_price).toString(),
+        };
+      }
+    }
     setItems(updated);
   }
 
@@ -165,6 +192,7 @@ export default function NewOrderForm() {
       paidTotal: paid,
       ongkir: ongkirVal,
       notes: notes.trim(),
+      accountId: accountId || undefined,
     });
     navigate(returnTo || "/orders");
   }
@@ -307,16 +335,27 @@ export default function NewOrderForm() {
                             <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
                               Harga
                             </label>
-                            <input
-                              type="text"
-                              value={formatRp(
-                                orderType === "penjualan"
-                                  ? product.sell_price
-                                  : product.cost_price
-                              )}
-                              readOnly
-                              className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
-                            />
+                            {(() => {
+                              const qty = parseInt(item.quantity) || 0;
+                              const discPrice = orderType === "penjualan" ? getDiscountPrice(item.product_id, qty) : null;
+                              return (
+                                <div className="text-center">
+                                  {discPrice && qty >= 1 ? (
+                                    <div>
+                                      <span className="text-xs text-gray-400 line-through">{formatRp(product.sell_price)}</span>
+                                      <span className="block text-base font-bold text-amber-600">{formatRp(discPrice)}</span>
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={formatRp(orderType === "penjualan" ? product.sell_price : product.cost_price)}
+                                      readOnly
+                                      className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
@@ -438,6 +477,41 @@ export default function NewOrderForm() {
               ))}
             </div>
           </div>
+
+          {accounts.length > 0 && (
+            <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
+              <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
+                Akun Penerima
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAccountId("")}
+                  className={`px-4 py-3 rounded-2xl text-sm font-semibold transition-all ${
+                    accountId === ""
+                      ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
+                      : "bg-pink-50 text-gray-400 border border-pink-100"
+                  }`}
+                >
+                  Tidak ada
+                </button>
+                {accounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setAccountId(a.id)}
+                    className={`flex-1 px-3 py-3 rounded-2xl text-sm font-semibold transition-all ${
+                      accountId === a.id
+                        ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
+                        : "bg-pink-50 text-gray-400 border border-pink-100"
+                    }`}
+                  >
+                    {a.icon} {a.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 space-y-3 shadow-sm shadow-pink-50">
             <div className="flex items-center justify-between">

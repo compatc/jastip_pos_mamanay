@@ -31,6 +31,7 @@ const emptyItem: OrderItemInput = {
 };
 
 const PAYMENT_OPTIONS: { value: PaymentType; label: string }[] = [
+  { value: "cash", label: "Cash" },
   { value: "tf", label: "TF" },
   { value: "qris", label: "QRIS" },
   { value: "split", label: "Split" },
@@ -59,7 +60,7 @@ function shortId(id: string): string {
 
 export default function EditOrderForm() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { updateOrder, allOrders, loadAllOrders, orderItems, loadOrderItems, products, loadProducts, customers, loadCustomers } = useStore();
+  const { updateOrder, allOrders, loadAllOrders, orderItems, loadOrderItems, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
@@ -73,6 +74,7 @@ export default function EditOrderForm() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<OrderStatus>("new");
   const [loading, setLoading] = useState(true);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
@@ -86,14 +88,22 @@ export default function EditOrderForm() {
   }
 
   useEffect(() => {
+    setLoading(true);
+    setItemsLoaded(false);
     loadProducts();
     loadAllOrders();
     loadCustomers();
-    if (orderId) loadOrderItems(orderId);
+    loadAllProductDiscounts();
+    async function load() {
+      if (!orderId) return;
+      await loadOrderItems(orderId);
+      setItemsLoaded(true);
+    }
+    load();
   }, [orderId]);
 
   useEffect(() => {
-    if (!orderId || allOrders.length === 0 || orderItems.length === 0) return;
+    if (!orderId || allOrders.length === 0 || !itemsLoaded) return;
 
     const order = allOrders.find((o) => o.id === orderId);
     if (!order) return;
@@ -115,9 +125,11 @@ export default function EditOrderForm() {
     }
 
     const mappedItems: OrderItemInput[] = orderItems.map((oi) => {
-      const product = products.find((p) => p.name === oi.product_name);
+      const product = oi.product_id
+        ? products.find((p) => p.id === oi.product_id)
+        : products.find((p) => p.name === oi.product_name);
       return {
-        product_id: product?.id || "",
+        product_id: product?.id || oi.product_id || "",
         product_name: oi.product_name,
         price: oi.price.toString(),
         quantity: oi.quantity.toString(),
@@ -127,7 +139,14 @@ export default function EditOrderForm() {
     setItems(mappedItems.length > 0 ? mappedItems : [{ ...emptyItem }]);
 
     setLoading(false);
-  }, [orderId, allOrders, orderItems, products]);
+  }, [orderId, allOrders, orderItems, products, itemsLoaded]);
+
+  function getDiscountPrice(productId: string, qty: number): number | null {
+    const discounts = productDiscounts
+      .filter((d) => d.product_id === productId && d.min_qty <= qty)
+      .sort((a, b) => b.min_qty - a.min_qty);
+    return discounts.length > 0 ? discounts[0].discount_price : null;
+  }
 
   function addItem() {
     setItems([...items, { ...emptyItem }]);
@@ -141,13 +160,17 @@ export default function EditOrderForm() {
   function selectProduct(index: number, productId: string) {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
-    const price = orderType === "penjualan" ? product.sell_price : product.cost_price;
+    const qty = 1;
+    const discountPrice = getDiscountPrice(productId, qty);
+    const price = orderType === "penjualan"
+      ? (discountPrice ?? product.sell_price)
+      : product.cost_price;
     const updated = [...items];
     updated[index] = {
       product_id: product.id,
       product_name: product.name,
       price: price.toString(),
-      quantity: "1",
+      quantity: qty.toString(),
       discount: "",
     };
     setItems(updated);
@@ -436,16 +459,27 @@ export default function EditOrderForm() {
                             <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
                               Harga
                             </label>
-                            <input
-                              type="text"
-                              value={formatRp(
-                                orderType === "penjualan"
-                                  ? product.sell_price
-                                  : product.cost_price
-                              )}
-                              readOnly
-                              className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
-                            />
+                            {(() => {
+                              const qty = parseInt(item.quantity) || 0;
+                              const discPrice = orderType === "penjualan" ? getDiscountPrice(item.product_id, qty) : null;
+                              return (
+                                <div className="text-center">
+                                  {discPrice && qty >= 1 ? (
+                                    <div>
+                                      <span className="text-xs text-gray-400 line-through">{formatRp(product.sell_price)}</span>
+                                      <span className="block text-base font-bold text-amber-600">{formatRp(discPrice)}</span>
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={formatRp(orderType === "penjualan" ? product.sell_price : product.cost_price)}
+                                      readOnly
+                                      className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
@@ -455,12 +489,21 @@ export default function EditOrderForm() {
                           <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
                             Qty
                           </label>
-                          <input
+                           <input
                             type="number"
                             value={item.quantity}
                             onChange={(e) => {
                               const updated = [...items];
                               updated[index] = { ...updated[index], quantity: e.target.value };
+                              const item2 = updated[index];
+                              if (item2.product_id && orderType === "penjualan") {
+                                const p = products.find((pp) => pp.id === item2.product_id);
+                                if (p) {
+                                  const q = parseInt(e.target.value) || 0;
+                                  const dp = getDiscountPrice(item2.product_id, q);
+                                  updated[index] = { ...updated[index], price: (dp ?? p.sell_price).toString() };
+                                }
+                              }
                               setItems(updated);
                             }}
                             min="1"

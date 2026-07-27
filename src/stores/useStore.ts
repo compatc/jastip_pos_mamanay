@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import { uuid } from "../lib/uuid";
-import type { Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, StockMovement } from "../types";
+import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductDiscount, StockMovement } from "../types";
 
 interface PosStore {
   user: { id: string; email: string; name: string; auth_source?: "supabase" | "offline" } | null;
@@ -30,6 +30,7 @@ interface PosStore {
   addOrder: (
     customerId: string,
     items: {
+      product_id: string;
       product_name: string;
       price: number;
       quantity: number;
@@ -46,10 +47,11 @@ interface PosStore {
     paidTotal: number;
     ongkir: number;
     notes: string;
+    accountId?: string;
   }) => Promise<string>;
 
   orderItems: OrderItem[];
-  loadOrderItems: (orderId: string) => Promise<void>;
+  loadOrderItems: (orderId: string) => Promise<OrderItem[]>;
   updateOrder: (orderId: string, params: {
     status: OrderStatus;
     paymentType: PaymentType;
@@ -113,6 +115,20 @@ interface PosStore {
     qtyAfter: number,
     unit: string
   ) => Promise<void>;
+
+  productDiscounts: ProductDiscount[];
+  loadProductDiscounts: (productId: string) => Promise<void>;
+  loadAllProductDiscounts: () => Promise<void>;
+  addProductDiscount: (productId: string, minQty: number, discountPrice: number) => Promise<void>;
+  deleteProductDiscount: (id: string, productId: string) => Promise<void>;
+
+  accounts: Account[];
+  loadAccounts: () => Promise<void>;
+  addAccount: (name: string, type: string, icon: string, accountNumber?: string) => Promise<void>;
+  deleteAccount: (id: string) => Promise<void>;
+  accountTransactions: AccountTransaction[];
+  loadAccountTransactions: (accountId: string) => Promise<void>;
+  createAccountTransaction: (accountId: string, orderId: string | null, orderType: string | null, contactName: string, amount: number, description: string, date: string) => Promise<void>;
 
   isOnline: boolean;
   setOnline: (val: boolean) => void;
@@ -195,6 +211,8 @@ export const useStore = create<PosStore>((set, get) => ({
         status: "new",
         total,
         paid_total: 0,
+        order_type: "penjualan",
+        payment_type: "tf",
         created_at: now,
         updated_at: now,
       });
@@ -207,6 +225,7 @@ export const useStore = create<PosStore>((set, get) => ({
         .insert({
           id: itemId,
           order_id: orderId,
+          product_id: item.product_id,
           product_name: item.product_name,
           price: item.price,
           quantity: item.quantity,
@@ -216,14 +235,39 @@ export const useStore = create<PosStore>((set, get) => ({
 
       const { data: product } = await supabase
         .from("products")
-        .select("id, stock")
-        .eq("name", item.product_name)
+        .select("id, stock, unit")
+        .eq("id", item.product_id)
         .single();
       if (product) {
+        const newStock = product.stock - item.quantity;
         await supabase
           .from("products")
-          .update({ stock: product.stock - item.quantity })
+          .update({ stock: newStock })
           .eq("id", product.id);
+
+        const maxInvoice = await supabase
+          .from("stock_movements")
+          .select("invoice_no")
+          .order("invoice_no", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
+
+        await supabase
+          .from("stock_movements")
+          .insert({
+            id: uuid(),
+            product_id: product.id,
+            order_id: orderId,
+            date: now.split("T")[0],
+            transaction_type: "Penjualan",
+            invoice_no: nextInvoice,
+            party_name: "",
+            qty: -item.quantity,
+            qty_after: newStock,
+            unit: product.unit || "SET",
+            created_at: now,
+          });
       }
     }
 
@@ -259,7 +303,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ allOrders });
   },
 
-  addStandaloneOrder: async ({ orderType, paymentType, contactName, items, paidTotal, ongkir, notes }) => {
+  addStandaloneOrder: async ({ orderType, paymentType, contactName, items, paidTotal, ongkir, notes, accountId }) => {
     const user = get().user;
     const orderId = uuid();
     const now = new Date().toISOString();
@@ -305,6 +349,7 @@ export const useStore = create<PosStore>((set, get) => ({
         payment_type: paymentType,
         ongkir: ongkir || 0,
         notes: notes || "",
+        account_id: accountId || null,
         created_at: now,
         updated_at: now,
       });
@@ -352,6 +397,7 @@ export const useStore = create<PosStore>((set, get) => ({
           .insert({
             id: uuid(),
             product_id: product.id,
+            order_id: orderId,
             date: now.split("T")[0],
             transaction_type: txType,
             invoice_no: nextInvoice,
@@ -365,6 +411,12 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
+    if (accountId && paidTotal > 0) {
+      const txAmount = orderType === "penjualan" ? paidTotal : -paidTotal;
+      const txDesc = `${orderType === "penjualan" ? "Penjualan" : "Pembelian"} - ${contactName}`;
+      await get().createAccountTransaction(accountId, orderId, orderType, contactName, txAmount, txDesc, now.split("T")[0]);
+    }
+
     await get().loadAllOrders();
     await get().loadProducts();
     return orderId;
@@ -372,12 +424,15 @@ export const useStore = create<PosStore>((set, get) => ({
 
   orderItems: [],
   loadOrderItems: async (orderId) => {
+    set({ orderItems: [] });
     const { data, error } = await supabase
       .from("order_items")
       .select("*")
       .eq("order_id", orderId);
-    if (error) { console.error("loadOrderItems:", error); return; }
-    set({ orderItems: (data || []) as OrderItem[] });
+    if (error) { console.error("loadOrderItems:", error); set({ orderItems: [] }); return []; }
+    const items = (data || []) as OrderItem[];
+    set({ orderItems: items });
+    return items;
   },
 
   updateOrder: async (orderId, { status, paymentType, contactName, items, paidTotal, ongkir, notes, orderType }) => {
@@ -392,16 +447,27 @@ export const useStore = create<PosStore>((set, get) => ({
 
     const { data: oldItems } = await supabase
       .from("order_items")
-      .select("product_name, quantity")
+      .select("product_id, product_name, quantity")
       .eq("order_id", orderId);
 
     if (oldItems && oldItems.length > 0) {
       for (const row of oldItems) {
-        const { data: product } = await supabase
-          .from("products")
-          .select("id, stock")
-          .eq("name", row.product_name)
-          .single();
+        let product = null;
+        if (row.product_id) {
+          const { data } = await supabase
+            .from("products")
+            .select("id, stock")
+            .eq("id", row.product_id)
+            .single();
+          product = data;
+        } else {
+          const { data } = await supabase
+            .from("products")
+            .select("id, stock")
+            .eq("name", row.product_name)
+            .single();
+          product = data;
+        }
         if (product) {
           const stockDelta = oldOrderType === "penjualan" ? row.quantity : -row.quantity;
           await supabase
@@ -468,6 +534,7 @@ export const useStore = create<PosStore>((set, get) => ({
         .insert({
           id: itemId,
           order_id: orderId,
+          product_id: item.product_id,
           product_name: item.product_name,
           price: item.price,
           quantity: item.quantity,
@@ -479,7 +546,7 @@ export const useStore = create<PosStore>((set, get) => ({
       const { data: product } = await supabase
         .from("products")
         .select("id, stock, unit")
-        .eq("name", item.product_name)
+        .eq("id", item.product_id)
         .single();
       if (product) {
         const stockDelta = orderType === "penjualan" ? -item.quantity : item.quantity;
@@ -503,6 +570,7 @@ export const useStore = create<PosStore>((set, get) => ({
           .insert({
             id: uuid(),
             product_id: product.id,
+            order_id: orderId,
             date: now.split("T")[0],
             transaction_type: txType,
             invoice_no: nextInvoice,
@@ -536,7 +604,7 @@ export const useStore = create<PosStore>((set, get) => ({
   updateItemQuantity: async (itemId, newQty, orderId) => {
     const { data: oldItem } = await supabase
       .from("order_items")
-      .select("product_name, quantity")
+      .select("product_id, product_name, quantity")
       .eq("id", itemId)
       .single();
 
@@ -552,19 +620,56 @@ export const useStore = create<PosStore>((set, get) => ({
         .eq("id", orderId)
         .single();
 
-      const { data: product } = await supabase
-        .from("products")
-        .select("id, stock")
-        .eq("name", oldItem.product_name)
-        .single();
+      let product = null;
+      if (oldItem.product_id) {
+        const { data } = await supabase
+          .from("products")
+          .select("id, stock, unit")
+          .eq("id", oldItem.product_id)
+          .single();
+        product = data;
+      } else {
+        const { data } = await supabase
+          .from("products")
+          .select("id, stock, unit")
+          .eq("name", oldItem.product_name)
+          .single();
+        product = data;
+      }
 
       if (product && newQty !== oldItem.quantity) {
         const diff = newQty - oldItem.quantity;
         const stockDelta = order?.order_type === "penjualan" ? -diff : diff;
+        const newStock = product.stock + stockDelta;
         await supabase
           .from("products")
-          .update({ stock: product.stock + stockDelta })
+          .update({ stock: newStock })
           .eq("id", product.id);
+
+        const now = new Date().toISOString();
+        const maxInvoice = await supabase
+          .from("stock_movements")
+          .select("invoice_no")
+          .order("invoice_no", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
+
+        await supabase
+          .from("stock_movements")
+          .insert({
+            id: uuid(),
+            product_id: product.id,
+            order_id: orderId,
+            date: now.split("T")[0],
+            transaction_type: "Penyesuaian Stok",
+            invoice_no: nextInvoice,
+            party_name: "",
+            qty: stockDelta,
+            qty_after: newStock,
+            unit: product.unit || "SET",
+            created_at: now,
+          });
       }
 
       const { data: allItems } = await supabase
@@ -591,26 +696,51 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   deleteOrder: async (orderId) => {
+    const { data: orderInfo } = await supabase
+      .from("orders")
+      .select("order_type, account_id, paid_total")
+      .eq("id", orderId)
+      .single();
+    const orderType = (orderInfo?.order_type as OrderType) || "penjualan";
+
     const { data: items } = await supabase
       .from("order_items")
-      .select("product_name, quantity")
+      .select("product_id, product_name, quantity")
       .eq("order_id", orderId);
 
     if (items && items.length > 0) {
       for (const row of items) {
-        const { data: product } = await supabase
-          .from("products")
-          .select("id, stock")
-          .eq("name", row.product_name)
-          .single();
+        let product = null;
+        if (row.product_id) {
+          const { data } = await supabase
+            .from("products")
+            .select("id, stock, unit")
+            .eq("id", row.product_id)
+            .single();
+          product = data;
+        } else {
+          const { data } = await supabase
+            .from("products")
+            .select("id, stock, unit")
+            .eq("name", row.product_name)
+            .single();
+          product = data;
+        }
         if (product) {
+          const stockDelta = orderType === "penjualan" ? row.quantity : -row.quantity;
+          const newStock = product.stock + stockDelta;
           await supabase
             .from("products")
-            .update({ stock: product.stock + row.quantity })
+            .update({ stock: newStock })
             .eq("id", product.id);
         }
       }
     }
+
+    await supabase
+      .from("stock_movements")
+      .delete()
+      .eq("order_id", orderId);
 
     const now = new Date().toISOString();
     await supabase
@@ -622,7 +752,31 @@ export const useStore = create<PosStore>((set, get) => ({
       .update({ status: "deleted" })
       .eq("order_id", orderId);
 
+    if (orderInfo?.account_id && orderInfo?.paid_total > 0) {
+      const { data: txs } = await supabase
+        .from("account_transactions")
+        .select("id, amount")
+        .eq("order_id", orderId);
+      if (txs && txs.length > 0) {
+        for (const tx of txs) {
+          await supabase.from("account_transactions").delete().eq("id", tx.id);
+          const { data: acc } = await supabase
+            .from("accounts")
+            .select("balance")
+            .eq("id", orderInfo.account_id)
+            .single();
+          if (acc) {
+            await supabase
+              .from("accounts")
+              .update({ balance: (acc.balance || 0) - tx.amount })
+              .eq("id", orderInfo.account_id);
+          }
+        }
+      }
+    }
+
     await get().loadProducts();
+    await get().loadAccounts();
   },
 
   products: [],
@@ -689,7 +843,34 @@ export const useStore = create<PosStore>((set, get) => ({
       .order("date", { ascending: true })
       .order("invoice_no", { ascending: true });
     if (error) { console.error("loadStockMovements:", error); return; }
-    set({ stockMovements: (data || []) as StockMovement[] });
+
+    const rows = (data || []) as StockMovement[];
+    const orderIds = [...new Set(rows.map((r) => r.order_id).filter(Boolean))];
+    let nameMap: Record<string, string> = {};
+    if (orderIds.length > 0) {
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, customer_id")
+        .in("id", orderIds);
+      if (orders && orders.length > 0) {
+        const custIds = [...new Set(orders.map((o: any) => o.customer_id).filter(Boolean))];
+        if (custIds.length > 0) {
+          const { data: custs } = await supabase
+            .from("customers")
+            .select("id, name")
+            .in("id", custIds);
+          const custMap: Record<string, string> = {};
+          (custs || []).forEach((c: any) => { custMap[c.id] = c.name; });
+          orders.forEach((o: any) => { nameMap[o.id] = custMap[o.customer_id] || ""; });
+        }
+      }
+    }
+
+    const mapped = rows.map((row) => ({
+      ...row,
+      party_name: row.party_name || nameMap[row.order_id] || "",
+    }));
+    set({ stockMovements: mapped });
   },
 
   addStockMovement: async (productId, date, transactionType, invoiceNo, partyName, qty, qtyAfter, unit) => {
@@ -711,6 +892,119 @@ export const useStore = create<PosStore>((set, get) => ({
       });
     if (error) throw error;
     await get().loadStockMovements(productId);
+  },
+
+  productDiscounts: [],
+  loadProductDiscounts: async (productId) => {
+    const { data, error } = await supabase
+      .from("product_discounts")
+      .select("*")
+      .eq("product_id", productId)
+      .order("min_qty", { ascending: true });
+    if (error) { console.error("loadProductDiscounts:", error); return; }
+    set({ productDiscounts: (data || []) as ProductDiscount[] });
+  },
+
+  loadAllProductDiscounts: async () => {
+    const { data, error } = await supabase
+      .from("product_discounts")
+      .select("*")
+      .order("product_id")
+      .order("min_qty", { ascending: true });
+    if (error) { console.error("loadAllProductDiscounts:", error); return; }
+    set({ productDiscounts: (data || []) as ProductDiscount[] });
+  },
+
+  addProductDiscount: async (productId, minQty, discountPrice) => {
+    const { error } = await supabase
+      .from("product_discounts")
+      .insert({
+        id: uuid(),
+        product_id: productId,
+        min_qty: minQty,
+        discount_price: discountPrice,
+        created_at: new Date().toISOString(),
+      });
+    if (error) throw error;
+    await get().loadAllProductDiscounts();
+  },
+
+  deleteProductDiscount: async (id, productId) => {
+    const { error } = await supabase
+      .from("product_discounts")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+    await get().loadAllProductDiscounts();
+  },
+
+  accounts: [],
+  loadAccounts: async () => {
+    const { data, error } = await supabase
+      .from("accounts")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (error) { console.error("loadAccounts:", error); return; }
+    set({ accounts: (data || []) as Account[] });
+  },
+
+  addAccount: async (name, type, icon, accountNumber) => {
+    const id = uuid();
+    const { error } = await supabase
+      .from("accounts")
+      .insert({ id, name, type, balance: 0, icon, account_number: accountNumber || "", created_at: new Date().toISOString() });
+    if (error) throw error;
+    await get().loadAccounts();
+  },
+
+  deleteAccount: async (id) => {
+    await supabase.from("account_transactions").delete().eq("account_id", id);
+    const { error } = await supabase.from("accounts").delete().eq("id", id);
+    if (error) throw error;
+    await get().loadAccounts();
+  },
+
+  accountTransactions: [],
+  loadAccountTransactions: async (accountId) => {
+    const { data, error } = await supabase
+      .from("account_transactions")
+      .select("*")
+      .eq("account_id", accountId)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) { console.error("loadAccountTransactions:", error); return; }
+    set({ accountTransactions: (data || []) as AccountTransaction[] });
+  },
+
+  createAccountTransaction: async (accountId, orderId, orderType, contactName, amount, description, date) => {
+    const id = uuid();
+    const { error: txErr } = await supabase
+      .from("account_transactions")
+      .insert({
+        id,
+        account_id: accountId,
+        order_id: orderId,
+        order_type: orderType,
+        contact_name: contactName,
+        amount,
+        description,
+        date,
+        created_at: new Date().toISOString(),
+      });
+    if (txErr) { console.error("createAccountTransaction:", txErr); return; }
+
+    const { data: acc } = await supabase
+      .from("accounts")
+      .select("balance")
+      .eq("id", accountId)
+      .single();
+    if (acc) {
+      await supabase
+        .from("accounts")
+        .update({ balance: (acc.balance || 0) + amount })
+        .eq("id", accountId);
+    }
+    await get().loadAccounts();
   },
 
   isOnline: navigator.onLine,

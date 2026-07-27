@@ -233,7 +233,9 @@ export default function CustomerOrders() {
                               </span>
                             )}
                             <span className="font-bold text-pink-600 text-base">
-                              {shortId(order.id)}
+                              {items.length > 0
+                                ? items.map((i) => i.product_name).join(", ")
+                                : shortId(order.id)}
                             </span>
                             <span className="text-gray-300 text-sm">·</span>
                             <span className="text-gray-500 text-sm">
@@ -348,7 +350,9 @@ export default function CustomerOrders() {
                     </span>
                   )}
                   <span style={{ display: "inline-block", fontWeight: "bold", fontSize: "14px", color: "#ec4899", lineHeight: "18px", verticalAlign: "middle" }}>
-                    {shortId(order.id)}
+                    {items.length > 0
+                      ? items.map((i) => i.product_name).join(", ")
+                      : shortId(order.id)}
                   </span>
                   <span style={{ display: "inline-block", fontSize: "13px", color: "#9ca3af", lineHeight: "18px", verticalAlign: "middle", margin: "0 4px" }}>·</span>
                   <span style={{ display: "inline-block", fontSize: "13px", color: "#6b7280", lineHeight: "18px", verticalAlign: "middle" }}>

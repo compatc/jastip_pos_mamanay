@@ -13,6 +13,9 @@ import NewOrderForm from "./pages/NewOrderForm";
 import EditOrderForm from "./pages/EditOrderForm";
 import Inventory from "./pages/Inventory";
 import SalesDashboard from "./pages/SalesDashboard";
+import UploadOrders from "./pages/UploadOrders";
+import Accounts from "./pages/Accounts";
+import AccountDetail from "./pages/AccountDetail";
 import AppLayout from "./components/AppLayout";
 import { Component, useEffect } from "react";
 import type { ErrorInfo, ReactNode } from "react";
@@ -169,11 +172,41 @@ export default function App() {
             }
           />
           <Route
+            path="/orders/upload"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <UploadOrders />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/orders/:orderId/edit"
             element={
               <ProtectedRoute>
                 <AppLayout>
                   <EditOrderForm />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounts"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Accounts />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounts/:id"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AccountDetail />
                 </AppLayout>
               </ProtectedRoute>
             }
