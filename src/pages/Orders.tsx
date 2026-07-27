@@ -57,7 +57,7 @@ export default function Orders() {
   useEffect(() => {
     if (allOrders.length === 0) return;
     async function loadItems() {
-      const ids = filtered.map((o) => o.id);
+      const ids = allOrders.map((o) => o.id);
       if (ids.length === 0) { setItemsByOrder({}); return; }
       const { data } = await supabase
         .from("order_items")
@@ -73,7 +73,7 @@ export default function Orders() {
       setItemsByOrder(map);
     }
     loadItems();
-  }, [allOrders, search, tab]);
+  }, [allOrders]);
 
   const filtered = allOrders.filter((o) => {
     const matchTab =
@@ -84,10 +84,12 @@ export default function Orders() {
         o.status !== "delivered" &&
         o.status !== "completed") ||
       (tab === "belum-lunas" && !isOrderLunas(o));
+    const q = search.toLowerCase();
     const matchSearch =
       !search ||
-      o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-      o.id.toLowerCase().includes(search.toLowerCase());
+      o.customer_name?.toLowerCase().includes(q) ||
+      o.id.toLowerCase().includes(q) ||
+      (itemsByOrder[o.id] || []).some((i) => i.product_name.toLowerCase().includes(q));
     return matchTab && matchSearch;
   });
 
