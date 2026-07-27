@@ -113,7 +113,7 @@ export default function CustomerOrders() {
   const customer = customers.find((c) => c.id === customerId);
 
   function getFilteredOrders(filter: "all" | "uncompleted"): OrderWithItems[] {
-    const list = filter === "all" ? orders : orders.filter((o) => o.status !== "completed");
+    const list = filter === "all" ? orders : orders.filter((o) => o.paid_total < o.total && o.total > 0);
     return list.map((order) => ({ order, items: itemsByOrder[order.id] || [] }));
   }
 
@@ -443,7 +443,7 @@ export default function CustomerOrders() {
               </button>
               <button onClick={() => exportAs("uncompleted")} className="w-full flex items-center gap-3 px-4 py-3 bg-pink-50 hover:bg-pink-100 rounded-xl transition-colors text-left">
                 <FileImage className="w-5 h-5 text-pink-400 shrink-0" />
-                <span className="text-sm font-medium text-gray-700">Belum Selesai</span>
+                <span className="text-sm font-medium text-gray-700">Belum Lunas</span>
               </button>
             </div>
             <button onClick={() => setExportMenuOpen(false)} className="w-full py-3 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors">
