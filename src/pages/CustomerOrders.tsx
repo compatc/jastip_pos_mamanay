@@ -195,6 +195,26 @@ export default function CustomerOrders() {
           </div>
         </div>
 
+        {(() => {
+          const belumLunas = orders.filter((o) => o.paid_total < o.total && o.total > 0);
+          const grandTotal = belumLunas.reduce((sum, o) => sum + o.total, 0);
+          const totalPaid = belumLunas.reduce((sum, o) => sum + (o.paid_total || 0), 0);
+          const sisa = grandTotal - totalPaid;
+          if (belumLunas.length === 0) return null;
+          return (
+            <div className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-amber-500 uppercase tracking-wide">Belum Lunas</span>
+                <span className="text-xs font-semibold text-amber-500">{belumLunas.length} transaksi</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-lg font-bold text-amber-700">{rupiah(sisa)}</span>
+                <span className="text-xs text-amber-400">sisa tagihan</span>
+              </div>
+            </div>
+          );
+        })()}
+
         {orders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-5">
