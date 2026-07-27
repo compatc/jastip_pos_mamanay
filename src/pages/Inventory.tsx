@@ -756,9 +756,13 @@ export default function Inventory() {
                   const minQty = parseInt(discountMinQty);
                   const price = parseFloat(discountPrice);
                   if (!minQty || minQty <= 0 || !price || price < 0 || !discountProductId) return;
-                  await addProductDiscount(discountProductId, minQty, price);
-                  setDiscountMinQty("");
-                  setDiscountPrice("");
+                  try {
+                    await addProductDiscount(discountProductId, minQty, price);
+                    setDiscountMinQty("");
+                    setDiscountPrice("");
+                  } catch (err: any) {
+                    alert("Gagal tambah diskon: " + (err.message || err));
+                  }
                 }}
                 disabled={!discountMinQty || !discountPrice}
                 className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-amber-200/40"

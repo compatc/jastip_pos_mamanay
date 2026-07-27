@@ -297,6 +297,12 @@ export default function CustomerOrders() {
                                       <span>{rupiah(ongkir)}</span>
                                     </div>
                                   )}
+                                  {(order.diskon || 0) > 0 && (
+                                    <div className="flex justify-between text-gray-400 mt-1 text-base">
+                                      <span>Diskon</span>
+                                      <span>-{rupiah(order.diskon)}</span>
+                                    </div>
+                                  )}
                                 </>
                               );
                             })()}
@@ -385,6 +391,11 @@ export default function CustomerOrders() {
                 {ongkir > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#9ca3af", marginBottom: "2px" }}>
                     <span>Ongkir</span><span>{rupiah(ongkir)}</span>
+                  </div>
+                )}
+                {(order.diskon || 0) > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#9ca3af", marginBottom: "2px" }}>
+                    <span>Diskon</span><span>-{rupiah(order.diskon)}</span>
                   </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: "bold", color: "#1f2937", borderTop: "1px solid #fce7f3", paddingTop: "8px", marginTop: "8px" }}>

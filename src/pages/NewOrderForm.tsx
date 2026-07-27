@@ -11,6 +11,7 @@ import {
   TrendingUp,
   TrendingDown,
   Truck,
+  Percent,
 } from "lucide-react";
 
 interface OrderItemInput {
@@ -70,6 +71,7 @@ export default function NewOrderForm() {
   const [paymentType, setPaymentType] = useState<PaymentType>("tf");
   const [paidTotal, setPaidTotal] = useState("0");
   const [ongkir, setOngkir] = useState("");
+  const [diskon, setDiskon] = useState("");
   const [notes, setNotes] = useState("");
   const [accountId, setAccountId] = useState("");
   const [contactSearch, setContactSearch] = useState((location.state as any)?.contactName || "");
@@ -155,7 +157,8 @@ export default function NewOrderForm() {
     0
   );
   const ongkirVal = parseFloat(ongkir) || 0;
-  const subtotalAfter = subtotalBeforeDiscount - totalDiscount + ongkirVal;
+  const diskonVal = parseFloat(diskon) || 0;
+  const subtotalAfter = subtotalBeforeDiscount - totalDiscount - diskonVal + ongkirVal;
   const paid = parseFloat(paidTotal) || 0;
   const total = subtotalAfter - paid;
 
@@ -204,6 +207,7 @@ export default function NewOrderForm() {
       items: validItems,
       paidTotal: paid,
       ongkir: ongkirVal,
+      diskon: diskonVal,
       notes: notes.trim(),
       accountId: accountId || undefined,
     });
@@ -496,6 +500,22 @@ export default function NewOrderForm() {
           </div>
 
           <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
+            <label className="flex items-center gap-2 text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
+              <Percent className="w-4 h-4" />
+              Diskon
+            </label>
+            <input
+              type="number"
+              value={diskon}
+              onChange={(e) => setDiskon(e.target.value)}
+              onFocus={() => { if (diskon === "0") setDiskon(""); }}
+              placeholder="0"
+              min="0"
+              className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+            />
+          </div>
+
+          <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
             <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
               Notes
             </label>
@@ -595,6 +615,14 @@ export default function NewOrderForm() {
                 <span className="text-base text-gray-400 font-medium">Ongkir</span>
                 <span className="text-base text-gray-800 font-semibold">
                   Rp {formatRp(ongkirVal)}
+                </span>
+              </div>
+            )}
+            {diskonVal > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-base text-gray-400 font-medium">Diskon Total</span>
+                <span className="text-base text-red-400 font-semibold">
+                  - Rp {formatRp(diskonVal)}
                 </span>
               </div>
             )}

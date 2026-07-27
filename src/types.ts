@@ -22,6 +22,7 @@ export interface Order {
   status: OrderStatus;
   total: number;
   paid_total: number;
+  diskon: number;
   order_type: OrderType;
   payment_type: PaymentType;
   ongkir: number;

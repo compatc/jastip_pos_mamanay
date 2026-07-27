@@ -46,6 +46,7 @@ interface PosStore {
     items: { product_id: string; product_name: string; price: number; quantity: number; discount: number }[];
     paidTotal: number;
     ongkir: number;
+    diskon: number;
     notes: string;
     accountId?: string;
   }) => Promise<string>;
@@ -59,6 +60,7 @@ interface PosStore {
     items: { product_id: string; product_name: string; price: number; quantity: number; discount: number }[];
     paidTotal: number;
     ongkir: number;
+    diskon: number;
     notes: string;
     orderType: OrderType;
     accountId?: string | null;
@@ -305,12 +307,12 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ allOrders });
   },
 
-  addStandaloneOrder: async ({ orderType, paymentType, contactName, items, paidTotal, ongkir, notes, accountId }) => {
+  addStandaloneOrder: async ({ orderType, paymentType, contactName, items, paidTotal, ongkir, diskon, notes, accountId }) => {
     const user = get().user;
     const orderId = uuid();
     const now = new Date().toISOString();
     const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity - (i.discount || 0), 0);
-    const orderTotal = subtotal + (ongkir || 0);
+    const orderTotal = subtotal - (diskon || 0) + (ongkir || 0);
     const initialStatus = orderTotal <= (paidTotal || 0) ? "paid" : "new";
 
     let customerId = "";
@@ -347,6 +349,7 @@ export const useStore = create<PosStore>((set, get) => ({
         status: initialStatus,
         total: orderTotal,
         paid_total: paidTotal,
+        diskon: diskon || 0,
         order_type: orderType,
         payment_type: paymentType,
         ongkir: ongkir || 0,
@@ -437,7 +440,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return items;
   },
 
-  updateOrder: async (orderId, { status, paymentType, contactName, items, paidTotal, ongkir, notes, orderType, accountId }) => {
+  updateOrder: async (orderId, { status, paymentType, contactName, items, paidTotal, ongkir, diskon, notes, orderType, accountId }) => {
     const now = new Date().toISOString();
 
     const { data: existingOrder } = await supabase
@@ -511,7 +514,7 @@ export const useStore = create<PosStore>((set, get) => ({
     }
 
     const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity - (i.discount || 0), 0);
-    const orderTotal = subtotal + (ongkir || 0);
+    const orderTotal = subtotal - (diskon || 0) + (ongkir || 0);
 
     const { error: updateError } = await supabase
       .from("orders")
@@ -520,6 +523,7 @@ export const useStore = create<PosStore>((set, get) => ({
         status,
         total: orderTotal,
         paid_total: paidTotal,
+        diskon: diskon || 0,
         order_type: orderType,
         payment_type: paymentType,
         ongkir: ongkir || 0,
