@@ -510,6 +510,7 @@ export default function UploadOrders() {
                         <th className="py-2 px-3 text-right text-gray-400 font-semibold">Harga</th>
                         <th className="py-2 px-3 text-right text-gray-400 font-semibold">Qty</th>
                         <th className="py-2 px-3 text-left text-gray-400 font-semibold">Tipe</th>
+                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Catatan</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -526,6 +527,7 @@ export default function UploadOrders() {
                               {row.tipe_order === "penjualan" ? "Jual" : "Beli"}
                             </span>
                           </td>
+                          <td className="py-2 px-3 text-gray-500 text-sm">{row.catatan || "-"}</td>
                         </tr>
                       ))}
                     </tbody>
