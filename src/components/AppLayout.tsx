@@ -24,8 +24,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
       try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3000);
-        await fetch("https://httpbin.org/get", {
+        const timer = setTimeout(() => ctrl.abort(), 5000);
+        await fetch("https://tmnykmpdqdavspmirspw.supabase.co/rest/v1/?select=1", {
           method: "HEAD",
           signal: ctrl.signal,
         });
