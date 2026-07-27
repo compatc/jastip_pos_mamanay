@@ -49,6 +49,22 @@ export default function NewOrderForm() {
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
 
+  const [orderType, setOrderType] = useState<OrderType>("penjualan");
+  const [contactName, setContactName] = useState((location.state as any)?.contactName || "");
+  const [items, setItems] = useState<OrderItemInput[]>([{ ...emptyItem }]);
+  const [paymentType, setPaymentType] = useState<PaymentType>("tf");
+  const [paidTotal, setPaidTotal] = useState("0");
+  const [ongkir, setOngkir] = useState("");
+  const [diskon, setDiskon] = useState("");
+  const [notes, setNotes] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [contactSearch, setContactSearch] = useState((location.state as any)?.contactName || "");
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
+  const contactRef = useRef<HTMLDivElement>(null);
+  const [productSearchMap, setProductSearchMap] = useState<Record<number, string>>({});
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     loadProducts();
     loadCustomers();
@@ -68,22 +84,6 @@ export default function NewOrderForm() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const [orderType, setOrderType] = useState<OrderType>("penjualan");
-  const [contactName, setContactName] = useState((location.state as any)?.contactName || "");
-  const [items, setItems] = useState<OrderItemInput[]>([{ ...emptyItem }]);
-  const [paymentType, setPaymentType] = useState<PaymentType>("tf");
-  const [paidTotal, setPaidTotal] = useState("0");
-  const [ongkir, setOngkir] = useState("");
-  const [diskon, setDiskon] = useState("");
-  const [notes, setNotes] = useState("");
-  const [accountId, setAccountId] = useState("");
-  const [contactSearch, setContactSearch] = useState((location.state as any)?.contactName || "");
-  const [showContactDropdown, setShowContactDropdown] = useState(false);
-  const contactRef = useRef<HTMLDivElement>(null);
-  const [productSearchMap, setProductSearchMap] = useState<Record<number, string>>({});
-  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
-  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (paymentType === "tf" && !accountId && accounts.length > 0) {
