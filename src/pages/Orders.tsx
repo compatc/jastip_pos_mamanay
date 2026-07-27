@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
+import { supabase } from "../lib/supabase";
 import type { PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
@@ -19,6 +20,7 @@ const PAYMENT_LABELS: Record<PaymentType, string> = {
   qris: "QRIS",
   split: "Split",
   shopee: "Shopee",
+  cash: "Cash",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -34,6 +36,7 @@ export default function Orders() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabFilter>("all");
+  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number }[]>>({});
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -50,6 +53,27 @@ export default function Orders() {
   useEffect(() => {
     loadAllOrders();
   }, []);
+
+  useEffect(() => {
+    if (allOrders.length === 0) return;
+    async function loadItems() {
+      const ids = filtered.map((o) => o.id);
+      if (ids.length === 0) { setItemsByOrder({}); return; }
+      const { data } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, quantity")
+        .in("order_id", ids);
+      const map: Record<string, { product_name: string; quantity: number }[]> = {};
+      if (data) {
+        for (const row of data) {
+          if (!map[row.order_id]) map[row.order_id] = [];
+          map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity });
+        }
+      }
+      setItemsByOrder(map);
+    }
+    loadItems();
+  }, [allOrders, search, tab]);
 
   const filtered = allOrders.filter((o) => {
     const matchTab =
@@ -227,6 +251,11 @@ export default function Orders() {
                     <p className="text-gray-800 font-semibold text-base truncate">
                       {order.customer_name || "Tanpa kontak"}
                     </p>
+                    {itemsByOrder[order.id] && itemsByOrder[order.id].length > 0 && (
+                      <p className="text-gray-400 text-sm truncate mt-0.5">
+                        {itemsByOrder[order.id].map((i) => `${i.product_name}×${i.quantity}`).join(", ")}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-gray-400 text-base">
                         {new Date(order.created_at).toLocaleDateString("id-ID", {
