@@ -12,6 +12,7 @@ import {
   TrendingDown,
   Truck,
   Percent,
+  Search,
 } from "lucide-react";
 
 interface OrderItemInput {
@@ -60,6 +61,9 @@ export default function NewOrderForm() {
       if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
         setShowContactDropdown(false);
       }
+      if (productDropdownRef.current && !productDropdownRef.current.contains(e.target as Node)) {
+        setShowProductDropdown(null);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -84,6 +88,9 @@ export default function NewOrderForm() {
   const [contactSearch, setContactSearch] = useState((location.state as any)?.contactName || "");
   const [showContactDropdown, setShowContactDropdown] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
+  const [productSearchMap, setProductSearchMap] = useState<Record<number, string>>({});
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   function getDiscountPrice(productId: string, qty: number): number | null {
     const discounts = productDiscounts
@@ -368,21 +375,49 @@ export default function NewOrderForm() {
                       </div>
 
                       {products.length > 0 && (
-                        <select
-                          value={item.product_id}
-                          onChange={(e) => {
-                            if (e.target.value)
-                              selectProduct(index, e.target.value);
-                          }}
-                          className="w-full px-4 py-3 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-700 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 appearance-none mb-2"
-                        >
-                          <option value="">Pilih dari inventaris...</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative mb-2" ref={productDropdownRef}>
+                          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={productSearchMap[index] ?? item.product_name}
+                            onChange={(e) => {
+                              setProductSearchMap({ ...productSearchMap, [index]: e.target.value });
+                              setShowProductDropdown(index);
+                            }}
+                            onFocus={() => setShowProductDropdown(index)}
+                            placeholder="Cari produk..."
+                            className="w-full pl-10 pr-4 py-3 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-700 text-base focus:outline-none focus:ring-2 focus:ring-pink-200"
+                          />
+                          {showProductDropdown === index && (
+                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-pink-100 rounded-2xl shadow-lg max-h-48 overflow-y-auto">
+                              {products
+                                .filter((p) => {
+                                  const search = (productSearchMap[index] ?? "").toLowerCase();
+                                  return !search || p.name.toLowerCase().includes(search);
+                                })
+                                .map((p) => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => {
+                                      selectProduct(index, p.id);
+                                      setProductSearchMap({ ...productSearchMap, [index]: p.name });
+                                      setShowProductDropdown(null);
+                                    }}
+                                    className="w-full text-left px-4 py-3 hover:bg-pink-50 text-sm text-gray-700 transition-all first:rounded-t-2xl last:rounded-b-2xl"
+                                  >
+                                    {p.name}
+                                  </button>
+                                ))}
+                              {products.filter((p) => {
+                                const search = (productSearchMap[index] ?? "").toLowerCase();
+                                return !search || p.name.toLowerCase().includes(search);
+                              }).length === 0 && (
+                                <p className="px-4 py-3 text-sm text-gray-400 text-center">Tidak ditemukan</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {product && (

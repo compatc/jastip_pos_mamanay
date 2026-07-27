@@ -13,6 +13,7 @@ import {
   TrendingDown,
   Truck,
   Percent,
+  Search,
 } from "lucide-react";
 
 interface OrderItemInput {
@@ -85,6 +86,9 @@ export default function EditOrderForm() {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmOnConfirm, setConfirmOnConfirm] = useState<(() => void) | null>(null);
+  const [productSearchMap, setProductSearchMap] = useState<Record<number, string>>({});
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   function showConfirm(title: string, message: string, onConfirm: () => void) {
     setConfirmTitle(title);
@@ -158,6 +162,9 @@ export default function EditOrderForm() {
     function handleClickOutside(e: MouseEvent) {
       if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
         setShowContactDropdown(false);
+      }
+      if (productDropdownRef.current && !productDropdownRef.current.contains(e.target as Node)) {
+        setShowProductDropdown(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -504,20 +511,49 @@ export default function EditOrderForm() {
                       </div>
 
                       {products.length > 0 && (
-                        <select
-                          value={item.product_id}
-                          onChange={(e) => {
-                            if (e.target.value) selectProduct(index, e.target.value);
-                          }}
-                          className="w-full px-4 py-3 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-700 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 appearance-none mb-2"
-                        >
-                          <option value="">Pilih dari inventaris...</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative mb-2" ref={productDropdownRef}>
+                          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={productSearchMap[index] ?? item.product_name}
+                            onChange={(e) => {
+                              setProductSearchMap({ ...productSearchMap, [index]: e.target.value });
+                              setShowProductDropdown(index);
+                            }}
+                            onFocus={() => setShowProductDropdown(index)}
+                            placeholder="Cari produk..."
+                            className="w-full pl-10 pr-4 py-3 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-700 text-base focus:outline-none focus:ring-2 focus:ring-pink-200"
+                          />
+                          {showProductDropdown === index && (
+                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-pink-100 rounded-2xl shadow-lg max-h-48 overflow-y-auto">
+                              {products
+                                .filter((p) => {
+                                  const search = (productSearchMap[index] ?? "").toLowerCase();
+                                  return !search || p.name.toLowerCase().includes(search);
+                                })
+                                .map((p) => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => {
+                                      selectProduct(index, p.id);
+                                      setProductSearchMap({ ...productSearchMap, [index]: p.name });
+                                      setShowProductDropdown(null);
+                                    }}
+                                    className="w-full text-left px-4 py-3 hover:bg-pink-50 text-sm text-gray-700 transition-all first:rounded-t-2xl last:rounded-b-2xl"
+                                  >
+                                    {p.name}
+                                  </button>
+                                ))}
+                              {products.filter((p) => {
+                                const search = (productSearchMap[index] ?? "").toLowerCase();
+                                return !search || p.name.toLowerCase().includes(search);
+                              }).length === 0 && (
+                                <p className="px-4 py-3 text-sm text-gray-400 text-center">Tidak ditemukan</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {product && (
@@ -710,6 +746,41 @@ export default function EditOrderForm() {
               ))}
             </div>
           </div>
+
+          {accounts.length > 0 && (
+            <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
+              <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
+                Akun Penerima
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAccountId(null)}
+                  className={`px-4 py-3 rounded-2xl text-sm font-semibold transition-all ${
+                    !accountId
+                      ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
+                      : "bg-pink-50 text-gray-400 border border-pink-100"
+                  }`}
+                >
+                  Tidak ada
+                </button>
+                {accounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setAccountId(a.id)}
+                    className={`flex-1 px-3 py-3 rounded-2xl text-sm font-semibold transition-all ${
+                      accountId === a.id
+                        ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
+                        : "bg-pink-50 text-gray-400 border border-pink-100"
+                    }`}
+                  >
+                    {a.icon} {a.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 space-y-3 shadow-sm shadow-pink-50">
             <div className="flex items-center justify-between">
