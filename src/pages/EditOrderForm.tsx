@@ -122,6 +122,7 @@ export default function EditOrderForm() {
     setDiskon(order.diskon > 0 ? order.diskon.toString() : "");
     setNotes(order.notes || "");
     setStatus(order.status);
+    setAccountId(order.account_id || null);
 
     if (order.customer_name) {
       setContactName(order.customer_name);
@@ -162,6 +163,13 @@ export default function EditOrderForm() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (paymentType === "tf" && !accountId && accounts.length > 0) {
+      const bankAcc = accounts.find((a) => a.name.toLowerCase().includes("bca")) || accounts.find((a) => a.type === "bank");
+      if (bankAcc) setAccountId(bankAcc.id);
+    }
+  }, [paymentType, accounts]);
 
   function getDiscountPrice(productId: string, qty: number): number | null {
     const discounts = productDiscounts

@@ -24,6 +24,7 @@ interface PosStore {
     address: string,
     category: CustomerCategory
   ) => Promise<void>;
+  deleteCustomer: (id: string) => Promise<void>;
 
   orders: Order[];
   loadOrders: (customerId: string) => Promise<void>;
@@ -184,6 +185,12 @@ export const useStore = create<PosStore>((set, get) => ({
       .from("customers")
       .update({ name, phone, address, category })
       .eq("id", id);
+    if (error) throw error;
+    await get().loadCustomers();
+  },
+
+  deleteCustomer: async (id) => {
+    const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) throw error;
     await get().loadCustomers();
   },

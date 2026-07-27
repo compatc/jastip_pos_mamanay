@@ -65,6 +65,13 @@ export default function NewOrderForm() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (paymentType === "tf" && !accountId && accounts.length > 0) {
+      const bankAcc = accounts.find((a) => a.name.toLowerCase().includes("bca")) || accounts.find((a) => a.type === "bank");
+      if (bankAcc) setAccountId(bankAcc.id);
+    }
+  }, [paymentType, accounts]);
+
   const [orderType, setOrderType] = useState<OrderType>("penjualan");
   const [contactName, setContactName] = useState((location.state as any)?.contactName || "");
   const [items, setItems] = useState<OrderItemInput[]>([{ ...emptyItem }]);

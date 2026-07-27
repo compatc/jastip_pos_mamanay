@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Truck,
   Pencil,
+  Trash2,
 } from "lucide-react";
 
 type TabFilter = "all" | "pelanggan" | "supplier";
@@ -19,6 +20,7 @@ export default function Dashboard() {
     loadCustomers,
     addCustomer,
     updateCustomer,
+    deleteCustomer,
   } = useStore();
   const navigate = useNavigate();
   const [showAdd, setShowAdd] = useState(false);
@@ -35,6 +37,7 @@ export default function Dashboard() {
   const [editAddress, setEditAddress] = useState("");
   const [editCategory, setEditCategory] =
     useState<CustomerCategory>("pelanggan");
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     loadCustomers();
@@ -225,6 +228,15 @@ export default function Dashboard() {
                     <Pencil className="w-5 h-5 text-gray-400" />
                   </button>
                   <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirm(customer.id);
+                    }}
+                    className="p-3 hover:bg-red-50 rounded-xl transition-all active:scale-95"
+                  >
+                    <Trash2 className="w-5 h-5 text-red-400" />
+                  </button>
+                  <button
                     onClick={() => navigate(`/customer/${customer.id}`)}
                     className="p-3 hover:bg-pink-50 rounded-xl transition-all active:scale-95"
                   >
@@ -394,6 +406,34 @@ export default function Dashboard() {
                   Simpan
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+          <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Hapus Pelanggan?</h3>
+            <p className="text-sm text-gray-400 mb-5">
+              Data pelanggan <span className="font-semibold text-gray-600">{customers.find((c) => c.id === deleteConfirm)?.name}</span> akan dihapus.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-gray-400 bg-gray-50 hover:bg-gray-100 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  await deleteCustomer(deleteConfirm);
+                  setDeleteConfirm(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-all"
+              >
+                Hapus
+              </button>
             </div>
           </div>
         </div>
