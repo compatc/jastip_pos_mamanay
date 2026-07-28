@@ -356,11 +356,11 @@ export default function CustomerOrders() {
           left: 0,
         }}
       >
-        <div style={{ fontFamily: "sans-serif", padding: "4px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px", color: "#1f2937" }}>
+        <div style={{ fontFamily: "sans-serif" }}>
+          <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "6px", color: "#1f2937" }}>
             {customer?.name || "Pelanggan"}
           </h2>
-          <p style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "16px" }}>
+          <p style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "16px", whiteSpace: "nowrap" }}>
             {customer?.phone || ""} · {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
           </p>
           {getFilteredOrders(exportFilter).length === 0 && (
