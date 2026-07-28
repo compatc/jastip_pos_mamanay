@@ -113,28 +113,33 @@ export default function Orders() {
     return matchTab && matchSearch && matchProduct;
   });
 
-  const baseFiltered = allOrders.filter((o) => {
-    const matchProduct =
-      !productFilter ||
-      (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
-    return matchProduct;
-  });
+  function countTab(tabFilter: string): number {
+    return allOrders.filter((o) => {
+      const matchTab =
+        tabFilter === "all" ||
+        o.order_type === tabFilter ||
+        (tabFilter === "belum-dikirim" &&
+          o.status !== "shipped" &&
+          o.status !== "delivered" &&
+          o.status !== "completed") ||
+        (tabFilter === "belum-lunas" && !isOrderLunas(o));
+      const q = search.toLowerCase();
+      const matchSearch =
+        !search ||
+        o.customer_name?.toLowerCase().includes(q) ||
+        o.id.toLowerCase().includes(q) ||
+        (itemsByOrder[o.id] || []).some((i) => i.product_name.toLowerCase().includes(q));
+      const matchProduct =
+        !productFilter ||
+        (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
+      return matchTab && matchSearch && matchProduct;
+    }).length;
+  }
 
-  const countPenjualan = baseFiltered.filter(
-    (o) => o.order_type === "penjualan"
-  ).length;
-  const countPembelian = baseFiltered.filter(
-    (o) => o.order_type === "pembelian"
-  ).length;
-  const countBelumDikirim = baseFiltered.filter(
-    (o) =>
-      o.status !== "shipped" &&
-      o.status !== "delivered" &&
-      o.status !== "completed"
-  ).length;
-  const countBelumLunas = baseFiltered.filter(
-    (o) => !isOrderLunas(o)
-  ).length;
+  const countPenjualan = countTab("penjualan");
+  const countPembelian = countTab("pembelian");
+  const countBelumDikirim = countTab("belum-dikirim");
+  const countBelumLunas = countTab("belum-lunas");
 
   function getOrderStatusColor(order: typeof allOrders[0]): string {
     const colors: Record<string, string> = {
@@ -230,7 +235,7 @@ export default function Orders() {
                 : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
             }`}
           >
-            Semua ({baseFiltered.length})
+            Semua ({countTab("all")})
           </button>
           <button
             onClick={() => setTab("penjualan")}
