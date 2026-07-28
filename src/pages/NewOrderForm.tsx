@@ -458,26 +458,27 @@ export default function NewOrderForm() {
                             <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
                               Harga
                             </label>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400 text-sm">Rp</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={item.price}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, "");
+                                  const updated = [...items];
+                                  updated[index] = { ...updated[index], price: val };
+                                  setItems(updated);
+                                }}
+                                placeholder={(orderType === "penjualan" ? product.sell_price : product.cost_price).toString()}
+                                className="flex-1 px-3 py-2.5 bg-pink-50/50 border border-pink-100 rounded-xl text-gray-800 text-base text-center focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                              />
+                            </div>
                             {(() => {
-                              const qty = parseInt(item.quantity) || 0;
-                              const discPrice = orderType === "penjualan" ? getDiscountPrice(item.product_id, qty) : null;
-                              return (
-                                <div className="text-center">
-                                  {discPrice && qty >= 1 ? (
-                                    <div>
-                                      <span className="text-xs text-gray-400 line-through">{formatRp(product.sell_price)}</span>
-                                      <span className="block text-base font-bold text-amber-600">{formatRp(discPrice)}</span>
-                                    </div>
-                                  ) : (
-                                    <input
-                                      type="text"
-                                      value={formatRp(orderType === "penjualan" ? product.sell_price : product.cost_price)}
-                                      readOnly
-                                      className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
-                                    />
-                                  )}
-                                </div>
-                              );
+                              const defaultPrice = orderType === "penjualan" ? product.sell_price : product.cost_price;
+                              return defaultPrice > 0 && (!item.price || parseInt(item.price) !== defaultPrice) ? (
+                                <p className="text-xs text-gray-400 mt-0.5 text-center">Default: {formatRp(defaultPrice)}</p>
+                              ) : null;
                             })()}
                           </div>
                         </div>
