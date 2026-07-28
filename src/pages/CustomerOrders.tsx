@@ -259,12 +259,6 @@ export default function CustomerOrders() {
                                 LUNAS
                               </span>
                             )}
-                            <span className="font-bold text-pink-600 text-base">
-                              {items.length > 0
-                                ? items.map((i) => i.product_name).join(", ")
-                                : shortId(order.id)}
-                            </span>
-                            <span className="text-gray-300 text-sm">·</span>
                             <span className="text-gray-500 text-sm">
                               {new Date(order.created_at).toLocaleDateString(
                                 "id-ID",
