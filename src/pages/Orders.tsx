@@ -42,6 +42,7 @@ export default function Orders() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
+  const [showProductSuggest, setShowProductSuggest] = useState(false);
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number }[]>>({});
 
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -148,17 +149,55 @@ export default function Orders() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="shrink-0 px-5 pt-4 pb-3 relative z-10">
-        <div className="flex gap-2 mb-3">
-          <div className="flex-1 relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari order..."
-              className="w-full pl-10 pr-4 py-3 bg-white/80 border border-pink-100 rounded-xl text-gray-700 placeholder-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
-            />
-          </div>
+          <div className="flex gap-2 mb-3">
+            <div className="flex-1 relative">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  if (productFilter) setProductFilter("");
+                }}
+                onFocus={() => setShowProductSuggest(search.length > 0)}
+                onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
+                placeholder={productFilter || "Cari order atau produk..."}
+                className="w-full pl-10 pr-10 py-3 bg-white/80 border border-pink-100 rounded-xl text-gray-700 placeholder-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+              />
+              {productFilter && (
+                <button
+                  onClick={() => setProductFilter("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {showProductSuggest && search && !productFilter && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-pink-100 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                  {(() => {
+                    const matched = allProductNames.filter((n) =>
+                      n.toLowerCase().includes(search.toLowerCase())
+                    );
+                    return matched.length > 0 ? matched.slice(0, 8).map((name) => (
+                      <button
+                        key={name}
+                        onMouseDown={() => {
+                          setProductFilter(name);
+                          setSearch("");
+                          setShowProductSuggest(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-pink-50 text-left border-b border-pink-50 last:border-0"
+                      >
+                        <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                        {name}
+                      </button>
+                    )) : (
+                      <div className="px-4 py-3 text-sm text-gray-400">Produk tidak ditemukan</div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
           <button
             onClick={() => navigate("/orders/upload")}
             className="w-28 px-4 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-[0.97]"
@@ -174,34 +213,6 @@ export default function Orders() {
             Baru
           </button>
         </div>
-
-        {allProductNames.length > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Package className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
-                <select
-                  value={productFilter}
-                  onChange={(e) => setProductFilter(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white/80 border border-pink-100 rounded-xl text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all appearance-none"
-                >
-                  <option value="">Semua Produk</option>
-                  {allProductNames.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-              {productFilter && (
-                <button
-                  onClick={() => setProductFilter("")}
-                  className="p-2 bg-pink-50 hover:bg-pink-100 text-pink-500 rounded-xl border border-pink-200 transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="flex gap-2 overflow-x-auto pb-1">
           <button
