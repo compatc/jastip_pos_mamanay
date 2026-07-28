@@ -11,6 +11,8 @@ import {
   TrendingDown,
   Trash2,
   FileSpreadsheet,
+  Package,
+  X,
 } from "lucide-react";
 
 type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas";
@@ -37,6 +39,7 @@ export default function Orders() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabFilter>("all");
+  const [productFilter, setProductFilter] = useState("");
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number }[]>>({});
 
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -76,6 +79,8 @@ export default function Orders() {
     loadItems();
   }, [allOrders]);
 
+  const allProductNames = [...new Set(Object.values(itemsByOrder).flat().map((i) => i.product_name))].sort();
+
   const filtered = allOrders.filter((o) => {
     const matchTab =
       tab === "all" ||
@@ -91,7 +96,10 @@ export default function Orders() {
       o.customer_name?.toLowerCase().includes(q) ||
       o.id.toLowerCase().includes(q) ||
       (itemsByOrder[o.id] || []).some((i) => i.product_name.toLowerCase().includes(q));
-    return matchTab && matchSearch;
+    const matchProduct =
+      !productFilter ||
+      (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
+    return matchTab && matchSearch && matchProduct;
   });
 
   const countPenjualan = allOrders.filter(
@@ -154,6 +162,34 @@ export default function Orders() {
             Baru
           </button>
         </div>
+
+        {allProductNames.length > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Package className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+                <select
+                  value={productFilter}
+                  onChange={(e) => setProductFilter(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/80 border border-pink-100 rounded-xl text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all appearance-none"
+                >
+                  <option value="">Semua Produk</option>
+                  {allProductNames.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              {productFilter && (
+                <button
+                  onClick={() => setProductFilter("")}
+                  className="p-2 bg-pink-50 hover:bg-pink-100 text-pink-500 rounded-xl border border-pink-200 transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2 overflow-x-auto pb-1">
           <button
