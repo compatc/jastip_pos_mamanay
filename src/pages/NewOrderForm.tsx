@@ -44,7 +44,7 @@ function formatRp(n: number): string {
 }
 
 export default function NewOrderForm() {
-  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, accounts, loadAccounts, addCustomer } = useStore();
+  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, accounts, loadAccounts, addCustomer, addProduct } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
@@ -413,7 +413,28 @@ export default function NewOrderForm() {
                                 const search = (productSearchMap[index] ?? "").toLowerCase();
                                 return !search || p.name.toLowerCase().includes(search);
                               }).length === 0 && (
-                                <p className="px-4 py-3 text-sm text-gray-400 text-center">Tidak ditemukan</p>
+                                <div>
+                                  <p className="px-4 py-3 text-sm text-gray-400 text-center">Tidak ditemukan</p>
+                                  {(productSearchMap[index] ?? "").trim() && (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const name = (productSearchMap[index] ?? "").trim();
+                                        const id = await addProduct(name, 0, 0, 0, "PCS", "");
+                                        if (id) {
+                                          await loadProducts();
+                                          selectProduct(index, id);
+                                          setProductSearchMap({ ...productSearchMap, [index]: name });
+                                          setShowProductDropdown(null);
+                                        }
+                                      }}
+                                      className="w-full text-left px-4 py-3 hover:bg-pink-50 text-sm font-semibold text-pink-600 border-t border-pink-100 transition-all flex items-center gap-2"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                      Tambah "{productSearchMap[index]?.trim()}"
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
