@@ -358,7 +358,7 @@ export default function CustomerOrders() {
       >
         <div style={{ fontFamily: "sans-serif" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-            <img src="/logo.png" alt="" style={{ width: "32px", height: "32px", borderRadius: "8px", objectFit: "cover" }} />
+            <img src="/logo.png" alt="" style={{ width: "32px", height: "32px", borderRadius: "8px", objectFit: "contain" }} />
             <div>
               <h2 style={{ fontSize: "18px", fontWeight: "bold", color: "#1f2937" }}>
                 {customer?.name || "Pelanggan"}

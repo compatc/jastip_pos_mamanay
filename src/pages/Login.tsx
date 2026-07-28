@@ -66,7 +66,7 @@ export default function Login() {
       <div className="w-full max-w-sm relative z-10">
         <div className="bg-white/80 backdrop-blur-xl shadow-xl shadow-pink-100/50 border border-pink-100/60 rounded-3xl p-8">
           <div className="flex flex-col items-center mb-8">
-            <img src="/logo.png" alt="Jastip_mamanay" className="w-20 h-20 rounded-2xl mb-4 shadow-lg shadow-pink-300/40 object-cover" />
+            <img src="/logo.png" alt="Jastip_mamanay" className="w-20 h-20 rounded-2xl mb-4 shadow-lg shadow-pink-300/40 object-contain bg-pink-50 border border-pink-100" />
             <h1 className="text-3xl font-bold text-gray-800">
               Jastip_mamanay
             </h1>

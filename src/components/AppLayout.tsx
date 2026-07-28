@@ -78,7 +78,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Jastip_mamanay" className="w-10 h-10 rounded-xl object-cover" />
+              <img src="/logo.png" alt="Jastip_mamanay" className="w-10 h-10 rounded-xl object-contain bg-pink-50 border border-pink-100" />
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
                   Jastip_mamanay
