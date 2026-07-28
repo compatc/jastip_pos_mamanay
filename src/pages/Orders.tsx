@@ -113,19 +113,26 @@ export default function Orders() {
     return matchTab && matchSearch && matchProduct;
   });
 
-  const countPenjualan = allOrders.filter(
+  const baseFiltered = allOrders.filter((o) => {
+    const matchProduct =
+      !productFilter ||
+      (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
+    return matchProduct;
+  });
+
+  const countPenjualan = baseFiltered.filter(
     (o) => o.order_type === "penjualan"
   ).length;
-  const countPembelian = allOrders.filter(
+  const countPembelian = baseFiltered.filter(
     (o) => o.order_type === "pembelian"
   ).length;
-  const countBelumDikirim = allOrders.filter(
+  const countBelumDikirim = baseFiltered.filter(
     (o) =>
       o.status !== "shipped" &&
       o.status !== "delivered" &&
       o.status !== "completed"
   ).length;
-  const countBelumLunas = allOrders.filter(
+  const countBelumLunas = baseFiltered.filter(
     (o) => !isOrderLunas(o)
   ).length;
 
@@ -223,7 +230,7 @@ export default function Orders() {
                 : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
             }`}
           >
-            Semua ({allOrders.length})
+            Semua ({baseFiltered.length})
           </button>
           <button
             onClick={() => setTab("penjualan")}
