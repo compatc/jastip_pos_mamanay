@@ -77,14 +77,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <header className="shrink-0 bg-white/70 backdrop-blur-xl border-b border-pink-100/60 relative z-10">
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
-                Jastip_mamanay
-              </h1>
-              <div className="mt-0.5">
-                <span className="text-base text-gray-400">
-                  {user?.name}
-                </span>
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="Jastip_mamanay" className="w-10 h-10 rounded-xl object-cover" />
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
+                  Jastip_mamanay
+                </h1>
+                <div className="mt-0.5">
+                  <span className="text-base text-gray-400">
+                    {user?.name}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">

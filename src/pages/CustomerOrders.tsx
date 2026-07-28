@@ -357,12 +357,17 @@ export default function CustomerOrders() {
         }}
       >
         <div style={{ fontFamily: "sans-serif" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px", color: "#1f2937" }}>
-            {customer?.name || "Pelanggan"}
-          </h2>
-          <p style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "16px" }}>
-            {customer?.phone || ""} · {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <img src="/logo.png" alt="" style={{ width: "32px", height: "32px", borderRadius: "8px", objectFit: "cover" }} />
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: "bold", color: "#1f2937" }}>
+                {customer?.name || "Pelanggan"}
+              </h2>
+              <p style={{ fontSize: "12px", color: "#9ca3af" }}>
+                {customer?.phone || ""} · {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            </div>
+          </div>
           {getFilteredOrders(exportFilter).length === 0 && (
             <p style={{ fontSize: "14px", color: "#9ca3af" }}>Tidak ada transaksi</p>
           )}

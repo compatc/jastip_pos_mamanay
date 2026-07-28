@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useStore } from "../stores/useStore";
-import { Sparkles } from "lucide-react";
 
 const isSupabaseConfigured =
   import.meta.env.VITE_SUPABASE_URL &&
@@ -67,9 +66,7 @@ export default function Login() {
       <div className="w-full max-w-sm relative z-10">
         <div className="bg-white/80 backdrop-blur-xl shadow-xl shadow-pink-100/50 border border-pink-100/60 rounded-3xl p-8">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-rose-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-pink-300/40">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
+            <img src="/logo.png" alt="Jastip_mamanay" className="w-20 h-20 rounded-2xl mb-4 shadow-lg shadow-pink-300/40 object-cover" />
             <h1 className="text-3xl font-bold text-gray-800">
               Jastip_mamanay
             </h1>
