@@ -115,57 +115,57 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="shrink-0 bg-white/80 backdrop-blur-xl border-t border-pink-100/60 relative z-10">
           <div className="flex">
            <button
-               onClick={() => navigate("/orders")}
-               className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
-                 location.pathname.startsWith("/orders") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-               }`}
-             >
-               <ClipboardList className="w-5 h-5" />
-               <span className="text-xs font-semibold tracking-wider uppercase">
-                 Order
-               </span>
-             </button>
-             <button
-               onClick={() => navigate("/")}
-               className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
-                 location.pathname === "/" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-               }`}
-             >
-               <ShoppingBag className="w-5 h-5" />
-               <span className="text-xs font-semibold tracking-wider uppercase">
-                 Pelanggan
-               </span>
-             </button>
+                onClick={() => navigate("/orders")}
+                className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
+                  location.pathname.startsWith("/orders") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span className="text-[10px] font-semibold uppercase">
+                  Order
+                </span>
+              </button>
+              <button
+                onClick={() => navigate("/")}
+                className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
+                  location.pathname === "/" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="text-[10px] font-semibold uppercase">
+                  Pelanggan
+                </span>
+              </button>
             <button
               onClick={() => navigate("/inventory")}
-              className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
+              className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
                 location.pathname === "/inventory" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
               }`}
             >
-              <Package className="w-5 h-5" />
-              <span className="text-xs font-semibold tracking-wider uppercase">
+              <Package className="w-4 h-4" />
+              <span className="text-[10px] font-semibold uppercase">
                 Inventaris
               </span>
             </button>
             <button
               onClick={() => navigate("/sales")}
-              className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
+              className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
                 location.pathname === "/sales" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
               }`}
             >
-              <DollarSign className="w-5 h-5" />
-              <span className="text-xs font-semibold tracking-wider uppercase">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-[10px] font-semibold uppercase">
                 Laporan
               </span>
             </button>
             <button
               onClick={() => navigate("/accounts")}
-              className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
+              className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
                 location.pathname.startsWith("/accounts") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
               }`}
             >
-              <Wallet className="w-5 h-5" />
-              <span className="text-xs font-semibold tracking-wider uppercase">
+              <Wallet className="w-4 h-4" />
+              <span className="text-[10px] font-semibold uppercase">
                 Akun
               </span>
             </button>
