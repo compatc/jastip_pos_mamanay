@@ -212,8 +212,13 @@ export default function CustomerOrders() {
                 <span className="text-xs font-semibold text-amber-500">{belumLunas.length} transaksi</span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-lg font-bold text-amber-700">{rupiah(sisa)}</span>
-                <span className="text-xs text-amber-400">sisa tagihan</span>
+                <div>
+                  <span className="text-lg font-bold text-amber-700">{rupiah(sisa)}</span>
+                  <span className="text-xs text-amber-400 ml-2">sisa tagihan</span>
+                </div>
+                <span className="text-xs text-amber-500/60">
+                  Total: {rupiah(grandTotal)}
+                </span>
               </div>
             </div>
           );
