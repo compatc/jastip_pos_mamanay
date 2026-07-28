@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import type { PaymentType } from "../types";
@@ -37,9 +37,10 @@ const STATUS_LABELS: Record<string, string> = {
 export default function Orders() {
   const { allOrders, loadAllOrders, deleteOrder } = useStore();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<TabFilter>("all");
-  const [productFilter, setProductFilter] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
+  const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number }[]>>({});
 
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -57,6 +58,14 @@ export default function Orders() {
   useEffect(() => {
     loadAllOrders();
   }, []);
+
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (search) params.q = search;
+    if (tab !== "all") params.tab = tab;
+    if (productFilter) params.product = productFilter;
+    setSearchParams(params, { replace: true });
+  }, [search, tab, productFilter]);
 
   useEffect(() => {
     if (allOrders.length === 0) return;
@@ -270,7 +279,7 @@ export default function Orders() {
               <div
                 key={order.id}
                 className="bg-white/80 hover:bg-white border border-pink-100/60 rounded-2xl p-4 flex items-center justify-between transition-all shadow-sm shadow-pink-50 cursor-pointer"
-                onClick={() => navigate(`/orders/${order.id}/edit`)}
+                onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: `/orders?${searchParams.toString()}` } })}
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div
