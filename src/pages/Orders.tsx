@@ -129,14 +129,16 @@ export default function Orders() {
   ).length;
 
   function getOrderStatusColor(order: typeof allOrders[0]): string {
-    const isPaid = order.paid_total >= order.total && order.total > 0;
-    if (order.status === "completed" && !isPaid) {
-      return "bg-red-50 text-red-500 border-red-200";
-    }
-    if (order.status === "completed" && isPaid) {
-      return "bg-emerald-50 text-emerald-500 border-emerald-100";
-    }
-    return "bg-yellow-50 text-yellow-600 border-yellow-200";
+    const colors: Record<string, string> = {
+      new: "bg-blue-50 text-blue-600 border-blue-200",
+      "belum-ready": "bg-orange-50 text-orange-600 border-orange-200",
+      ready: "bg-teal-50 text-teal-600 border-teal-200",
+      paid: "bg-emerald-50 text-emerald-600 border-emerald-200",
+      shipped: "bg-amber-50 text-amber-600 border-amber-200",
+      delivered: "bg-violet-50 text-violet-600 border-violet-200",
+      completed: "bg-gray-100 text-gray-500 border-gray-200",
+    };
+    return colors[order.status] || "bg-yellow-50 text-yellow-600 border-yellow-200";
   }
 
   function isOrderLunas(order: typeof allOrders[0]): boolean {
