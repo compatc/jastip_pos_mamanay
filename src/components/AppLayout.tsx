@@ -116,56 +116,56 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex">
            <button
                 onClick={() => navigate("/orders")}
-                className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
                   location.pathname.startsWith("/orders") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
                 }`}
               >
-                <ClipboardList className="w-4 h-4" />
-                <span className="text-[10px] font-semibold uppercase">
+                <ClipboardList className="w-[18px] h-[18px]" />
+                <span className="text-[11px] font-semibold uppercase">
                   Order
                 </span>
               </button>
               <button
                 onClick={() => navigate("/")}
-                className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
                   location.pathname === "/" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
                 }`}
               >
-                <ShoppingBag className="w-4 h-4" />
-                <span className="text-[10px] font-semibold uppercase">
+                <ShoppingBag className="w-[18px] h-[18px]" />
+                <span className="text-[11px] font-semibold uppercase">
                   Pelanggan
                 </span>
               </button>
             <button
               onClick={() => navigate("/inventory")}
-              className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
                 location.pathname === "/inventory" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
               }`}
             >
-              <Package className="w-4 h-4" />
-              <span className="text-[10px] font-semibold uppercase">
+              <Package className="w-[18px] h-[18px]" />
+              <span className="text-[11px] font-semibold uppercase">
                 Inventaris
               </span>
             </button>
             <button
               onClick={() => navigate("/sales")}
-              className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
                 location.pathname === "/sales" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
               }`}
             >
-              <DollarSign className="w-4 h-4" />
-              <span className="text-[10px] font-semibold uppercase">
+              <DollarSign className="w-[18px] h-[18px]" />
+              <span className="text-[11px] font-semibold uppercase">
                 Laporan
               </span>
             </button>
             <button
               onClick={() => navigate("/accounts")}
-              className={`flex-1 flex flex-col items-center gap-0 py-2 transition-colors ${
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
                 location.pathname.startsWith("/accounts") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
               }`}
             >
-              <Wallet className="w-4 h-4" />
-              <span className="text-[10px] font-semibold uppercase">
+              <Wallet className="w-[18px] h-[18px]" />
+              <span className="text-[11px] font-semibold uppercase">
                 Akun
               </span>
             </button>

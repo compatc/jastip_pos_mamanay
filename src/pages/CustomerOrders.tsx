@@ -253,14 +253,14 @@ export default function CustomerOrders() {
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <span
-                              className={`inline-block px-2.5 py-1 rounded-md text-sm font-semibold border ${getOrderStatusColor(
+                              className={`inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-semibold border ${getOrderStatusColor(
                                 order
                               )}`}
                             >
                               {STATUS_LABELS[order.status] || order.status}
                             </span>
                             {order.paid_total >= order.total && order.total > 0 && (
-                              <span className="inline-block px-2.5 py-1 rounded-md text-xs font-semibold border bg-emerald-50 text-emerald-500 border-emerald-100">
+                              <span className="inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-semibold border bg-emerald-50 text-emerald-500 border-emerald-100">
                                 LUNAS
                               </span>
                             )}
