@@ -8,6 +8,10 @@ const statusConfig: Record<
     label: "Baru",
     color: "bg-blue-50 text-blue-600 ring-1 ring-blue-200",
   },
+  "belum-ready": {
+    label: "Belum Ready",
+    color: "bg-orange-50 text-orange-600 ring-1 ring-orange-200",
+  },
   ready: {
     label: "Ready",
     color: "bg-teal-50 text-teal-600 ring-1 ring-teal-200",
