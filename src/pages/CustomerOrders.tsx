@@ -381,12 +381,6 @@ export default function CustomerOrders() {
                       LUNAS
                     </span>
                   )}
-                  <span style={{ display: "inline-block", fontWeight: "bold", fontSize: "14px", color: "#ec4899", lineHeight: "18px", verticalAlign: "middle" }}>
-                    {items.length > 0
-                      ? items.map((i) => i.product_name).join(", ")
-                      : shortId(order.id)}
-                  </span>
-                  <span style={{ display: "inline-block", fontSize: "13px", color: "#9ca3af", lineHeight: "18px", verticalAlign: "middle", margin: "0 4px" }}>·</span>
                   <span style={{ display: "inline-block", fontSize: "13px", color: "#6b7280", lineHeight: "18px", verticalAlign: "middle" }}>
                     {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
                   </span>
