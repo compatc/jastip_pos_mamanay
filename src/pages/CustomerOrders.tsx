@@ -552,7 +552,6 @@ export default function CustomerOrders() {
               {orders.map((order) => {
                 const isUnpaid = order.paid_total < order.total && order.total > 0;
                 const items = itemsByOrder[order.id] || [];
-                const totalItems = items.reduce((s, i) => s + i.quantity, 0);
                 return (
                   <label
                     key={order.id}
@@ -578,7 +577,10 @@ export default function CustomerOrders() {
                           <span className="text-[10px] text-emerald-500 font-semibold">LUNAS</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{totalItems} item · {rupiah(order.total)}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                        {items.map((i) => `${i.product_name} x${i.quantity}`).join(", ")}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5 font-semibold">{rupiah(order.total)}</p>
                     </div>
                   </label>
                 );
