@@ -166,7 +166,7 @@ export default function CustomerOrders() {
       msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
     });
     msg += "Pembayaran via BCA\n5271330651 a.n. Nurul Azizah\n\n";
-    msg += "Jangan lupa kirim bukti transfer ya";
+    msg += "Jangan lupa kirim bukti transfer ya, terima kasih";
     const cleaned = phone.replace(/\D/g, "");
     const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
