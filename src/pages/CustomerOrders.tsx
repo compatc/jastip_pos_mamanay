@@ -153,9 +153,12 @@ export default function CustomerOrders() {
     const unpaid = orders.filter((o) => o.paid_total < o.total && o.total > 0);
     if (unpaid.length === 0) return;
     let msg = `Hai ${customer?.name},\n\nBerikut tagihan yang belum dibayar:\n\n`;
+    let grandTotal = 0;
+    let grandPaid = 0;
     unpaid.forEach((order) => {
       const items = itemsByOrder[order.id] || [];
-      msg += `Order #${shortId(order.id)}:\n`;
+      const label = STATUS_LABELS[order.status] || order.status;
+      msg += `Order #${shortId(order.id)} (${label}):\n`;
       items.forEach((item) => {
         const sub = item.price * item.quantity - item.discount;
         msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
@@ -164,7 +167,15 @@ export default function CustomerOrders() {
       msg += `Sudah dibayar: ${rupiah(paid)}\n`;
       msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
       msg += `*Total: ${rupiah(order.total)}*\n\n`;
+      grandTotal += order.total;
+      grandPaid += paid;
     });
+    if (unpaid.length > 1) {
+      msg += `━━━━━━━━━━━━━━━\n`;
+      msg += `*Grand Total: ${rupiah(grandTotal)}*\n`;
+      msg += `Total dibayar: ${rupiah(grandPaid)}\n`;
+      msg += `*Sisa seluruhnya: ${rupiah(grandTotal - grandPaid)}*\n\n`;
+    }
     msg += "Pembayaran via BCA\n5271330651 a.n. Nurul Azizah\n\n";
     msg += "Jangan lupa kirim bukti transfer ya, terima kasih";
     const cleaned = phone.replace(/\D/g, "");
