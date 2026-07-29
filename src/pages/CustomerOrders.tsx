@@ -158,7 +158,7 @@ export default function CustomerOrders() {
     unpaid.forEach((order) => {
       const items = itemsByOrder[order.id] || [];
       const label = STATUS_LABELS[order.status] || order.status;
-      msg += `Order #${shortId(order.id)} (${label}):\n`;
+      msg += `*${label}*\n`;
       items.forEach((item) => {
         const sub = item.price * item.quantity - item.discount;
         msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
@@ -166,7 +166,9 @@ export default function CustomerOrders() {
       const paid = order.paid_total || 0;
       msg += `Sudah dibayar: ${rupiah(paid)}\n`;
       msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
-      msg += `*Total: ${rupiah(order.total)}*\n\n`;
+      if (unpaid.length === 1) {
+        msg += `*Total: ${rupiah(order.total)}*\n\n`;
+      }
       grandTotal += order.total;
       grandPaid += paid;
     });
