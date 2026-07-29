@@ -212,6 +212,7 @@ export default function CustomerOrders() {
           msg += `Sisa: ${rupiah(order.total - paid)}\n`;
         }
         msg += `\u{1F4B3} Metode Pembayaran: ${payMethod}\n`;
+        msg += "BCA 5271330651 a.n. Nurul Azizah\n";
         msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
         grandTotal += order.total;
         grandPaid += paid;
