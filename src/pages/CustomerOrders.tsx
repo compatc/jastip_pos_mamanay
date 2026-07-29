@@ -160,10 +160,10 @@ export default function CustomerOrders() {
         const sub = item.price * item.quantity - item.discount;
         msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
       });
-      msg += `Total: ${rupiah(order.total)}\n`;
       const paid = order.paid_total || 0;
       msg += `Sudah dibayar: ${rupiah(paid)}\n`;
       msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
+      msg += `*Total: ${rupiah(order.total)}*\n\n`;
     });
     msg += "Pembayaran via BCA\n5271330651 a.n. Nurul Azizah\n\n";
     msg += "Jangan lupa kirim bukti transfer ya, terima kasih";
