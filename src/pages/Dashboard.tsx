@@ -427,8 +427,12 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={async () => {
-                  await deleteCustomer(deleteConfirm);
-                  setDeleteConfirm(null);
+                  try {
+                    await deleteCustomer(deleteConfirm);
+                    setDeleteConfirm(null);
+                  } catch (err) {
+                    alert("Gagal menghapus pelanggan. Mungkin masih ada data terkait.");
+                  }
                 }}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-all"
               >

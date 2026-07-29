@@ -190,6 +190,12 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   deleteCustomer: async (id) => {
+    const { data: orders } = await supabase.from("orders").select("id").eq("customer_id", id);
+    if (orders && orders.length > 0) {
+      const orderIds = orders.map((o) => o.id);
+      await supabase.from("order_items").delete().in("order_id", orderIds);
+      await supabase.from("orders").delete().in("id", orderIds);
+    }
     const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) throw error;
     await get().loadCustomers();
