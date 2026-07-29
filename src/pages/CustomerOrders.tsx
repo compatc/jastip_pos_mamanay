@@ -166,7 +166,28 @@ export default function CustomerOrders() {
   function sendWhatsApp(selected: typeof orders) {
     const phone = customer?.phone;
     if (!phone || selected.length === 0) return;
-    let msg = `Hai ${customer?.name},\n\nBerikut tagihan yang belum dibayar:\n\n`;
+
+    const paymentLabels: Record<string, string> = {
+      tf: "Transfer Bank",
+      qris: "QRIS",
+      split: "Split",
+      shopee: "Shopee",
+      cash: "Tunai",
+    };
+
+    const deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const deadlineStr = deadline.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    let msg = `Halo Kak ${customer?.name} \u{1F60A}\n\n`;
+    msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
+    msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
+
     let grandTotal = 0;
     let grandPaid = 0;
     const grouped: Record<string, typeof selected> = {};
@@ -179,32 +200,34 @@ export default function CustomerOrders() {
     statusOrder.forEach((status) => {
       const list = grouped[status];
       if (!list) return;
-      const label = STATUS_LABELS[status] || status;
-      msg += `Status barang: ${label}\n`;
       list.forEach((order) => {
         const items = itemsByOrder[order.id] || [];
-        items.forEach((item) => {
-          const sub = item.price * item.quantity - item.discount;
-          msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
-        });
+        const productNames = items.map((i) => i.product_name).join(", ");
+        const payMethod = paymentLabels[order.payment_type] || order.payment_type;
+        msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
+        msg += `\u{1F4B0} Total Tagihan: *${rupiah(order.total)}*\n`;
         const paid = order.paid_total || 0;
-        msg += `Sudah dibayar: ${rupiah(paid)}\n`;
-        msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
+        if (paid > 0) {
+          msg += `Sudah dibayar: ${rupiah(paid)}\n`;
+          msg += `Sisa: ${rupiah(order.total - paid)}\n`;
+        }
+        msg += `\u{1F4B3} Metode Pembayaran: ${payMethod}\n`;
+        msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
         grandTotal += order.total;
         grandPaid += paid;
       });
     });
+
     if (selected.length > 1) {
-      msg += `━━━━━━━━━━━━━━━\n`;
-      msg += `*Grand Total: ${rupiah(grandTotal)}*\n`;
+      msg += `\u{1F4CA} *Grand Total: ${rupiah(grandTotal)}*\n`;
       msg += `Total dibayar: ${rupiah(grandPaid)}\n`;
-      msg += `*Sisa seluruhnya: ${rupiah(grandTotal - grandPaid)}*\n\n`;
-    } else if (selected.length === 1) {
-      const order = selected[0];
-      msg += `*Total: ${rupiah(order.total)}*\n\n`;
+      msg += `*Sisa: ${rupiah(grandTotal - grandPaid)}*\n\n`;
     }
-    msg += "Pembayaran via BCA\n5271330651 a.n. Nurul Azizah\n\n";
-    msg += "Jangan lupa kirim bukti transfer ya, terima kasih";
+
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n\n";
+    msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
+
     const cleaned = phone.replace(/\D/g, "");
     const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
