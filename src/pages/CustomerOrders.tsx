@@ -155,28 +155,39 @@ export default function CustomerOrders() {
     let msg = `Hai ${customer?.name},\n\nBerikut tagihan yang belum dibayar:\n\n`;
     let grandTotal = 0;
     let grandPaid = 0;
+    const grouped: Record<string, typeof unpaid> = {};
+    const statusOrder = ["new", "belum-ready", "ready", "paid", "shipped", "delivered", "completed"];
     unpaid.forEach((order) => {
-      const items = itemsByOrder[order.id] || [];
-      const label = STATUS_LABELS[order.status] || order.status;
+      const key = order.status;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(order);
+    });
+    statusOrder.forEach((status) => {
+      const list = grouped[status];
+      if (!list) return;
+      const label = STATUS_LABELS[status] || status;
       msg += `Status barang: ${label}\n`;
-      items.forEach((item) => {
-        const sub = item.price * item.quantity - item.discount;
-        msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
+      list.forEach((order) => {
+        const items = itemsByOrder[order.id] || [];
+        items.forEach((item) => {
+          const sub = item.price * item.quantity - item.discount;
+          msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
+        });
+        const paid = order.paid_total || 0;
+        msg += `Sudah dibayar: ${rupiah(paid)}\n`;
+        msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
+        grandTotal += order.total;
+        grandPaid += paid;
       });
-      const paid = order.paid_total || 0;
-      msg += `Sudah dibayar: ${rupiah(paid)}\n`;
-      msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
-      if (unpaid.length === 1) {
-        msg += `*Total: ${rupiah(order.total)}*\n\n`;
-      }
-      grandTotal += order.total;
-      grandPaid += paid;
     });
     if (unpaid.length > 1) {
       msg += `━━━━━━━━━━━━━━━\n`;
       msg += `*Grand Total: ${rupiah(grandTotal)}*\n`;
       msg += `Total dibayar: ${rupiah(grandPaid)}\n`;
       msg += `*Sisa seluruhnya: ${rupiah(grandTotal - grandPaid)}*\n\n`;
+    } else if (unpaid.length === 1) {
+      const order = unpaid[0];
+      msg += `*Total: ${rupiah(order.total)}*\n\n`;
     }
     msg += "Pembayaran via BCA\n5271330651 a.n. Nurul Azizah\n\n";
     msg += "Jangan lupa kirim bukti transfer ya, terima kasih";
