@@ -204,7 +204,9 @@ export default function CustomerOrders() {
         const items = itemsByOrder[order.id] || [];
         const productNames = items.map((i) => i.product_name).join(", ");
         const payMethod = paymentLabels[order.payment_type] || order.payment_type;
+        const statusLabel = STATUS_LABELS[order.status] || order.status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
+        msg += `Status barang: ${statusLabel}\n`;
         msg += `\u{1F4B0} Total Tagihan: *${rupiah(order.total)}*\n`;
         const paid = order.paid_total || 0;
         if (paid > 0) {
