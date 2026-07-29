@@ -81,6 +81,22 @@ export default function CustomerOrders() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportFilter, setExportFilter] = useState<"all" | "uncompleted">("all");
+  const [waModalOpen, setWaModalOpen] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+
+  function toggleSelectOrder(id: string) {
+    setSelectedOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function openWaModal() {
+    const unpaid = orders.filter((o) => o.paid_total < o.total && o.total > 0);
+    setSelectedOrders(new Set(unpaid.map((o) => o.id)));
+    setWaModalOpen(true);
+  }
 
   function showConfirm(title: string, message: string, onConfirm: () => void) {
     setConfirmTitle(title);
@@ -147,17 +163,15 @@ export default function CustomerOrders() {
     setExporting(false);
   }
 
-  function sendWhatsApp() {
+  function sendWhatsApp(selected: typeof orders) {
     const phone = customer?.phone;
-    if (!phone) return;
-    const unpaid = orders.filter((o) => o.paid_total < o.total && o.total > 0);
-    if (unpaid.length === 0) return;
+    if (!phone || selected.length === 0) return;
     let msg = `Hai ${customer?.name},\n\nBerikut tagihan yang belum dibayar:\n\n`;
     let grandTotal = 0;
     let grandPaid = 0;
-    const grouped: Record<string, typeof unpaid> = {};
+    const grouped: Record<string, typeof selected> = {};
     const statusOrder = ["new", "belum-ready", "ready", "paid", "shipped", "delivered", "completed"];
-    unpaid.forEach((order) => {
+    selected.forEach((order) => {
       const key = order.status;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(order);
@@ -180,13 +194,13 @@ export default function CustomerOrders() {
         grandPaid += paid;
       });
     });
-    if (unpaid.length > 1) {
+    if (selected.length > 1) {
       msg += `━━━━━━━━━━━━━━━\n`;
       msg += `*Grand Total: ${rupiah(grandTotal)}*\n`;
       msg += `Total dibayar: ${rupiah(grandPaid)}\n`;
       msg += `*Sisa seluruhnya: ${rupiah(grandTotal - grandPaid)}*\n\n`;
-    } else if (unpaid.length === 1) {
-      const order = unpaid[0];
+    } else if (selected.length === 1) {
+      const order = selected[0];
       msg += `*Total: ${rupiah(order.total)}*\n\n`;
     }
     msg += "Pembayaran via BCA\n5271330651 a.n. Nurul Azizah\n\n";
@@ -271,7 +285,7 @@ export default function CustomerOrders() {
                 </span>
               </div>
               <button
-                onClick={(e) => { e.stopPropagation(); sendWhatsApp(); }}
+                onClick={(e) => { e.stopPropagation(); openWaModal(); }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all active:scale-[0.97]"
               >
                 <MessageCircle className="w-4 h-4" />
@@ -526,6 +540,73 @@ export default function CustomerOrders() {
             <button onClick={() => setExportMenuOpen(false)} className="w-full py-3 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors">
               Batal
             </button>
+          </div>
+        </div>
+      )}
+      {waModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setWaModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
+            <p className="text-sm font-bold text-gray-800">Pilih Tagihan</p>
+            <div className="overflow-y-auto flex-1 space-y-2 -mx-5 px-5">
+              {orders.map((order) => {
+                const isUnpaid = order.paid_total < order.total && order.total > 0;
+                const items = itemsByOrder[order.id] || [];
+                const totalItems = items.reduce((s, i) => s + i.quantity, 0);
+                return (
+                  <label
+                    key={order.id}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
+                      selectedOrders.has(order.id) ? "bg-green-50 border-green-200" : "bg-white border-gray-100"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.has(order.id)}
+                      onChange={() => toggleSelectOrder(order.id)}
+                      className="w-4 h-4 accent-green-500 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800 truncate">
+                          {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                        </span>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getOrderStatusColor(order)}`}>
+                          {STATUS_LABELS[order.status] || order.status}
+                        </span>
+                        {!isUnpaid && (
+                          <span className="text-[10px] text-emerald-500 font-semibold">LUNAS</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">{totalItems} item · {rupiah(order.total)}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <span className="text-xs text-gray-400">{selectedOrders.size} dipilih</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setWaModalOpen(false)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => {
+                    const selected = orders.filter((o) => selectedOrders.has(o.id));
+                    if (selected.length === 0) return;
+                    sendWhatsApp(selected);
+                    setWaModalOpen(false);
+                  }}
+                  disabled={selectedOrders.size === 0}
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-all"
+                >
+                  Kirim WA
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
