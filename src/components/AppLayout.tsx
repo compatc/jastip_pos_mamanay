@@ -68,7 +68,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     location.pathname.startsWith("/orders/new");
 
   return (
-    <div className="min-h-dvh flex flex-col bg-gradient-to-br from-pink-50 via-white to-rose-50 relative overflow-hidden">
+    <div className="h-dvh flex flex-col bg-gradient-to-br from-pink-50 via-white to-rose-50 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -right-32 w-80 h-80 bg-pink-200/30 rounded-full blur-3xl" />
         <div className="absolute top-1/3 -left-20 w-60 h-60 bg-rose-100/40 rounded-full blur-3xl" />
@@ -107,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden relative z-10">
+      <div className="flex-1 relative z-10">
         {children}
       </div>
 
