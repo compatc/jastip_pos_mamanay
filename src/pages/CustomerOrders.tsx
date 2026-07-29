@@ -1,16 +1,13 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import ConfirmationModal from "../components/ConfirmationModal";
-import html2canvas from "html2canvas";
 import {
   ArrowLeft,
   Plus,
   Package,
   Trash2,
-  Download,
-  FileImage,
   MessageCircle,
 } from "lucide-react";
 
@@ -56,11 +53,6 @@ interface OrderItemData {
   discount: number;
 }
 
-interface OrderWithItems {
-  order: any;
-  items: OrderItemData[];
-}
-
 export default function CustomerOrders() {
   const { customerId } = useParams<{ customerId: string }>();
   const {
@@ -71,16 +63,12 @@ export default function CustomerOrders() {
     deleteOrder,
   } = useStore();
   const navigate = useNavigate();
-  const exportRef = useRef<HTMLDivElement>(null);
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmOnConfirm, setConfirmOnConfirm] = useState<(() => void) | null>(null);
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, OrderItemData[]>>({});
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportFilter, setExportFilter] = useState<"all" | "uncompleted">("all");
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
 
@@ -132,36 +120,6 @@ export default function CustomerOrders() {
   }, [orders]);
 
   const customer = customers.find((c) => c.id === customerId);
-
-  function getFilteredOrders(filter: "all" | "uncompleted"): OrderWithItems[] {
-    const list = filter === "all" ? orders : orders.filter((o) => o.paid_total < o.total && o.total > 0);
-    return list.map((order) => ({ order, items: itemsByOrder[order.id] || [] }));
-  }
-
-  async function exportAs(filter: "all" | "uncompleted") {
-    setExportMenuOpen(false);
-    setExportFilter(filter);
-
-    await new Promise((r) => setTimeout(r, 100));
-
-    setExporting(true);
-
-    const el = exportRef.current;
-    if (!el) { setExporting(false); return; }
-
-    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 300)));
-
-    try {
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      const link = document.createElement("a");
-      link.download = `transaksi-${customer?.name || "pelanggan"}-${filter}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    } catch (err) {
-      console.error("Export failed:", err);
-    }
-    setExporting(false);
-  }
 
   function sendWhatsApp(selected: typeof orders) {
     const phone = customer?.phone;
@@ -262,18 +220,6 @@ export default function CustomerOrders() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setExportMenuOpen(true)}
-                disabled={exporting || orders.length === 0}
-                className="p-2.5 bg-white border border-pink-200 hover:bg-pink-50 text-gray-600 rounded-xl transition-all disabled:opacity-40"
-                title="Export"
-              >
-                {exporting ? (
-                  <div className="w-5 h-5 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Download className="w-5 h-5" />
-                )}
-              </button>
               <button
                 onClick={() =>
                   navigate("/orders/new", {
@@ -445,99 +391,6 @@ export default function CustomerOrders() {
         )}
       </main>
 
-      {/* Hidden export target */}
-      <div
-        ref={exportRef}
-        className="fixed bg-white p-6"
-        style={{
-          width: "380px",
-          visibility: exporting ? "visible" : "hidden",
-          top: exporting ? 0 : -9999,
-          left: 0,
-        }}
-      >
-        <div style={{ fontFamily: "sans-serif" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "6px", color: "#1f2937" }}>
-            {customer?.name || "Pelanggan"}
-          </h2>
-          <p style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "16px", whiteSpace: "nowrap" }}>
-            {customer?.phone || ""} · {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-          </p>
-          {getFilteredOrders(exportFilter).length === 0 && (
-            <p style={{ fontSize: "14px", color: "#9ca3af" }}>Tidak ada transaksi</p>
-          )}
-          {getFilteredOrders(exportFilter).map(({ order, items }) => {
-            const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
-            const ongkir = order.ongkir || 0;
-            const isLunas = order.paid_total >= order.total && order.total > 0;
-            return (
-              <div key={order.id} style={{ marginBottom: "16px", padding: "14px", border: "1px solid #fce7f3", borderRadius: "12px" }}>
-                <div style={{ marginBottom: "8px", whiteSpace: "nowrap" }}>
-                  <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "4px", fontSize: "12px", lineHeight: "18px", fontWeight: 600, border: "1px solid #fce7f3", backgroundColor: "#fefce8", color: "#ca8a04", verticalAlign: "middle", marginRight: "6px" }}>
-                    {STATUS_LABELS[order.status] || order.status}
-                  </span>
-                  {isLunas && (
-                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "4px", fontSize: "12px", lineHeight: "18px", fontWeight: 600, border: "1px solid #d1fae5", backgroundColor: "#ecfdf5", color: "#10b981", verticalAlign: "middle", marginRight: "6px" }}>
-                      LUNAS
-                    </span>
-                  )}
-                  <span style={{ display: "inline-block", fontSize: "13px", color: "#6b7280", lineHeight: "18px", verticalAlign: "middle" }}>
-                    {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                </div>
-                {items.length > 0 && (
-                  <div style={{ marginBottom: "8px" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "6fr 1fr 3fr", gap: "4px", fontSize: "11px", color: "#9ca3af", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
-                      <span>Item</span>
-                      <span style={{ textAlign: "center" }}>Qty</span>
-                      <span style={{ textAlign: "right" }}>Subtotal</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "6fr 1fr 3fr", gap: "4px", fontSize: "13px", color: "#4b5563" }}>
-                      {items.map((item, idx) => (
-                        <Fragment key={idx}>
-                          <span>{item.product_name}</span>
-                          <span style={{ textAlign: "center" }}>{item.quantity}</span>
-                          <span style={{ textAlign: "right" }}>{rupiah(item.price * item.quantity - item.discount)}</span>
-                        </Fragment>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {totalDiscount > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#9ca3af", marginBottom: "2px" }}>
-                    <span>Diskon</span><span>-{rupiah(totalDiscount)}</span>
-                  </div>
-                )}
-                {ongkir > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#9ca3af", marginBottom: "2px" }}>
-                    <span>Ongkir</span><span>{rupiah(ongkir)}</span>
-                  </div>
-                )}
-                {(order.diskon || 0) > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#9ca3af", marginBottom: "2px" }}>
-                    <span>Diskon</span><span>-{rupiah(order.diskon)}</span>
-                  </div>
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: "bold", color: "#1f2937", borderTop: "1px solid #fce7f3", paddingTop: "8px", marginTop: "8px" }}>
-                  <span>Total</span><span>{rupiah(order.total)}</span>
-                </div>
-              </div>
-            );
-          })}
-          {getFilteredOrders(exportFilter).length > 0 && (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px", fontWeight: "bold", color: "#ec4899", borderTop: "2px solid #fce7f3", paddingTop: "10px", marginTop: "8px" }}>
-                <span>Grand Total</span>
-                <span>{rupiah(getFilteredOrders(exportFilter).reduce((sum, o) => sum + o.order.total, 0))}</span>
-              </div>
-              <p style={{ fontSize: "12px", color: "#9ca3af", marginTop: "12px", lineHeight: "18px" }}>
-                Jangan lupa melakukan konfirmasi setelah melakukan pembayaran
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-
       <ConfirmationModal
         visible={confirmVisible}
         title={confirmTitle}
@@ -550,28 +403,6 @@ export default function CustomerOrders() {
         }}
         onCancel={() => setConfirmVisible(false)}
       />
-
-      {exportMenuOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setExportMenuOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4 z-10 mb-4 sm:mb-0">
-            <p className="text-sm font-bold text-gray-800">Export Transaksi</p>
-            <div className="space-y-2">
-              <button onClick={() => exportAs("all")} className="w-full flex items-center gap-3 px-4 py-3 bg-pink-50 hover:bg-pink-100 rounded-xl transition-colors text-left">
-                <FileImage className="w-5 h-5 text-pink-400 shrink-0" />
-                <span className="text-sm font-medium text-gray-700">Semua Transaksi</span>
-              </button>
-              <button onClick={() => exportAs("uncompleted")} className="w-full flex items-center gap-3 px-4 py-3 bg-pink-50 hover:bg-pink-100 rounded-xl transition-colors text-left">
-                <FileImage className="w-5 h-5 text-pink-400 shrink-0" />
-                <span className="text-sm font-medium text-gray-700">Belum Lunas</span>
-              </button>
-            </div>
-            <button onClick={() => setExportMenuOpen(false)} className="w-full py-3 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors">
-              Batal
-            </button>
-          </div>
-        </div>
-      )}
       {waModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setWaModalOpen(false)} />
