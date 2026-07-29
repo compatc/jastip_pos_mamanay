@@ -11,6 +11,7 @@ import {
   Trash2,
   Download,
   FileImage,
+  MessageCircle,
 } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -146,6 +147,31 @@ export default function CustomerOrders() {
     setExporting(false);
   }
 
+  function sendWhatsApp() {
+    const phone = customer?.phone;
+    if (!phone) return;
+    const unpaid = orders.filter((o) => o.paid_total < o.total && o.total > 0);
+    if (unpaid.length === 0) return;
+    let msg = `Hai ${customer?.name},\n\nBerikut tagihan yang belum dibayar:\n\n`;
+    unpaid.forEach((order) => {
+      const items = itemsByOrder[order.id] || [];
+      msg += `Order #${shortId(order.id)}:\n`;
+      items.forEach((item) => {
+        const sub = item.price * item.quantity - item.discount;
+        msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
+      });
+      msg += `Total: ${rupiah(order.total)}\n`;
+      const paid = order.paid_total || 0;
+      msg += `Sudah dibayar: ${rupiah(paid)}\n`;
+      msg += `Sisa: ${rupiah(order.total - paid)}\n\n`;
+    });
+    msg += "Pembayaran via BCA\n5271330651 a.n. Nurul Azizah\n\n";
+    msg += "Jangan lupa kirim bukti transfer ya";
+    const cleaned = phone.replace(/\D/g, "");
+    const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
   return (
     <div className="h-full flex flex-col relative z-10">
 
@@ -211,7 +237,7 @@ export default function CustomerOrders() {
                 <span className="text-xs font-semibold text-amber-500 uppercase tracking-wide">Belum Lunas</span>
                 <span className="text-xs font-semibold text-amber-500">{belumLunas.length} transaksi</span>
               </div>
-              <div className="flex items-baseline justify-between">
+              <div className="flex items-baseline justify-between mb-2">
                 <div>
                   <span className="text-lg font-bold text-amber-700">{rupiah(sisa)}</span>
                   <span className="text-xs text-amber-400 ml-2">sisa tagihan</span>
@@ -220,6 +246,13 @@ export default function CustomerOrders() {
                   Total: {rupiah(grandTotal)}
                 </span>
               </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); sendWhatsApp(); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all active:scale-[0.97]"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Kirim Tagihan via WA
+              </button>
             </div>
           );
         })()}
