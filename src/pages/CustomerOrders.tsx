@@ -211,9 +211,7 @@ export default function CustomerOrders() {
           msg += `Sudah dibayar: ${rupiah(paid)}\n`;
           msg += `Sisa: ${rupiah(order.total - paid)}\n`;
         }
-        msg += `\u{1F4B3} Metode Pembayaran: ${payMethod}\n`;
-        msg += "BCA 5271330651 a.n. Nurul Azizah\n";
-        msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
+        msg += "\n";
         grandTotal += order.total;
         grandPaid += paid;
       });
@@ -224,6 +222,11 @@ export default function CustomerOrders() {
       msg += `Total dibayar: ${rupiah(grandPaid)}\n`;
       msg += `*Sisa: ${rupiah(grandTotal - grandPaid)}*\n\n`;
     }
+
+    const payMethod = paymentLabels[selected[0]?.payment_type] || "Transfer Bank";
+    msg += `\u{1F4B3} Metode Pembayaran: ${payMethod}\n`;
+    msg += "BCA 5271330651 a.n. Nurul Azizah\n";
+    msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
     msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n\n";
