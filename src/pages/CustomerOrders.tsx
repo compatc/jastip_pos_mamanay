@@ -158,7 +158,7 @@ export default function CustomerOrders() {
     unpaid.forEach((order) => {
       const items = itemsByOrder[order.id] || [];
       const label = STATUS_LABELS[order.status] || order.status;
-      msg += `*${label}*\n`;
+      msg += `Status barang: ${label}\n`;
       items.forEach((item) => {
         const sub = item.price * item.quantity - item.discount;
         msg += `- ${item.product_name} x${item.quantity} = ${rupiah(sub)}\n`;
