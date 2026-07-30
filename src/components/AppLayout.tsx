@@ -107,12 +107,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex-1 relative z-10">
+      <div className="flex-1 overflow-hidden relative z-10 pb-14">
         {children}
       </div>
 
       {!isSubPage && (
-        <nav className="shrink-0 bg-white/80 backdrop-blur-xl border-t border-pink-100/60 relative z-10">
+        <nav className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-xl border-t border-pink-100/60 z-20">
           <div className="flex">
            <button
                 onClick={() => navigate("/orders")}
