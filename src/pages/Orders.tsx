@@ -305,7 +305,7 @@ export default function Orders() {
               <div
                 key={order.id}
                 className="bg-white/80 hover:bg-white border border-pink-100/60 rounded-2xl p-4 flex items-center justify-between transition-all shadow-sm shadow-pink-50 cursor-pointer"
-                onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: `/orders?${searchParams.toString()}` } })}
+                onClick={() => navigate(`/orders/${order.id}`, { state: { returnTo: `/orders?${searchParams.toString()}` } })}
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div

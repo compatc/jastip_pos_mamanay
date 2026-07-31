@@ -289,11 +289,11 @@ export default function CustomerOrders() {
                     return (
                       <div
                         key={order.id}
-                        onClick={() =>
-                          navigate(`/orders/${order.id}/edit`, {
-                            state: { returnTo: `/customer/${customerId}` },
-                          })
-                        }
+                          onClick={() =>
+                            navigate(`/orders/${order.id}`, {
+                              state: { returnTo: `/customer/${customerId}` },
+                            })
+                          }
                         className="bg-white/90 border border-pink-100/80 rounded-2xl shadow-sm p-4 hover:bg-pink-50/40 cursor-pointer transition-colors"
                       >
                         <div className="flex items-center justify-between mb-1">

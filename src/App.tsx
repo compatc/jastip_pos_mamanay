@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CustomerOrders from "./pages/CustomerOrders";
 import Orders from "./pages/Orders";
+import OrderDetail from "./pages/OrderDetail";
 import NewOrderForm from "./pages/NewOrderForm";
 import EditOrderForm from "./pages/EditOrderForm";
 import Inventory from "./pages/Inventory";
@@ -177,6 +178,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <UploadOrders />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:orderId"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <OrderDetail />
                 </AppLayout>
               </ProtectedRoute>
             }
