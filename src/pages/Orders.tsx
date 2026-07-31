@@ -211,6 +211,13 @@ export default function Orders() {
               )}
             </div>
           <button
+            onClick={() => navigate("/orders/bulk")}
+            className="w-28 px-4 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-[0.97]"
+          >
+            <Package className="w-4 h-4" />
+            Massal
+          </button>
+          <button
             onClick={() => navigate("/orders/upload")}
             className="w-28 px-4 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-[0.97]"
           >

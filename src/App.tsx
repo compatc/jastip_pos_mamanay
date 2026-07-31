@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CustomerOrders from "./pages/CustomerOrders";
 import Orders from "./pages/Orders";
+import BulkOrder from "./pages/BulkOrder";
 import OrderDetail from "./pages/OrderDetail";
 import NewOrderForm from "./pages/NewOrderForm";
 import EditOrderForm from "./pages/EditOrderForm";
@@ -178,6 +179,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <UploadOrders />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/bulk"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <BulkOrder />
                 </AppLayout>
               </ProtectedRoute>
             }

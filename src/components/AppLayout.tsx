@@ -66,7 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     location.pathname.startsWith("/customer/") ||
     location.pathname.startsWith("/order/") ||
     location.pathname.startsWith("/orders/new") ||
-    (location.pathname.startsWith("/orders/") && !["/orders", "/orders/upload"].includes(location.pathname));
+    (location.pathname.startsWith("/orders/") && !["/orders", "/orders/upload", "/orders/bulk"].includes(location.pathname));
 
   return (
     <div className="h-dvh flex flex-col bg-gradient-to-br from-pink-50 via-white to-rose-50 relative overflow-hidden">
