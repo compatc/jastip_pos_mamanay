@@ -13,7 +13,7 @@ interface CustomerEntry {
 
 export default function BulkOrder() {
   const navigate = useNavigate();
-  const { products, loadProducts, customers, loadCustomers } = useStore();
+  const { products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts } = useStore();
   const [loading, setLoading] = useState(false);
   const [productId, setProductId] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -34,6 +34,7 @@ export default function BulkOrder() {
   useEffect(() => {
     loadProducts();
     loadCustomers();
+    loadAllProductDiscounts();
   }, []);
 
   useEffect(() => {
@@ -77,6 +78,13 @@ export default function BulkOrder() {
     !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())
   );
 
+  function getBulkPrice(qty: number): number | null {
+    const discounts = productDiscounts
+      .filter((d) => d.product_id === productId && d.min_qty <= qty)
+      .sort((a, b) => b.min_qty - a.min_qty);
+    return discounts.length > 0 ? discounts[0].discount_price : null;
+  }
+
   async function handleSubmit() {
     if (!productId || !price || entries.some((e) => !e.name.trim())) return;
     setLoading(true);
@@ -87,6 +95,7 @@ export default function BulkOrder() {
 
     for (const entry of entries) {
       const qty = Math.max(1, entry.quantity || 1);
+      const finalPrice = getBulkPrice(qty) ?? priceNum;
       const name = entry.name.trim();
       if (!name) continue;
 
@@ -109,7 +118,7 @@ export default function BulkOrder() {
 
       const orderId = uuid();
       const now = new Date().toISOString();
-      const total = priceNum * qty;
+      const total = finalPrice * qty;
 
       const { error: orderErr } = await supabase.from("orders").insert({
         id: orderId,
@@ -135,7 +144,7 @@ export default function BulkOrder() {
         order_id: orderId,
         product_id: productId,
         product_name: product?.name || "",
-        price: priceNum,
+        price: finalPrice,
         quantity: qty,
         discount: 0,
         paid_value: 0,
@@ -328,9 +337,21 @@ export default function BulkOrder() {
                     </button>
                   </div>
                   {selectedProduct && price && (
-                    <p className="text-xs text-gray-400 mt-1.5 ml-7">
-                      Subtotal: Rp {(parseInt(price) * entry.quantity).toLocaleString("id-ID")}
-                    </p>
+                    (() => {
+                      const q = Math.max(1, entry.quantity || 1);
+                      const dp = getBulkPrice(q);
+                      const unitPrice = dp ?? (parseInt(price.replace(/\D/g, "")) || 0);
+                      return (
+                        <p className="text-xs text-gray-400 mt-1.5 ml-7">
+                          Subtotal: Rp {(unitPrice * q).toLocaleString("id-ID")}
+                          {dp !== null && (
+                            <span className="text-green-500 font-semibold">
+                              {" · "}Rp {dp}/pcs (diskon)
+                            </span>
+                          )}
+                        </p>
+                      );
+                    })()
                   )}
                 </div>
               ))}
