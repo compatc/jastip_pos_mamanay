@@ -160,7 +160,7 @@ export default function CustomerOrders() {
       if (!list) return;
       list.forEach((order) => {
         const items = itemsByOrder[order.id] || [];
-        const productNames = items.map((i) => i.product_name).join(", ");
+        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
         const payMethod = paymentLabels[order.payment_type] || order.payment_type;
         const statusLabel = STATUS_LABELS[order.status] || order.status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
