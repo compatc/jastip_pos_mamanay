@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
-import type { PaymentType } from "../types";
+import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
   Search,
@@ -13,6 +13,10 @@ import {
   FileSpreadsheet,
   Package,
   BellRing,
+  MessageCircle,
+  Check,
+  Copy,
+  ExternalLink,
   X,
 } from "lucide-react";
 
@@ -36,6 +40,29 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Selesai",
 };
 
+const COURIER_LABELS: Record<string, string> = {
+  jnt: "J&T",
+  indopaket: "Indopaket",
+  shopee: "Shopee",
+};
+
+const PAYMENT_LABELS_FULL: Record<string, string> = {
+  tf: "Transfer Bank",
+  qris: "QRIS",
+  split: "Split",
+  shopee: "Shopee",
+  cash: "Tunai",
+};
+
+const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
+
+type CustomerGroup = {
+  customerId: string;
+  name: string;
+  phone: string;
+  orders: Order[];
+};
+
 export default function Orders() {
   const { allOrders, loadAllOrders, deleteOrder, customers, loadCustomers } = useStore();
   const navigate = useNavigate();
@@ -50,6 +77,10 @@ export default function Orders() {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmOnConfirm, setConfirmOnConfirm] = useState<(() => void) | null>(null);
+
+  const [waModalOpen, setWaModalOpen] = useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function showConfirm(title: string, message: string, onConfirm: () => void) {
     setConfirmTitle(title);
@@ -206,9 +237,157 @@ export default function Orders() {
     }
     msg += `\u{23F0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
     msg += "Mohon segera konfirmasi pembayaran agar pesanan dapat kami proses. ";
+    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
 
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
+  const groupedCustomers = useMemo(() => {
+    const map = new Map<string, CustomerGroup>();
+    for (const order of filtered) {
+      const key = order.customer_id || "none";
+      const existing = map.get(key);
+      if (!existing) {
+        const cust = customers.find((c) => c.id === key);
+        map.set(key, {
+          customerId: key,
+          name: order.customer_name || "Tanpa kontak",
+          phone: cust?.phone || "",
+          orders: [],
+        });
+      }
+      map.get(key)!.orders.push(order);
+    }
+    return [...map.values()]
+      .filter((g) => g.orders.some((o) => !isOrderLunas(o)))
+      .sort((a, b) => a.name.localeCompare(b.name, "id"));
+  }, [filtered, customers]);
+
+  function toWaNumber(phone: string): string {
+    const cleaned = phone.replace(/\D/g, "");
+    if (!cleaned) return "";
+    return cleaned.startsWith("0")
+      ? "62" + cleaned.slice(1)
+      : cleaned.startsWith("62")
+        ? cleaned
+        : "62" + cleaned;
+  }
+
+  function buildInvoiceMsg(group: CustomerGroup): string {
+    const deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const deadlineStr = deadline.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    let msg = `Halo Kak ${group.name} \u{1F64F}\n\n`;
+    msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
+    msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
+
+    let grandTotal = 0;
+    let grandPaid = 0;
+    const grouped: Record<string, Order[]> = {};
+    const statusOrder = ["new", "belum-ready", "ready", "paid", "shipped", "delivered", "completed"];
+    group.orders.forEach((order) => {
+      if (!grouped[order.status]) grouped[order.status] = [];
+      grouped[order.status].push(order);
+    });
+    statusOrder.forEach((status) => {
+      const list = grouped[status];
+      if (!list) return;
+      list.forEach((order) => {
+        const items = itemsByOrder[order.id] || [];
+        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+        const payMethod = PAYMENT_LABELS_FULL[order.payment_type] || order.payment_type;
+        const statusLabel = STATUS_LABELS[order.status] || order.status;
+        msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
+        msg += `Status barang: ${statusLabel}\n`;
+        msg += `Metode: ${payMethod}\n`;
+        msg += `\u{1F4B0} Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
+        const paid = order.paid_total || 0;
+        if (paid > 0) {
+          msg += `Sudah dibayar: Rp ${paid.toLocaleString("id-ID")}\n`;
+          msg += `Sisa: Rp ${(order.total - paid).toLocaleString("id-ID")}\n`;
+        }
+        msg += "\n";
+        grandTotal += order.total;
+        grandPaid += paid;
+      });
+    });
+
+    if (group.orders.length > 1) {
+      msg += `\u{1F4CA} *Grand Total: Rp ${grandTotal.toLocaleString("id-ID")}*\n`;
+      msg += `Total dibayar: Rp ${grandPaid.toLocaleString("id-ID")}\n`;
+      msg += `*Sisa: Rp ${(grandTotal - grandPaid).toLocaleString("id-ID")}*\n\n`;
+    }
+
+    msg += `\u{1F4B3} Metode Pembayaran: ${PAYMENT_LABELS_FULL[group.orders[0]?.payment_type] || "Transfer Bank"}\n`;
+    msg += BANK_INFO + "\n";
+    msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
+
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
+    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
+    msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
+    return msg;
+  }
+
+  function openWaModal() {
+    setSelectedCustomerIds(groupedCustomers.filter((g) => toWaNumber(g.phone)).map((g) => g.customerId));
+    setWaModalOpen(true);
+  }
+
+  function toggleCustomer(id: string) {
+    setSelectedCustomerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function sendBulkInvoice() {
+    const targets = groupedCustomers.filter((g) => selectedCustomerIds.includes(g.customerId));
+    targets.forEach((g, i) => {
+      const wa = toWaNumber(g.phone);
+      if (!wa) return;
+      const msg = buildInvoiceMsg(g);
+      const url = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
+      if (i === 0) {
+        window.open(url, "_blank");
+      } else {
+        setTimeout(() => window.open(url, "_blank"), i * 300);
+      }
+    });
+    setWaModalOpen(false);
+  }
+
+  function openOneChat(group: CustomerGroup) {
+    const wa = toWaNumber(group.phone);
+    if (!wa) return;
+    window.open(
+      `https://wa.me/${wa}?text=${encodeURIComponent(buildInvoiceMsg(group))}`,
+      "_blank"
+    );
+  }
+
+  function copyInvoiceMsg(group: CustomerGroup) {
+    navigator.clipboard.writeText(buildInvoiceMsg(group)).then(() => {
+      setCopiedId(group.customerId);
+      setTimeout(() => setCopiedId((c) => (c === group.customerId ? null : c)), 1500);
+    });
+  }
+
+  function copyAllInvoiceMsgs() {
+    const text = groupedCustomers
+      .filter((g) => selectedCustomerIds.includes(g.customerId))
+      .map((g, i) => `${i + 1}. ${g.name}\n${buildInvoiceMsg(g)}`)
+      .join("\n\n------------------\n\n");
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId("all");
+      setTimeout(() => setCopiedId((c) => (c === "all" ? null : c)), 1500);
+    });
   }
 
   return (
@@ -264,25 +443,36 @@ export default function Orders() {
               )}
             </div>
           <button
+            onClick={() => navigate("/orders/new")}
+            className="w-28 px-4 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 shrink-0 active:scale-[0.97]"
+          >
+            <ClipboardList className="w-4 h-4" />
+            Baru
+          </button>
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          <button
             onClick={() => navigate("/orders/bulk")}
-            className="w-28 px-4 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-[0.97]"
+            className="flex-1 px-3 py-2.5 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97]"
           >
             <Package className="w-4 h-4" />
             Massal
           </button>
           <button
             onClick={() => navigate("/orders/upload")}
-            className="w-28 px-4 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-[0.97]"
+            className="flex-1 px-3 py-2.5 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97]"
           >
             <FileSpreadsheet className="w-4 h-4" />
             CSV
           </button>
           <button
-            onClick={() => navigate("/orders/new")}
-            className="w-28 px-4 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 shrink-0 active:scale-[0.97]"
+            onClick={openWaModal}
+            disabled={groupedCustomers.length === 0}
+            className="flex-1 px-3 py-2.5 bg-green-50 border border-green-200 hover:bg-green-100 text-green-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ClipboardList className="w-4 h-4" />
-            Baru
+            <MessageCircle className="w-4 h-4" />
+            Invoice
           </button>
         </div>
 
@@ -402,6 +592,11 @@ export default function Orders() {
                         {itemsByOrder[order.id].map((i) => `${i.product_name}×${i.quantity}`).join(", ")}
                       </p>
                     )}
+                    {order.resi && (
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {COURIER_LABELS[order.courier || ""] || "Kurir"} · Resi: {order.resi}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-gray-400 text-base">
                         {new Date(order.created_at).toLocaleDateString("id-ID", {
@@ -476,6 +671,139 @@ export default function Orders() {
           </div>
         )}
       </main>
+
+      {waModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setWaModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between shrink-0">
+              <p className="text-sm font-bold text-gray-800">Kirim Invoice Massal</p>
+              <button
+                onClick={() => setWaModalOpen(false)}
+                className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 leading-relaxed shrink-0">
+              Pilih pelanggan, lalu buka chat satu per satu (paling aman) atau salin teks invoice
+              untuk ditempel. Pelanggan yang sudah lunas otomatis dilewati.
+            </p>
+            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 -mx-5 px-5">
+              {groupedCustomers.length === 0 && (
+                <div className="text-center py-8 text-sm text-gray-400">
+                  Tidak ada pelanggan yang perlu ditagih di filter ini.
+                </div>
+              )}
+              {groupedCustomers.map((g) => {
+                const hasPhone = !!toWaNumber(g.phone);
+                const checked = selectedCustomerIds.includes(g.customerId);
+                const total = g.orders.reduce((s, o) => s + o.total, 0);
+                const paid = g.orders.reduce((s, o) => s + (o.paid_total || 0), 0);
+                return (
+                  <label
+                    key={g.customerId}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
+                      checked ? "bg-green-50 border-green-200" : "bg-white border-gray-100"
+                    } ${hasPhone ? "" : "opacity-50"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!hasPhone}
+                      onChange={() => toggleCustomer(g.customerId)}
+                      className="w-4 h-4 accent-green-500 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-gray-800 truncate">{g.name}</span>
+                        {!hasPhone && (
+                          <span className="text-[10px] text-red-400 font-semibold shrink-0">tanpa WA</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {g.orders.length} order · Rp {total.toLocaleString("id-ID")}
+                        {total - paid > 0 && (
+                          <span className="text-amber-500 font-semibold">
+                            {" · sisa "}
+                            Rp {(total - paid).toLocaleString("id-ID")}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openOneChat(g);
+                        }}
+                        disabled={!hasPhone}
+                        className="p-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg transition-all disabled:opacity-40"
+                        title="Buka chat WA"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          copyInvoiceMsg(g);
+                        }}
+                        disabled={!hasPhone}
+                        className={`p-2 rounded-lg transition-all disabled:opacity-40 ${
+                          copiedId === g.customerId
+                            ? "bg-emerald-500 text-white"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                        }`}
+                        title={copiedId === g.customerId ? "Tersalin" : "Salin teks invoice"}
+                      >
+                        {copiedId === g.customerId ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 shrink-0">
+              <span className="text-xs text-gray-400">{selectedCustomerIds.length} dipilih</span>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={copyAllInvoiceMsgs}
+                  disabled={selectedCustomerIds.length === 0}
+                  className="px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-50 rounded-xl transition-all disabled:opacity-40 flex items-center gap-1.5"
+                >
+                  {copiedId === "all" ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                  Salin Semua
+                </button>
+                <button
+                  onClick={() => setWaModalOpen(false)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={sendBulkInvoice}
+                  disabled={selectedCustomerIds.length === 0}
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-all"
+                >
+                  Buka Semua
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmationModal
         visible={confirmVisible}

@@ -50,6 +50,13 @@ const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: "completed", label: "Selesai" },
 ];
 
+const COURIER_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Tidak ada" },
+  { value: "jnt", label: "J&T" },
+  { value: "shopee", label: "Shopee" },
+  { value: "indopaket", label: "Indopaket" },
+];
+
 function formatRp(n: number): string {
   return n.toLocaleString("id-ID");
 }
@@ -81,6 +88,9 @@ export default function EditOrderForm() {
   const [diskon, setDiskon] = useState("");
   const [notes, setNotes] = useState("");
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [courier, setCourier] = useState("");
+  const [resi, setResi] = useState("");
+  const [shopeeOrderNo, setShopeeOrderNo] = useState("");
   const [status, setStatus] = useState<OrderStatus>("new");
   const [loading, setLoading] = useState(true);
   const [itemsLoaded, setItemsLoaded] = useState(false);
@@ -129,6 +139,9 @@ export default function EditOrderForm() {
     setNotes(order.notes || "");
     setStatus(order.status);
     setAccountId(order.account_id || null);
+    setCourier(order.courier || "");
+    setResi(order.resi || "");
+    setShopeeOrderNo(order.shopee_order_no || "");
 
     if (order.customer_name) {
       setContactName(order.customer_name);
@@ -294,6 +307,9 @@ export default function EditOrderForm() {
           diskon: diskonVal,
           notes: notes.trim(),
           accountId,
+          courier: courier.trim(),
+          resi: resi.trim(),
+          shopeeOrderNo: shopeeOrderNo.trim(),
         });
         navigate(returnTo || "/orders");
       });
@@ -311,6 +327,9 @@ export default function EditOrderForm() {
       diskon: diskonVal,
       notes: notes.trim(),
       accountId,
+      courier: courier.trim(),
+      resi: resi.trim(),
+      shopeeOrderNo: shopeeOrderNo.trim(),
     });
     navigate(returnTo || "/orders");
   }
@@ -712,6 +731,38 @@ export default function EditOrderForm() {
 
           <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
             <label className="flex items-center gap-2 text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
+              <Truck className="w-4 h-4" />
+              Pengiriman
+            </label>
+            <p className="text-xs text-gray-400 mb-2">Kurir</p>
+            <div className="flex gap-2 mb-3">
+              {COURIER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setCourier(opt.value)}
+                  className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
+                    courier === opt.value
+                      ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
+                      : "bg-pink-50 text-gray-400 border border-pink-100"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mb-2">No. Resi</p>
+            <input
+              type="text"
+              value={resi}
+              onChange={(e) => setResi(e.target.value)}
+              placeholder="Contoh: JP1234567890"
+              className="w-full px-4 py-3 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+            />
+          </div>
+
+          <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
+            <label className="flex items-center gap-2 text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
               <Percent className="w-4 h-4" />
               Diskon
             </label>
@@ -769,6 +820,23 @@ export default function EditOrderForm() {
                 </button>
               ))}
             </div>
+            {paymentType === "shopee" && (
+              <div className="mt-3">
+                <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                  Nomor Order Shopee
+                </label>
+                <input
+                  type="text"
+                  value={shopeeOrderNo}
+                  onChange={(e) => setShopeeOrderNo(e.target.value)}
+                  placeholder="Contoh: 251026xxxxxxxxx"
+                  className="w-full px-4 py-3 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                />
+                <p className="text-xs text-gray-300 mt-1">
+                  Isi nomor pesanan dari Seller Centre supaya bisa sync resi dari Shopee.
+                </p>
+              </div>
+            )}
           </div>
 
           {accounts.length > 0 && (

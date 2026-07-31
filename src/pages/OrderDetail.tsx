@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
-import { ArrowLeft, Edit2, User, Package } from "lucide-react";
+import { ArrowLeft, Edit2, User, Package, Copy, ExternalLink, Truck } from "lucide-react";
 
 function rupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -32,6 +32,24 @@ const PAYMENT_LABELS: Record<string, string> = {
   shopee: "Shopee",
   cash: "Cash",
 };
+
+const COURIER_LABELS: Record<string, string> = {
+  jnt: "J&T Express",
+  indopaket: "Indopaket",
+  shopee: "Shopee Express",
+};
+
+function getTrackUrl(courier: string, resi: string): string | null {
+  if (courier === "jnt" || courier === "shopee") {
+    return resi
+      ? `https://cekresi.com/?noresi=${encodeURIComponent(resi)}`
+      : "https://cekresi.com/";
+  }
+  if (courier === "indopaket") {
+    return "https://www.indopaket.co.id/";
+  }
+  return null;
+}
 
 function getStatusBadge(status: string): string {
   const colors: Record<string, string> = {
@@ -238,7 +256,58 @@ export default function OrderDetail() {
             <p className="text-gray-700 font-semibold">
               {PAYMENT_LABELS[order.payment_type] || order.payment_type}
             </p>
+            {order.shopee_order_no && (
+              <p className="text-xs text-gray-400 mt-1">
+                No. Order Shopee: {order.shopee_order_no}
+              </p>
+            )}
           </div>
+
+          {(order.courier || order.resi) && (
+            <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
+              <label className="flex items-center gap-2 text-xs text-gray-400 mb-2 uppercase tracking-widest font-semibold">
+                <Truck className="w-4 h-4" />
+                Pengiriman
+              </label>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-700 font-semibold">
+                    {COURIER_LABELS[order.courier || ""] || "Kurir"}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    No. Resi: {order.resi || "-"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {order.resi && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(order.resi);
+                          alert("Nomor resi disalin");
+                        } catch {
+                          alert("Gagal menyalin nomor resi");
+                        }
+                      }}
+                      className="p-2.5 bg-pink-50 hover:bg-pink-100 text-pink-500 rounded-xl transition-all border border-pink-100"
+                      title="Salin resi"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  )}
+                  {getTrackUrl(order.courier || "", order.resi || "") && (
+                    <button
+                      onClick={() => window.open(getTrackUrl(order.courier || "", order.resi || "")!, "_blank")}
+                      className="p-2.5 bg-gradient-to-r from-pink-400 to-rose-500 text-white rounded-xl transition-all shadow-lg shadow-pink-200/40 active:scale-95"
+                      title="Lacak paket"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {order.notes && (
             <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">

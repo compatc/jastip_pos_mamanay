@@ -65,6 +65,9 @@ interface PosStore {
     notes: string;
     orderType: OrderType;
     accountId?: string | null;
+    courier?: string;
+    resi?: string;
+    shopeeOrderNo?: string;
   }) => Promise<void>;
   updateItemStatus: (
     itemId: string,
@@ -453,7 +456,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return items;
   },
 
-  updateOrder: async (orderId, { status, paymentType, contactName, items, paidTotal, ongkir, diskon, notes, orderType, accountId }) => {
+  updateOrder: async (orderId, { status, paymentType, contactName, items, paidTotal, ongkir, diskon, notes, orderType, accountId, courier, resi, shopeeOrderNo }) => {
     const now = new Date().toISOString();
 
     const { data: existingOrder } = await supabase
@@ -544,6 +547,9 @@ export const useStore = create<PosStore>((set, get) => ({
         ongkir: ongkir || 0,
         notes: notes || "",
         account_id: accountId || null,
+        courier: courier || "",
+        resi: resi || "",
+        shopee_order_no: shopeeOrderNo || "",
         updated_at: now,
       })
       .eq("id", orderId);

@@ -404,11 +404,11 @@ export default function CustomerOrders() {
         onCancel={() => setConfirmVisible(false)}
       />
       {waModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30" onClick={() => setWaModalOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
-            <p className="text-sm font-bold text-gray-800">Pilih Tagihan</p>
-            <div className="overflow-y-auto flex-1 space-y-2 -mx-5 px-5">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 max-h-[85vh] flex flex-col overflow-hidden">
+            <p className="text-sm font-bold text-gray-800 shrink-0">Pilih Tagihan</p>
+            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 -mx-5 px-5">
               {orders.map((order) => {
                 const isUnpaid = order.paid_total < order.total && order.total > 0;
                 const items = itemsByOrder[order.id] || [];
@@ -446,7 +446,7 @@ export default function CustomerOrders() {
                 );
               })}
             </div>
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 shrink-0">
               <span className="text-xs text-gray-400">{selectedOrders.size} dipilih</span>
               <div className="flex gap-2">
                 <button

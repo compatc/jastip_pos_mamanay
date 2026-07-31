@@ -28,6 +28,9 @@ export interface Order {
   ongkir: number;
   notes: string;
   account_id: string | null;
+  courier?: string;
+  resi?: string;
+  shopee_order_no?: string;
   created_at: string;
   updated_at: string;
   customer_name?: string;
