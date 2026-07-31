@@ -15,7 +15,11 @@ import {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, setUser, isOnline, setOnline } = useStore();
+  const { user, setUser, isOnline, setOnline, fontSize } = useStore();
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-fs", fontSize);
+  }, [fontSize]);
 
   useEffect(() => {
     const checkOnline = async () => {

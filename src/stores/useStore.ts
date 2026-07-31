@@ -141,6 +141,9 @@ interface PosStore {
 
   isOnline: boolean;
   setOnline: (val: boolean) => void;
+
+  fontSize: "kecil" | "normal" | "besar";
+  setFontSize: (val: "kecil" | "normal" | "besar") => void;
 }
 
 const getInitialUser = () => {
@@ -1139,4 +1142,21 @@ export const useStore = create<PosStore>((set, get) => ({
 
   isOnline: navigator.onLine,
   setOnline: (val) => set({ isOnline: val }),
+
+  fontSize: (() => {
+    try {
+      const saved = localStorage.getItem("pos_font_size");
+      return saved === "kecil" || saved === "besar" ? saved : "normal";
+    } catch {
+      return "normal";
+    }
+  })(),
+  setFontSize: (val) => {
+    try {
+      localStorage.setItem("pos_font_size", val);
+    } catch {
+      // ignore storage errors
+    }
+    set({ fontSize: val });
+  },
 }));

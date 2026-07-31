@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useStore } from "../stores/useStore";
 import ConfirmationModal from "../components/ConfirmationModal";
 
 export default function Profile() {
-  const navigate = useNavigate();
-  const { user, setUser } = useStore();
+  const { user, setUser, fontSize, setFontSize } = useStore();
 
   const [name, setName] = useState(user?.name || "");
   const [nameMsg, setNameMsg] = useState("");
@@ -116,6 +114,26 @@ export default function Profile() {
         <div className="bg-white/80 backdrop-blur-xl border border-pink-100/60 rounded-2xl p-5 shadow-lg shadow-pink-100/30">
           <p className="text-base text-gray-500">Akun login</p>
           <p className="text-lg font-semibold text-gray-800 break-all">{user?.email}</p>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-xl border border-pink-100/60 rounded-2xl p-5 shadow-lg shadow-pink-100/30">
+          <h3 className="text-lg font-bold text-gray-800 mb-1">Ukuran Teks</h3>
+          <p className="text-base text-gray-500 mb-3">Atur besar kecilnya tampilan teks aplikasi.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["kecil", "normal", "besar"] as const).map((size) => (
+              <button
+                key={size}
+                onClick={() => setFontSize(size)}
+                className={`py-3 rounded-xl font-semibold text-base capitalize transition-all border ${
+                  fontSize === size
+                    ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white border-transparent shadow-lg shadow-pink-200/40"
+                    : "bg-pink-50 text-gray-500 border-pink-100 hover:bg-pink-100"
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="bg-white/80 backdrop-blur-xl border border-pink-100/60 rounded-2xl p-5 shadow-lg shadow-pink-100/30">

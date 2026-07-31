@@ -3,3 +3,11 @@
 html {
   font-size: clamp(13px, 3.2vw, 18px);
 }
+
+html[data-fs="kecil"] {
+  font-size: clamp(11px, 2.7vw, 15px);
+}
+
+html[data-fs="besar"] {
+  font-size: clamp(15px, 3.8vw, 22px);
+}
