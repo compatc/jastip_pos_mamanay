@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
+import { supabase } from "../lib/supabase";
 import type { CustomerCategory } from "../types";
 import {
   UserPlus,
@@ -10,6 +11,7 @@ import {
   Truck,
   Pencil,
   Trash2,
+  Download,
 } from "lucide-react";
 
 type TabFilter = "all" | "pelanggan" | "supplier";
@@ -95,6 +97,45 @@ export default function Dashboard() {
     setEditId(null);
   }
 
+  async function handleBackup() {
+    const tables = [
+      "customers",
+      "products",
+      "orders",
+      "order_items",
+      "stock_movements",
+      "accounts",
+      "account_transactions",
+      "product_discounts",
+    ];
+    try {
+      const results: Record<string, any[]> = {};
+      for (const table of tables) {
+        const { data } = await supabase.from(table).select("*");
+        results[table] = data || [];
+      }
+      const backup = {
+        app: "jastip_mamanay",
+        version: 1,
+        exported_at: new Date().toISOString(),
+        data: results,
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup-jastip-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Gagal membuat backup: " + (err instanceof Error ? err.message : String(err)));
+    }
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="shrink-0 px-5 pt-4 pb-3 relative z-10">
@@ -109,6 +150,13 @@ export default function Dashboard() {
               className="w-full pl-10 pr-4 py-3 bg-white/80 border border-pink-100 rounded-xl text-gray-700 placeholder-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
             />
           </div>
+          <button
+            onClick={handleBackup}
+            className="w-11 h-11 shrink-0 px-0 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-500 hover:text-pink-500 rounded-xl flex items-center justify-center transition-all active:scale-95"
+            title="Backup Data"
+          >
+            <Download className="w-4 h-4" />
+          </button>
           <button
             onClick={() => setShowAdd(true)}
             className="w-28 px-4 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 shrink-0 active:scale-[0.97]"

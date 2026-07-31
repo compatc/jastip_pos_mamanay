@@ -12,6 +12,7 @@ import {
   Trash2,
   FileSpreadsheet,
   Package,
+  BellRing,
   X,
 } from "lucide-react";
 
@@ -36,7 +37,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function Orders() {
-  const { allOrders, loadAllOrders, deleteOrder } = useStore();
+  const { allOrders, loadAllOrders, deleteOrder, customers, loadCustomers } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -59,6 +60,7 @@ export default function Orders() {
 
   useEffect(() => {
     loadAllOrders();
+    loadCustomers();
   }, []);
 
   useEffect(() => {
@@ -156,6 +158,57 @@ export default function Orders() {
 
   function isOrderLunas(order: typeof allOrders[0]): boolean {
     return order.paid_total >= order.total && order.total > 0;
+  }
+
+  function getAgeDays(createdAt: string): number {
+    const created = new Date(createdAt);
+    const now = new Date();
+    return Math.max(0, Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)));
+  }
+
+  function getAgeBadge(days: number): string {
+    if (days <= 2) return "bg-emerald-50 text-emerald-600 border-emerald-200";
+    if (days <= 7) return "bg-amber-50 text-amber-600 border-amber-200";
+    return "bg-red-50 text-red-600 border-red-200";
+  }
+
+  const sortedOrders = [...filtered];
+  if (tab === "belum-lunas") {
+    sortedOrders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }
+
+  const totalPiutang = filtered
+    .filter((o) => !isOrderLunas(o))
+    .reduce((s, o) => s + (o.total - o.paid_total), 0);
+
+  function sendReminder(order: (typeof allOrders)[0]) {
+    const customer = customers.find((c) => c.id === order.customer_id);
+    const phone = customer?.phone || "";
+    const cleaned = phone.replace(/\D/g, "");
+    if (!cleaned) {
+      alert(`Nomor WA untuk ${order.customer_name || "pelanggan ini"} belum diisi.`);
+      return;
+    }
+    const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
+
+    const items = itemsByOrder[order.id] || [];
+    const productText = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+    const sisa = order.total - order.paid_total;
+    const statusLabel = STATUS_LABELS[order.status] || order.status;
+
+    let msg = `Halo Kak ${order.customer_name || ""} \u{1F64F}\n\n`;
+    msg += "Pengingat untuk pesanan di *Jastip_mamanay*:\n\n";
+    msg += `\u{1F4E6} Pesanan: ${productText}\n`;
+    msg += `Status barang: ${statusLabel}\n`;
+    msg += `\u{1F4B0} Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
+    if (order.paid_total > 0) {
+      msg += `Sudah dibayar: Rp ${order.paid_total.toLocaleString("id-ID")}\n`;
+    }
+    msg += `\u{23F0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
+    msg += "Mohon segera konfirmasi pembayaran agar pesanan dapat kami proses. ";
+    msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
+
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
   return (
@@ -290,6 +343,18 @@ export default function Orders() {
       </div>
 
       <main className="flex-1 overflow-y-auto px-5 pb-4 relative z-10">
+        {tab === "belum-lunas" && filtered.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-xs text-amber-600 font-semibold uppercase tracking-widest">Total Piutang</p>
+              <p className="text-lg font-bold text-amber-700">Rp {totalPiutang.toLocaleString("id-ID")}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-amber-600 font-semibold uppercase tracking-widest">Belum Dibayar</p>
+              <p className="text-lg font-bold text-amber-700">{filtered.length} order</p>
+            </div>
+          </div>
+        )}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-5">
@@ -308,7 +373,7 @@ export default function Orders() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((order) => (
+            {sortedOrders.map((order) => (
               <div
                 key={order.id}
                 className="bg-white/80 hover:bg-white border border-pink-100/60 rounded-2xl p-4 flex items-center justify-between transition-all shadow-sm shadow-pink-50 cursor-pointer"
@@ -348,6 +413,13 @@ export default function Orders() {
                       <span className="text-gray-400 text-base">
                         {PAYMENT_LABELS[order.payment_type]}
                       </span>
+                      {tab === "belum-lunas" && (
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${getAgeBadge(getAgeDays(order.created_at))}`}>
+                          {getAgeDays(order.created_at) === 0
+                            ? "Hari ini"
+                            : `Hari ke-${getAgeDays(order.created_at)}`}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -366,6 +438,19 @@ export default function Orders() {
                         </span>
                       </div>
                     </div>
+                    {!isOrderLunas(order) && order.total > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sendReminder(order);
+                        }}
+                        className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-500 rounded-xl transition-all border border-amber-200 shrink-0"
+                        title="Kirim Pengingat WA"
+                      >
+                        <BellRing className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
