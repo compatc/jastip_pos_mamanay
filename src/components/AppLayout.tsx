@@ -9,6 +9,7 @@ import {
   DollarSign,
   Wallet,
   LogOut,
+  User,
 } from "lucide-react";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -97,6 +98,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   OFFLINE
                 </span>
               )}
+              <button
+                onClick={() => navigate("/profile")}
+                className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
+                title="Profil"
+              >
+                <User className="w-4 h-4" />
+              </button>
               <button
                 onClick={handleLogout}
                 className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"

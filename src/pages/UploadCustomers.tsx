@@ -3,13 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import { uuid } from "../lib/uuid";
-import type { OrderType, PaymentType } from "../types";
-import { phoneEquals } from "../lib/phone";
 import Papa from "papaparse";
 import {
   ArrowLeft,
   Upload,
-  FileSpreadsheet,
   Check,
   X,
   AlertTriangle,
@@ -18,59 +15,29 @@ import {
 } from "lucide-react";
 
 interface CsvRow {
-  tanggal: string;
-  pelanggan: string;
+  nama: string;
   telepon: string;
-  produk: string;
-  harga: string;
-  jumlah: string;
-  diskon: string;
-  ongkir: string;
-  tipe_bayar: string;
-  tipe_order: string;
-  catatan: string;
+  alamat: string;
+  kategori: string;
 }
 
 interface ValidatedRow extends CsvRow {
   rowIndex: number;
-  product_id: string;
   errors: string[];
   warnings: string[];
-}
-
-interface OrderGroup {
-  tanggal: string;
-  pelanggan: string;
-  telepon: string;
-  ongkir: number;
-  tipe_bayar: PaymentType;
-  tipe_order: OrderType;
-  catatan: string;
-  items: ValidatedRow[];
+  duplicate: boolean;
 }
 
 type Step = "upload" | "preview" | "importing" | "done";
 
-function formatRp(n: number): string {
-  return n.toLocaleString("id-ID");
-}
+const TEMPLATE_CSV = `nama,telepon,alamat,kategori
+Budi Santoso,081234567890,Jl. Melati No. 12,
+Andi Wijaya,082198765432,Jl. Kenanga No. 5,pelanggan
+PT Sumber Makmur,083112233445,Jl. Raya Industri No. 1,supplier`;
 
-const TEMPLATE_CSV = `tanggal,pelanggan,telepon,produk,harga,jumlah,diskon,ongkir,tipe_bayar,tipe_order,catatan
-2025-01-15,Budi,081234567890,Produk A,50000,2,0,10000,tf,penjualan,
-2025-01-15,Budi,,Produk B,30000,1,5000,0,qris,penjualan,
-2025-01-16,Andi,082198765432,Produk A,50000,5,0,15000,tf,pembelian,urgent`;
-
-const PAYMENT_MAP: Record<string, PaymentType> = {
-  tf: "tf",
-  transfer: "tf",
-  qris: "qris",
-  split: "split",
-  shopee: "shopee",
-};
-
-export default function UploadOrders() {
+export default function UploadCustomers() {
   const navigate = useNavigate();
-  const { products, loadProducts, loadAllOrders, loadCustomers, customers } = useStore();
+  const { customers, loadCustomers } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("upload");
@@ -78,12 +45,12 @@ export default function UploadOrders() {
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [importResult, setImportResult] = useState<{
     success: number;
+    skipped: number;
     errors: { row: number; message: string }[];
   } | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
-    loadProducts();
     loadCustomers();
   }, []);
 
@@ -92,7 +59,7 @@ export default function UploadOrders() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "template_order.csv";
+    a.download = "template_pelanggan.csv";
     a.click();
     URL.revokeObjectURL(url);
   }, []);
@@ -104,66 +71,43 @@ export default function UploadOrders() {
         skipEmptyLines: true,
         transformHeader: (h: string) => h.trim().toLowerCase(),
         complete: (results) => {
-          const productMap = new Map(products.map((p) => [p.name.toLowerCase(), p]));
+          const existingNames = new Set(customers.map((c) => c.name.toLowerCase().trim()));
+          const seen = new Set<string>();
 
           const validated: ValidatedRow[] = results.data.map((row, i) => {
             const errors: string[] = [];
             const warnings: string[] = [];
 
-            const tanggal = (row.tanggal || "").trim();
-            const pelanggan = (row.pelanggan || "").trim();
+            const nama = (row.nama || "").trim();
             const telepon = (row.telepon || "").trim();
-            const produk = (row.produk || "").trim();
-            const hargaStr = (row.harga || "").trim();
-            const jumlahStr = (row.jumlah || "").trim();
-            const diskonStr = (row.diskon || "0").trim();
-            const ongkirStr = (row.ongkir || "0").trim();
-            const tipeBayar = (row.tipe_bayar || "tf").trim().toLowerCase();
-            const tipeOrder = (row.tipe_order || "penjualan").trim().toLowerCase();
-            const catatan = (row.catatan || "").trim();
+            const alamat = (row.alamat || "").trim();
+            const kategoriRaw = (row.kategori || "").trim().toLowerCase();
+            const kategori = kategoriRaw || "pelanggan";
 
-            if (!tanggal) errors.push("Tanggal kosong");
-            else if (isNaN(Date.parse(tanggal))) errors.push("Format tanggal salah (gunakan YYYY-MM-DD)");
-
-            if (!pelanggan) errors.push("Nama pelanggan kosong");
-
+            if (!nama) errors.push("Nama kosong");
             if (!telepon) errors.push("Telepon kosong");
-
-            if (!produk) errors.push("Nama produk kosong");
-
-            const harga = parseFloat(hargaStr);
-            if (!hargaStr || isNaN(harga) || harga < 0) errors.push("Harga tidak valid");
-
-            const jumlah = parseInt(jumlahStr, 10);
-            if (!jumlahStr || isNaN(jumlah) || jumlah <= 0) errors.push("Jumlah harus > 0");
-
-            const diskon = parseFloat(diskonStr) || 0;
-            const ongkir = parseFloat(ongkirStr) || 0;
-
-            if (!["tf", "transfer", "qris", "split", "shopee"].includes(tipeBayar)) {
-              errors.push("Tipe bayar tidak valid (tf/qris/split/shopee)");
-            }
-            if (!["penjualan", "pembelian"].includes(tipeOrder)) {
-              errors.push("Tipe order tidak valid (penjualan/pembelian)");
+            if (!["pelanggan", "supplier"].includes(kategori)) {
+              errors.push("Kategori tidak valid (pelanggan/supplier)");
             }
 
-            const product = produk ? productMap.get(produk.toLowerCase()) : null;
-            let product_id = "";
-            if (produk && !product) {
-              errors.push(`Produk "${produk}" tidak ditemukan di inventaris`);
-            } else if (product) {
-              product_id = product.id;
-              if (tipeOrder === "penjualan" && jumlah > product.stock) {
-                warnings.push(`Stok ${product.name} hanya ${product.stock} ${product.unit}`);
-              }
+            const key = nama.toLowerCase();
+            let duplicate = false;
+            if (nama && existingNames.has(key)) {
+              duplicate = true;
+              warnings.push("Sudah ada di database");
             }
+            if (nama && seen.has(key)) {
+              duplicate = true;
+              warnings.push("Duplikat di dalam file");
+            }
+            seen.add(key);
 
             return {
               ...row,
               rowIndex: i + 2,
-              product_id,
               errors,
               warnings,
+              duplicate,
             };
           });
 
@@ -172,7 +116,7 @@ export default function UploadOrders() {
         },
       });
     },
-    [products]
+    [customers]
   );
 
   const handleFile = useCallback(
@@ -196,166 +140,55 @@ export default function UploadOrders() {
     [handleFile]
   );
 
-  const validRows = parsedRows.filter((r) => r.errors.length === 0);
+  const validRows = parsedRows.filter(
+    (r) => r.errors.length === 0 && !r.duplicate
+  );
   const errorRows = parsedRows.filter((r) => r.errors.length > 0);
+  const skippedRows = parsedRows.filter(
+    (r) => r.errors.length === 0 && r.duplicate
+  );
   const totalRows = parsedRows.length;
 
-  function groupIntoOrders(rows: ValidatedRow[]): OrderGroup[] {
-    const map = new Map<string, OrderGroup>();
-
-    for (const row of rows) {
-      const key = `${row.pelanggan.toLowerCase()}|${row.tanggal}`;
-      if (!map.has(key)) {
-        const tipeBayar = PAYMENT_MAP[row.tipe_bayar] || "tf";
-        const tipeOrder = (["penjualan", "pembelian"].includes(row.tipe_order)
-          ? row.tipe_order
-          : "penjualan") as OrderType;
-        map.set(key, {
-          tanggal: row.tanggal,
-          pelanggan: row.pelanggan,
-          telepon: row.telepon || "",
-          ongkir: row.ongkir ? parseFloat(row.ongkir) || 0 : 0,
-          tipe_bayar: tipeBayar,
-          tipe_order: tipeOrder,
-          catatan: row.catatan || "",
-          items: [],
-        });
-      }
-      map.get(key)!.items.push(row);
-    }
-
-    return Array.from(map.values());
-  }
-
   async function doImport() {
-    const orders = groupIntoOrders(validRows);
-    setImportProgress({ done: 0, total: orders.length });
+    setImportProgress({ done: 0, total: validRows.length });
     setStep("importing");
 
     let success = 0;
+    let skipped = 0;
     const errors: { row: number; message: string }[] = [];
+    const insertedNames = new Set<string>();
 
-    for (const group of orders) {
+    for (const row of validRows) {
       try {
-        const now = new Date().toISOString();
-        const orderId = uuid();
-
-        let customerId = "";
-        let customerName = group.pelanggan.trim();
-        const byName = customers.find(
-          (c) => c.name.trim().toLowerCase() === customerName.toLowerCase()
-        );
-        const byPhone = group.telepon
-          ? customers.find((c) => c.phone && phoneEquals(c.phone, group.telepon))
-          : undefined;
-        const existing = byName || byPhone;
-        if (existing) {
-          customerId = existing.id;
-          customerName = existing.name;
+        const existing = await supabase
+          .from("customers")
+          .select("id")
+          .ilike("name", row.nama)
+          .limit(1)
+          .maybeSingle();
+        if (existing.data || insertedNames.has(row.nama.toLowerCase())) {
+          skipped++;
         } else {
-          customerId = uuid();
-          await supabase.from("customers").insert({
-            id: customerId,
-            name: customerName,
-            phone: group.telepon,
-            address: "",
-            category: group.tipe_order === "pembelian" ? "supplier" : "pelanggan",
-            created_at: now,
+          const { error } = await supabase.from("customers").insert({
+            id: uuid(),
+            name: row.nama,
+            phone: row.telepon,
+            address: row.alamat,
+            category: row.kategori === "supplier" ? "supplier" : "pelanggan",
+            created_at: new Date().toISOString(),
           });
+          if (error) throw error;
+          insertedNames.add(row.nama.toLowerCase());
+          success++;
         }
-
-        const subtotal = group.items.reduce(
-          (sum, i) => sum + (parseFloat(i.harga) || 0) * (parseInt(i.jumlah) || 0) - (parseFloat(i.diskon) || 0),
-          0
-        );
-        const orderTotal = subtotal + group.ongkir;
-
-        const user = useStore.getState().user;
-        const { error: orderError } = await supabase.from("orders").insert({
-          id: orderId,
-          customer_id: customerId,
-          user_id: user?.id || "",
-          status: "new",
-          total: orderTotal,
-          paid_total: 0,
-          order_type: group.tipe_order,
-          payment_type: group.tipe_bayar,
-          ongkir: group.ongkir,
-          notes: group.catatan,
-          created_at: now,
-          updated_at: now,
-        });
-        if (orderError) throw orderError;
-
-        for (const row of group.items) {
-          const itemId = uuid();
-          const { error: itemError } = await supabase.from("order_items").insert({
-            id: itemId,
-            order_id: orderId,
-            product_id: row.product_id,
-            product_name: row.produk,
-            price: parseFloat(row.harga) || 0,
-            quantity: parseInt(row.jumlah) || 0,
-            discount: parseFloat(row.diskon) || 0,
-            paid_value: 0,
-            status: "new",
-          });
-          if (itemError) {
-            console.error("order_items insert error:", itemError);
-            throw new Error(`Gagal simpan item "${row.produk}": ${itemError.message}`);
-          }
-
-          const { data: product } = await supabase
-            .from("products")
-            .select("id, stock, unit")
-            .eq("id", row.product_id)
-            .single();
-          if (product) {
-            const qty = parseInt(row.jumlah) || 0;
-            const stockDelta = group.tipe_order === "penjualan" ? -qty : qty;
-            const newStock = product.stock + stockDelta;
-            await supabase
-              .from("products")
-              .update({ stock: newStock })
-              .eq("id", product.id);
-
-            const maxInvoice = await supabase
-              .from("stock_movements")
-              .select("invoice_no")
-              .order("invoice_no", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
-
-            const txType = group.tipe_order === "penjualan" ? "Penjualan" : "Pembelian";
-            await supabase.from("stock_movements").insert({
-              id: uuid(),
-              product_id: product.id,
-              order_id: orderId,
-              date: group.tanggal,
-              transaction_type: txType,
-              invoice_no: nextInvoice,
-              party_name: customerName,
-              qty: stockDelta,
-              qty_after: newStock,
-              unit: product.unit || "SET",
-              created_at: now,
-            });
-          }
-        }
-
-        success++;
       } catch (err: any) {
-        errors.push({ row: group.items[0]?.rowIndex || 0, message: err.message || "Gagal import" });
+        errors.push({ row: row.rowIndex, message: err.message || "Gagal import" });
       }
-
       setImportProgress((prev) => ({ ...prev, done: prev.done + 1 }));
     }
 
-    setImportResult({ success, errors });
+    setImportResult({ success, skipped, errors });
     setStep("done");
-    await loadAllOrders();
-    await loadProducts();
     await loadCustomers();
   }
 
@@ -368,12 +201,12 @@ export default function UploadOrders() {
       <header className="shrink-0 bg-white/70 backdrop-blur-xl border-b border-pink-100/60 relative z-10">
         <div className="px-5 py-4 flex items-center gap-3">
           <button
-            onClick={() => navigate("/orders")}
+            onClick={() => navigate("/")}
             className="p-2.5 hover:bg-pink-50 rounded-xl transition-all border border-pink-100"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <h1 className="text-xl font-bold text-gray-800">Upload CSV Orders</h1>
+          <h1 className="text-xl font-bold text-gray-800">Upload CSV Pelanggan</h1>
         </div>
       </header>
 
@@ -429,22 +262,15 @@ export default function UploadOrders() {
                     </tr>
                   </thead>
                   <tbody className="text-gray-600">
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">tanggal</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">YYYY-MM-DD</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">pelanggan</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">Nama pelanggan/supplier</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">telepon</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">Dipakai utk cocokkan pelanggan lama</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">produk</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">Harus sama dengan nama di inventaris</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">harga</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">Harga satuan</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">jumlah</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">Jumlah item</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">diskon</td><td className="py-2 px-2"></td><td className="py-2 px-2">Default 0</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">ongkir</td><td className="py-2 px-2"></td><td className="py-2 px-2">Ongkir per order, default 0</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">tipe_bayar</td><td className="py-2 px-2"></td><td className="py-2 px-2">tf / qris / split / shopee</td></tr>
-                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">tipe_order</td><td className="py-2 px-2"></td><td className="py-2 px-2">penjualan / pembelian</td></tr>
-                    <tr><td className="py-2 px-2 font-medium">catatan</td><td className="py-2 px-2"></td><td className="py-2 px-2">Opsional</td></tr>
+                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">nama</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">Nama pelanggan/supplier</td></tr>
+                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">telepon</td><td className="py-2 px-2 text-red-400">*</td><td className="py-2 px-2">No. telepon</td></tr>
+                    <tr className="border-b border-pink-50"><td className="py-2 px-2 font-medium">alamat</td><td className="py-2 px-2"></td><td className="py-2 px-2">Alamat, opsional</td></tr>
+                    <tr><td className="py-2 px-2 font-medium">kategori</td><td className="py-2 px-2"></td><td className="py-2 px-2">pelanggan / supplier, default pelanggan</td></tr>
                   </tbody>
                 </table>
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                Baris dengan pelanggan + tanggal sama akan digabung jadi 1 order.
+                Pelanggan dengan nama yang sudah ada di database akan dilewati.
               </p>
             </div>
           </div>
@@ -469,7 +295,7 @@ export default function UploadOrders() {
                 }`}
               >
                 <Check className="w-5 h-5" />
-                Import {validRows.length} Baris
+                Import {validRows.length} Pelanggan
               </button>
             </div>
 
@@ -480,7 +306,11 @@ export default function UploadOrders() {
               </div>
               <div className="flex-1 bg-emerald-50/80 border border-emerald-100/60 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-emerald-600">{validRows.length}</p>
-                <p className="text-xs text-emerald-400">Valid</p>
+                <p className="text-xs text-emerald-400">Baru</p>
+              </div>
+              <div className="flex-1 bg-amber-50/80 border border-amber-100/60 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-amber-500">{skippedRows.length}</p>
+                <p className="text-xs text-amber-400">Dilewati</p>
               </div>
               <div className="flex-1 bg-red-50/80 border border-red-100/60 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-red-500">{errorRows.length}</p>
@@ -505,40 +335,48 @@ export default function UploadOrders() {
               </div>
             )}
 
-            {validRows.length > 0 && (
+            {parsedRows.length > 0 && (
               <div className="bg-white/80 border border-pink-100/60 rounded-2xl overflow-hidden shadow-sm shadow-pink-50">
                 <div className="p-4 border-b border-pink-100/60">
-                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Preview Data Valid</h3>
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Preview</h3>
                 </div>
                 <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-white">
                       <tr className="border-b border-pink-100">
                         <th className="py-2 px-3 text-left text-gray-400 font-semibold">#</th>
-                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Tanggal</th>
-                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Pelanggan</th>
-                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Produk</th>
-                        <th className="py-2 px-3 text-right text-gray-400 font-semibold">Harga</th>
-                        <th className="py-2 px-3 text-right text-gray-400 font-semibold">Qty</th>
-                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Tipe</th>
-                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Catatan</th>
+                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Nama</th>
+                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Telepon</th>
+                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Kategori</th>
+                        <th className="py-2 px-3 text-left text-gray-400 font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {validRows.map((row) => (
+                      {parsedRows.map((row) => (
                         <tr key={row.rowIndex} className="border-b border-pink-50 hover:bg-pink-50/50">
                           <td className="py-2 px-3 text-gray-400">{row.rowIndex}</td>
-                          <td className="py-2 px-3 text-gray-700">{row.tanggal}</td>
-                          <td className="py-2 px-3 text-gray-700">{row.pelanggan}</td>
-                          <td className="py-2 px-3 text-gray-700">{row.produk}</td>
-                          <td className="py-2 px-3 text-gray-700 text-right">Rp {formatRp(parseFloat(row.harga) || 0)}</td>
-                          <td className="py-2 px-3 text-gray-700 text-right">{row.jumlah}</td>
+                          <td className="py-2 px-3 text-gray-700">{row.nama}</td>
+                          <td className="py-2 px-3 text-gray-700">{row.telepon || "-"}</td>
                           <td className="py-2 px-3">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${row.tipe_order === "penjualan" ? "bg-pink-100 text-pink-600" : "bg-amber-100 text-amber-600"}`}>
-                              {row.tipe_order === "penjualan" ? "Jual" : "Beli"}
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${row.kategori === "supplier" ? "bg-amber-100 text-amber-600" : "bg-pink-100 text-pink-600"}`}>
+                              {row.kategori === "supplier" ? "Supplier" : "Pelanggan"}
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-gray-500 text-sm">{row.catatan || "-"}</td>
+                          <td className="py-2 px-3">
+                            {row.errors.length > 0 ? (
+                              <span className="text-xs font-semibold text-red-500 flex items-center gap-1">
+                                <X className="w-3.5 h-3.5" /> {row.errors.join(", ")}
+                              </span>
+                            ) : row.duplicate ? (
+                              <span className="text-xs font-semibold text-amber-500 flex items-center gap-1">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Sudah ada
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-emerald-500 flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5" /> Siap import
+                              </span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -552,9 +390,9 @@ export default function UploadOrders() {
         {step === "importing" && (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-12 h-12 text-pink-400 animate-spin mb-4" />
-            <p className="text-gray-600 font-semibold text-lg">Mengimport orders...</p>
+            <p className="text-gray-600 font-semibold text-lg">Mengimport pelanggan...</p>
             <p className="text-gray-400 text-base mt-1">
-              {importProgress.done} / {importProgress.total} order
+              {importProgress.done} / {importProgress.total}
             </p>
             <div className="w-64 h-2 bg-pink-100 rounded-full mt-4 overflow-hidden">
               <div
@@ -578,6 +416,10 @@ export default function UploadOrders() {
                 <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
                   <p className="text-2xl font-bold text-emerald-600">{importResult.success}</p>
                   <p className="text-xs text-emerald-400">Berhasil</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">
+                  <p className="text-2xl font-bold text-amber-500">{importResult.skipped}</p>
+                  <p className="text-xs text-amber-400">Dilewati</p>
                 </div>
                 <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">
                   <p className="text-2xl font-bold text-red-500">{importResult.errors.length}</p>
@@ -604,10 +446,10 @@ export default function UploadOrders() {
             )}
 
             <button
-              onClick={() => navigate("/orders")}
+              onClick={() => navigate("/")}
               className="w-full py-4 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-pink-200/40 active:scale-[0.98]"
             >
-              Lihat Orders
+              Lihat Pelanggan
             </button>
           </div>
         )}

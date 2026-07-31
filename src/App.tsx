@@ -6,6 +6,9 @@ import {
 } from "react-router-dom";
 import { useStore } from "./stores/useStore";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import UploadCustomers from "./pages/UploadCustomers";
 import Dashboard from "./pages/Dashboard";
 import CustomerOrders from "./pages/CustomerOrders";
 import Orders from "./pages/Orders";
@@ -113,6 +116,17 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Profile />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/"
             element={
@@ -179,6 +193,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <UploadOrders />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers/upload"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <UploadCustomers />
                 </AppLayout>
               </ProtectedRoute>
             }

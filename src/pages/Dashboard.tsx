@@ -12,6 +12,7 @@ import {
   Pencil,
   Trash2,
   Download,
+  Upload,
 } from "lucide-react";
 
 type TabFilter = "all" | "pelanggan" | "supplier";
@@ -63,7 +64,7 @@ export default function Dashboard() {
 
   async function handleAddCustomer(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !phone.trim()) return;
     await addCustomer(
       name.trim(),
       phone.trim(),
@@ -86,7 +87,7 @@ export default function Dashboard() {
   }
 
   async function handleEditSave() {
-    if (!editId || !editName.trim()) return;
+    if (!editId || !editName.trim() || !editPhone.trim()) return;
     await updateCustomer(
       editId,
       editName.trim(),
@@ -150,6 +151,13 @@ export default function Dashboard() {
               className="w-full pl-10 pr-4 py-3 bg-white/80 border border-pink-100 rounded-xl text-gray-700 placeholder-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
             />
           </div>
+          <button
+            onClick={() => navigate("/customers/upload")}
+            className="w-11 h-11 shrink-0 px-0 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-500 hover:text-pink-500 rounded-xl flex items-center justify-center transition-all active:scale-95"
+            title="Upload CSV Pelanggan"
+          >
+            <Upload className="w-4 h-4" />
+          </button>
           <button
             onClick={handleBackup}
             className="w-11 h-11 shrink-0 px-0 py-3 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-500 hover:text-pink-500 rounded-xl flex items-center justify-center transition-all active:scale-95"
@@ -315,9 +323,10 @@ export default function Dashboard() {
               />
               <input
                 type="tel"
+                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="No. telepon"
+                placeholder="No. telepon (wajib)"
                 className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
               />
               <input
@@ -395,9 +404,10 @@ export default function Dashboard() {
               />
               <input
                 type="tel"
+                required
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
-                placeholder="No. telepon"
+                placeholder="No. telepon (wajib)"
                 className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
               />
               <input

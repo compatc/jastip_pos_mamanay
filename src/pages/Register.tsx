@@ -7,22 +7,28 @@ const isSupabaseConfigured =
   import.meta.env.VITE_SUPABASE_URL &&
   import.meta.env.VITE_SUPABASE_URL !== "https://your-project.supabase.co";
 
-export default function Login() {
+export default function Register() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const setUser = useStore((s) => s.setUser);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     if (!isSupabaseConfigured) return;
     setError("");
+    setMessage("");
     setLoading(true);
 
-    const { data, error: authError } =
-      await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name: name.trim() || email } },
+    });
 
     if (authError) {
       setError(authError.message);
@@ -30,34 +36,22 @@ export default function Login() {
       return;
     }
 
-    if (data.user) {
-      setUser({
-        id: data.user.id,
-        email: data.user.email || "",
-        name:
-          data.user.user_metadata?.name ||
-          data.user.email ||
-          "User",
-        auth_source: "supabase",
-      });
+    if (data.session) {
+      if (data.user) {
+        setUser({
+          id: data.user.id,
+          email: data.user.email || "",
+          name: name.trim() || data.user.email || "User",
+          auth_source: "supabase",
+        });
+      }
       navigate("/orders");
+    } else {
+      setMessage(
+        "Akun berhasil dibuat. Cek email kamu untuk konfirmasi, lalu login."
+      );
+      setLoading(false);
     }
-    setLoading(false);
-  }
-
-  async function handleOfflineLogin() {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // abaikan error signOut
-    }
-    setUser({
-      id: "offline-user",
-      email: "offline@local",
-      name: "admin_offline",
-      auth_source: "offline",
-    });
-     navigate("/orders");
   }
 
   return (
@@ -77,27 +71,40 @@ export default function Login() {
             </h1>
             <p className="text-gray-400 text-base mt-1">
               {isSupabaseConfigured
-                ? "Masuk untuk melanjutkan"
+                ? "Buat akun baru"
                 : "Mode Offline"}
             </p>
             {!isSupabaseConfigured && (
               <p className="text-gray-300 text-xs mt-0.5">
-                Tombol Login hanya aktif jika Supabase terhubung
+                Pendaftaran hanya aktif jika Supabase terhubung
               </p>
             )}
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wider">
-                Username
+                Nama
               </label>
               <input
                 type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
+                placeholder="Nama kamu"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wider">
+                Email
+              </label>
+              <input
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
-                placeholder="Username"
+                placeholder="email@contoh.com"
                 required
               />
             </div>
@@ -111,7 +118,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
-                placeholder="Password"
+                placeholder="Minimal 6 karakter"
                 required
               />
             </div>
@@ -122,41 +129,25 @@ export default function Login() {
               </div>
             )}
 
+            {message && (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                <p className="text-green-600 text-sm leading-relaxed">{message}</p>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading || !isSupabaseConfigured}
               className="w-full py-3.5 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-2xl transition-all shadow-lg shadow-pink-300/30 active:scale-[0.98]"
             >
-              {loading ? "Masuk..." : "Login"}
+              {loading ? "Mendaftar..." : "Daftar"}
             </button>
-
-            {import.meta.env.DEV && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleOfflineLogin}
-                  className="w-full py-3.5 bg-white border-2 border-pink-200 hover:bg-pink-50 text-gray-600 font-semibold rounded-2xl transition-all active:scale-[0.98]"
-                >
-                  Mulai Offline
-                </button>
-              </div>
-            )}
           </form>
 
-          {!isSupabaseConfigured && (
-            <div className="mt-6 p-4 bg-pink-50/60 border border-pink-100 rounded-2xl">
-              <p className="text-gray-500 text-sm text-center leading-relaxed">
-                Mode offline aktif. Data tersimpan di perangkat ini.
-                <br />
-                Login hanya tersedia jika Supabase terhubung.
-              </p>
-            </div>
-          )}
-
           <p className="text-center text-gray-400 text-sm mt-6">
-            Belum punya akun?{" "}
-            <Link to="/register" className="text-pink-500 font-semibold hover:text-pink-600">
-              Daftar
+            Sudah punya akun?{" "}
+            <Link to="/login" className="text-pink-500 font-semibold hover:text-pink-600">
+              Masuk
             </Link>
           </p>
         </div>

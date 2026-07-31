@@ -4,10 +4,12 @@ import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import { uuid } from "../lib/uuid";
 import { ArrowLeft, Plus, Trash2, Search, Package, Check } from "lucide-react";
+import { phoneEquals } from "../lib/phone";
 
 interface CustomerEntry {
   id: string;
   name: string;
+  phone: string;
   quantity: number;
 }
 
@@ -20,7 +22,7 @@ export default function BulkOrder() {
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [price, setPrice] = useState("");
   const [entries, setEntries] = useState<CustomerEntry[]>([
-    { id: crypto.randomUUID(), name: "", quantity: 1 },
+    { id: crypto.randomUUID(), name: "", phone: "", quantity: 1 },
   ]);
   const [customerSearch, setCustomerSearch] = useState<Record<string, string>>({});
   const [showCustomerDropdown, setShowCustomerDropdown] = useState<Record<string, boolean>>({});
@@ -48,7 +50,7 @@ export default function BulkOrder() {
   }, []);
 
   function addEntry() {
-    setEntries([...entries, { id: crypto.randomUUID(), name: "", quantity: 1 }]);
+    setEntries([...entries, { id: crypto.randomUUID(), name: "", phone: "", quantity: 1 }]);
   }
 
   function removeEntry(id: string) {
@@ -56,7 +58,7 @@ export default function BulkOrder() {
     setEntries(entries.filter((e) => e.id !== id));
   }
 
-  function updateEntry(id: string, field: "name" | "quantity", value: string | number) {
+  function updateEntry(id: string, field: "name" | "phone" | "quantity", value: string | number) {
     setEntries(entries.map((e) => (e.id === id ? { ...e, [field]: value } : e)));
   }
 
@@ -68,9 +70,10 @@ export default function BulkOrder() {
     setShowProductDropdown(false);
   }
 
-  function selectCustomer(entryId: string, name: string) {
-    updateEntry(entryId, "name", name);
-    setCustomerSearch({ ...customerSearch, [entryId]: name });
+  function selectCustomer(entryId: string, c: { name: string; phone: string }) {
+    updateEntry(entryId, "name", c.name);
+    if (c.phone) updateEntry(entryId, "phone", c.phone);
+    setCustomerSearch({ ...customerSearch, [entryId]: c.name });
     setShowCustomerDropdown({ ...showCustomerDropdown, [entryId]: false });
   }
 
@@ -86,7 +89,7 @@ export default function BulkOrder() {
   }
 
   async function handleSubmit() {
-    if (!productId || !price || entries.some((e) => !e.name.trim())) return;
+    if (!productId || !price || entries.some((e) => !e.name.trim() || !e.phone.trim())) return;
     setLoading(true);
 
     const product = products.find((p) => p.id === productId);
@@ -100,15 +103,21 @@ export default function BulkOrder() {
       if (!name) continue;
 
       let customerId: string | null = null;
-      const existing = customers.find((c) => c.name.toLowerCase() === name.toLowerCase());
+      let partyName = name;
+      const existing =
+        customers.find((c) => c.name.toLowerCase() === name.toLowerCase()) ||
+        (entry.phone
+          ? customers.find((c) => c.phone && phoneEquals(c.phone, entry.phone))
+          : undefined);
       if (existing) {
         customerId = existing.id;
+        partyName = existing.name;
       } else {
         customerId = uuid();
         const { error: custErr } = await supabase.from("customers").insert({
           id: customerId,
           name,
-          phone: "",
+          phone: entry.phone?.trim() || "",
           address: "",
           category: "pelanggan",
           created_at: new Date().toISOString(),
@@ -174,7 +183,7 @@ export default function BulkOrder() {
           date: now.split("T")[0],
           transaction_type: "Penjualan",
           invoice_no: nextInvoice,
-          party_name: name,
+          party_name: partyName,
           qty: -qty,
           qty_after: newStock,
           unit: fresh.unit || "SET",
@@ -310,7 +319,7 @@ export default function BulkOrder() {
                               <button
                                 key={c.id}
                                 type="button"
-                                onClick={() => selectCustomer(entry.id, c.name)}
+                                onClick={() => selectCustomer(entry.id, c)}
                                 className="w-full text-left px-3 py-2.5 hover:bg-pink-50 text-sm text-gray-700 transition-all"
                               >
                                 {c.name}
@@ -336,6 +345,14 @@ export default function BulkOrder() {
                       <Trash2 className="w-4 h-4 text-red-300 hover:text-red-500" />
                     </button>
                   </div>
+                  <input
+                    type="tel"
+                    required
+                    value={entry.phone}
+                    onChange={(e) => updateEntry(entry.id, "phone", e.target.value)}
+                    placeholder="No. telepon (wajib) — utk cocokkan pelanggan lama"
+                    className="w-full mt-2 px-3 py-2 bg-pink-50/50 border border-pink-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
                   {selectedProduct && price && (
                     (() => {
                       const q = Math.max(1, entry.quantity || 1);
@@ -367,7 +384,7 @@ export default function BulkOrder() {
 
           <button
             onClick={handleSubmit}
-            disabled={loading || !productId || !price || entries.some((e) => !e.name.trim())}
+            disabled={loading || !productId || !price || entries.some((e) => !e.name.trim() || !e.phone.trim())}
             className="w-full py-4 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 disabled:from-gray-200 disabled:to-gray-200 text-white disabled:text-gray-400 font-bold rounded-2xl transition-all shadow-lg shadow-pink-200/40 text-base"
           >
             {loading ? "Membuat order..." : `Buat ${entries.length} Order`}
