@@ -9,6 +9,7 @@ import {
   Package,
   Trash2,
   MessageCircle,
+  CheckCheck,
 } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -61,6 +62,7 @@ export default function CustomerOrders() {
     customers,
     loadCustomers,
     deleteOrder,
+    markOrdersPaid,
   } = useStore();
   const navigate = useNavigate();
 
@@ -71,6 +73,9 @@ export default function CustomerOrders() {
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, OrderItemData[]>>({});
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [paidModalOpen, setPaidModalOpen] = useState(false);
+  const [selectedPaidOrders, setSelectedPaidOrders] = useState<Set<string>>(new Set());
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   function toggleSelectOrder(id: string) {
     setSelectedOrders((prev) => {
@@ -78,6 +83,20 @@ export default function CustomerOrders() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  }
+
+  function togglePaidOrder(id: string) {
+    setSelectedPaidOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function openPaidModal() {
+    const unpaid = orders.filter((o) => o.paid_total < o.total && o.total > 0);
+    setSelectedPaidOrders(new Set(unpaid.map((o) => o.id)));
+    setPaidModalOpen(true);
   }
 
   function openWaModal() {
@@ -120,6 +139,7 @@ export default function CustomerOrders() {
   }, [orders]);
 
   const customer = customers.find((c) => c.id === customerId);
+  const unpaidOrders = orders.filter((o) => o.paid_total < o.total && o.total > 0);
 
   function sendWhatsApp(selected: typeof orders) {
     const phone = customer?.phone;
@@ -220,6 +240,13 @@ export default function CustomerOrders() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={openPaidModal}
+                className="px-3 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium text-sm flex items-center gap-1.5 transition-all shadow-lg shadow-emerald-200/40 active:scale-[0.97]"
+              >
+                <CheckCheck className="w-4 h-4" />
+                Lunas
+              </button>
               <button
                 onClick={() =>
                   navigate("/orders/new", {
@@ -466,6 +493,87 @@ export default function CustomerOrders() {
                   className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-all"
                 >
                   Kirim WA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {paidModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setPaidModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 max-h-[85vh] flex flex-col overflow-hidden">
+            <p className="text-sm font-bold text-gray-800 shrink-0">Tandai Lunas</p>
+            <p className="text-xs text-gray-400 leading-relaxed shrink-0">
+              Pilih order yang sudah dibayar, lalu tandai lunas sekaligus.
+            </p>
+            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 -mx-5 px-5">
+              {unpaidOrders.length === 0 && (
+                <div className="text-center py-8 text-sm text-gray-400">
+                  Semua order sudah lunas.
+                </div>
+              )}
+              {unpaidOrders.map((order) => {
+                const items = itemsByOrder[order.id] || [];
+                return (
+                  <label
+                    key={order.id}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
+                      selectedPaidOrders.has(order.id) ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-100"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPaidOrders.has(order.id)}
+                      onChange={() => togglePaidOrder(order.id)}
+                      className="w-4 h-4 accent-emerald-500 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800 truncate">
+                          {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                        </span>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getOrderStatusColor(order)}`}>
+                          {STATUS_LABELS[order.status] || order.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                        {items.map((i) => `${i.product_name} x${i.quantity}`).join(", ")}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5 font-semibold">
+                        Tagihan: {rupiah(order.total - (order.paid_total || 0))}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 shrink-0">
+              <span className="text-xs text-gray-400">{selectedPaidOrders.size} dipilih</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPaidModalOpen(false)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={async () => {
+                    const selected = orders.filter((o) => selectedPaidOrders.has(o.id));
+                    if (selected.length === 0) return;
+                    setMarkingPaid(true);
+                    try {
+                      await markOrdersPaid(selected.map((o) => o.id));
+                      await loadOrders(customerId!);
+                      setPaidModalOpen(false);
+                    } finally {
+                      setMarkingPaid(false);
+                    }
+                  }}
+                  disabled={selectedPaidOrders.size === 0 || markingPaid}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-all"
+                >
+                  {markingPaid ? "Menyimpan..." : "Tandai Lunas"}
                 </button>
               </div>
             </div>

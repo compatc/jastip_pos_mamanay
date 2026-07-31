@@ -69,6 +69,7 @@ interface PosStore {
     resi?: string;
     shopeeOrderNo?: string;
   }) => Promise<void>;
+  markOrdersPaid: (orderIds: string[]) => Promise<void>;
   updateItemStatus: (
     itemId: string,
     status: OrderStatus
@@ -621,6 +622,44 @@ export const useStore = create<PosStore>((set, get) => ({
 
     await get().loadAllOrders();
     await get().loadProducts();
+  },
+
+  markOrdersPaid: async (orderIds) => {
+    const now = new Date().toISOString();
+    for (const orderId of orderIds) {
+      const { data: order } = await supabase
+        .from("orders")
+        .select("id, total, paid_total, account_id, order_type, payment_type, customer_id, status")
+        .eq("id", orderId)
+        .single();
+      if (!order) continue;
+      if ((order.paid_total || 0) >= order.total && order.total > 0) continue;
+      const payDelta = order.total - (order.paid_total || 0);
+      const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
+      await supabase
+        .from("orders")
+        .update({ paid_total: order.total, status: newStatus, updated_at: now })
+        .eq("id", orderId);
+
+      if (order.account_id && payDelta > 0) {
+        const { data: customer } = await supabase
+          .from("customers")
+          .select("name")
+          .eq("id", order.customer_id)
+          .single();
+        const customerName = customer?.name || "";
+        await get().createAccountTransaction(
+          order.account_id,
+          orderId,
+          order.order_type,
+          customerName,
+          order.order_type === "penjualan" ? payDelta : -payDelta,
+          `Penjualan - ${customerName}`,
+          now.split("T")[0]
+        );
+      }
+    }
+    await get().loadAllOrders();
   },
 
   updateItemStatus: async (itemId, status) => {
