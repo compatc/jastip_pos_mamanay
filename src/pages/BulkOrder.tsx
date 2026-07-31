@@ -114,7 +114,7 @@ export default function BulkOrder() {
       const { error: orderErr } = await supabase.from("orders").insert({
         id: orderId,
         customer_id: customerId,
-        user_id: "",
+        user_id: useStore.getState().user?.id || "",
         status: "new",
         total,
         paid_total: 0,
@@ -143,8 +143,14 @@ export default function BulkOrder() {
       });
 
       if (product) {
-        const newStock = product.stock - qty;
-        await supabase.from("products").update({ stock: newStock }).eq("id", product.id);
+        const { data: fresh } = await supabase
+          .from("products")
+          .select("id, stock, unit")
+          .eq("id", product.id)
+          .single();
+        if (!fresh) continue;
+        const newStock = fresh.stock - qty;
+        await supabase.from("products").update({ stock: newStock }).eq("id", fresh.id);
         const { data: maxInv } = await supabase
           .from("stock_movements")
           .select("invoice_no")
@@ -154,7 +160,7 @@ export default function BulkOrder() {
         const nextInvoice = ((maxInv?.invoice_no as number) || 0) + 1;
         await supabase.from("stock_movements").insert({
           id: uuid(),
-          product_id: product.id,
+          product_id: fresh.id,
           order_id: orderId,
           date: now.split("T")[0],
           transaction_type: "Penjualan",
@@ -162,7 +168,7 @@ export default function BulkOrder() {
           party_name: name,
           qty: -qty,
           qty_after: newStock,
-          unit: product.unit || "SET",
+          unit: fresh.unit || "SET",
           created_at: now,
         });
       }
@@ -308,7 +314,10 @@ export default function BulkOrder() {
                       type="number"
                       min="1"
                       value={entry.quantity}
-                      onChange={(e) => updateEntry(entry.id, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        updateEntry(entry.id, "quantity", v === "" ? 0 : Math.max(1, parseInt(v) || 1));
+                      }}
                       className="w-16 px-2 py-2.5 bg-pink-50/50 border border-pink-100 rounded-xl text-sm text-gray-700 text-center focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
                     <button
