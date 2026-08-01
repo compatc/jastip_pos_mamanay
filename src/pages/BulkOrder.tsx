@@ -11,6 +11,7 @@ interface CustomerEntry {
   name: string;
   phone: string;
   quantity: number;
+  notes: string;
 }
 
 export default function BulkOrder() {
@@ -22,7 +23,7 @@ export default function BulkOrder() {
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [price, setPrice] = useState("");
   const [entries, setEntries] = useState<CustomerEntry[]>([
-    { id: crypto.randomUUID(), name: "", phone: "", quantity: 1 },
+    { id: crypto.randomUUID(), name: "", phone: "", quantity: 1, notes: "" },
   ]);
   const [customerSearch, setCustomerSearch] = useState<Record<string, string>>({});
   const [showCustomerDropdown, setShowCustomerDropdown] = useState<Record<string, boolean>>({});
@@ -50,7 +51,7 @@ export default function BulkOrder() {
   }, []);
 
   function addEntry() {
-    setEntries([...entries, { id: crypto.randomUUID(), name: "", phone: "", quantity: 1 }]);
+    setEntries([...entries, { id: crypto.randomUUID(), name: "", phone: "", quantity: 1, notes: "" }]);
   }
 
   function removeEntry(id: string) {
@@ -58,7 +59,7 @@ export default function BulkOrder() {
     setEntries(entries.filter((e) => e.id !== id));
   }
 
-  function updateEntry(id: string, field: "name" | "phone" | "quantity", value: string | number) {
+  function updateEntry(id: string, field: "name" | "phone" | "quantity" | "notes", value: string | number) {
     setEntries(entries.map((e) => (e.id === id ? { ...e, [field]: value } : e)));
   }
 
@@ -140,7 +141,7 @@ export default function BulkOrder() {
         order_type: "penjualan",
         payment_type: "tf",
         ongkir: 0,
-        notes: "",
+        notes: entry.notes?.trim() || "",
         account_id: null,
         created_at: now,
         updated_at: now,
@@ -351,6 +352,13 @@ export default function BulkOrder() {
                     value={entry.phone}
                     onChange={(e) => updateEntry(entry.id, "phone", e.target.value)}
                     placeholder="No. telepon (wajib) — utk cocokkan pelanggan lama"
+                    className="w-full mt-2 px-3 py-2 bg-pink-50/50 border border-pink-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                  <input
+                    type="text"
+                    value={entry.notes}
+                    onChange={(e) => updateEntry(entry.id, "notes", e.target.value)}
+                    placeholder="Catatan (opsional) — mis. warna, ukuran, alamat"
                     className="w-full mt-2 px-3 py-2 bg-pink-50/50 border border-pink-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
                   />
                   {selectedProduct && price && (

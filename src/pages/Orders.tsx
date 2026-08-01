@@ -17,6 +17,7 @@ import {
   Check,
   Copy,
   ExternalLink,
+  Eye,
   X,
 } from "lucide-react";
 
@@ -81,6 +82,7 @@ export default function Orders() {
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [previewGroup, setPreviewGroup] = useState<CustomerGroup | null>(null);
 
   function showConfirm(title: string, message: string, onConfirm: () => void) {
     setConfirmTitle(title);
@@ -306,6 +308,7 @@ export default function Orders() {
         const statusLabel = STATUS_LABELS[order.status] || order.status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
         msg += `Status barang: ${statusLabel}\n`;
+        if (order.notes) msg += `\u{1F4DD} Catatan: ${order.notes}\n`;
         msg += `Metode: ${payMethod}\n`;
         msg += `\u{1F4B0} Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
         const paid = order.paid_total || 0;
@@ -737,6 +740,18 @@ export default function Orders() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          setPreviewGroup(g);
+                        }}
+                        className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg transition-all"
+                        title="Lihat teks invoice"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           openOneChat(g);
                         }}
                         disabled={!hasPhone}
@@ -801,6 +816,42 @@ export default function Orders() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {previewGroup && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setPreviewGroup(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-3 z-10 max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between shrink-0">
+              <p className="text-sm font-bold text-gray-800">Pratinjau Invoice — {previewGroup.name}</p>
+              <button
+                onClick={() => setPreviewGroup(null)}
+                className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0 bg-gray-50 rounded-xl p-4 whitespace-pre-wrap text-xs text-gray-700 leading-relaxed">
+              {buildInvoiceMsg(previewGroup)}
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(buildInvoiceMsg(previewGroup)).then(() => {
+                  setCopiedId(previewGroup.customerId);
+                  setTimeout(() => setCopiedId((c) => (c === previewGroup.customerId ? null : c)), 1500);
+                });
+              }}
+              className="w-full py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+            >
+              {copiedId === previewGroup.customerId ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+              {copiedId === previewGroup.customerId ? "Tersalin" : "Salin Teks"}
+            </button>
           </div>
         </div>
       )}

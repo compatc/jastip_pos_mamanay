@@ -185,6 +185,7 @@ export default function CustomerOrders() {
         const statusLabel = STATUS_LABELS[order.status] || order.status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
         msg += `Status barang: ${statusLabel}\n`;
+        if (order.notes) msg += `\u{1F4DD} Catatan: ${order.notes}\n`;
         msg += `\u{1F4B0} Total Tagihan: *${rupiah(order.total)}*\n`;
         const paid = order.paid_total || 0;
         if (paid > 0) {
