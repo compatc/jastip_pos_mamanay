@@ -36,9 +36,10 @@ await api.login("email", "password");
 const produk = await api.searchProducts("skincare");
 console.log(api.formatStock(produk));
 
-// Buat order
+// Buat order (pelanggan dicocokkan by telepon dulu, lalu nama)
 await api.createOrder({
   contactName: "Budi",
+  contactPhone: "0812xxxx", // jika sudah ada di data, dipakai pelanggan lama
   items: [
     { product_id: "uuid-produk", product_name: "Skincare A", price: 45000, quantity: 1, discount: 0 },
   ],
@@ -78,6 +79,8 @@ Catatan:
 - Kolom `user_id` diisi otomatis lewat trigger RLS sesuai akun yang login.
 - Saat buat order, update stok + `stock_movements` dilakukan seperti di aplikasi —
   disarankan pakai modul `bot/supabase-bot.js` agar logika itu tidak ditulis ulang.
+- Pencocokan pelanggan di `createOrder`: **nomor telepon dulu** (normalisasi `0`/`62`/`+62`),
+  kalau tidak ketemu baru cocokkan by nama; kalau keduanya tidak ada, baru buat pelanggan baru.
 
 ## 4. Perintah teks bot (sudah tersedia di handleBotMessage)
 

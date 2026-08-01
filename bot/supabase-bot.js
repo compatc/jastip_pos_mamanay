@@ -27,6 +27,19 @@ function rupiah(n) {
   return "Rp" + (Number(n) || 0).toLocaleString("id-ID");
 }
 
+function digits(s) {
+  return (s || "").replace(/\D/g, "");
+}
+
+function phoneEquals(a, b) {
+  const da = digits(a);
+  const db = digits(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  const zeroForm = (d) => (d.startsWith("62") ? "0" + d.slice(2) : d);
+  return zeroForm(da) === zeroForm(db);
+}
+
 /**
  * Client Supabase untuk bot.
  * Login dengan email/password akun yang sama dengan aplikasi,
@@ -146,11 +159,14 @@ export class BotApi {
 
   /**
    * Buat order baru. items: [{ product_id, product_name, price, quantity, discount }]
+   * Pelanggan dicocokkan: (1) by nomor telepon, (2) by nama. Jika sudah ada,
+   * dipakai pelanggan lama — baru dibuat pelanggan baru kalau tidak ketemu.
    */
   async createOrder({
     orderType = "penjualan",
     paymentType = "cash",
     contactName = "",
+    contactPhone = "",
     items = [],
     paidTotal = 0,
     ongkir = 0,
@@ -170,22 +186,45 @@ export class BotApi {
     const total = subtotal - (diskon || 0) + (ongkir || 0);
     const initialStatus = total <= (paidTotal || 0) ? "paid" : "new";
 
+    const nameQ = contactName.trim();
+    const phoneQ = contactPhone.trim();
+
     let customerId = "";
-    if (contactName.trim()) {
-      const { data: existing } = await this.sb
-        .from("customers")
-        .select("id")
-        .ilike("name", contactName.trim())
-        .limit(1)
-        .maybeSingle();
-      if (existing) {
-        customerId = existing.id;
-      } else {
+    let customerName = nameQ;
+    if (nameQ || phoneQ) {
+      // 1) Cocokkan by nomor telepon (normalisasi 0/62/+62)
+      if (phoneQ) {
+        const { data: all } = await this.sb
+          .from("customers")
+          .select("id, name, phone");
+        const found = (all || []).find((c) => phoneEquals(c.phone, phoneQ));
+        if (found) {
+          customerId = found.id;
+          customerName = found.name;
+        }
+      }
+
+      // 2) Kalau tidak ketemu by telepon, cocokkan by nama
+      if (!customerId && nameQ) {
+        const { data: existing } = await this.sb
+          .from("customers")
+          .select("id, name")
+          .ilike("name", nameQ)
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          customerId = existing.id;
+          customerName = existing.name;
+        }
+      }
+
+      // 3) Benar-benar baru -> buat pelanggan baru
+      if (!customerId) {
         customerId = randomUUID();
         const { error: cErr } = await this.sb.from("customers").insert({
           id: customerId,
-          name: contactName.trim(),
-          phone: "",
+          name: nameQ,
+          phone: phoneQ,
           address: "",
           category: "pelanggan",
           created_at: now,
@@ -252,7 +291,7 @@ export class BotApi {
             date: now.split("T")[0],
             transaction_type: orderType === "penjualan" ? "Penjualan" : "Pembelian",
             invoice_no: nextInvoice,
-            party_name: contactName,
+            party_name: customerName || contactName,
             qty: delta,
             qty_after: newStock,
             unit: product.unit || "SET",
@@ -264,13 +303,13 @@ export class BotApi {
 
     if (accountId && paidTotal > 0) {
       const txAmount = orderType === "penjualan" ? paidTotal : -paidTotal;
-      const txDesc = `${orderType === "penjualan" ? "Penjualan" : "Pembelian"} - ${contactName}`;
+      const txDesc = `${orderType === "penjualan" ? "Penjualan" : "Pembelian"} - ${customerName || contactName}`;
       await this.sb.from("account_transactions").insert({
         id: randomUUID(),
         account_id: accountId,
         order_id: orderId,
         order_type: orderType,
-        contact_name: contactName,
+        contact_name: customerName || contactName,
         amount: txAmount,
         description: txDesc,
         date: now.split("T")[0],
