@@ -125,7 +125,15 @@ export default function QrisPaymentModal({ visible, amount, invoiceNo, onClose, 
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
             <p className="text-2xl font-extrabold text-gray-800 mb-2">{rupiah(tx.amount)}</p>
-            <p className="text-xs text-gray-400 mb-1">Termasuk kode unik {tx.unique_code > 0 ? tx.unique_code : "0"}</p>
+            {tx.custom_unique_code != null && tx.custom_unique_code > 0 ? (
+              <p className="text-xs text-gray-400 mb-1">
+                Termasuk kode unik {tx.custom_unique_code}
+              </p>
+            ) : (
+              tx.unique_code > 0 && (
+                <p className="text-xs text-gray-400 mb-1">Termasuk kode unik {tx.unique_code}</p>
+              )
+            )}
             <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-4">
               <Clock className="w-3.5 h-3.5" />
               {countdown !== null && (

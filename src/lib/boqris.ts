@@ -12,6 +12,8 @@ export interface BoqrisTransaction {
   paid_at: string | null;
   created_at: string;
   timezone: string;
+  requested_amount?: number;
+  custom_unique_code?: number;
 }
 
 async function request(path: string, init?: RequestInit): Promise<any> {

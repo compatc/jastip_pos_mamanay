@@ -1,4 +1,5 @@
 const BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
+const UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 20) || 20);
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -48,20 +49,47 @@ export default async function handler(req, res) {
         json(res, 400, { error: "amount harus bilangan bulat positif" });
         return;
       }
-      const payload = { merchant_id: merchantId, amount };
-      if (body.invoice_no) payload.invoice_no = String(body.invoice_no).slice(0, 25);
-      if (body.expires_in) payload.expires_in = Math.min(Math.max(Number(body.expires_in) || 900, 60), 3600);
 
-      const bo = await fetch(`${BASE}/api/v1/transactions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await bo.json();
-      json(res, bo.status, data);
+      const basePayload = { merchant_id: merchantId };
+      if (body.invoice_no) basePayload.invoice_no = String(body.invoice_no).slice(0, 25);
+      if (body.expires_in) basePayload.expires_in = Math.min(Math.max(Number(body.expires_in) || 900, 60), 3600);
+
+      const useUniqueAmount = Number(body.unique_amount ?? 0) === 1;
+      let lastStatus = 0;
+      let lastData = null;
+
+      const attempts = useUniqueAmount ? [0] : Array.from({ length: UNIQUE_MAX }, (_, i) => i + 1);
+      for (const code of attempts) {
+        const payload = {
+          ...basePayload,
+          amount: amount + code,
+          unique_amount: useUniqueAmount,
+        };
+        const bo = await fetch(`${BASE}/api/v1/transactions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await bo.json();
+        lastStatus = bo.status;
+        lastData = data;
+
+        if (bo.status === 201) {
+          data.requested_amount = amount;
+          data.custom_unique_code = useUniqueAmount ? (data.unique_code ?? 0) : code;
+          json(res, 201, data);
+          return;
+        }
+        if (bo.status !== 409) {
+          json(res, bo.status, data);
+          return;
+        }
+      }
+
+      json(res, lastStatus, lastData || { error: "Semua kode unik terpakai, coba lagi nanti" });
       return;
     }
 
