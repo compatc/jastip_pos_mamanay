@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
+import { payOrderLink, payGroupLink } from "../lib/payLinks";
 import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
@@ -286,12 +287,12 @@ export default function Orders() {
       return [
         {
           combined: true,
-          url: `${window.location.origin}/pay?orders=${unpaid.map((o) => o.id).join(",")}`,
+          url: payGroupLink(unpaid.map((o) => o.id)),
           orders: unpaid,
         },
       ];
     }
-    return unpaid.map((order) => ({ order, url: `${window.location.origin}/pay/${order.id}` }));
+    return unpaid.map((order) => ({ order, url: payOrderLink(order.id) }));
   }
 
   function buildInvoiceMsg(

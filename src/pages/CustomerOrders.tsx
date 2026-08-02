@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
+import { payOrderLink, payGroupLink } from "../lib/payLinks";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
   ArrowLeft,
@@ -214,7 +215,7 @@ export default function CustomerOrders() {
         const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
         msg += `1. ${productNames}\n`;
         msg += `\u{1F4B0} Sisa: *${rupiah(sisa)}*\n`;
-        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${window.location.origin}/pay/${order.id}\n\n`;
+        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${payOrderLink(order.id)}\n\n`;
       } else {
         const qrisIds = qrisOrders.map((o) => o.id);
         qrisOrders.forEach((order, idx) => {
@@ -226,7 +227,7 @@ export default function CustomerOrders() {
         });
         const totalSisa = qrisOrders.reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
         msg += `\u{1F9FE} Total sisa: *${rupiah(totalSisa)}* (${qrisOrders.length} pesanan digabung dalam 1 QRIS)\n`;
-        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${window.location.origin}/pay?orders=${qrisIds.join(",")}\n\n`;
+        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${payGroupLink(qrisIds)}\n\n`;
       }
     }
 
