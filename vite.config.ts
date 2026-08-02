@@ -6,6 +6,12 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
   server: {
     host: true,
+    proxy: {
+      "/api/boqris": {
+        target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),

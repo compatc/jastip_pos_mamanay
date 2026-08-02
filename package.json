@@ -8,12 +8,14 @@
   },
   "scripts": {
     "dev": "vite",
+    "boqris": "node scripts/boqris-server.mjs",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
+    "dotenv": "^17.4.2",
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.26.0",
     "papaparse": "^5.5.4",

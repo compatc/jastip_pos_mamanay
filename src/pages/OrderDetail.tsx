@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
-import { ArrowLeft, Edit2, User, Package, Truck } from "lucide-react";
+import { ArrowLeft, Edit2, User, Package, Truck, QrCode } from "lucide-react";
+import QrisPaymentModal from "../components/QrisPaymentModal";
+import type { BoqrisTransaction } from "../lib/boqris";
 
 function rupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -60,6 +62,7 @@ export default function OrderDetail() {
   const { allOrders, loadAllOrders, orderItems, loadOrderItems, customers, loadCustomers } = useStore();
 
   const [loading, setLoading] = useState(true);
+  const [qrisOpen, setQrisOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -249,6 +252,15 @@ export default function OrderDetail() {
                 No. Order Shopee: {order.shopee_order_no}
               </p>
             )}
+            {sisa > 0 && (
+              <button
+                onClick={() => setQrisOpen(true)}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-pink-200/40 transition-all active:scale-[0.97]"
+              >
+                <QrCode className="w-4 h-4" />
+                Bayar QRIS
+              </button>
+            )}
           </div>
 
           {(order.courier || order.resi) && (
@@ -295,6 +307,30 @@ export default function OrderDetail() {
           </div>
         </div>
       </main>
+
+      <QrisPaymentModal
+        visible={qrisOpen}
+        amount={sisa}
+        invoiceNo={shortId(order.id)}
+        onClose={() => setQrisOpen(false)}
+        onPaid={async (tx: BoqrisTransaction) => {
+          await supabase
+            .from("orders")
+            .update({
+              payment_type: "qris",
+              paid_total: order.total,
+              notes: order.notes
+                ? `${order.notes}\nQRIS ${tx.amount} (${tx.transaction_id.slice(0, 8)})`
+                : `QRIS ${tx.amount} (${tx.transaction_id.slice(0, 8)})`,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", order.id);
+          await markOrdersPaid([order.id]);
+          await loadAllOrders();
+          if (orderId) await loadOrderItems(orderId);
+          setQrisOpen(false);
+        }}
+      />
     </div>
   );
 }
