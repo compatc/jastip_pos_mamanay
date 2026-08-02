@@ -2,7 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 
 const BOQRIS_BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
-const BOQRIS_UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -68,29 +67,23 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   const merchantId = process.env.BOQRIS_MERCHANT_ID;
   if (!apiKey || !merchantId) throw new Error("BOQRIS_API_KEY atau BOQRIS_MERCHANT_ID belum di-set");
 
-  const basePayload = { merchant_id: merchantId };
-  if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
+  const payload = { merchant_id: merchantId, amount, unique_amount: false };
+  if (invoiceNo) payload.invoice_no = String(invoiceNo).slice(0, 25);
 
-  for (let code = 1; code <= BOQRIS_UNIQUE_MAX; code++) {
-    const qrAmount = amount - code;
-    if (qrAmount <= 0) break;
-    const payload = { ...basePayload, amount: qrAmount, unique_amount: false };
-    const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await bo.json();
-    if (bo.status === 201) {
-      data.requested_amount = amount;
-      data.custom_unique_code = code;
-      return data;
-    }
-    if (bo.status !== 409) {
-      throw new Error(data.error || data.message || `BOQris ${bo.status}`);
-    }
+  const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await bo.json();
+  if (bo.status === 201) {
+    data.requested_amount = amount;
+    return data;
   }
-  throw new Error("Semua kode unik terpakai, coba lagi nanti");
+  if (bo.status === 409) {
+    throw new Error("Nominal tagihan sedang dipakai transaksi lain yang masih aktif. Tunggu transaksi tersebut selesai lalu coba lagi.");
+  }
+  throw new Error(data.error || data.message || `BOQris ${bo.status}`);
 }
 
 async function checkBoqrisTransaction(transactionId) {
