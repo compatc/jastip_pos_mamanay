@@ -45,6 +45,7 @@ await api.createOrder({
   ],
   paidTotal: 45000,
   ongkir: 5000,
+  notes: "warna pink, ukuran M", // opsional, tersimpan ke orders.notes
 });
 
 // Cek status order terbaru pelanggan
@@ -81,6 +82,9 @@ Catatan:
   disarankan pakai modul `bot/supabase-bot.js` agar logika itu tidak ditulis ulang.
 - Pencocokan pelanggan di `createOrder`: **nomor telepon dulu** (normalisasi `0`/`62`/`+62`),
   kalau tidak ketemu baru cocokkan by nama; kalau keduanya tidak ada, baru buat pelanggan baru.
+- Produk di `createOrder`: cocokkan `product_id` lalu by nama. Kalau belum ada di inventaris,
+  **produk baru dibuat otomatis** (harga jual = `price`, stok awal = qty utk penjualan / 0 utk pembelian),
+  lalu stok disesuaikan dan dicatat di `stock_movements`.
 
 ## 4. Perintah teks bot (sudah tersedia di handleBotMessage)
 

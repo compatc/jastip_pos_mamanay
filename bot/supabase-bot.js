@@ -35,9 +35,12 @@ function phoneEquals(a, b) {
   const da = digits(a);
   const db = digits(b);
   if (!da || !db) return false;
-  if (da === db) return true;
-  const zeroForm = (d) => (d.startsWith("62") ? "0" + d.slice(2) : d);
-  return zeroForm(da) === zeroForm(db);
+  const norm = (d) => {
+    if (d.startsWith("62")) d = d.slice(2);
+    if (d.startsWith("0")) d = d.slice(1);
+    return d;
+  };
+  return norm(da) === norm(db);
 }
 
 /**
@@ -158,9 +161,12 @@ export class BotApi {
   // ————— Order —————
 
   /**
-   * Buat order baru. items: [{ product_id, product_name, price, quantity, discount }]
+   * Buat order baru. items: [{ product_id?, product_name, price, quantity, discount, cost_price?, unit? }]
    * Pelanggan dicocokkan: (1) by nomor telepon, (2) by nama. Jika sudah ada,
    * dipakai pelanggan lama — baru dibuat pelanggan baru kalau tidak ketemu.
+   * Produk: cocokkan by product_id lalu by nama; kalau belum ada di inventaris,
+   * produk baru dibuat otomatis (harga jual = price, stok awal = qty untuk
+   * penjualan) lalu stok disesuaikan dan dicatat di stock_movements.
    */
   async createOrder({
     orderType = "penjualan",
@@ -251,9 +257,46 @@ export class BotApi {
     if (orderError) throw new Error("Gagal membuat order: " + orderError.message);
 
     for (const item of items) {
+      // 1) Resolve produk: by product_id -> by nama -> buat baru otomatis
+      let product = null;
+      if (item.product_id) {
+        const { data } = await this.sb
+          .from("products")
+          .select("id, stock, unit")
+          .eq("id", item.product_id)
+          .maybeSingle();
+        product = data;
+      }
+      if (!product) {
+        const { data } = await this.sb
+          .from("products")
+          .select("id, stock, unit")
+          .ilike("name", item.product_name)
+          .limit(1)
+          .maybeSingle();
+        product = data;
+      }
+      if (!product) {
+        const newId = randomUUID();
+        const initialStock = orderType === "penjualan" ? item.quantity : 0;
+        const { error: pErr } = await this.sb.from("products").insert({
+          id: newId,
+          name: item.product_name,
+          cost_price: item.cost_price || 0,
+          sell_price: item.price,
+          stock: initialStock,
+          unit: item.unit || "PCS",
+          image: "",
+          created_at: now,
+        });
+        if (pErr) throw new Error("Gagal membuat produk: " + pErr.message);
+        product = { id: newId, stock: initialStock, unit: item.unit || "PCS" };
+      }
+
       const { error: iErr } = await this.sb.from("order_items").insert({
         id: randomUUID(),
         order_id: orderId,
+        product_id: product.id,
         product_name: item.product_name,
         price: item.price,
         quantity: item.quantity,
@@ -263,42 +306,34 @@ export class BotApi {
       });
       if (iErr) throw new Error("Gagal menambah item: " + iErr.message);
 
-      if (item.product_id) {
-        const { data: product } = await this.sb
-          .from("products")
-          .select("id, stock, unit")
-          .eq("id", item.product_id)
-          .maybeSingle();
-        if (product) {
-          const delta = orderType === "penjualan" ? -item.quantity : item.quantity;
-          const newStock = product.stock + delta;
-          await this.sb
-            .from("products")
-            .update({ stock: newStock })
-            .eq("id", product.id);
+      // 2) Kurangi/tambah stok + catat stock_movements
+      const delta = orderType === "penjualan" ? -item.quantity : item.quantity;
+      const newStock = product.stock + delta;
+      await this.sb
+        .from("products")
+        .update({ stock: newStock })
+        .eq("id", product.id);
 
-          const { data: maxInv } = await this.sb
-            .from("stock_movements")
-            .select("invoice_no")
-            .order("invoice_no", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          const nextInvoice = (maxInv?.invoice_no || 0) + 1;
-          await this.sb.from("stock_movements").insert({
-            id: randomUUID(),
-            product_id: product.id,
-            order_id: orderId,
-            date: now.split("T")[0],
-            transaction_type: orderType === "penjualan" ? "Penjualan" : "Pembelian",
-            invoice_no: nextInvoice,
-            party_name: customerName || contactName,
-            qty: delta,
-            qty_after: newStock,
-            unit: product.unit || "SET",
-            created_at: now,
-          });
-        }
-      }
+      const { data: maxInv } = await this.sb
+        .from("stock_movements")
+        .select("invoice_no")
+        .order("invoice_no", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextInvoice = (maxInv?.invoice_no || 0) + 1;
+      await this.sb.from("stock_movements").insert({
+        id: randomUUID(),
+        product_id: product.id,
+        order_id: orderId,
+        date: now.split("T")[0],
+        transaction_type: orderType === "penjualan" ? "Penjualan" : "Pembelian",
+        invoice_no: nextInvoice,
+        party_name: customerName || contactName,
+        qty: delta,
+        qty_after: newStock,
+        unit: product.unit || "SET",
+        created_at: now,
+      });
     }
 
     if (accountId && paidTotal > 0) {
