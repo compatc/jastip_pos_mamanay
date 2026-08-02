@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
-import { createBoqrisTransaction } from "../lib/boqris";
 import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
@@ -285,17 +284,7 @@ export default function Orders() {
     const links: { order: Order; url: string }[] = [];
     const unpaid = group.orders.filter((o) => o.total - (o.paid_total || 0) > 0);
     for (const order of unpaid) {
-      const sisa = order.total - (order.paid_total || 0);
-      try {
-        const tx = await createBoqrisTransaction({
-          amount: sisa,
-          invoice_no: order.id,
-          expires_in: 3600,
-        });
-        links.push({ order, url: tx.qr_url });
-      } catch (e) {
-        console.error("Gagal buat link QRIS untuk order", order.id, e);
-      }
+      links.push({ order, url: `${window.location.origin}/pay/${order.id}` });
     }
     return links;
   }
@@ -353,16 +342,15 @@ export default function Orders() {
     }
 
     if (qrisLinks && qrisLinks.length > 0) {
-      msg += `\u{1F4B3} *Bayar QRIS:*\n`;
+      msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
       qrisLinks.forEach(({ order, url }, idx) => {
         const sisa = order.total - (order.paid_total || 0);
         const items = itemsByOrder[order.id] || [];
         const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
         msg += `${idx + 1}. ${productNames}\n`;
         msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
-        msg += `Tap/scan QRIS: ${url}\n\n`;
+        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${url}\n\n`;
       });
-      msg += `*Catatan:* link QRIS berlaku 1 jam. Jika kedaluwarsa, mohon minta link baru.\n\n`;
     }
 
     msg += `\u{1F4B3} Metode Pembayaran: ${PAYMENT_LABELS_FULL[group.orders[0]?.payment_type] || "Transfer Bank"}\n`;

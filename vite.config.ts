@@ -11,6 +11,10 @@ export default defineConfig({
         target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
         changeOrigin: true,
       },
+      "/api/pay": {
+        target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
+        changeOrigin: true,
+      },
     },
   },
   plugins: [

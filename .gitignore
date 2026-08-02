@@ -30,3 +30,7 @@ dist-ssr
 
 # SQL seed/cleanup scripts (not needed in repo)
 *.sql
+
+.vercel
+.env*
+!.env.example

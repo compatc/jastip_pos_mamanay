@@ -7,6 +7,7 @@ import {
 import { useStore } from "./stores/useStore";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import PayOrder from "./pages/PayOrder";
 import Profile from "./pages/Profile";
 import UploadCustomers from "./pages/UploadCustomers";
 import Dashboard from "./pages/Dashboard";
@@ -117,6 +118,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/pay/:orderId" element={<PayOrder />} />
           <Route
             path="/profile"
             element={

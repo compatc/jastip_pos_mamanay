@@ -1,0 +1,229 @@
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+
+interface Tx {
+  transaction_id: string;
+  status: string;
+  amount: number;
+  qr_url: string;
+  expires_at: string;
+  custom_unique_code?: number;
+  unique_code?: number;
+}
+
+interface OrderInfo {
+  id: string;
+  customer_name: string;
+  total: number;
+  paid_total: number;
+  sisa: number;
+  items: string[];
+}
+
+function rupiah(n: number): string {
+  return "Rp " + n.toLocaleString("id-ID");
+}
+
+export default function PayOrder() {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+
+  const [order, setOrder] = useState<OrderInfo | null>(null);
+  const [tx, setTx] = useState<Tx | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const createPayment = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setTx(null);
+    setConfirmed(false);
+    try {
+      const res = await fetch("/api/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", orderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setOrder(data.order);
+      setTx(data.tx);
+    } catch (e: any) {
+      setError(e.message || "Gagal memuat pembayaran");
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    createPayment();
+  }, [createPayment]);
+
+  useEffect(() => {
+    if (!tx || tx.status !== "pending") return;
+    const t = new Date(tx.expires_at).getTime();
+    const tick = () => {
+      const left = Math.max(0, Math.floor((t - Date.now()) / 1000));
+      setCountdown(left);
+      if (left <= 0) setTx((prev) => (prev ? { ...prev, status: "expired" } : prev));
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [tx]);
+
+  useEffect(() => {
+    if (!tx || tx.status !== "pending") return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch("/api/pay", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status", transactionId: tx.transaction_id }),
+        });
+        const data = await res.json();
+        if (data.status === "paid") {
+          setTx((prev) => (prev ? { ...prev, status: "paid" } : prev));
+          const conf = await fetch("/api/pay", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "confirm", orderId, transactionId: tx.transaction_id }),
+          });
+          const confData = await conf.json();
+          if (confData.confirmed) setConfirmed(true);
+          clearInterval(poll);
+        } else if (data.status === "expired") {
+          setTx((prev) => (prev ? { ...prev, status: "expired" } : prev));
+          clearInterval(poll);
+        }
+      } catch {
+        // retry next tick
+      }
+    }, 5000);
+    return () => clearInterval(poll);
+  }, [tx?.transaction_id, tx?.status, orderId]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl shadow-pink-100/30">
+        <div className="text-center mb-5">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <QrCode className="w-5 h-5 text-pink-500" />
+            <h1 className="text-lg font-bold text-gray-800">Bayar QRIS</h1>
+          </div>
+          <p className="text-xs text-gray-400">Jastip_mamanay</p>
+        </div>
+
+        {loading && (
+          <div className="flex flex-col items-center py-10 gap-3">
+            <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+            <p className="text-sm text-gray-500">Membuat QRIS...</p>
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="py-8 text-center">
+            <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+            <p className="text-red-500 font-semibold mb-2">Gagal</p>
+            <p className="text-sm text-gray-500 mb-4">{error}</p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={createPayment}
+                className="px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm"
+              >
+                Coba lagi
+              </button>
+              <button
+                onClick={() => navigate("/")}
+                className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm"
+              >
+                Beranda
+              </button>
+            </div>
+          </div>
+        )}
+
+        {order && tx && tx.status === "pending" && (
+          <div className="text-center">
+            <div className="bg-pink-50 border border-pink-100 rounded-2xl p-3 mb-4">
+              <p className="text-xs text-gray-500 mb-1">Untuk</p>
+              <p className="text-sm font-bold text-gray-800 mb-1">{order.customer_name || "Pelanggan"}</p>
+              {order.items.length > 0 && (
+                <p className="text-xs text-gray-400">{order.items.join(", ")}</p>
+              )}
+            </div>
+
+            <div className="mx-auto w-56 h-56 bg-white border-2 border-pink-100 rounded-2xl p-3 mb-4">
+              <img src={tx.qr_url} alt="QRIS" className="w-full h-full" />
+            </div>
+            <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
+            <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(tx.amount)}</p>
+            <p className="text-xs text-gray-400 mb-3">
+              {order.sisa > 0 ? `Sisa tagihan: ${rupiah(order.sisa)}` : ""}
+            </p>
+            {tx.custom_unique_code != null && tx.custom_unique_code > 0 ? (
+              <p className="text-xs text-gray-400 mb-1">Termasuk kode unik {tx.custom_unique_code}</p>
+            ) : (
+              tx.unique_code > 0 && (
+                <p className="text-xs text-gray-400 mb-1">Termasuk kode unik {tx.unique_code}</p>
+              )
+            )}
+            <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-4">
+              <Clock className="w-3.5 h-3.5" />
+              {countdown !== null && (
+                <span>
+                  Kedaluwarsa dalam {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400 animate-pulse">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Menunggu pembayaran...
+            </div>
+            <p className="text-[11px] text-gray-300 mt-4">
+              Buka aplikasi bank/e-wallet lalu pindai QR ini
+            </p>
+          </div>
+        )}
+
+        {tx && tx.status === "paid" && (
+          <div className="py-10 text-center">
+            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+            <h2 className="text-lg font-bold text-gray-800 mb-1">
+              {confirmed ? "Pembayaran diterima" : "Pembayaran diterima"}
+            </h2>
+            <p className="text-sm text-gray-500 mb-1">{rupiah(tx.amount)}</p>
+            {confirmed && (
+              <p className="text-xs text-emerald-500 font-semibold mb-6">
+                Order telah ditandai lunas
+              </p>
+            )}
+            <button
+              onClick={() => navigate("/")}
+              className="mt-6 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-sm"
+            >
+              Selesai
+            </button>
+          </div>
+        )}
+
+        {tx && tx.status === "expired" && (
+          <div className="py-10 text-center">
+            <Clock className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+            <h2 className="text-lg font-bold text-gray-800 mb-1">QRIS kedaluwarsa</h2>
+            <p className="text-sm text-gray-500 mb-6">Transaksi sudah lewat masa berlaku.</p>
+            <button
+              onClick={createPayment}
+              className="px-6 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm"
+            >
+              Buat QRIS baru
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
