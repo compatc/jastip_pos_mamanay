@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "node:crypto";
+import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 
 const BOQRIS_BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const BOQRIS_UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 20) || 20);
@@ -40,6 +40,15 @@ function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
+function verifyWebhook(rawBody, signatureHeader) {
+  const secret = process.env.BOQRIS_WEBHOOK_SECRET;
+  if (!secret) return false;
+  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(signatureHeader || "", "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 function readBody(req) {
@@ -86,6 +95,91 @@ async function checkBoqrisTransaction(transactionId) {
   return bo.json();
 }
 
+async function confirmOrder(sb, orderId, transactionId) {
+  const bo = await checkBoqrisTransaction(transactionId);
+  if (bo.status !== "paid") {
+    return { status: bo.status || "pending", confirmed: false };
+  }
+
+  const { data: order, error } = await sb
+    .from("orders")
+    .select("id, customer_id, total, paid_total, order_type, account_id, status, notes")
+    .eq("id", orderId)
+    .single();
+  if (error || !order) {
+    return { error: "Order tidak ditemukan" };
+  }
+
+  if ((order.paid_total || 0) >= (order.total || 0)) {
+    return { status: "paid", confirmed: true, already: true };
+  }
+
+  const now = new Date().toISOString();
+  const payDelta = (order.total || 0) - (order.paid_total || 0);
+  const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
+
+  let contactName = "";
+  if (order.customer_id) {
+    const { data: cust } = await sb
+      .from("customers")
+      .select("name")
+      .eq("id", order.customer_id)
+      .single();
+    contactName = cust?.name || "";
+  }
+
+  await sb
+    .from("orders")
+    .update({
+      paid_total: order.total,
+      payment_type: "qris",
+      status: newStatus,
+      notes: order.notes
+        ? `${order.notes}\nQRIS ${bo.amount} (${transactionId.slice(0, 8)})`
+        : `QRIS ${bo.amount} (${transactionId.slice(0, 8)})`,
+      updated_at: now,
+    })
+    .eq("id", orderId);
+
+  if (order.account_id && payDelta > 0) {
+    const txId = randomUUID();
+    await sb.from("account_transactions").insert({
+      id: txId,
+      account_id: order.account_id,
+      order_id: orderId,
+      order_type: order.order_type,
+      contact_name: contactName,
+      amount: order.order_type === "penjualan" ? payDelta : -payDelta,
+      description: `Penjualan - ${contactName}`,
+      date: now.split("T")[0],
+      created_at: now,
+    });
+    const { data: acc } = await sb
+      .from("accounts")
+      .select("balance")
+      .eq("id", order.account_id)
+      .single();
+    if (acc) {
+      await sb
+        .from("accounts")
+        .update({ balance: (acc.balance || 0) + (order.order_type === "penjualan" ? payDelta : -payDelta) })
+        .eq("id", order.account_id);
+    }
+  }
+
+  return { status: "paid", confirmed: true };
+}
+
+async function findOrderByInvoiceNo(sb, invoiceNo) {
+  const prefix = String(invoiceNo || "").slice(0, 25);
+  if (!prefix) return null;
+  const { data } = await sb
+    .from("orders")
+    .select("id, total, paid_total, status")
+    .or(`id.ilike.${prefix}%`);
+  return (data || [])[0] || null;
+}
+
 export default async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") {
@@ -99,8 +193,37 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = JSON.parse((await readBody(req)) || "{}");
+    const rawBody = (await readBody(req)) || "";
+    const body = JSON.parse(rawBody || "{}");
     const sb = await getAdmin();
+
+    if (body.event || body.type === "payment.success" || body.type === "payment.expired") {
+      const event = body.event || body.type;
+      if (event !== "payment.success") {
+        json(res, 200, { received: true });
+        return;
+      }
+      if (!verifyWebhook(rawBody, req.headers["x-boqris-signature"])) {
+        json(res, 401, { error: "Signature tidak valid" });
+        return;
+      }
+      const txId = String(body.data?.transaction_id || body.transaction_id || "");
+      const invoiceNo = String(body.data?.invoice_no || body.invoice_no || "");
+      if (!txId) {
+        json(res, 400, { error: "transaction_id tidak ada" });
+        return;
+      }
+      const order = invoiceNo
+        ? await findOrderByInvoiceNo(sb, invoiceNo)
+        : null;
+      if (!order) {
+        json(res, 404, { error: "Order tidak ditemukan" });
+        return;
+      }
+      const result = await confirmOrder(sb, order.id, txId);
+      json(res, result.error ? 404 : 200, result);
+      return;
+    }
 
     if (body.action === "create") {
       const orderId = String(body.orderId || "");
@@ -169,77 +292,8 @@ export default async function handler(req, res) {
         json(res, 400, { error: "orderId dan transactionId wajib diisi" });
         return;
       }
-
-      const bo = await checkBoqrisTransaction(transactionId);
-      if (bo.status !== "paid") {
-        json(res, 200, { status: bo.status || "pending", confirmed: false });
-        return;
-      }
-
-      const { data: order, error } = await sb
-        .from("orders")
-        .select("id, customer_id, total, paid_total, order_type, account_id, status, notes")
-        .eq("id", orderId)
-        .single();
-      if (error || !order) {
-        json(res, 404, { error: "Order tidak ditemukan" });
-        return;
-      }
-
-      const now = new Date().toISOString();
-      const payDelta = (order.total || 0) - (order.paid_total || 0);
-      const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
-
-      let contactName = "";
-      if (order.customer_id) {
-        const { data: cust } = await sb
-          .from("customers")
-          .select("name")
-          .eq("id", order.customer_id)
-          .single();
-        contactName = cust?.name || "";
-      }
-
-      await sb
-        .from("orders")
-        .update({
-          paid_total: order.total,
-          payment_type: "qris",
-          status: newStatus,
-          notes: order.notes
-            ? `${order.notes}\nQRIS ${bo.amount} (${transactionId.slice(0, 8)})`
-            : `QRIS ${bo.amount} (${transactionId.slice(0, 8)})`,
-          updated_at: now,
-        })
-        .eq("id", orderId);
-
-      if (order.account_id && payDelta > 0) {
-        const txId = randomUUID();
-        await sb.from("account_transactions").insert({
-          id: txId,
-          account_id: order.account_id,
-          order_id: orderId,
-          order_type: order.order_type,
-          contact_name: contactName,
-          amount: order.order_type === "penjualan" ? payDelta : -payDelta,
-          description: `Penjualan - ${contactName}`,
-          date: now.split("T")[0],
-          created_at: now,
-        });
-        const { data: acc } = await sb
-          .from("accounts")
-          .select("balance")
-          .eq("id", order.account_id)
-          .single();
-        if (acc) {
-          await sb
-            .from("accounts")
-            .update({ balance: (acc.balance || 0) + (order.order_type === "penjualan" ? payDelta : -payDelta) })
-            .eq("id", order.account_id);
-        }
-      }
-
-      json(res, 200, { status: "paid", confirmed: true });
+      const result = await confirmOrder(sb, orderId, transactionId);
+      json(res, result.error ? 404 : 200, result);
       return;
     }
 
