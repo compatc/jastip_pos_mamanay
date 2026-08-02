@@ -1,5 +1,5 @@
 const BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
-const UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 20) || 20);
+const UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -60,9 +60,11 @@ export default async function handler(req, res) {
 
       const attempts = useUniqueAmount ? [0] : Array.from({ length: UNIQUE_MAX }, (_, i) => i + 1);
       for (const code of attempts) {
+        const qrAmount = amount - code;
+        if (qrAmount <= 0) break;
         const payload = {
           ...basePayload,
-          amount: amount + code,
+          amount: qrAmount,
           unique_amount: useUniqueAmount,
         };
         const bo = await fetch(`${BASE}/api/v1/transactions`, {

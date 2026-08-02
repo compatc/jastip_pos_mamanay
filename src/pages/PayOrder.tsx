@@ -165,7 +165,7 @@ export default function PayOrder() {
               {order.sisa > 0 ? `Sisa tagihan: ${rupiah(order.sisa)}` : ""}
             </p>
             {tx.custom_unique_code != null && tx.custom_unique_code > 0 ? (
-              <p className="text-xs text-gray-400 mb-1">Termasuk kode unik {tx.custom_unique_code}</p>
+              <p className="text-xs text-gray-400 mb-1">Termasuk kode unik -{tx.custom_unique_code} (lebih murah)</p>
             ) : (
               tx.unique_code > 0 && (
                 <p className="text-xs text-gray-400 mb-1">Termasuk kode unik {tx.unique_code}</p>
