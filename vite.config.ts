@@ -6,12 +6,6 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
   server: {
     host: true,
-    proxy: {
-      "/api/qrisly": {
-        target: `http://localhost:${process.env.QRISLY_DEV_PORT || 8788}`,
-        changeOrigin: true,
-      },
-    },
   },
   plugins: [
     react(),
