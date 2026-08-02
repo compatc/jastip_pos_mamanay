@@ -45,10 +45,14 @@ function cors(res) {
 function verifyWebhook(rawBody, signatureHeader) {
   const secret = process.env.BOQRIS_WEBHOOK_SECRET;
   if (!secret) return false;
-  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(signatureHeader || "", "utf8");
-  return a.length === b.length && timingSafeEqual(a, b);
+  const candidates = [secret, secret.replace(/^whsec_/, "")];
+  for (const candidate of candidates) {
+    const expected = "sha256=" + createHmac("sha256", candidate).update(rawBody).digest("hex");
+    const a = Buffer.from(expected, "utf8");
+    const b = Buffer.from(signatureHeader || "", "utf8");
+    if (a.length === b.length && timingSafeEqual(a, b)) return true;
+  }
+  return false;
 }
 
 function readBody(req) {
@@ -201,12 +205,12 @@ export default async function handler(req, res) {
 
     if (body.event || body.type === "payment.success" || body.type === "payment.expired") {
       const event = body.event || body.type;
-      if (event !== "payment.success") {
-        json(res, 200, { received: true });
-        return;
-      }
       if (!verifyWebhook(rawBody, req.headers["x-boqris-signature"])) {
         json(res, 401, { error: "Signature tidak valid" });
+        return;
+      }
+      if (event !== "payment.success") {
+        json(res, 200, { received: true });
         return;
       }
       const txId = String(body.data?.transaction_id || body.transaction_id || "");
