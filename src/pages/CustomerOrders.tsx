@@ -204,6 +204,19 @@ export default function CustomerOrders() {
       msg += `*Sisa: ${rupiah(grandTotal - grandPaid)}*\n\n`;
     }
 
+    const qrisOrders = selected.filter((o) => o.total - (o.paid_total || 0) > 0);
+    if (qrisOrders.length > 0) {
+      msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
+      qrisOrders.forEach((order, idx) => {
+        const sisa = order.total - (order.paid_total || 0);
+        const items = itemsByOrder[order.id] || [];
+        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+        msg += `${idx + 1}. ${productNames}\n`;
+        msg += `\u{1F4B0} Sisa: *${rupiah(sisa)}*\n`;
+        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${window.location.origin}/pay/${order.id}\n\n`;
+      });
+    }
+
     const payMethod = paymentLabels[selected[0]?.payment_type] || "Transfer Bank";
     msg += `\u{1F4B3} Metode Pembayaran: ${payMethod}\n`;
     msg += "BCA 5271330651 a.n. Nurul Azizah\n";
