@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
 interface Tx {
@@ -27,9 +27,18 @@ function rupiah(n: number): string {
 
 export default function PayOrder() {
   const { orderId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const multiKey = searchParams.get("orders") || "";
+  const multiIds = multiKey
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const isMulti = multiIds.length > 0;
+
   const [order, setOrder] = useState<OrderInfo | null>(null);
+  const [orders, setOrders] = useState<OrderInfo[]>([]);
   const [tx, setTx] = useState<Tx | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,22 +50,30 @@ export default function PayOrder() {
     setError(null);
     setTx(null);
     setConfirmed(false);
+    setOrder(null);
+    setOrders([]);
     try {
       const res = await fetch("/api/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", orderId }),
+        body: JSON.stringify(
+          isMulti ? { action: "create", orderIds: multiIds } : { action: "create", orderId }
+        ),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      setOrder(data.order);
+      if (isMulti) {
+        setOrders(data.orders || []);
+      } else {
+        setOrder(data.order);
+      }
       setTx(data.tx);
     } catch (e: any) {
       setError(e.message || "Gagal memuat pembayaran");
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, isMulti, multiKey]);
 
   useEffect(() => {
     createPayment();
@@ -90,7 +107,11 @@ export default function PayOrder() {
           const conf = await fetch("/api/pay", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "confirm", orderId, transactionId: tx.transaction_id }),
+            body: JSON.stringify(
+              isMulti
+                ? { action: "confirm", orderIds: multiIds, transactionId: tx.transaction_id }
+                : { action: "confirm", orderId, transactionId: tx.transaction_id }
+            ),
           });
           const confData = await conf.json();
           if (confData.confirmed) setConfirmed(true);
@@ -104,7 +125,12 @@ export default function PayOrder() {
       }
     }, 5000);
     return () => clearInterval(poll);
-  }, [tx?.transaction_id, tx?.status, orderId]);
+  }, [tx?.transaction_id, tx?.status, orderId, isMulti, multiKey]);
+
+  const displayOrders = isMulti ? orders : order ? [order] : [];
+  const sisaTotal = displayOrders.reduce((s, o) => s + (o.sisa || 0), 0);
+  const customerName = displayOrders[0]?.customer_name || "Pelanggan";
+  const allItems = displayOrders.flatMap((o) => o.items || []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex items-center justify-center p-4">
@@ -146,13 +172,18 @@ export default function PayOrder() {
           </div>
         )}
 
-        {order && tx && tx.status === "pending" && (
+        {displayOrders.length > 0 && tx && tx.status === "pending" && (
           <div className="text-center">
             <div className="bg-pink-50 border border-pink-100 rounded-2xl p-3 mb-4">
               <p className="text-xs text-gray-500 mb-1">Untuk</p>
-              <p className="text-sm font-bold text-gray-800 mb-1">{order.customer_name || "Pelanggan"}</p>
-              {order.items.length > 0 && (
-                <p className="text-xs text-gray-400">{order.items.join(", ")}</p>
+              <p className="text-sm font-bold text-gray-800 mb-1">{customerName}</p>
+              {allItems.length > 0 && (
+                <p className="text-xs text-gray-400">{allItems.join(", ")}</p>
+              )}
+              {isMulti && displayOrders.length > 1 && (
+                <p className="text-[11px] text-pink-400 mt-1 font-semibold">
+                  {displayOrders.length} pesanan digabung dalam 1 QRIS
+                </p>
               )}
             </div>
 
@@ -161,13 +192,13 @@ export default function PayOrder() {
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
             <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(tx.amount)}</p>
-            {order.sisa > 0 && tx.custom_unique_code != null && tx.custom_unique_code > 0 ? (
+            {sisaTotal > 0 && tx.custom_unique_code != null && tx.custom_unique_code > 0 ? (
               <p className="text-xs text-gray-400 mb-1">
-                Sisa tagihan {rupiah(order.sisa)} - kode unik {rupiah(tx.custom_unique_code)} (lebih murah)
+                Sisa tagihan {rupiah(sisaTotal)} - kode unik {rupiah(tx.custom_unique_code)} (lebih murah)
               </p>
             ) : (
               <p className="text-xs text-gray-400 mb-1">
-                {order.sisa > 0 ? `Sisa tagihan: ${rupiah(order.sisa)}` : ""}
+                {sisaTotal > 0 ? `Sisa tagihan: ${rupiah(sisaTotal)}` : ""}
                 {tx.unique_code > 0 && !(tx.custom_unique_code != null && tx.custom_unique_code > 0)
                   ? ` Termasuk kode unik ${tx.unique_code}`
                   : ""}
@@ -200,7 +231,9 @@ export default function PayOrder() {
             <p className="text-sm text-gray-500 mb-1">{rupiah(tx.amount)}</p>
             {confirmed && (
               <p className="text-xs text-emerald-500 font-semibold mb-6">
-                Order telah ditandai lunas
+                {isMulti && displayOrders.length > 1
+                  ? "Semua pesanan telah ditandai lunas"
+                  : "Order telah ditandai lunas"}
               </p>
             )}
             <button

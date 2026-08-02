@@ -207,14 +207,27 @@ export default function CustomerOrders() {
     const qrisOrders = selected.filter((o) => o.total - (o.paid_total || 0) > 0);
     if (qrisOrders.length > 0) {
       msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
-      qrisOrders.forEach((order, idx) => {
+      if (qrisOrders.length === 1) {
+        const order = qrisOrders[0];
         const sisa = order.total - (order.paid_total || 0);
         const items = itemsByOrder[order.id] || [];
         const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
-        msg += `${idx + 1}. ${productNames}\n`;
+        msg += `1. ${productNames}\n`;
         msg += `\u{1F4B0} Sisa: *${rupiah(sisa)}*\n`;
         msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${window.location.origin}/pay/${order.id}\n\n`;
-      });
+      } else {
+        const qrisIds = qrisOrders.map((o) => o.id);
+        qrisOrders.forEach((order, idx) => {
+          const sisa = order.total - (order.paid_total || 0);
+          const items = itemsByOrder[order.id] || [];
+          const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+          msg += `${idx + 1}. ${productNames}\n`;
+          msg += `\u{1F4B0} Sisa: *${rupiah(sisa)}*\n\n`;
+        });
+        const totalSisa = qrisOrders.reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+        msg += `\u{1F9FE} Total sisa: *${rupiah(totalSisa)}* (${qrisOrders.length} pesanan digabung dalam 1 QRIS)\n`;
+        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${window.location.origin}/pay?orders=${qrisIds.join(",")}\n\n`;
+      }
     }
 
     const payMethod = paymentLabels[selected[0]?.payment_type] || "Transfer Bank";

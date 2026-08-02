@@ -280,16 +280,24 @@ export default function Orders() {
 
   async function buildQrisLinks(
     group: CustomerGroup
-  ): Promise<{ order: Order; url: string }[]> {
-    const links: { order: Order; url: string }[] = [];
+  ): Promise<{ order: Order; url: string }[] | { combined: true; url: string; orders: Order[] }[]> {
     const unpaid = group.orders.filter((o) => o.total - (o.paid_total || 0) > 0);
-    for (const order of unpaid) {
-      links.push({ order, url: `${window.location.origin}/pay/${order.id}` });
+    if (unpaid.length > 1) {
+      return [
+        {
+          combined: true,
+          url: `${window.location.origin}/pay?orders=${unpaid.map((o) => o.id).join(",")}`,
+          orders: unpaid,
+        },
+      ];
     }
-    return links;
+    return unpaid.map((order) => ({ order, url: `${window.location.origin}/pay/${order.id}` }));
   }
 
-  function buildInvoiceMsg(group: CustomerGroup, qrisLinks?: { order: Order; url: string }[]): string {
+  function buildInvoiceMsg(
+    group: CustomerGroup,
+    qrisLinks?: { order: Order; url: string }[] | { combined: true; url: string; orders: Order[] }[]
+  ): string {
     const deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
     const deadlineStr = deadline.toLocaleDateString("id-ID", {
       day: "numeric",
@@ -343,13 +351,26 @@ export default function Orders() {
 
     if (qrisLinks && qrisLinks.length > 0) {
       msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
-      qrisLinks.forEach(({ order, url }, idx) => {
-        const sisa = order.total - (order.paid_total || 0);
-        const items = itemsByOrder[order.id] || [];
+      qrisLinks.forEach((link, idx) => {
+        if (link.combined) {
+          link.orders.forEach((order, i) => {
+            const sisa = order.total - (order.paid_total || 0);
+            const items = itemsByOrder[order.id] || [];
+            const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+            msg += `${i + 1}. ${productNames}\n`;
+            msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
+          });
+          const totalSisa = link.orders.reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+          msg += `\u{1F9FE} Total sisa: *Rp ${totalSisa.toLocaleString("id-ID")}* (${link.orders.length} pesanan digabung dalam 1 QRIS)\n`;
+          msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${link.url}\n\n`;
+          return;
+        }
+        const sisa = link.order.total - (link.order.paid_total || 0);
+        const items = itemsByOrder[link.order.id] || [];
         const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
         msg += `${idx + 1}. ${productNames}\n`;
         msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
-        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${url}\n\n`;
+        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${link.url}\n\n`;
       });
     }
 

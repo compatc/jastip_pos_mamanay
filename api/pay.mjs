@@ -101,8 +101,8 @@ async function checkBoqrisTransaction(transactionId) {
   return bo.json();
 }
 
-async function confirmOrder(sb, orderId, transactionId) {
-  const bo = await checkBoqrisTransaction(transactionId);
+async function confirmOrder(sb, orderId, transactionId, boData) {
+  const bo = boData || await checkBoqrisTransaction(transactionId);
   if (bo.status !== "paid") {
     return { status: bo.status || "pending", confirmed: false };
   }
@@ -186,6 +186,40 @@ async function findOrderByInvoiceNo(sb, invoiceNo) {
   return (data || [])[0] || null;
 }
 
+async function findPaymentGroupByInvoiceNo(sb, invoiceNo) {
+  const prefix = String(invoiceNo || "").slice(0, 25);
+  if (!prefix) return null;
+  const { data } = await sb
+    .from("qris_payments")
+    .select("id, order_ids, status")
+    .or(`id.ilike.${prefix}%`);
+  return (data || [])[0] || null;
+}
+
+async function loadOrderInfo(sb, order) {
+  const { data: items } = await sb
+    .from("order_items")
+    .select("product_name, quantity")
+    .eq("order_id", order.id);
+  let customerName = "";
+  if (order.customer_id) {
+    const { data: cust } = await sb
+      .from("customers")
+      .select("name")
+      .eq("id", order.customer_id)
+      .single();
+    customerName = cust?.name || "";
+  }
+  return {
+    id: order.id,
+    customer_name: customerName,
+    total: order.total,
+    paid_total: order.paid_total,
+    sisa: (order.total || 0) - (order.paid_total || 0),
+    items: (items || []).map((i) => `${i.product_name} x${i.quantity}`),
+  };
+}
+
 export default async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") {
@@ -219,6 +253,32 @@ export default async function handler(req, res) {
         json(res, 400, { error: "transaction_id tidak ada" });
         return;
       }
+
+      const group = invoiceNo ? await findPaymentGroupByInvoiceNo(sb, invoiceNo) : null;
+      if (group && Array.isArray(group.order_ids) && group.order_ids.length > 0) {
+        if (group.status === "paid") {
+          json(res, 200, { status: "paid", confirmed: true, already: true });
+          return;
+        }
+        const bo = await checkBoqrisTransaction(txId);
+        if (bo.status !== "paid") {
+          json(res, 200, { status: bo.status || "pending", confirmed: false });
+          return;
+        }
+        const results = [];
+        for (const orderId of group.order_ids) {
+          const r = await confirmOrder(sb, orderId, txId, bo);
+          if (r.error) {
+            json(res, 404, r);
+            return;
+          }
+          results.push({ orderId, ...r });
+        }
+        await sb.from("qris_payments").update({ status: "paid" }).eq("id", group.id);
+        json(res, 200, { status: "paid", confirmed: true, orders: results });
+        return;
+      }
+
       const order = invoiceNo
         ? await findOrderByInvoiceNo(sb, invoiceNo)
         : null;
@@ -232,54 +292,72 @@ export default async function handler(req, res) {
     }
 
     if (body.action === "create") {
-      const orderId = String(body.orderId || "");
-      if (!orderId) {
+      const orderIdsRaw = Array.isArray(body.orderIds)
+        ? body.orderIds.map((x) => String(x).trim()).filter(Boolean)
+        : body.orderId
+          ? [String(body.orderId).trim()]
+          : [];
+      if (orderIdsRaw.length === 0) {
         json(res, 400, { error: "orderId wajib diisi" });
         return;
       }
 
-      const { data: order, error } = await sb
+      const { data: orders, error: ordersErr } = await sb
         .from("orders")
         .select("id, customer_id, total, paid_total, order_type, account_id, notes, status")
-        .eq("id", orderId)
-        .single();
-      if (error || !order) {
+        .in("id", orderIdsRaw);
+      if (ordersErr || !orders || orders.length === 0) {
         json(res, 404, { error: "Order tidak ditemukan" });
         return;
       }
 
-      const sisa = (order.total || 0) - (order.paid_total || 0);
-      if (sisa <= 0) {
-        json(res, 400, { error: "Order sudah lunas" });
+      const validOrders = orders.filter((o) => (o.total || 0) - (o.paid_total || 0) > 0);
+      if (validOrders.length === 0) {
+        json(res, 400, { error: "Semua order sudah lunas" });
         return;
       }
 
-      const { data: items } = await sb
-        .from("order_items")
-        .select("product_name, quantity")
-        .eq("order_id", orderId);
+      const sisaTotal = validOrders.reduce(
+        (sum, o) => sum + ((o.total || 0) - (o.paid_total || 0)),
+        0
+      );
 
-      let customerName = "";
-      if (order.customer_id) {
-        const { data: cust } = await sb
-          .from("customers")
-          .select("name")
-          .eq("id", order.customer_id)
-          .single();
-        customerName = cust?.name || "";
+      if (validOrders.length === 1) {
+        const order = validOrders[0];
+        const sisa = (order.total || 0) - (order.paid_total || 0);
+        const tx = await createBoqrisTransaction(sisa, order.id.slice(0, 25));
+        const info = await loadOrderInfo(sb, order);
+        json(res, 201, { order: info, tx });
+        return;
       }
 
-      const tx = await createBoqrisTransaction(sisa, orderId.slice(0, 25));
+      const groupId = "qg-" + randomUUID().replace(/-/g, "").slice(0, 22);
+      const invoiceNo = groupId.slice(0, 25);
+      const { error: groupErr } = await sb.from("qris_payments").insert({
+        id: invoiceNo,
+        order_ids: validOrders.map((o) => o.id),
+        amount: sisaTotal,
+        status: "pending",
+      });
+      if (groupErr) {
+        json(res, 500, { error: "Gagal menyimpan pembayaran gabungan: " + groupErr.message });
+        return;
+      }
+
+      const tx = await createBoqrisTransaction(sisaTotal, invoiceNo);
+
+      const infoList = [];
+      for (const order of validOrders) {
+        infoList.push(await loadOrderInfo(sb, order));
+      }
 
       json(res, 201, {
-        order: {
-          id: order.id,
-          customer_name: customerName,
-          total: order.total,
-          paid_total: order.paid_total,
-          sisa,
-          items: (items || []).map((i) => `${i.product_name} x${i.quantity}`),
+        group: {
+          id: invoiceNo,
+          order_ids: validOrders.map((o) => o.id),
+          sisa_total: sisaTotal,
         },
+        orders: infoList,
         tx,
       });
       return;
@@ -292,14 +370,31 @@ export default async function handler(req, res) {
     }
 
     if (body.action === "confirm") {
-      const orderId = String(body.orderId || "");
+      const orderIds = Array.isArray(body.orderIds)
+        ? body.orderIds.map((x) => String(x).trim()).filter(Boolean)
+        : body.orderId
+          ? [String(body.orderId).trim()]
+          : [];
       const transactionId = String(body.transactionId || "");
-      if (!orderId || !transactionId) {
+      if (orderIds.length === 0 || !transactionId) {
         json(res, 400, { error: "orderId dan transactionId wajib diisi" });
         return;
       }
-      const result = await confirmOrder(sb, orderId, transactionId);
-      json(res, result.error ? 404 : 200, result);
+      const bo = await checkBoqrisTransaction(transactionId);
+      if (bo.status !== "paid") {
+        json(res, 200, { status: bo.status || "pending", confirmed: false });
+        return;
+      }
+      const results = [];
+      for (const orderId of orderIds) {
+        const r = await confirmOrder(sb, orderId, transactionId, bo);
+        if (r.error) {
+          json(res, 404, r);
+          return;
+        }
+        results.push({ orderId, ...r });
+      }
+      json(res, 200, { status: "paid", confirmed: true, orders: results });
       return;
     }
 
