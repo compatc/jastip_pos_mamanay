@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
+import { createBoqrisTransaction } from "../lib/boqris";
 import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
@@ -83,6 +84,8 @@ export default function Orders() {
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [previewGroup, setPreviewGroup] = useState<CustomerGroup | null>(null);
+  const [previewQris, setPreviewQris] = useState<{ order: Order; url: string }[] | undefined>(undefined);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   function showConfirm(title: string, message: string, onConfirm: () => void) {
     setConfirmTitle(title);
@@ -276,7 +279,28 @@ export default function Orders() {
         : "62" + cleaned;
   }
 
-  function buildInvoiceMsg(group: CustomerGroup): string {
+  async function buildQrisLinks(
+    group: CustomerGroup
+  ): Promise<{ order: Order; url: string }[]> {
+    const links: { order: Order; url: string }[] = [];
+    const unpaid = group.orders.filter((o) => o.total - (o.paid_total || 0) > 0);
+    for (const order of unpaid) {
+      const sisa = order.total - (order.paid_total || 0);
+      try {
+        const tx = await createBoqrisTransaction({
+          amount: sisa,
+          invoice_no: order.id,
+          expires_in: 3600,
+        });
+        links.push({ order, url: tx.qr_url });
+      } catch (e) {
+        console.error("Gagal buat link QRIS untuk order", order.id, e);
+      }
+    }
+    return links;
+  }
+
+  function buildInvoiceMsg(group: CustomerGroup, qrisLinks?: { order: Order; url: string }[]): string {
     const deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
     const deadlineStr = deadline.toLocaleDateString("id-ID", {
       day: "numeric",
@@ -328,6 +352,19 @@ export default function Orders() {
       msg += `*Sisa: Rp ${(grandTotal - grandPaid).toLocaleString("id-ID")}*\n\n`;
     }
 
+    if (qrisLinks && qrisLinks.length > 0) {
+      msg += `\u{1F4B3} *Bayar QRIS:*\n`;
+      qrisLinks.forEach(({ order, url }, idx) => {
+        const sisa = order.total - (order.paid_total || 0);
+        const items = itemsByOrder[order.id] || [];
+        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+        msg += `${idx + 1}. ${productNames}\n`;
+        msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
+        msg += `Tap/scan QRIS: ${url}\n\n`;
+      });
+      msg += `*Catatan:* link QRIS berlaku 1 jam. Jika kedaluwarsa, mohon minta link baru.\n\n`;
+    }
+
     msg += `\u{1F4B3} Metode Pembayaran: ${PAYMENT_LABELS_FULL[group.orders[0]?.payment_type] || "Transfer Bank"}\n`;
     msg += BANK_INFO + "\n";
     msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
@@ -350,44 +387,48 @@ export default function Orders() {
     );
   }
 
-  function sendBulkInvoice() {
+  async function sendBulkInvoice() {
     const targets = groupedCustomers.filter((g) => selectedCustomerIds.includes(g.customerId));
-    targets.forEach((g, i) => {
+    let delay = 0;
+    for (const g of targets) {
       const wa = toWaNumber(g.phone);
-      if (!wa) return;
-      const msg = buildInvoiceMsg(g);
+      if (!wa) continue;
+      const qrisLinks = await buildQrisLinks(g);
+      const msg = buildInvoiceMsg(g, qrisLinks);
       const url = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
-      if (i === 0) {
-        window.open(url, "_blank");
-      } else {
-        setTimeout(() => window.open(url, "_blank"), i * 300);
-      }
-    });
+      setTimeout(() => window.open(url, "_blank"), delay);
+      delay += 400;
+    }
     setWaModalOpen(false);
   }
 
-  function openOneChat(group: CustomerGroup) {
+  async function openOneChat(group: CustomerGroup) {
     const wa = toWaNumber(group.phone);
     if (!wa) return;
+    const qrisLinks = await buildQrisLinks(group);
     window.open(
-      `https://wa.me/${wa}?text=${encodeURIComponent(buildInvoiceMsg(group))}`,
+      `https://wa.me/${wa}?text=${encodeURIComponent(buildInvoiceMsg(group, qrisLinks))}`,
       "_blank"
     );
   }
 
-  function copyInvoiceMsg(group: CustomerGroup) {
-    navigator.clipboard.writeText(buildInvoiceMsg(group)).then(() => {
+  async function copyInvoiceMsg(group: CustomerGroup) {
+    const qrisLinks = await buildQrisLinks(group);
+    navigator.clipboard.writeText(buildInvoiceMsg(group, qrisLinks)).then(() => {
       setCopiedId(group.customerId);
       setTimeout(() => setCopiedId((c) => (c === group.customerId ? null : c)), 1500);
     });
   }
 
-  function copyAllInvoiceMsgs() {
-    const text = groupedCustomers
-      .filter((g) => selectedCustomerIds.includes(g.customerId))
-      .map((g, i) => `${i + 1}. ${g.name}\n${buildInvoiceMsg(g)}`)
-      .join("\n\n------------------\n\n");
-    navigator.clipboard.writeText(text).then(() => {
+  async function copyAllInvoiceMsgs() {
+    const groups = groupedCustomers.filter((g) => selectedCustomerIds.includes(g.customerId));
+    const parts: string[] = [];
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      const qrisLinks = await buildQrisLinks(g);
+      parts.push(`${i + 1}. ${g.name}\n${buildInvoiceMsg(g, qrisLinks)}`);
+    }
+    navigator.clipboard.writeText(parts.join("\n\n------------------\n\n")).then(() => {
       setCopiedId("all");
       setTimeout(() => setCopiedId((c) => (c === "all" ? null : c)), 1500);
     });
@@ -737,10 +778,14 @@ export default function Orders() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          setPreviewLoading(true);
+                          setPreviewQris(undefined);
                           setPreviewGroup(g);
+                          setPreviewQris(await buildQrisLinks(g));
+                          setPreviewLoading(false);
                         }}
                         className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg transition-all"
                         title="Lihat teks invoice"
@@ -834,16 +879,25 @@ export default function Orders() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto min-h-0 bg-gray-50 rounded-xl p-4 whitespace-pre-wrap text-xs text-gray-700 leading-relaxed">
-              {buildInvoiceMsg(previewGroup)}
+              {previewLoading ? (
+                <div className="text-center py-6 text-gray-400">
+                  Membuat link QRIS...
+                </div>
+              ) : (
+                buildInvoiceMsg(previewGroup, previewQris)
+              )}
             </div>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(buildInvoiceMsg(previewGroup)).then(() => {
-                  setCopiedId(previewGroup.customerId);
-                  setTimeout(() => setCopiedId((c) => (c === previewGroup.customerId ? null : c)), 1500);
-                });
+                navigator.clipboard
+                  .writeText(buildInvoiceMsg(previewGroup, previewQris))
+                  .then(() => {
+                    setCopiedId(previewGroup.customerId);
+                    setTimeout(() => setCopiedId((c) => (c === previewGroup.customerId ? null : c)), 1500);
+                  });
               }}
-              className="w-full py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+              disabled={previewLoading}
             >
               {copiedId === previewGroup.customerId ? (
                 <Check className="w-4 h-4" />
