@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
+import { supabase } from "../lib/supabase";
 import { ArrowLeft, Edit2, User, Package, Truck, QrCode } from "lucide-react";
 import QrisPaymentModal from "../components/QrisPaymentModal";
 
@@ -312,6 +313,10 @@ export default function OrderDetail() {
         amount={sisa}
         onClose={() => setQrisOpen(false)}
         onPaid={async () => {
+          await supabase
+            .from("orders")
+            .update({ payment_type: "qris", updated_at: new Date().toISOString() })
+            .eq("id", order.id);
           await markOrdersPaid([order.id]);
           await loadAllOrders();
           if (orderId) await loadOrderItems(orderId);
