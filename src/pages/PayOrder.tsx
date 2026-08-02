@@ -44,6 +44,12 @@ export default function PayOrder() {
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  const closePage = useCallback(() => {
+    setClosing(true);
+    window.close();
+  }, []);
 
   const createPayment = useCallback(async () => {
     setLoading(true);
@@ -143,14 +149,22 @@ export default function PayOrder() {
           <p className="text-xs text-gray-400">Jastip_mamanay</p>
         </div>
 
-        {loading && (
+        {closing && (
+          <div className="py-16 text-center">
+            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+            <p className="text-gray-700 font-semibold">Terima kasih!</p>
+            <p className="text-xs text-gray-400 mt-1">Halaman ini bisa ditutup.</p>
+          </div>
+        )}
+
+        {!closing && loading && (
           <div className="flex flex-col items-center py-10 gap-3">
             <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
             <p className="text-sm text-gray-500">Membuat QRIS...</p>
           </div>
         )}
 
-        {error && !loading && (
+        {!closing && error && !loading && (
           <div className="py-8 text-center">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
             <p className="text-red-500 font-semibold mb-2">Gagal</p>
@@ -237,7 +251,7 @@ export default function PayOrder() {
               </p>
             )}
             <button
-              onClick={() => navigate("/")}
+              onClick={closePage}
               className="mt-6 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-sm"
             >
               Selesai
