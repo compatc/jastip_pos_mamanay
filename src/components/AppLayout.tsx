@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import QrisNotifier from "./QrisNotifier";
+import QrisHistoryModal from "./QrisHistoryModal";
 import {
   ShoppingBag,
   ClipboardList,
@@ -11,12 +12,14 @@ import {
   Wallet,
   LogOut,
   User,
+  BellRing,
 } from "lucide-react";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setUser, isOnline, setOnline, fontSize } = useStore();
+  const [showQrisHistory, setShowQrisHistory] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-fs", fontSize);
@@ -104,6 +107,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </span>
               )}
               <button
+                onClick={() => setShowQrisHistory(true)}
+                className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
+                title="Histori Notifikasi QRIS"
+              >
+                <BellRing className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => navigate("/profile")}
                 className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
                 title="Profil"
@@ -126,6 +136,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <QrisNotifier />
+      <QrisHistoryModal open={showQrisHistory} onClose={() => setShowQrisHistory(false)} />
 
       {!isSubPage && (
         <nav className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-xl border-t border-pink-100/60 z-20">

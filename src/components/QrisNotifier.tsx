@@ -41,7 +41,7 @@ function markNotified(id: string, ts: number) {
 export default function QrisNotifier() {
   const navigate = useNavigate();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const pending = useRef<Map<string, { total: number }>>(new Map());
+  const pending = useRef<Map<string, { id: string; total: number }>>(new Map());
   const timer = useRef<number | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
 
@@ -86,18 +86,29 @@ export default function QrisNotifier() {
     }
   }
 
-  function flush() {
+  async function flush() {
     timer.current = null;
     const items = Array.from(pending.current.values());
     pending.current.clear();
     if (items.length === 0) return;
-    useStore.getState().loadAllOrders();
-    const total = items.reduce((s, i) => s + (i.total || 0), 0);
+    await useStore.getState().loadAllOrders();
+    const orderList = useStore.getState().allOrders;
+    const nameMap = new Map<string, string>(orderList.map((o) => [o.id, o.customer_name || ""]));
+    const named = items.map((it) => ({ ...it, customer_name: nameMap.get(it.id) || "" }));
+    const total = named.reduce((s, i) => s + (i.total || 0), 0);
+    const names = named.map((i) => i.customer_name).filter(Boolean);
     const title = "QRIS Lunas";
     const lines =
-      items.length > 1
-        ? [`${items.length} pesanan lunas`, rupiah(total)]
-        : [`${rupiah(total)} diterima`];
+      named.length > 1
+        ? [
+            `${named.length} pesanan lunas`,
+            rupiah(total),
+            ...(names.length > 0 ? [names.join(", ")] : []),
+          ]
+        : [
+            `${rupiah(total)} diterima`,
+            ...(named[0]?.customer_name ? [`dari ${named[0].customer_name}`] : []),
+          ];
     setToasts((prev) => [...prev, { key: `${Date.now()}-${Math.random()}`, title, lines }]);
     chime();
     nativeNotify(title, lines.join(" • "));
@@ -110,7 +121,7 @@ export default function QrisNotifier() {
     const ts = updatedAt ? new Date(updatedAt).getTime() : Date.now();
     if (alreadyNotified(id, ts)) return;
     markNotified(id, ts);
-    pending.current.set(id, { total: total || 0 });
+    pending.current.set(id, { id, total: total || 0 });
     if (timer.current == null) {
       timer.current = window.setTimeout(flush, 1200);
     }

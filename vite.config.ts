@@ -22,6 +22,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       devOptions: { enabled: false },
       includeAssets: ["logo.png"],
       manifest: {
@@ -47,8 +50,9 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,svg}"],
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),
   ],

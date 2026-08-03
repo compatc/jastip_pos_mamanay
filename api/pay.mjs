@@ -1,8 +1,63 @@
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
+import webpush from "web-push";
 
 const BOQRIS_BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const BOQRIS_UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@mamanay.com";
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
+
+function rupiah(n) {
+  return "Rp " + Number(n || 0).toLocaleString("id-ID");
+}
+
+async function summarizeOrders(sb, orders) {
+  const names = [];
+  let total = 0;
+  for (const o of orders || []) {
+    total += Number(o.total || 0);
+    if (o.customer_id) {
+      const { data: cust } = await sb
+        .from("customers")
+        .select("name")
+        .eq("id", o.customer_id)
+        .single();
+      if (cust?.name && !names.includes(cust.name)) names.push(cust.name);
+    }
+  }
+  return { names, total };
+}
+
+// Kirim notifikasi push ke semua perangkat yang terdaftar (user yang sama dengan server).
+async function sendPushNotification(sb, { title, body, url }) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+  try {
+    const { data: subs, error } = await sb.from("push_subscriptions").select("id, endpoint, p256dh, auth");
+    if (error || !subs || subs.length === 0) return;
+    const payload = JSON.stringify({ title, body, url });
+    await Promise.allSettled(
+      (subs || []).map(async (s) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+            payload
+          );
+        } catch (err) {
+          if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+            await sb.from("push_subscriptions").delete().eq("id", s.id);
+          }
+        }
+      })
+    );
+  } catch {
+    // push gagal, jangan mengganggu alur pembayaran
+  }
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -220,7 +275,7 @@ async function findOrderByInvoiceNo(sb, invoiceNo) {
   if (!prefix) return null;
   const { data } = await sb
     .from("orders")
-    .select("id, total, paid_total, status")
+    .select("id, total, paid_total, status, customer_id")
     .or(`id.ilike.${prefix}%`);
   return (data || [])[0] || null;
 }
@@ -322,6 +377,16 @@ export default async function handler(req, res) {
           results.push({ orderId: group.order_ids[gi], ...r });
         }
         await sb.from("qris_payments").update({ status: "paid" }).eq("id", group.id);
+        const fresh = results.filter((r) => r.confirmed && !r.already);
+        if (fresh.length > 0) {
+          const paidAmount = Number(bo.amount || bo.base_amount || 0);
+          const info = await summarizeOrders(sb, grpOrders || []);
+          await sendPushNotification(sb, {
+            title: "QRIS Lunas",
+            body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}`,
+            url: "/orders",
+          });
+        }
         json(res, 200, { status: "paid", confirmed: true, orders: results });
         return;
       }
@@ -333,7 +398,17 @@ export default async function handler(req, res) {
         json(res, 404, { error: "Order tidak ditemukan" });
         return;
       }
-      const result = await confirmOrder(sb, order.id, txId);
+      const bo = await checkBoqrisTransaction(txId);
+      const result = await confirmOrder(sb, order.id, txId, bo);
+      if (!result.error && result.confirmed && !result.already) {
+        const info = await summarizeOrders(sb, [order]);
+        const paidAmount = Number(bo.amount || bo.base_amount || 0);
+        await sendPushNotification(sb, {
+          title: "QRIS Lunas",
+          body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}`,
+          url: `/orders/${order.id}`,
+        });
+      }
       json(res, result.error ? 404 : 200, result);
       return;
     }
@@ -434,7 +509,7 @@ export default async function handler(req, res) {
       }
       const { data: confOrders } = await sb
         .from("orders")
-        .select("id, total, paid_total")
+        .select("id, total, paid_total, customer_id")
         .in("id", orderIds);
       const shares = allocatePaymentShares(
         confOrders || [],
@@ -448,6 +523,16 @@ export default async function handler(req, res) {
           return;
         }
         results.push({ orderId: orderIds[ci], ...r });
+      }
+      const fresh = results.filter((r) => r.confirmed && !r.already);
+      if (fresh.length > 0) {
+        const paidAmount = Number(bo.amount || bo.base_amount || 0);
+        const info = await summarizeOrders(sb, confOrders || []);
+        await sendPushNotification(sb, {
+          title: "QRIS Lunas",
+          body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}`,
+          url: "/orders",
+        });
       }
       json(res, 200, { status: "paid", confirmed: true, orders: results });
       return;
