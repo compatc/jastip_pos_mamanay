@@ -94,7 +94,7 @@ async function checkBoqrisTransaction(transactionId) {
   return bo.json();
 }
 
-async function confirmOrder(sb, orderId, transactionId, boData) {
+async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) {
   const bo = boData || await checkBoqrisTransaction(transactionId);
   if (bo.status !== "paid") {
     return { status: bo.status || "pending", confirmed: false };
@@ -113,8 +113,19 @@ async function confirmOrder(sb, orderId, transactionId, boData) {
     return { status: "paid", confirmed: true, already: true };
   }
 
+  // Nominal yang benar-benar dibayar (setelah kode unik/deduksi).
+  // Harga jual (total) diikuti ke nominal ini supaya catatan = uang yang diterima.
+  const shareOfPayment = Number(
+    amountOverride != null && amountOverride > 0
+      ? amountOverride
+      : bo.amount || bo.base_amount || ((order.total || 0) - (order.paid_total || 0))
+  );
+  if (!(shareOfPayment > 0)) {
+    return { status: "paid", confirmed: true, already: true };
+  }
+
+  const finalTotal = (order.paid_total || 0) + shareOfPayment;
   const now = new Date().toISOString();
-  const payDelta = (order.total || 0) - (order.paid_total || 0);
   const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
 
   let contactName = "";
@@ -127,20 +138,27 @@ async function confirmOrder(sb, orderId, transactionId, boData) {
     contactName = cust?.name || "";
   }
 
+  const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
+  const paidNote =
+    bo.base_amount && Number(bo.base_amount) !== Number(bo.amount)
+      ? `QRIS ${noteAmount} (tagihan ${bo.base_amount}, kode unik ${Number(bo.base_amount) - Number(bo.amount)}) (${transactionId.slice(0, 8)})`
+      : `QRIS ${noteAmount} (${transactionId.slice(0, 8)})`;
+
   await sb
     .from("orders")
     .update({
-      paid_total: order.total,
+      total: finalTotal,
+      paid_total: finalTotal,
       payment_type: "qris",
       status: newStatus,
       notes: order.notes
-        ? `${order.notes}\nQRIS ${bo.amount} (${transactionId.slice(0, 8)})`
-        : `QRIS ${bo.amount} (${transactionId.slice(0, 8)})`,
+        ? `${order.notes}\n${paidNote}`
+        : paidNote,
       updated_at: now,
     })
     .eq("id", orderId);
 
-  if (order.account_id && payDelta > 0) {
+  if (order.account_id) {
     const txId = randomUUID();
     await sb.from("account_transactions").insert({
       id: txId,
@@ -148,7 +166,7 @@ async function confirmOrder(sb, orderId, transactionId, boData) {
       order_id: orderId,
       order_type: order.order_type,
       contact_name: contactName,
-      amount: order.order_type === "penjualan" ? payDelta : -payDelta,
+      amount: order.order_type === "penjualan" ? shareOfPayment : -shareOfPayment,
       description: `Penjualan - ${contactName}`,
       date: now.split("T")[0],
       created_at: now,
@@ -161,12 +179,33 @@ async function confirmOrder(sb, orderId, transactionId, boData) {
     if (acc) {
       await sb
         .from("accounts")
-        .update({ balance: (acc.balance || 0) + (order.order_type === "penjualan" ? payDelta : -payDelta) })
+        .update({ balance: (acc.balance || 0) + (order.order_type === "penjualan" ? shareOfPayment : -shareOfPayment) })
         .eq("id", order.account_id);
     }
   }
 
   return { status: "paid", confirmed: true };
+}
+
+// Bagi satu pembayaran QRIS gabungan ke tiap order secara proporsional sisa tagihannya.
+function allocatePaymentShares(orders, totalPaid) {
+  const sisa = (orders || []).map((o) => Math.max(0, (o.total || 0) - (o.paid_total || 0)));
+  const totalSisa = sisa.reduce((a, b) => a + b, 0);
+  const shares = sisa.map(() => 0);
+  if (!(totalSisa > 0) || !(totalPaid > 0)) return shares;
+  for (let i = 0; i < sisa.length; i++) {
+    shares[i] = Math.round((totalPaid * sisa[i]) / totalSisa);
+  }
+  const adjustIdx = sisa.map((s, i) => (s > 0 ? i : -1)).filter((i) => i >= 0);
+  let diff = totalPaid - shares.reduce((a, b) => a + b, 0);
+  let j = 0;
+  while (diff !== 0 && adjustIdx.length > 0) {
+    const idx = adjustIdx[j % adjustIdx.length];
+    shares[idx] += diff > 0 ? 1 : -1;
+    diff += diff > 0 ? -1 : 1;
+    j++;
+  }
+  return shares;
 }
 
 async function findOrderByInvoiceNo(sb, invoiceNo) {
@@ -258,14 +297,22 @@ export default async function handler(req, res) {
           json(res, 200, { status: bo.status || "pending", confirmed: false });
           return;
         }
+        const { data: grpOrders } = await sb
+          .from("orders")
+          .select("id, total, paid_total")
+          .in("id", group.order_ids);
+        const shares = allocatePaymentShares(
+          grpOrders || [],
+          Number(bo.amount || bo.base_amount || 0)
+        );
         const results = [];
-        for (const orderId of group.order_ids) {
-          const r = await confirmOrder(sb, orderId, txId, bo);
+        for (let gi = 0; gi < group.order_ids.length; gi++) {
+          const r = await confirmOrder(sb, group.order_ids[gi], txId, bo, shares[gi]);
           if (r.error) {
             json(res, 404, r);
             return;
           }
-          results.push({ orderId, ...r });
+          results.push({ orderId: group.order_ids[gi], ...r });
         }
         await sb.from("qris_payments").update({ status: "paid" }).eq("id", group.id);
         json(res, 200, { status: "paid", confirmed: true, orders: results });
@@ -378,14 +425,22 @@ export default async function handler(req, res) {
         json(res, 200, { status: bo.status || "pending", confirmed: false });
         return;
       }
+      const { data: confOrders } = await sb
+        .from("orders")
+        .select("id, total, paid_total")
+        .in("id", orderIds);
+      const shares = allocatePaymentShares(
+        confOrders || [],
+        Number(bo.amount || bo.base_amount || 0)
+      );
       const results = [];
-      for (const orderId of orderIds) {
-        const r = await confirmOrder(sb, orderId, transactionId, bo);
+      for (let ci = 0; ci < orderIds.length; ci++) {
+        const r = await confirmOrder(sb, orderIds[ci], transactionId, bo, shares[ci]);
         if (r.error) {
           json(res, 404, r);
           return;
         }
-        results.push({ orderId, ...r });
+        results.push({ orderId: orderIds[ci], ...r });
       }
       json(res, 200, { status: "paid", confirmed: true, orders: results });
       return;

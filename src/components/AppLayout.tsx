@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
+import QrisNotifier from "./QrisNotifier";
 import {
   ShoppingBag,
   ClipboardList,
@@ -123,6 +124,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 overflow-hidden relative z-10 pb-14">
         {children}
       </div>
+
+      <QrisNotifier />
 
       {!isSubPage && (
         <nav className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-xl border-t border-pink-100/60 z-20">
