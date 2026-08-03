@@ -16,18 +16,22 @@ alter table public.push_subscriptions enable row level security;
 
 -- Setiap user hanya bisa membaca/menambah/menghapus langganan miliknya sendiri.
 -- Server (webhook) login sebagai user yang sama, jadi bisa membaca langganan ini.
+drop policy if exists "push subscriptions select own" on public.push_subscriptions;
 create policy "push subscriptions select own"
   on public.push_subscriptions
   for select using (auth.uid() = user_id);
 
+drop policy if exists "push subscriptions insert own" on public.push_subscriptions;
 create policy "push subscriptions insert own"
   on public.push_subscriptions
   for insert with check (auth.uid() = user_id);
 
+drop policy if exists "push subscriptions update own" on public.push_subscriptions;
 create policy "push subscriptions update own"
   on public.push_subscriptions
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "push subscriptions delete own" on public.push_subscriptions;
 create policy "push subscriptions delete own"
   on public.push_subscriptions
   for delete using (auth.uid() = user_id);

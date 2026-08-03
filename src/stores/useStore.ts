@@ -222,6 +222,9 @@ export const useStore = create<PosStore>((set, get) => ({
 
   addOrder: async (customerId, items) => {
     const user = get().user;
+    if (!user?.id || user.auth_source === "offline") {
+      throw new Error("Sesi login tidak valid. Silakan login ulang.");
+    }
     const orderId = uuid();
     const now = new Date().toISOString();
     const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -232,7 +235,7 @@ export const useStore = create<PosStore>((set, get) => ({
         id: orderId,
         customer_id: customerId,
         user_id: user?.id || "",
-        status: "new",
+        status: "belum-ready",
         total,
         paid_total: 0,
         order_type: "penjualan",
@@ -329,11 +332,14 @@ export const useStore = create<PosStore>((set, get) => ({
 
   addStandaloneOrder: async ({ orderType, paymentType, contactName, items, paidTotal, ongkir, diskon, notes, accountId }) => {
     const user = get().user;
+    if (!user?.id || user.auth_source === "offline") {
+      throw new Error("Sesi login tidak valid. Silakan login ulang.");
+    }
     const orderId = uuid();
     const now = new Date().toISOString();
     const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity - (i.discount || 0), 0);
     const orderTotal = subtotal - (diskon || 0) + (ongkir || 0);
-    const initialStatus = orderTotal <= (paidTotal || 0) ? "paid" : "new";
+    const initialStatus = orderTotal <= (paidTotal || 0) ? "paid" : "belum-ready";
 
     let customerId = "";
     if (contactName.trim()) {
@@ -442,6 +448,23 @@ export const useStore = create<PosStore>((set, get) => ({
       await get().createAccountTransaction(accountId, orderId, orderType, contactName, txAmount, txDesc, now.split("T")[0]);
     }
 
+    if (orderType === "penjualan" && initialStatus === "paid" && paidTotal > 0) {
+      const qtyMap = new Map<string, number>();
+      for (const it of items) qtyMap.set(it.product_name, (qtyMap.get(it.product_name) || 0) + it.quantity);
+      const lines = Array.from(qtyMap.entries()).map(([name, qty]) => `${name} x${qty}`);
+      const body = `Rp ${paidTotal.toLocaleString("id-ID")} diterima${contactName.trim() ? ` dari ${contactName.trim()}` : ""}${lines.length ? `\n${lines.join("\n")}` : ""}`;
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        title: "Pembayaran Lunas",
+        body,
+        url: `/orders/${orderId}`,
+        type: paymentType,
+        order_ids: [orderId],
+        amount: paidTotal,
+        created_at: now,
+      });
+    }
+
     await get().loadAllOrders();
     await get().loadProducts();
     return orderId;
@@ -507,6 +530,10 @@ export const useStore = create<PosStore>((set, get) => ({
 
     await supabase
       .from("order_items")
+      .delete()
+      .eq("order_id", orderId);
+    await supabase
+      .from("stock_movements")
       .delete()
       .eq("order_id", orderId);
 
@@ -629,6 +656,8 @@ export const useStore = create<PosStore>((set, get) => ({
 
   markOrdersPaid: async (orderIds) => {
     const now = new Date().toISOString();
+    const user = get().user;
+    const notified: { id: string; name: string; amount: number; type: string }[] = [];
     for (const orderId of orderIds) {
       const { data: order } = await supabase
         .from("orders")
@@ -644,13 +673,17 @@ export const useStore = create<PosStore>((set, get) => ({
         .update({ paid_total: order.total, status: newStatus, updated_at: now })
         .eq("id", orderId);
 
-      if (order.account_id && payDelta > 0) {
+      let customerName = "";
+      if (order.customer_id) {
         const { data: customer } = await supabase
           .from("customers")
           .select("name")
           .eq("id", order.customer_id)
           .single();
-        const customerName = customer?.name || "";
+        customerName = customer?.name || "";
+      }
+
+      if (order.account_id && payDelta > 0) {
         await get().createAccountTransaction(
           order.account_id,
           orderId,
@@ -661,7 +694,45 @@ export const useStore = create<PosStore>((set, get) => ({
           now.split("T")[0]
         );
       }
+
+      if (order.order_type === "penjualan" && payDelta > 0) {
+        notified.push({ id: orderId, name: customerName, amount: payDelta, type: order.payment_type || "tf" });
+      }
     }
+
+    if (notified.length > 0 && user?.id) {
+      const ids = notified.map((n) => n.id);
+      const { data: itemRows } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, quantity")
+        .in("order_id", ids);
+      const qtyMap = new Map<string, Map<string, number>>();
+      (itemRows || []).forEach((it: { order_id: string; product_name: string; quantity: number }) => {
+        let m = qtyMap.get(it.order_id);
+        if (!m) {
+          m = new Map();
+          qtyMap.set(it.order_id, m);
+        }
+        m.set(it.product_name, (m.get(it.product_name) || 0) + Number(it.quantity || 0));
+      });
+      for (const n of notified) {
+        const lines = Array.from((qtyMap.get(n.id) || new Map<string, number>()).entries()).map(
+          ([name, qty]) => `${name} x${qty}`
+        );
+        const body = `Rp ${n.amount.toLocaleString("id-ID")} diterima${n.name ? ` dari ${n.name}` : ""}${lines.length ? `\n${lines.join("\n")}` : ""}`;
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          title: "Pembayaran Lunas",
+          body,
+          url: `/orders/${n.id}`,
+          type: n.type,
+          order_ids: [n.id],
+          amount: n.amount,
+          created_at: now,
+        });
+      }
+    }
+
     await get().loadAllOrders();
   },
 

@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   BellRing,
+  Wrench,
 } from "lucide-react";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -106,6 +107,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   OFFLINE
                 </span>
               )}
+              <button
+                onClick={() => navigate("/maintenance")}
+                className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
+                title="Perawatan Data"
+              >
+                <Wrench className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => setShowQrisHistory(true)}
                 className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"

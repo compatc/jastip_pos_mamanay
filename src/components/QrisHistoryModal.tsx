@@ -6,14 +6,12 @@ import { BellRing, X, CheckCircle2, Inbox } from "lucide-react";
 
 interface HistoryItem {
   id: string;
-  customer_name: string;
-  total: number;
-  paid_total: number;
-  updated_at: string;
-}
-
-function rupiah(n: number): string {
-  return "Rp " + (n || 0).toLocaleString("id-ID");
+  title: string;
+  body: string;
+  url: string;
+  amount: number;
+  type: string;
+  created_at: string;
 }
 
 function formatDate(iso: string): string {
@@ -97,24 +95,13 @@ export default function QrisHistoryModal({ open, onClose }: { open: boolean; onC
     setLoading(true);
     (async () => {
       try {
-        const [ordersRes, custRes] = await Promise.all([
-          supabase
-            .from("orders")
-            .select("id, customer_id, total, paid_total, updated_at")
-            .eq("payment_type", "qris")
-            .order("updated_at", { ascending: false })
-            .limit(30),
-          supabase.from("customers").select("id, name"),
-        ]);
+        const { data } = await supabase
+          .from("notifications")
+          .select("id, title, body, url, amount, type, created_at")
+          .order("created_at", { ascending: false })
+          .limit(50);
         if (cancelled) return;
-        const nameMap = new Map<string, string>();
-        (custRes.data || []).forEach((c: { id: string; name: string }) => nameMap.set(c.id, c.name));
-        setItems(
-          (ordersRes.data || []).map((o: { id: string; customer_id: string; total: number; paid_total: number; updated_at: string }) => ({
-            ...o,
-            customer_name: nameMap.get(o.customer_id) || "",
-          }))
-        );
+        setItems((data as HistoryItem[]) || []);
       } catch {
         // ignore
       } finally {
@@ -188,26 +175,42 @@ export default function QrisHistoryModal({ open, onClose }: { open: boolean; onC
             </div>
           )}
           {!loading &&
-            items.map((it) => (
-              <button
-                key={it.id}
-                onClick={() => {
-                  onClose();
-                  navigate(`/orders/${it.id}`);
-                }}
-                className="w-full text-left bg-white border border-pink-100/60 hover:border-pink-200 rounded-2xl p-3 flex items-center gap-3 transition-all"
-              >
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">
-                    {it.customer_name || "Tanpa kontak"}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {rupiah(it.total)} · {formatDate(it.updated_at)}
-                  </p>
-                </div>
-              </button>
-            ))}
+            items.map((it) => {
+              const [head, ...rest] = (it.body || "").split("\n");
+              const target = it.url && it.url.startsWith("/orders/") ? it.url : "/orders";
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => {
+                    onClose();
+                    navigate(target);
+                  }}
+                  className="w-full text-left bg-white border border-pink-100/60 hover:border-pink-200 rounded-2xl p-3 flex items-start gap-3 transition-all"
+                >
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-800 truncate">
+                        {it.title || "Pembayaran"}
+                      </p>
+                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md bg-pink-50 text-pink-500 shrink-0">
+                        {it.type || "qris"}
+                      </span>
+                    </div>
+                    {head && <p className="text-xs text-gray-700 mt-0.5">{head}</p>}
+                    {rest.length > 0 && (
+                      <p className="text-[11px] text-gray-500 whitespace-pre-line leading-snug mt-0.5">
+                        {rest.slice(0, 3).join("\n")}
+                        {rest.length > 3 ? `\n+${rest.length - 3} item lain` : ""}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {formatDate(it.created_at)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
         </div>
       </div>
     </div>

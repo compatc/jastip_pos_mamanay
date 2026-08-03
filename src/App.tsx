@@ -22,6 +22,7 @@ import SalesDashboard from "./pages/SalesDashboard";
 import UploadOrders from "./pages/UploadOrders";
 import Accounts from "./pages/Accounts";
 import AccountDetail from "./pages/AccountDetail";
+import Maintenance from "./pages/Maintenance";
 import AppLayout from "./components/AppLayout";
 import { Component, useEffect } from "react";
 import type { ErrorInfo, ReactNode } from "react";
@@ -156,6 +157,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Inventory />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/maintenance"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Maintenance />
                 </AppLayout>
               </ProtectedRoute>
             }

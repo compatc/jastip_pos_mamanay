@@ -13,6 +13,7 @@ import {
   Trash2,
   FileSpreadsheet,
   Package,
+  PackageCheck,
   BellRing,
   MessageCircle,
   Check,
@@ -22,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 
-type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas";
+type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil";
 
 const PAYMENT_LABELS: Record<PaymentType, string> = {
   tf: "TF",
@@ -141,15 +142,23 @@ export default function Orders() {
     );
   }, [allOrders, productFilter, itemsByOrder]);
 
-  const filtered = allOrders.filter((o) => {
-    const matchTab =
-      tab === "all" ||
-      o.order_type === tab ||
-      (tab === "belum-dikirim" &&
+  function matchTabFilter(o: (typeof allOrders)[0], tabFilter: string): boolean {
+    return (
+      tabFilter === "all" ||
+      o.order_type === tabFilter ||
+      (tabFilter === "belum-dikirim" &&
         o.status !== "shipped" &&
         o.status !== "delivered" &&
         o.status !== "completed") ||
-      (tab === "belum-lunas" && !isOrderLunas(o));
+      (tabFilter === "belum-lunas" && !isOrderLunas(o)) ||
+      (tabFilter === "belum-diambil" &&
+        o.order_type === "penjualan" &&
+        isOrderLunas(o) &&
+        ["new", "belum-ready", "ready", "paid"].includes(o.status))
+    );
+  }
+
+  const filtered = allOrders.filter((o) => {
     const q = search.toLowerCase();
     const matchSearch =
       !search ||
@@ -159,19 +168,11 @@ export default function Orders() {
     const matchProduct =
       !productFilter ||
       (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
-    return matchTab && matchSearch && matchProduct;
+    return matchTabFilter(o, tab) && matchSearch && matchProduct;
   });
 
   function countTab(tabFilter: string): number {
     return allOrders.filter((o) => {
-      const matchTab =
-        tabFilter === "all" ||
-        o.order_type === tabFilter ||
-        (tabFilter === "belum-dikirim" &&
-          o.status !== "shipped" &&
-          o.status !== "delivered" &&
-          o.status !== "completed") ||
-        (tabFilter === "belum-lunas" && !isOrderLunas(o));
       const q = search.toLowerCase();
       const matchSearch =
         !search ||
@@ -181,7 +182,7 @@ export default function Orders() {
       const matchProduct =
         !productFilter ||
         (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
-      return matchTab && matchSearch && matchProduct;
+      return matchTabFilter(o, tabFilter) && matchSearch && matchProduct;
     }).length;
   }
 
@@ -189,6 +190,7 @@ export default function Orders() {
   const countPembelian = countTab("pembelian");
   const countBelumDikirim = countTab("belum-dikirim");
   const countBelumLunas = countTab("belum-lunas");
+  const countBelumDiambil = countTab("belum-diambil");
 
   function getOrderStatusColor(order: typeof allOrders[0]): string {
     const colors: Record<string, string> = {
@@ -220,13 +222,15 @@ export default function Orders() {
   }
 
   const sortedOrders = [...filtered];
-  if (tab === "belum-lunas") {
+  if (tab === "belum-lunas" || tab === "belum-diambil") {
     sortedOrders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }
 
   const totalPiutang = filtered
     .filter((o) => !isOrderLunas(o))
     .reduce((s, o) => s + (o.total - o.paid_total), 0);
+
+  const totalBelumDiambil = filtered.reduce((s, o) => s + o.total, 0);
 
   function sendReminder(order: (typeof allOrders)[0]) {
     const customer = customers.find((c) => c.id === order.customer_id);
@@ -276,6 +280,27 @@ export default function Orders() {
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
 
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
+  async function sendInvoiceWA(order: (typeof allOrders)[0]) {
+    const customer = customers.find((c) => c.id === order.customer_id);
+    const wa = toWaNumber(customer?.phone || "");
+    if (!wa) {
+      alert(`Nomor WA untuk ${order.customer_name || "pelanggan ini"} belum diisi.`);
+      return;
+    }
+    const group: CustomerGroup = {
+      customerId: order.customer_id || "none",
+      name: order.customer_name || "Tanpa kontak",
+      phone: customer?.phone || "",
+      orders: [order],
+    };
+    const qrisLinks = await buildQrisLinks(group);
+    window.open(
+      `https://wa.me/${wa}?text=${encodeURIComponent(buildInvoiceMsg(group, qrisLinks))}`,
+      "_blank"
+    );
+    await markInvoiceSent([order.id]);
   }
 
   const groupedCustomers = useMemo(() => {
@@ -658,6 +683,17 @@ export default function Orders() {
           >
             Belum Lunas ({countBelumLunas})
           </button>
+          <button
+            onClick={() => setTab("belum-diambil")}
+            className={`px-4 py-2 rounded-xl text-base font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
+              tab === "belum-diambil"
+                ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
+                : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
+            }`}
+          >
+            <PackageCheck className="w-3 h-3" />
+            Belum Diambil ({countBelumDiambil})
+          </button>
         </div>
       </div>
 
@@ -674,6 +710,18 @@ export default function Orders() {
             </div>
           </div>
         )}
+        {tab === "belum-diambil" && filtered.length > 0 && (
+          <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-xs text-teal-600 font-semibold uppercase tracking-widest">Barang Sudah Dibayar</p>
+              <p className="text-lg font-bold text-teal-700">Rp {totalBelumDiambil.toLocaleString("id-ID")}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-teal-600 font-semibold uppercase tracking-widest">Menunggu Diambil</p>
+              <p className="text-lg font-bold text-teal-700">{filtered.length} order</p>
+            </div>
+          </div>
+        )}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-5">
@@ -684,7 +732,9 @@ export default function Orders() {
                 ? "Belum ada order"
                 : tab === "penjualan"
                   ? "Belum ada penjualan"
-                  : "Belum ada pembelian"}
+                  : tab === "belum-diambil"
+                    ? "Tidak ada barang yang menunggu diambil"
+                    : "Belum ada pembelian"}
             </p>
             <p className="text-gray-300 text-base mt-1">
               Tap "Baru" untuk membuat order
@@ -763,16 +813,53 @@ export default function Orders() {
                       </div>
                     </div>
                     {!isOrderLunas(order) && order.total > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendReminder(order);
+                          }}
+                          className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-500 rounded-xl transition-all border border-amber-200 shrink-0"
+                          title="Kirim Pengingat WA"
+                        >
+                          <BellRing className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendInvoiceWA(order);
+                          }}
+                          className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl transition-all border border-emerald-200 shrink-0"
+                          title="Kirim Tagihan via WA"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                    {tab === "belum-diambil" && (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          sendReminder(order);
+                          showConfirm(
+                            "Tandai Diambil?",
+                            `Tandai pesanan ${order.customer_name || "ini"} sebagai sudah diambil? Order akan keluar dari daftar "Belum Diambil".`,
+                            async () => {
+                              await supabase
+                                .from("orders")
+                                .update({ status: "completed", updated_at: new Date().toISOString() })
+                                .eq("id", order.id);
+                              await loadAllOrders();
+                            },
+                            "Tandai Diambil"
+                          );
                         }}
-                        className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-500 rounded-xl transition-all border border-amber-200 shrink-0"
-                        title="Kirim Pengingat WA"
+                        className="p-2.5 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl transition-all border border-teal-200 shrink-0"
+                        title="Tandai Sudah Diambil"
                       >
-                        <BellRing className="w-4 h-4" />
+                        <PackageCheck className="w-4 h-4" />
                       </button>
                     )}
                     <button

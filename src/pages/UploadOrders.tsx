@@ -228,6 +228,12 @@ export default function UploadOrders() {
   }
 
   async function doImport() {
+    const user = useStore.getState().user;
+    if (!user?.id || user.auth_source === "offline") {
+      setStep("upload");
+      alert("Sesi login tidak valid. Silakan login ulang dulu.");
+      return;
+    }
     const orders = groupIntoOrders(validRows);
     setImportProgress({ done: 0, total: orders.length });
     setStep("importing");
@@ -275,8 +281,7 @@ export default function UploadOrders() {
           id: orderId,
           customer_id: customerId,
           user_id: user?.id || "",
-          status: "new",
-          total: orderTotal,
+          status: "belum-ready",
           paid_total: 0,
           order_type: group.tipe_order,
           payment_type: group.tipe_bayar,

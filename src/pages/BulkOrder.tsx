@@ -91,6 +91,11 @@ export default function BulkOrder() {
 
   async function handleSubmit() {
     if (!productId || !price || entries.some((e) => !e.name.trim() || !e.phone.trim())) return;
+    const currentUser = useStore.getState().user;
+    if (!currentUser?.id || currentUser.auth_source === "offline") {
+      alert("Sesi login tidak valid. Silakan login ulang dulu.");
+      return;
+    }
     setLoading(true);
 
     const product = products.find((p) => p.id === productId);
@@ -134,7 +139,7 @@ export default function BulkOrder() {
         id: orderId,
         customer_id: customerId,
         user_id: useStore.getState().user?.id || "",
-        status: "new",
+        status: "belum-ready",
         total,
         paid_total: 0,
         diskon: 0,
