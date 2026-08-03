@@ -86,10 +86,12 @@ export default function Orders() {
   const [previewGroup, setPreviewGroup] = useState<CustomerGroup | null>(null);
   const [previewQris, setPreviewQris] = useState<{ order: Order; url: string }[] | undefined>(undefined);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [confirmLabel, setConfirmLabel] = useState("Hapus");
 
-  function showConfirm(title: string, message: string, onConfirm: () => void) {
+  function showConfirm(title: string, message: string, onConfirm: () => void, label = "Hapus") {
     setConfirmTitle(title);
     setConfirmMessage(message);
+    setConfirmLabel(label);
     setConfirmOnConfirm(() => onConfirm);
     setConfirmVisible(true);
   }
@@ -129,6 +131,15 @@ export default function Orders() {
   }, [allOrders]);
 
   const allProductNames = [...new Set(Object.values(itemsByOrder).flat().map((i) => i.product_name))].sort();
+
+  const readyTargets = useMemo(() => {
+    if (!productFilter) return [];
+    return allOrders.filter(
+      (o) =>
+        ["new", "belum-ready"].includes(o.status) &&
+        (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter)
+    );
+  }, [allOrders, productFilter, itemsByOrder]);
 
   const filtered = allOrders.filter((o) => {
     const matchTab =
@@ -232,6 +243,16 @@ export default function Orders() {
     const sisa = order.total - order.paid_total;
     const statusLabel = STATUS_LABELS[order.status] || order.status;
 
+    const deadlineBase = order.invoice_sent_at || order.created_at;
+    const deadline = new Date(new Date(deadlineBase).getTime() + 2 * 24 * 60 * 60 * 1000);
+    const deadlineStr = deadline.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
     let msg = `Halo Kak ${order.customer_name || ""} \u{1F64F}\n\n`;
     msg += "Pengingat untuk pesanan di *Jastip_mamanay*:\n\n";
     msg += `\u{1F4E6} Pesanan: ${productText}\n`;
@@ -240,7 +261,8 @@ export default function Orders() {
     if (order.paid_total > 0) {
       msg += `Sudah dibayar: Rp ${order.paid_total.toLocaleString("id-ID")}\n`;
     }
-    msg += `\u{23F0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
+    msg += `\u{23F0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
+    msg += `\u{23F0} Batas Pembayaran: *${deadlineStr}* (2 hari setelah invoice)\n\n`;
 
     if (sisa > 0) {
       msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
@@ -287,6 +309,16 @@ export default function Orders() {
         : "62" + cleaned;
   }
 
+  async function markInvoiceSent(orderIds: string[]) {
+    const ids = orderIds.filter(Boolean);
+    if (ids.length === 0) return;
+    await supabase
+      .from("orders")
+      .update({ invoice_sent_at: new Date().toISOString() })
+      .in("id", ids);
+    await loadAllOrders();
+  }
+
   async function buildQrisLinks(
     group: CustomerGroup
   ): Promise<{ order: Order; url: string }[] | { combined: true; url: string; orders: Order[] }[]> {
@@ -307,7 +339,7 @@ export default function Orders() {
     group: CustomerGroup,
     qrisLinks?: { order: Order; url: string }[] | { combined: true; url: string; orders: Order[] }[]
   ): string {
-    const deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
     const deadlineStr = deadline.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
@@ -408,6 +440,7 @@ export default function Orders() {
   async function sendBulkInvoice() {
     const targets = groupedCustomers.filter((g) => selectedCustomerIds.includes(g.customerId));
     let delay = 0;
+    const sentIds: string[] = [];
     for (const g of targets) {
       const wa = toWaNumber(g.phone);
       if (!wa) continue;
@@ -416,8 +449,10 @@ export default function Orders() {
       const url = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
       setTimeout(() => window.open(url, "_blank"), delay);
       delay += 400;
+      sentIds.push(...g.orders.map((o) => o.id));
     }
     setWaModalOpen(false);
+    await markInvoiceSent(sentIds);
   }
 
   async function openOneChat(group: CustomerGroup) {
@@ -428,6 +463,7 @@ export default function Orders() {
       `https://wa.me/${wa}?text=${encodeURIComponent(buildInvoiceMsg(group, qrisLinks))}`,
       "_blank"
     );
+    await markInvoiceSent(group.orders.map((o) => o.id));
   }
 
   async function copyInvoiceMsg(group: CustomerGroup) {
@@ -436,20 +472,24 @@ export default function Orders() {
       setCopiedId(group.customerId);
       setTimeout(() => setCopiedId((c) => (c === group.customerId ? null : c)), 1500);
     });
+    await markInvoiceSent(group.orders.map((o) => o.id));
   }
 
   async function copyAllInvoiceMsgs() {
     const groups = groupedCustomers.filter((g) => selectedCustomerIds.includes(g.customerId));
     const parts: string[] = [];
+    const sentIds: string[] = [];
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       const qrisLinks = await buildQrisLinks(g);
       parts.push(`${i + 1}. ${g.name}\n${buildInvoiceMsg(g, qrisLinks)}`);
+      sentIds.push(...g.orders.map((o) => o.id));
     }
     navigator.clipboard.writeText(parts.join("\n\n------------------\n\n")).then(() => {
       setCopiedId("all");
       setTimeout(() => setCopiedId((c) => (c === "all" ? null : c)), 1500);
     });
+    await markInvoiceSent(sentIds);
   }
 
   return (
@@ -512,6 +552,33 @@ export default function Orders() {
             Baru
           </button>
         </div>
+
+        {productFilter && (
+          <button
+            type="button"
+            onClick={() =>
+              showConfirm(
+                "Tandai Semua Ready?",
+                `${readyTargets.length} order berisi "${productFilter}" akan diubah jadi READY (khusus status Baru / Belum Ready).`,
+                async () => {
+                  const ids = readyTargets.map((o) => o.id);
+                  if (ids.length === 0) return;
+                  await supabase
+                    .from("orders")
+                    .update({ status: "ready", updated_at: new Date().toISOString() })
+                    .in("id", ids);
+                  await loadAllOrders();
+                },
+                "Tandai Ready"
+              )
+            }
+            disabled={readyTargets.length === 0}
+            className="w-full mb-3 px-3 py-2.5 bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Check className="w-4 h-4" />
+            Tandai Semua Ready ({readyTargets.length}) — {productFilter}
+          </button>
+        )}
 
         <div className="flex gap-2 mb-3">
           <button
@@ -932,7 +999,7 @@ export default function Orders() {
         visible={confirmVisible}
         title={confirmTitle}
         message={confirmMessage}
-        confirmLabel="Hapus"
+        confirmLabel={confirmLabel}
         cancelLabel="Batal"
         onConfirm={() => {
           if (confirmOnConfirm) confirmOnConfirm();

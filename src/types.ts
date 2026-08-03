@@ -33,6 +33,7 @@ export interface Order {
   shopee_order_no?: string;
   created_at: string;
   updated_at: string;
+  invoice_sent_at?: string | null;
   customer_name?: string;
 }
 
