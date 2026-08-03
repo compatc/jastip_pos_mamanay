@@ -241,6 +241,14 @@ export default function Orders() {
       msg += `Sudah dibayar: Rp ${order.paid_total.toLocaleString("id-ID")}\n`;
     }
     msg += `\u{23F0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
+
+    if (sisa > 0) {
+      msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
+      msg += `Klik di sini untuk bayar pakai QRIS:\n${payOrderLink(order.id)}\n\n`;
+      msg += `\u{1F3E6} *Transfer Bank BCA:*\n`;
+      msg += `${BANK_INFO}\n\n`;
+    }
+
     msg += "Mohon segera konfirmasi pembayaran agar pesanan dapat kami proses. ";
     msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
