@@ -19,6 +19,7 @@ function rupiah(n) {
 async function summarizeOrders(sb, orders) {
   const names = [];
   let total = 0;
+  const productQtys = new Map();
   for (const o of orders || []) {
     total += Number(o.total || 0);
     if (o.customer_id) {
@@ -29,31 +30,53 @@ async function summarizeOrders(sb, orders) {
         .single();
       if (cust?.name && !names.includes(cust.name)) names.push(cust.name);
     }
+    const { data: items } = await sb
+      .from("order_items")
+      .select("product_name, quantity")
+      .eq("order_id", o.id);
+    for (const it of items || []) {
+      productQtys.set(it.product_name, (productQtys.get(it.product_name) || 0) + Number(it.quantity || 0));
+    }
   }
-  return { names, total };
+  const lines = Array.from(productQtys.entries()).map(([name, qty]) => `${name} x${qty}`);
+  return { names, total, lines };
 }
 
 // Kirim notifikasi push ke semua perangkat yang terdaftar (user yang sama dengan server).
-async function sendPushNotification(sb, { title, body, url }) {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+async function sendPushNotification(sb, { title, body, url, type, orderIds, amount }) {
   try {
     const { data: subs, error } = await sb.from("push_subscriptions").select("id, endpoint, p256dh, auth");
-    if (error || !subs || subs.length === 0) return;
-    const payload = JSON.stringify({ title, body, url });
-    await Promise.allSettled(
-      (subs || []).map(async (s) => {
-        try {
-          await webpush.sendNotification(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            payload
-          );
-        } catch (err) {
-          if (err && (err.statusCode === 404 || err.statusCode === 410)) {
-            await sb.from("push_subscriptions").delete().eq("id", s.id);
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && !error && subs && subs.length > 0) {
+      const payload = JSON.stringify({ title, body, url });
+      await Promise.allSettled(
+        subs.map(async (s) => {
+          try {
+            await webpush.sendNotification(
+              { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+              payload
+            );
+          } catch (err) {
+            if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+              await sb.from("push_subscriptions").delete().eq("id", s.id);
+            }
           }
-        }
-      })
-    );
+        })
+      );
+    }
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      await sb.from("notifications").insert({
+        user_id: user?.id,
+        title: title || "QRIS Lunas",
+        body: body || "",
+        url: url || "/orders",
+        type: type || "qris",
+        order_ids: orderIds || [],
+        amount: amount || 0,
+      });
+    } catch {
+      // simpan riwayat gagal, jangan mengganggu alur pembayaran
+    }
   } catch {
     // push gagal, jangan mengganggu alur pembayaran
   }
@@ -163,7 +186,7 @@ async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) 
 
   const { data: order, error } = await sb
     .from("orders")
-    .select("id, customer_id, total, paid_total, order_type, account_id, status, notes")
+    .select("id, customer_id, total, paid_total, diskon, order_type, account_id, status, notes")
     .eq("id", orderId)
     .single();
   if (error || !order) {
@@ -175,7 +198,9 @@ async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) 
   }
 
   // Nominal yang benar-benar dibayar (setelah kode unik/deduksi).
-  // Harga jual (total) diikuti ke nominal ini supaya catatan = uang yang diterima.
+  // Kode unik = selisih kecil (<= BOQRIS_UNIQUE_MAX) antara tagihan dan yang
+  // dibayar; dicatat sebagai DISKON order (total dikurangi kode unik) sehingga
+  // invoice = uang yang diterima dan order lunas tanpa dipaksa.
   const shareOfPayment = Number(
     amountOverride != null && amountOverride > 0
       ? amountOverride
@@ -185,7 +210,6 @@ async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) 
     return { status: "paid", confirmed: true, already: true };
   }
 
-  const finalTotal = (order.paid_total || 0) + shareOfPayment;
   const now = new Date().toISOString();
   const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
 
@@ -201,24 +225,43 @@ async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) 
 
   const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
   const sisaInvoice = (order.total || 0) - (order.paid_total || 0);
-  const paidNote =
-    Number(sisaInvoice) !== Number(shareOfPayment)
-      ? `QRIS ${shareOfPayment} (sisa ${sisaInvoice}, kode unik ${Number(sisaInvoice) - Number(shareOfPayment)}) (${transactionId.slice(0, 8)})`
+  const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
+  const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= BOQRIS_UNIQUE_MAX;
+  const finalTotal = isKodeUnik ? (order.total || 0) - kodeUnik : (order.total || 0);
+  const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
+  const finalPaid = (order.paid_total || 0) + shareOfPayment;
+  const paidNote = isKodeUnik
+    ? `QRIS ${shareOfPayment} (kode unik ${kodeUnik}) (${transactionId.slice(0, 8)})`
+    : Number(sisaInvoice) !== Number(shareOfPayment)
+      ? `QRIS ${shareOfPayment} (sisa ${sisaInvoice}) (${transactionId.slice(0, 8)})`
       : `QRIS ${noteAmount} (${transactionId.slice(0, 8)})`;
 
-  await sb
-    .from("orders")
-    .update({
-      total: finalTotal,
-      paid_total: finalTotal,
-      payment_type: "qris",
-      status: newStatus,
-      notes: order.notes
-        ? `${order.notes}\n${paidNote}`
-        : paidNote,
-      updated_at: now,
-    })
-    .eq("id", orderId);
+  // Optimistic lock: hanya 1 yang berhasil update per order, sehingga
+  // konfirmasi ganda (polling app + webhook) tidak mengkredit 2x.
+  let lockQuery = sb.from("orders").update({
+    total: finalTotal,
+    diskon: finalDiskon,
+    paid_total: finalPaid,
+    payment_type: "qris",
+    status: newStatus,
+    notes: order.notes
+      ? `${order.notes}\n${paidNote}`
+      : paidNote,
+    updated_at: now,
+  }).eq("id", orderId);
+  if (order.paid_total == null) {
+    lockQuery = lockQuery.is("paid_total", null);
+  } else {
+    lockQuery = lockQuery.eq("paid_total", order.paid_total);
+  }
+  const { data: updatedRows, error: updErr } = await lockQuery.select("id");
+  if (updErr) {
+    return { error: "Gagal mengupdate order: " + updErr.message };
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    // Ada request lain yang sudah konfirmasi lebih dulu
+    return { status: "paid", confirmed: true, already: true };
+  }
 
   if (order.account_id) {
     const txId = randomUUID();
@@ -249,23 +292,25 @@ async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) 
   return { status: "paid", confirmed: true };
 }
 
-// Bagi satu pembayaran QRIS gabungan ke tiap order secara proporsional sisa tagihannya.
+// Bagi satu pembayaran QRIS gabungan: semua order dibayar lunas sesuai sisa
+// tagihannya, lalu selisih (kode unik/rounding) dipotong mundur mulai order
+// TERAKHIR sehingga nominal order lain tetap persis harga barangnya.
 function allocatePaymentShares(orders, totalPaid) {
   const sisa = (orders || []).map((o) => Math.max(0, (o.total || 0) - (o.paid_total || 0)));
-  const totalSisa = sisa.reduce((a, b) => a + b, 0);
   const shares = sisa.map(() => 0);
+  const totalSisa = sisa.reduce((a, b) => a + b, 0);
   if (!(totalSisa > 0) || !(totalPaid > 0)) return shares;
-  for (let i = 0; i < sisa.length; i++) {
-    shares[i] = Math.round((totalPaid * sisa[i]) / totalSisa);
+
+  for (let i = 0; i < sisa.length; i++) shares[i] = sisa[i];
+
+  let remaining = totalSisa - totalPaid;
+  for (let i = shares.length - 1; i >= 0 && remaining > 0; i--) {
+    const cut = Math.min(shares[i], remaining);
+    shares[i] -= cut;
+    remaining -= cut;
   }
-  const adjustIdx = sisa.map((s, i) => (s > 0 ? i : -1)).filter((i) => i >= 0);
-  let diff = totalPaid - shares.reduce((a, b) => a + b, 0);
-  let j = 0;
-  while (diff !== 0 && adjustIdx.length > 0) {
-    const idx = adjustIdx[j % adjustIdx.length];
-    shares[idx] += diff > 0 ? 1 : -1;
-    diff += diff > 0 ? -1 : 1;
-    j++;
+  if (remaining < 0 && shares.length > 0) {
+    shares[shares.length - 1] += -remaining;
   }
   return shares;
 }
@@ -363,8 +408,12 @@ export default async function handler(req, res) {
           .from("orders")
           .select("id, total, paid_total")
           .in("id", group.order_ids);
+        const byId = new Map((grpOrders || []).map((o) => [o.id, o]));
+        const orderedOrders = group.order_ids
+          .map((id) => byId.get(id))
+          .filter(Boolean);
         const shares = allocatePaymentShares(
-          grpOrders || [],
+          orderedOrders,
           Number(bo.amount || bo.base_amount || 0)
         );
         const results = [];
@@ -380,11 +429,18 @@ export default async function handler(req, res) {
         const fresh = results.filter((r) => r.confirmed && !r.already);
         if (fresh.length > 0) {
           const paidAmount = Number(bo.amount || bo.base_amount || 0);
-          const info = await summarizeOrders(sb, grpOrders || []);
+          const { data: finalOrders } = await sb
+            .from("orders")
+            .select("id, total, paid_total, customer_id")
+            .in("id", group.order_ids);
+          const info = await summarizeOrders(sb, finalOrders || []);
           await sendPushNotification(sb, {
             title: "QRIS Lunas",
-            body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}`,
+            body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}${info.lines.length ? `\n${info.lines.join("\n")}` : ""}`,
             url: "/orders",
+            type: "qris",
+            orderIds: group.order_ids,
+            amount: paidAmount,
           });
         }
         json(res, 200, { status: "paid", confirmed: true, orders: results });
@@ -401,12 +457,20 @@ export default async function handler(req, res) {
       const bo = await checkBoqrisTransaction(txId);
       const result = await confirmOrder(sb, order.id, txId, bo);
       if (!result.error && result.confirmed && !result.already) {
-        const info = await summarizeOrders(sb, [order]);
+        const { data: finalOrder } = await sb
+          .from("orders")
+          .select("id, total, paid_total, customer_id")
+          .eq("id", order.id)
+          .single();
+        const info = await summarizeOrders(sb, finalOrder ? [finalOrder] : [order]);
         const paidAmount = Number(bo.amount || bo.base_amount || 0);
         await sendPushNotification(sb, {
           title: "QRIS Lunas",
-          body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}`,
+          body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}${info.lines.length ? `\n${info.lines.join("\n")}` : ""}`,
           url: `/orders/${order.id}`,
+          type: "qris",
+          orderIds: [order.id],
+          amount: paidAmount,
         });
       }
       json(res, result.error ? 404 : 200, result);
@@ -511,8 +575,12 @@ export default async function handler(req, res) {
         .from("orders")
         .select("id, total, paid_total, customer_id")
         .in("id", orderIds);
+      const byId = new Map((confOrders || []).map((o) => [o.id, o]));
+      const orderedOrders = orderIds
+        .map((id) => byId.get(id))
+        .filter(Boolean);
       const shares = allocatePaymentShares(
-        confOrders || [],
+        orderedOrders,
         Number(bo.amount || bo.base_amount || 0)
       );
       const results = [];
@@ -527,11 +595,18 @@ export default async function handler(req, res) {
       const fresh = results.filter((r) => r.confirmed && !r.already);
       if (fresh.length > 0) {
         const paidAmount = Number(bo.amount || bo.base_amount || 0);
-        const info = await summarizeOrders(sb, confOrders || []);
+        const { data: finalOrders } = await sb
+          .from("orders")
+          .select("id, total, paid_total, customer_id")
+          .in("id", orderIds);
+        const info = await summarizeOrders(sb, finalOrders || []);
         await sendPushNotification(sb, {
           title: "QRIS Lunas",
-          body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}`,
+          body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}${info.lines.length ? `\n${info.lines.join("\n")}` : ""}`,
           url: "/orders",
+          type: "qris",
+          orderIds,
+          amount: paidAmount,
         });
       }
       json(res, 200, { status: "paid", confirmed: true, orders: results });
