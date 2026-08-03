@@ -33,6 +33,7 @@ export default function QrisHistoryModal({ open, onClose }: { open: boolean; onC
   const [loading, setLoading] = useState(false);
   const [pushStatus, setPushStatus] = useState<PushStatus>("checking");
   const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -63,16 +64,28 @@ export default function QrisHistoryModal({ open, onClose }: { open: boolean; onC
   async function handleTogglePush() {
     if (pushBusy) return;
     setPushBusy(true);
+    setPushError("");
     try {
       if (pushStatus === "on") {
         await unsubscribeFromPush();
         setPushStatus("off");
       } else if (pushStatus === "off" || pushStatus === "denied") {
         const res = await subscribeToPush();
-        setPushStatus(res === "on" ? "on" : res === "denied" ? "denied" : "off");
+        if (res === "on") {
+          setPushStatus("on");
+        } else if (res === "denied") {
+          setPushStatus("denied");
+          setPushError("Izin notifikasi diblokir. Buka pengaturan browser lalu izinkan.");
+        } else if (res === "unavailable") {
+          setPushStatus("off");
+          setPushError("Notifikasi tidak tersedia. Pastikan VITE_VAPID_PUBLIC_KEY di-set saat build.");
+        } else {
+          setPushStatus("off");
+          setPushError("Gagal menyimpan perangkat. Pastikan tabel push_subscriptions sudah dibuat (SQL).");
+        }
       }
     } catch {
-      // gagal, biarkan status tetap
+      setPushError("Terjadi kesalahan saat mengaktifkan notifikasi.");
     } finally {
       setPushBusy(false);
     }
@@ -160,6 +173,9 @@ export default function QrisHistoryModal({ open, onClose }: { open: boolean; onC
               </button>
             )}
           </div>
+          {pushError && (
+            <p className="text-[11px] text-rose-500 mt-1.5 px-1">{pushError}</p>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 px-5 py-3 space-y-2">
           {loading && (
