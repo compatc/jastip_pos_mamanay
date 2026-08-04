@@ -4,6 +4,7 @@ import webpush from "web-push";
 
 const BOQRIS_BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const BOQRIS_UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
+const BOQRIS_EXPIRES_IN = Math.min(Math.max(Number(process.env.BOQRIS_EXPIRES_IN || 3600) || 3600, 60), 3600);
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
@@ -145,7 +146,7 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   const merchantId = process.env.BOQRIS_MERCHANT_ID;
   if (!apiKey || !merchantId) throw new Error("BOQRIS_API_KEY atau BOQRIS_MERCHANT_ID belum di-set");
 
-  const basePayload = { merchant_id: merchantId, unique_amount: false };
+  const basePayload = { merchant_id: merchantId, unique_amount: false, expires_in: BOQRIS_EXPIRES_IN };
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
   for (let code = 1; code <= BOQRIS_UNIQUE_MAX; code++) {

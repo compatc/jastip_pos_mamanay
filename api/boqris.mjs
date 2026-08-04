@@ -1,5 +1,6 @@
 const BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
+const EXPIRES_IN = Math.min(Math.max(Number(process.env.BOQRIS_EXPIRES_IN || 3600) || 3600, 60), 3600);
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -50,7 +51,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      const basePayload = { merchant_id: merchantId };
+      const basePayload = { merchant_id: merchantId, expires_in: Math.min(Math.max(Number(body.expires_in) || EXPIRES_IN, 60), 3600) };
       if (body.invoice_no) basePayload.invoice_no = String(body.invoice_no).slice(0, 25);
       if (body.expires_in) basePayload.expires_in = Math.min(Math.max(Number(body.expires_in) || 900, 60), 3600);
 
