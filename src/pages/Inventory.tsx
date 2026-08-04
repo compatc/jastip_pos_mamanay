@@ -34,6 +34,14 @@ const emptyForm: ProductForm = {
   image: "",
 };
 
+const avatarColors = [
+  "from-pink-100 to-pink-200",
+  "from-blue-100 to-blue-200",
+  "from-green-100 to-green-200",
+  "from-orange-100 to-orange-200",
+  "from-purple-100 to-purple-200",
+];
+
 export default function Inventory() {
   const {
     products,
@@ -49,13 +57,11 @@ export default function Inventory() {
     deleteProductDiscount,
   } = useStore();
   const [search, setSearch] = useState("");
-  const [stockFilter, setStockFilter] = useState<"all" | "habis" | "ada">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
-  const [deleteConfirm, setDeleteConfirm] = useState<
-    string | null
-  >(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [historyProductId, setHistoryProductId] = useState<string | null>(null);
@@ -68,10 +74,16 @@ export default function Inventory() {
     loadAllProductDiscounts();
   }, []);
 
-  const filtered = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchStock = stockFilter === "all" || (stockFilter === "habis" && p.stock === 0) || (stockFilter === "ada" && p.stock > 0);
-    return matchSearch && matchStock;
+  const baseFiltered = products.filter((p) => {
+    return p.name.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const filtered = baseFiltered.filter((p) => {
+    if (categoryFilter === "all") return true;
+    if (categoryFilter === "habis") return p.stock === 0;
+    if (categoryFilter === "rendah") return p.stock > 0 && p.stock <= 5;
+    if (categoryFilter === "ada") return p.stock > 5;
+    return true;
   });
 
   function openHistory(productId: string) {
@@ -153,233 +165,184 @@ export default function Inventory() {
     setDeleteConfirm(null);
   }
 
-  const totalModal = filtered.reduce(
-    (s, p) => s + p.cost_price * p.stock,
-    0
-  );
-  const totalJual = filtered.reduce(
-    (s, p) => s + p.sell_price * p.stock,
-    0
-  );
+  const totalModal = filtered.reduce((s, p) => s + p.cost_price * p.stock, 0);
+  const totalJual = filtered.reduce((s, p) => s + p.sell_price * p.stock, 0);
+
+  const filters = [
+    { key: "all", label: "Semua" },
+    { key: "ada", label: "Banyak" },
+    { key: "rendah", label: "Stok Rendah" },
+    { key: "habis", label: "Stok Habis" },
+  ];
+
+  function getStockStatus(stock: number) {
+    if (stock <= 0) return { label: "Habis", cls: "bg-red-100 text-red-600" };
+    if (stock <= 5) return { label: `${stock}`, cls: "bg-amber-100 text-amber-600" };
+    return { label: `${stock}`, cls: "bg-emerald-100 text-emerald-600" };
+  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
 
-      <div className="shrink-0 px-5 pt-4 pb-3 relative z-10">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="shrink-0 px-4 pt-4 pb-3 relative z-10">
+        <h1 className="text-lg font-bold text-gray-800 mb-3">📦 Inventaris</h1>
+
+        <div className="flex gap-2 mb-3">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari produk..."
-              className="w-full pl-10 pr-4 py-3 bg-white/80 border border-pink-100 rounded-xl text-gray-700 placeholder-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
             />
           </div>
           <button
             onClick={openAdd}
-            className="w-28 shrink-0 px-4 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
+            className="shrink-0 px-4 py-2.5 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
           >
             <Plus className="w-4 h-4" />
             Produk
           </button>
         </div>
 
-        <div className="flex gap-2 mb-3">
-          {([
-            { key: "all" as const, label: "Semua", count: products.length },
-            { key: "ada" as const, label: "Ada Stok", count: products.filter((p) => p.stock > 0).length },
-            { key: "habis" as const, label: "Stok Habis", count: products.filter((p) => p.stock === 0).length },
-          ]).map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setStockFilter(tab.key)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                stockFilter === tab.key
-                  ? tab.key === "habis" ? "bg-red-50 text-red-500 border border-red-200" : "bg-pink-50 text-pink-600 border border-pink-200"
-                  : "bg-white/60 text-gray-400 border border-gray-100 hover:bg-white"
-              }`}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
-
         {filtered.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white/80 border border-pink-100/60 rounded-xl p-3 text-center shadow-sm">
-              <p className="text-base text-gray-400 uppercase tracking-widest mb-1">
-                Total Item
-              </p>
-              <p className="text-base font-bold text-gray-700">
-                {filtered.length}
-              </p>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-white border border-gray-100 rounded-xl p-2.5 text-center">
+              <p className="text-lg font-extrabold text-pink-500">{filtered.length}</p>
+              <p className="text-[10px] text-gray-400 font-medium">Total Item</p>
             </div>
-            <div className="bg-white/80 border border-pink-100/60 rounded-xl p-3 text-center shadow-sm">
-              <p className="text-base text-gray-400 uppercase tracking-widest mb-1">
-                Total Modal
+            <div className="bg-white border border-gray-100 rounded-xl p-2.5 text-center">
+              <p className="text-lg font-extrabold text-blue-500">
+                {totalModal >= 1000000
+                  ? `Rp ${(totalModal / 1000000).toFixed(1)}jt`
+                  : totalModal >= 1000
+                    ? `Rp ${(totalModal / 1000).toFixed(0)}rb`
+                    : `Rp ${totalModal.toLocaleString("id-ID")}`}
               </p>
-              <p className="text-base font-bold text-amber-500">
-                Rp. {totalModal.toLocaleString("id-ID")}
-              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Total Modal</p>
             </div>
-            <div className="bg-white/80 border border-pink-100/60 rounded-xl p-3 text-center shadow-sm">
-              <p className="text-base text-gray-400 uppercase tracking-widest mb-1">
-                Total Jual
+            <div className="bg-white border border-gray-100 rounded-xl p-2.5 text-center">
+              <p className="text-lg font-extrabold text-emerald-500">
+                {totalJual >= 1000000
+                  ? `Rp ${(totalJual / 1000000).toFixed(1)}jt`
+                  : totalJual >= 1000
+                    ? `Rp ${(totalJual / 1000).toFixed(0)}rb`
+                    : `Rp ${totalJual.toLocaleString("id-ID")}`}
               </p>
-              <p className="text-base font-bold text-emerald-500">
-                Rp. {totalJual.toLocaleString("id-ID")}
-              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Total Jual</p>
             </div>
           </div>
         )}
+
+        <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          {filters.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setCategoryFilter(f.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all ${
+                categoryFilter === f.key
+                  ? f.key === "habis"
+                    ? "bg-red-500 text-white border-red-500"
+                    : "bg-pink-500 text-white border-pink-500"
+                  : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <main className="px-5 py-4 relative z-10 flex-1 overflow-y-auto">
-
+      <main className="px-4 py-3 relative z-10 flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-5">
-              <Package className="w-8 h-8 text-pink-300" />
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 bg-pink-50 border border-pink-100 rounded-2xl flex items-center justify-center mb-4">
+              <Package className="w-7 h-7 text-pink-300" />
             </div>
-            <p className="text-gray-500 text-2xl font-medium">
-              Belum ada produk
-            </p>
-            <p className="text-gray-300 text-base mt-1">
-              Tap "Produk" untuk menambah
-            </p>
+            <p className="text-gray-500 text-base font-medium">Belum ada produk</p>
+            <p className="text-gray-400 text-xs mt-1">Tap "+ Produk" untuk menambah</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filtered.map((product) => {
-              const profit =
-                product.sell_price - product.cost_price;
+          <div className="flex flex-col gap-2.5">
+            {filtered.map((product, i) => {
+              const profit = product.sell_price - product.cost_price;
+              const discounts = productDiscounts.filter((d) => d.product_id === product.id);
+              const stockStatus = getStockStatus(product.stock);
+              const colorClass = avatarColors[i % avatarColors.length];
+
               return (
                 <div
                   key={product.id}
-                  className="bg-white/80 border border-pink-100/60 rounded-2xl p-5 group shadow-sm shadow-pink-50"
+                  className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      {product.image ? (
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-10 h-10 rounded-xl object-cover border border-pink-100"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-pink-100 to-rose-100 border border-pink-200/50 rounded-xl flex items-center justify-center">
-                          <ShoppingBag className="w-4 h-4 text-pink-400" />
-                        </div>
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-2xl shrink-0`}>
+                    {product.image ? (
+                      <img src={product.image} alt={product.name} className="w-12 h-12 rounded-xl object-cover" />
+                    ) : (
+                      <ShoppingBag className="w-5 h-5 text-pink-400" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{product.name}</p>
+                      {discounts.length > 0 && (
+                        <span className="text-[8px] px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded font-bold shrink-0">
+                          Diskon
+                        </span>
                       )}
-                      <div>
-                        <p className="text-gray-800 font-semibold">
-                          {product.name}
-                        </p>
-                        <p className="text-base text-gray-400 uppercase tracking-wider mt-0.5">
-                          Laba:{" "}
-                          <span
-                            className={
-                              profit >= 0
-                                ? "text-emerald-500"
-                                : "text-red-500"
-                            }
-                          >
-                            {profit >= 0 ? "+" : ""}
-                            Rp. {profit.toLocaleString("id-ID")}
-                          </span>
-                        </p>
-                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {(() => {
-                        const discounts = productDiscounts.filter((d) => d.product_id === product.id);
-                        return (
-                          <button
-                            onClick={() => {
-                              setDiscountProductId(product.id);
-                              setDiscountMinQty("");
-                              setDiscountPrice("");
-                            }}
-                            className={`p-2 rounded-lg transition-all relative ${discounts.length > 0 ? "bg-amber-50" : "hover:bg-amber-50"}`}
-                            title="Atur Diskon"
-                          >
-                            <Tag className={`w-3.5 h-3.5 ${discounts.length > 0 ? "text-amber-500" : "text-gray-400 hover:text-amber-500"}`} />
-                            {discounts.length > 0 && (
-                              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-                                {discounts.length}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })()}
-                      <button
-                        onClick={() => openHistory(product.id)}
-                        className="p-2 hover:bg-blue-50 rounded-lg transition-all"
-                        title="Riwayat Stok"
-                      >
-                        <History className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          openEdit(product.id)
-                        }
-                        className="p-2 hover:bg-pink-50 rounded-lg transition-all"
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-pink-500" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          setDeleteConfirm(product.id)
-                        }
-                        className="p-2 hover:bg-red-50 rounded-lg transition-all"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-gray-300 hover:text-red-400" />
-                      </button>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{product.unit}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setDiscountProductId(product.id);
+                            setDiscountMinQty("");
+                            setDiscountPrice("");
+                          }}
+                          className="p-1 rounded hover:bg-amber-50 transition-all"
+                          title="Atur Diskon"
+                        >
+                          <Tag className="w-3 h-3 text-gray-400 hover:text-amber-500" />
+                        </button>
+                        <button
+                          onClick={() => openHistory(product.id)}
+                          className="p-1 rounded hover:bg-blue-50 transition-all"
+                          title="Riwayat Stok"
+                        >
+                          <History className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                        </button>
+                        <button
+                          onClick={() => openEdit(product.id)}
+                          className="p-1 rounded hover:bg-pink-50 transition-all"
+                          title="Edit"
+                        >
+                          <Pencil className="w-3 h-3 text-gray-400 hover:text-pink-500" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(product.id)}
+                          className="p-1 rounded hover:bg-red-50 transition-all"
+                          title="Hapus"
+                        >
+                          <Trash2 className="w-3 h-3 text-gray-300 hover:text-red-400" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <div className="bg-pink-50/50 rounded-xl p-3 text-center border border-pink-100/60">
-                      <p className="text-base text-gray-400 uppercase tracking-widest mb-1">
-                        Modal
-                      </p>
-                      <p className="text-base text-gray-600 font-semibold">
-                        Rp. {product.cost_price.toLocaleString(
-                          "id-ID"
-                        )}
-                      </p>
-                    </div>
-                    <div className="bg-pink-50/50 rounded-xl p-3 text-center border border-pink-100/60">
-                      <p className="text-base text-gray-400 uppercase tracking-widest mb-1">
-                        Jual
-                      </p>
-                      <p className="text-base text-pink-500 font-semibold">
-                        Rp. {product.sell_price.toLocaleString(
-                          "id-ID"
-                        )}
-                      </p>
-                    </div>
-                    <div className="bg-pink-50/50 rounded-xl p-3 text-center border border-pink-100/60">
-                      <p className="text-base text-gray-400 uppercase tracking-widest mb-1">
-                        Stok
-                      </p>
-                      <p
-                        className={`text-base font-bold ${
-                          product.stock <= 0
-                            ? "text-red-500"
-                            : product.stock <= 5
-                              ? "text-amber-500"
-                              : "text-gray-700"
-                        }`}
-                      >
-                        {product.stock}{" "}
-                        <span className="text-base font-normal text-gray-400">
-                          {product.unit}
-                        </span>
-                      </p>
-                    </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <p className="text-sm font-bold text-pink-500">
+                      Rp {product.sell_price.toLocaleString("id-ID")}
+                    </p>
+                    <p className="text-[10px] font-semibold text-emerald-500">
+                      +Rp {profit.toLocaleString("id-ID")}
+                    </p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${stockStatus.cls}`}>
+                      {stockStatus.label}
+                    </span>
                   </div>
                 </div>
               );
@@ -415,168 +378,139 @@ export default function Inventory() {
               className="flex-1 min-h-0 flex flex-col"
             >
               <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
-              <div>
-                <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
-                  Nama Produk
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm({ ...form, name: e.target.value })
-                  }
-                  placeholder="Nama produk"
-                  className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
-                  required
-                />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
-                    Harga Modal
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Nama Produk
                   </label>
                   <input
-                    type="number"
-                    value={form.cost_price}
-                    onChange={(e) =>
-                      setForm({ ...form, cost_price: e.target.value })
-                    }
-                    placeholder="0"
-                    min="0"
-                    className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Nama produk"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    required
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
-                    Harga Jual
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                      Harga Modal
+                    </label>
+                    <input
+                      type="number"
+                      value={form.cost_price}
+                      onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+                      placeholder="0"
+                      min="0"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                      Harga Jual
+                    </label>
+                    <input
+                      type="number"
+                      value={form.sell_price}
+                      onChange={(e) => setForm({ ...form, sell_price: e.target.value })}
+                      placeholder="0"
+                      min="0"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                      Stok
+                    </label>
+                    <input
+                      type="number"
+                      value={form.stock}
+                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                      placeholder="0"
+                      min="0"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                      Satuan
+                    </label>
+                    <input
+                      type="text"
+                      value={form.unit}
+                      onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                      placeholder="PCS"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Gambar Produk
                   </label>
                   <input
-                    type="number"
-                    value={form.sell_price}
-                    onChange={(e) =>
-                      setForm({ ...form, sell_price: e.target.value })
-                    }
-                    placeholder="0"
-                    min="0"
-                    className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
                   />
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-gray-200 rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 hover:border-pink-300 hover:bg-pink-50/30 transition-all cursor-pointer min-h-[80px]"
+                  >
+                    {form.image ? (
+                      <div className="relative">
+                        <img src={form.image} alt="Preview" className="w-20 h-20 object-cover rounded-xl" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setForm({ ...form, image: "" });
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                          }}
+                          className="absolute -top-1.5 -right-1.5 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Camera className="w-6 h-6 text-pink-300" />
+                        <span className="text-xs text-pink-400 font-medium">Tap untuk tambah gambar</span>
+                        <span className="text-[10px] text-gray-400">Maks 500KB</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
-                  Stok
-                </label>
-                <input
-                  type="number"
-                  value={form.stock}
-                  onChange={(e) =>
-                    setForm({ ...form, stock: e.target.value })
-                  }
-                  placeholder="0"
-                  min="0"
-                  className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
-                  Satuan
-                </label>
-                <input
-                  type="text"
-                  value={form.unit}
-                  onChange={(e) =>
-                    setForm({ ...form, unit: e.target.value })
-                  }
-                  placeholder="PCS"
-                  className="w-full px-4 py-3.5 bg-pink-50/50 border border-pink-100 rounded-2xl text-gray-800 placeholder-gray-400 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-base text-gray-400 mb-2 uppercase tracking-widest font-semibold">
-                  Gambar Produk
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-pink-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:border-pink-300 hover:bg-pink-50/30 transition-all cursor-pointer min-h-[100px]"
-                >
-                  {form.image ? (
-                    <div className="relative w-full">
-                      <img
-                        src={form.image}
-                        alt="Preview"
-                        className="w-24 h-24 object-cover rounded-xl mx-auto"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setForm({ ...form, image: "" });
-                          if (fileInputRef.current) fileInputRef.current.value = "";
-                        }}
-                        className="absolute -top-2 -right-2 bg-red-400 text-white rounded-full p-1 hover:bg-red-500"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <Camera className="w-8 h-8 text-pink-300" />
-                      <span className="text-base text-pink-400 font-medium">
-                        Tap untuk tambah gambar
-                      </span>
-                      <span className="text-base text-gray-400">
-                        Maks 500KB
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-              {form.cost_price && form.sell_price && (
-                <div className="bg-pink-50/60 border border-pink-100 rounded-2xl p-3">
-                    <p className="text-base text-gray-400 uppercase tracking-widest mb-1">
-                      Estimasi Keuntungan
-                    </p>
-                    <p
-                      className={`text-xl font-bold ${
-                      (parseFloat(form.sell_price) || 0) -
-                        (parseFloat(form.cost_price) || 0) >=
-                      0
+                {form.cost_price && form.sell_price && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Estimasi Keuntungan</p>
+                    <p className={`text-base font-bold ${
+                      (parseFloat(form.sell_price) || 0) - (parseFloat(form.cost_price) || 0) >= 0
                         ? "text-emerald-500"
                         : "text-red-500"
-                    }`}
-                  >
-                    Rp{" "}
-                    {(
-                      (parseFloat(form.sell_price) || 0) -
-                      (parseFloat(form.cost_price) || 0)
-                    ).toLocaleString("id-ID")}
-                  </p>
-                </div>
-              )}
+                    }`}>
+                      Rp {((parseFloat(form.sell_price) || 0) - (parseFloat(form.cost_price) || 0)).toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="shrink-0 px-6 py-3 bg-white border-t border-pink-100/60">
+              <div className="shrink-0 px-6 py-3 bg-white border-t border-gray-100">
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditId(null);
-                    }}
-                    className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-2xl transition-all"
+                    onClick={() => { setShowForm(false); setEditId(null); }}
+                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
                   >
                     Batal
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSubmit()}
-                    className="flex-1 py-3.5 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-pink-200/40"
+                    className="flex-1 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-pink-200/40 text-sm"
                   >
                     {editId ? "Simpan" : "Tambah"}
                   </button>
@@ -589,23 +523,21 @@ export default function Inventory() {
 
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 flex items-center justify-center p-4">
-          <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">
-              Hapus Produk?
-            </h3>
-            <p className="text-gray-400 text-base mb-5">
+          <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50">
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Hapus Produk?</h3>
+            <p className="text-gray-400 text-sm mb-4">
               Produk ini akan dihapus permanen dari inventaris.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-2xl transition-all"
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
               >
                 Batal
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirm)}
-                className="flex-1 py-3.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-red-200/30"
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-red-200/30 text-sm"
               >
                 Hapus
               </button>
@@ -616,14 +548,12 @@ export default function Inventory() {
 
       {historyProductId && (
         <div className="fixed inset-x-0 top-0 bottom-16 bg-black/20 backdrop-blur-sm z-30 flex items-end justify-center">
-          <div className="w-full max-w-lg bg-white rounded-t-3xl p-6 pb-6 shadow-2xl shadow-pink-100/50 border-t border-pink-100 max-h-[80vh] flex flex-col">
-            <div className="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-5" />
-            <div className="flex items-center justify-between mb-5">
+          <div className="w-full max-w-lg bg-white rounded-t-3xl p-5 pb-5 shadow-2xl shadow-pink-100/50 border-t border-pink-100 max-h-[80vh] flex flex-col">
+            <div className="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Riwayat Stok
-                </h2>
-                <p className="text-sm text-gray-400 mt-0.5">
+                <h2 className="text-lg font-bold text-gray-800">Riwayat Stok</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
                   {products.find((p) => p.id === historyProductId)?.name}
                 </p>
               </div>
@@ -636,44 +566,42 @@ export default function Inventory() {
             </div>
 
             {stockMovements.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <History className="w-8 h-8 text-pink-300 mb-3" />
-                <p className="text-gray-400 text-base">
-                  Belum ada riwayat transaksi
-                </p>
+              <div className="flex flex-col items-center justify-center py-10">
+                <History className="w-7 h-7 text-pink-300 mb-2" />
+                <p className="text-gray-400 text-sm">Belum ada riwayat transaksi</p>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {stockMovements.map((m) => (
                   <div
                     key={m.id}
-                    className="bg-white border border-pink-100/60 rounded-2xl p-4 shadow-sm"
+                    className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm"
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         {m.transaction_type === "Pembelian" ? (
-                          <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                            <TrendingUp className="w-4 h-4 text-emerald-500" />
+                          <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                            <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                           </div>
                         ) : (
-                          <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center border border-red-100">
-                            <TrendingDown className="w-4 h-4 text-red-500" />
+                          <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center border border-red-100">
+                            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
                           </div>
                         )}
                         <div>
-                          <p className="text-base font-semibold text-gray-800">
+                          <p className="text-sm font-semibold text-gray-800">
                             {m.transaction_type === "Penyesuaian Stok"
                               ? "Penyesuaian Stok"
                               : m.transaction_type === "Pembelian"
                                 ? `Supplier: ${m.party_name}`
                                 : `Pelanggan: ${m.party_name}`}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-[10px] text-gray-400">
                             {m.transaction_type} · No. {m.invoice_no}
                           </p>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-[10px] text-gray-400">
                         {new Date(m.date).toLocaleDateString("id-ID", {
                           day: "numeric",
                           month: "short",
@@ -681,18 +609,11 @@ export default function Inventory() {
                         })}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between ml-10">
-                      <span
-                        className={`text-base font-bold ${
-                          m.qty > 0
-                            ? "text-emerald-500"
-                            : "text-red-500"
-                        }`}
-                      >
-                        {m.qty > 0 ? "+" : ""}
-                        {m.qty} {m.unit}
+                    <div className="flex items-center justify-between ml-9">
+                      <span className={`text-sm font-bold ${m.qty > 0 ? "text-emerald-500" : "text-red-500"}`}>
+                        {m.qty > 0 ? "+" : ""}{m.qty} {m.unit}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-[10px] text-gray-500">
                         Sisa: <span className="font-semibold text-gray-700">{m.qty_after}</span> {m.unit}
                       </span>
                     </div>
@@ -706,11 +627,11 @@ export default function Inventory() {
 
       {discountProductId && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
-          <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="text-lg font-bold text-gray-800">Atur Diskon</h3>
-                <p className="text-sm text-gray-400 mt-0.5">
+                <h3 className="text-base font-bold text-gray-800">Atur Diskon</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
                   {products.find((p) => p.id === discountProductId)?.name}
                 </p>
               </div>
@@ -722,55 +643,53 @@ export default function Inventory() {
               </button>
             </div>
 
-            <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+            <div className="space-y-1.5 mb-3 max-h-40 overflow-y-auto">
               {productDiscounts
                 .filter((d) => d.product_id === discountProductId)
                 .sort((a, b) => a.min_qty - b.min_qty)
                 .map((d) => (
-                  <div key={d.id} className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                    <div>
-                      <span className="text-sm font-semibold text-amber-700">
-                        Beli {d.min_qty}+ → Rp {d.discount_price.toLocaleString("id-ID")}/pcs
-                      </span>
-                    </div>
+                  <div key={d.id} className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                    <span className="text-xs font-semibold text-amber-700">
+                      Beli {d.min_qty}+ → Rp {d.discount_price.toLocaleString("id-ID")}/pcs
+                    </span>
                     <button
                       onClick={async () => {
                         await deleteProductDiscount(d.id, discountProductId!);
                       }}
-                      className="p-1.5 hover:bg-red-100 rounded-lg transition-all"
+                      className="p-1 hover:bg-red-100 rounded-lg transition-all"
                     >
-                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      <Trash2 className="w-3 h-3 text-red-400" />
                     </button>
                   </div>
                 ))}
               {productDiscounts.filter((d) => d.product_id === discountProductId).length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-3">Belum ada diskon</p>
+                <p className="text-xs text-gray-400 text-center py-2">Belum ada diskon</p>
               )}
             </div>
 
-            <div className="border-t border-pink-100 pt-4">
-              <p className="text-sm font-semibold text-gray-500 mb-3">Tambah Diskon Baru</p>
-              <div className="flex gap-2 mb-3">
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs font-semibold text-gray-500 mb-2">Tambah Diskon Baru</p>
+              <div className="flex gap-2 mb-2">
                 <div className="flex-1">
-                  <label className="block text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Min Qty</label>
+                  <label className="block text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">Min Qty</label>
                   <input
                     type="number"
                     value={discountMinQty}
                     onChange={(e) => setDiscountMinQty(e.target.value)}
                     placeholder="3"
                     min="1"
-                    className="w-full px-3 py-2.5 bg-pink-50/50 border border-pink-100 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Harga Spesial</label>
+                  <label className="block text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">Harga Spesial</label>
                   <input
                     type="number"
                     value={discountPrice}
                     onChange={(e) => setDiscountPrice(e.target.value)}
                     placeholder="0"
                     min="0"
-                    className="w-full px-3 py-2.5 bg-pink-50/50 border border-pink-100 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                   />
                 </div>
               </div>
@@ -788,7 +707,7 @@ export default function Inventory() {
                   }
                 }}
                 disabled={!discountMinQty || !discountPrice}
-                className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-amber-200/40"
+                className="w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-amber-200/40 text-sm"
               >
                 Tambah
               </button>
