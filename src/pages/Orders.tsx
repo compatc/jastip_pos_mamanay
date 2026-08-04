@@ -159,7 +159,7 @@ export default function Orders() {
     );
   }
 
-  const filtered = allOrders.filter((o) => {
+  const baseFiltered = allOrders.filter((o) => {
     const q = search.toLowerCase();
     const matchSearch =
       !search ||
@@ -169,22 +169,13 @@ export default function Orders() {
     const matchProduct =
       !productFilter ||
       (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
-    return matchTabFilter(o, tab) && matchSearch && matchProduct;
+    return matchSearch && matchProduct;
   });
 
+  const filtered = baseFiltered.filter((o) => matchTabFilter(o, tab));
+
   function countTab(tabFilter: string): number {
-    return allOrders.filter((o) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !search ||
-        o.customer_name?.toLowerCase().includes(q) ||
-        o.id.toLowerCase().includes(q) ||
-        (itemsByOrder[o.id] || []).some((i) => i.product_name.toLowerCase().includes(q));
-      const matchProduct =
-        !productFilter ||
-        (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter);
-      return matchTabFilter(o, tabFilter) && matchSearch && matchProduct;
-    }).length;
+    return baseFiltered.filter((o) => matchTabFilter(o, tabFilter)).length;
   }
 
   const countPenjualan = countTab("penjualan");
@@ -559,12 +550,12 @@ export default function Orders() {
     return (name || "?").charAt(0).toUpperCase();
   }
 
-  const countBelumBayar = allOrders.filter((o) => !isOrderLunas(o) && o.total > 0).length;
-  const totalBelumBayar = allOrders.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + (o.total - o.paid_total), 0);
-  const countReady = allOrders.filter((o) => o.status === "ready").length;
-  const countLunas = allOrders.filter((o) => isOrderLunas(o)).length;
+  const countBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).length;
+  const totalBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + (o.total - o.paid_total), 0);
+  const countReady = baseFiltered.filter((o) => o.status === "ready").length;
+  const countLunas = baseFiltered.filter((o) => isOrderLunas(o)).length;
   const today = new Date().toISOString().slice(0, 10);
-  const todayPaidOrders = allOrders.filter((o) => isOrderLunas(o) && o.created_at?.slice(0, 10) === today);
+  const todayPaidOrders = baseFiltered.filter((o) => isOrderLunas(o) && o.created_at?.slice(0, 10) === today);
   const todayLunasTotal = todayPaidOrders.reduce((s, o) => s + o.total, 0);
   const todayLunasCount = todayPaidOrders.length;
 
@@ -589,6 +580,7 @@ export default function Orders() {
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
+                    setShowProductSuggest(e.target.value.length > 0);
                     if (productFilter) setProductFilter("");
                   }}
                   onFocus={() => setShowProductSuggest(search.length > 0)}
