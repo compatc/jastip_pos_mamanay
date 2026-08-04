@@ -2,6 +2,29 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
+function QrImage({ url, color = "#ec4899" }: { url: string; color?: string }) {
+  const [svg, setSvg] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url)
+      .then((r) => r.text())
+      .then((text) => {
+        if (cancelled) return;
+        const recolored = text
+          .replace(/fill="#000000"/g, `fill="${color}"`)
+          .replace(/fill="#000"/g, `fill="${color}"`)
+          .replace(/fill="black"/g, `fill="${color}"`)
+          .replace(/<rect([^>]*?)fill="#000000"/g, `<rect$1fill="${color}"`)
+          .replace(/<path([^>]*?)fill="#000000"/g, `<path$1fill="${color}"`);
+        setSvg(recolored);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [url, color]);
+  if (!svg) return <div className="w-full h-full flex items-center justify-center"><Loader2 className="w-8 h-8 text-pink-300 animate-spin" /></div>;
+  return <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+
 interface Tx {
   transaction_id: string;
   status: string;
@@ -218,7 +241,7 @@ export default function PayOrder() {
             </div>
 
             <div className="mx-auto w-56 h-56 bg-white border-2 border-pink-100 rounded-2xl p-3 mb-4">
-              <img src={tx.qr_url} alt="QRIS" className="w-full h-full" />
+              <QrImage url={tx.qr_url} color="#ec4899" />
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
             <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(tx.amount)}</p>
