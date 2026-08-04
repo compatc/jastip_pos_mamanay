@@ -67,6 +67,16 @@ export default function Shipments() {
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, OrderItemData[]>>({});
   const [filter, setFilter] = useState<FilterType>("all");
   const [loading, setLoading] = useState(true);
+  const [checkedItems, setCheckedItems] = useState<Record<string, Set<number>>>({});
+
+  function toggleItemCheck(orderId: string, itemIdx: number) {
+    setCheckedItems((prev) => {
+      const orderSet = new Set(prev[orderId] || []);
+      if (orderSet.has(itemIdx)) orderSet.delete(itemIdx);
+      else orderSet.add(itemIdx);
+      return { ...prev, [orderId]: orderSet };
+    });
+  }
 
   useEffect(() => {
     loadAllOrders();
@@ -341,21 +351,51 @@ export default function Shipments() {
                     <div className="space-y-1">
                       {order.items.map((item, idx) => {
                         const notReady = item.stock <= 0;
+                        const isChecked = checkedItems[order.id]?.has(idx) || false;
                         return (
                           <div
                             key={idx}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm ${
+                            onClick={() => !notReady && toggleItemCheck(order.id, idx)}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all ${
                               notReady && order.isHold
                                 ? "bg-amber-100 border border-dashed border-amber-300"
-                                : "bg-slate-50"
-                            }`}
+                                : isChecked
+                                ? "bg-emerald-50 border border-emerald-200"
+                                : "bg-slate-50 border border-transparent"
+                            } ${!notReady ? "cursor-pointer active:bg-slate-100" : ""}`}
                           >
-                            <span className={`flex-1 font-medium ${notReady && order.isHold ? "text-amber-800" : "text-slate-700"}`}>
+                            {/* Checkbox */}
+                            {!notReady ? (
+                              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                                isChecked
+                                  ? "bg-emerald-500 border-emerald-500"
+                                  : "border-slate-300 bg-white"
+                              }`}>
+                                {isChecked && (
+                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="w-5 h-5 rounded-md border-2 border-amber-300 bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                <span className="text-amber-500 text-xs">⏳</span>
+                              </div>
+                            )}
+                            <span className={`flex-1 font-medium ${
+                              notReady && order.isHold
+                                ? "text-amber-800"
+                                : isChecked
+                                ? "text-emerald-700 line-through"
+                                : "text-slate-700"
+                            }`}>
                               {item.product_name}
                             </span>
                             <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                               notReady && order.isHold
                                 ? "bg-amber-200 text-amber-800"
+                                : isChecked
+                                ? "bg-emerald-200 text-emerald-700"
                                 : "bg-slate-200 text-slate-600"
                             }`}>
                               ×{item.quantity}
@@ -374,7 +414,7 @@ export default function Shipments() {
                     <div className="flex gap-2 mt-2">
                       <button
                         onClick={() => toggleHold(order)}
-                        className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex items-center justify-center gap-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
                           order.isHold
                             ? "bg-amber-200 text-amber-800 hover:bg-amber-300"
                             : "bg-amber-100 text-amber-600 hover:bg-amber-200"
@@ -386,14 +426,25 @@ export default function Shipments() {
                           <><Clock className="w-3 h-3" /> Tunda</>
                         )}
                       </button>
-                      {!order.isHold && (
-                        <button
-                          onClick={() => markShipped([order.id])}
-                          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-bold bg-pink-500 text-white hover:bg-pink-600 transition-all"
-                        >
-                          <Truck className="w-3 h-3" /> Kirim
-                        </button>
-                      )}
+                      {!order.isHold && (() => {
+                        const totalItems = order.items.length;
+                        const checked = checkedItems[order.id]?.size || 0;
+                        const allChecked = totalItems > 0 && checked === totalItems;
+                        return (
+                          <button
+                            onClick={() => allChecked && markShipped([order.id])}
+                            disabled={!allChecked}
+                            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                              allChecked
+                                ? "bg-pink-500 text-white hover:bg-pink-600"
+                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            }`}
+                          >
+                            <Truck className="w-3 h-3" />
+                            {allChecked ? "Kirim" : `Kirim (${checked}/${totalItems})`}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
