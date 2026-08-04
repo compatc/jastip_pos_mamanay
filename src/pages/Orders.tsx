@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 
-type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil";
+type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil" | "lunas";
 
 const PAYMENT_LABELS: Record<PaymentType, string> = {
   tf: "TF",
@@ -146,6 +146,7 @@ export default function Orders() {
     return (
       tabFilter === "all" ||
       o.order_type === tabFilter ||
+      (tabFilter === "lunas" && isOrderLunas(o)) ||
       (tabFilter === "belum-dikirim" &&
         o.status !== "shipped" &&
         o.status !== "delivered" &&
@@ -561,6 +562,7 @@ export default function Orders() {
   const countBelumBayar = allOrders.filter((o) => !isOrderLunas(o) && o.total > 0).length;
   const totalBelumBayar = allOrders.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + (o.total - o.paid_total), 0);
   const countReady = allOrders.filter((o) => o.status === "ready").length;
+  const countLunas = allOrders.filter((o) => isOrderLunas(o)).length;
   const today = new Date().toISOString().slice(0, 10);
   const todayPaidOrders = allOrders.filter((o) => isOrderLunas(o) && o.created_at?.slice(0, 10) === today);
   const todayLunasTotal = todayPaidOrders.reduce((s, o) => s + o.total, 0);
@@ -771,16 +773,16 @@ export default function Orders() {
             <span className="bg-sky-100 text-sky-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countReady}</span>
           </button>
           <button
-            onClick={() => setTab("penjualan")}
+            onClick={() => setTab("lunas")}
             className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
-              tab === "penjualan"
+              tab === "lunas"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             Selesai / Lunas
-            <span className="bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countTab("penjualan")}</span>
+            <span className="bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countLunas}</span>
           </button>
           <button
             onClick={() => setTab("belum-dikirim")}
@@ -838,11 +840,11 @@ export default function Orders() {
             <p className="text-slate-500 text-xl font-medium">
               {tab === "all"
                 ? "Belum ada order"
-                : tab === "penjualan"
-                  ? "Belum ada penjualan"
+                : tab === "lunas"
+                  ? "Belum ada order lunas"
                   : tab === "belum-diambil"
                     ? "Tidak ada barang yang menunggu diambil"
-                    : "Belum ada pembelian"}
+                    : "Belum ada data"}
             </p>
             <p className="text-slate-300 text-base mt-1">
               Tap "+ Order Baru" untuk membuat order
