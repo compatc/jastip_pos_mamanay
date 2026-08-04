@@ -12,8 +12,6 @@ import {
   MessageCircle,
   Copy,
   ExternalLink,
-  Check,
-  X,
 } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -26,6 +24,16 @@ function shortId(id: string): string {
     hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
   }
   return "NAY" + String(Math.abs(hash) % 10000).padStart(4, "0");
+}
+
+function toWaNumber(phone: string): string {
+  const cleaned = phone.replace(/\D/g, "");
+  if (!cleaned) return "";
+  return cleaned.startsWith("0")
+    ? "62" + cleaned.slice(1)
+    : cleaned.startsWith("62")
+      ? cleaned
+      : "62" + cleaned;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -43,7 +51,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   qris: "QRIS",
   split: "Split",
   shopee: "Shopee",
-  cash: "Cash",
+  cash: "Tunai",
 };
 
 const COURIER_LABELS: Record<string, string> = {
@@ -51,6 +59,8 @@ const COURIER_LABELS: Record<string, string> = {
   indopaket: "Indopaket",
   shopee: "Shopee Express",
 };
+
+const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
 
 function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
@@ -121,8 +131,8 @@ export default function OrderDetail() {
   if (!order) {
     return (
       <div className="h-full flex flex-col items-center justify-center">
-        <p className="text-gray-400 text-sm">Order tidak ditemukan</p>
-        <button onClick={() => navigate(returnTo || "/orders")} className="mt-3 text-pink-500 font-semibold text-sm">
+        <p className="text-gray-400">Order tidak ditemukan</p>
+        <button onClick={() => navigate(returnTo || "/orders")} className="mt-4 text-pink-500 font-semibold">
           Kembali
         </button>
       </div>
@@ -140,11 +150,60 @@ export default function OrderDetail() {
     });
   }
 
+  function buildInvoiceMsg(): string {
+    const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const deadlineStr = deadline.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
+    msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
+    msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
+
+    const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+    const payMethod = PAYMENT_LABELS[order.payment_type] || order.payment_type;
+    const statusLabel = STATUS_LABELS[order.status] || order.status;
+
+    msg += `📦 Pesanan: ${productNames}\n`;
+    msg += `Status barang: ${statusLabel}\n`;
+    if (order.notes) msg += `📝 Catatan: ${order.notes}\n`;
+    msg += `Metode: ${payMethod}\n`;
+    msg += `💰 Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
+    if (order.paid_total > 0) {
+      msg += `Sudah dibayar: Rp ${order.paid_total.toLocaleString("id-ID")}\n`;
+      msg += `Sisa: Rp ${(order.total - order.paid_total).toLocaleString("id-ID")}\n`;
+    }
+    msg += "\n";
+
+    if (qrisLink) {
+      const sisa = order.total - order.paid_total;
+      msg += `💳 *Bayar QRIS sekarang:*\n`;
+      msg += `${productNames}\n`;
+      msg += `💰 Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
+      msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${qrisLink}\n\n`;
+    }
+
+    msg += `💳 Metode Pembayaran: ${payMethod}\n`;
+    msg += `${BANK_INFO}\n`;
+    msg += `⏰ Batas Pembayaran: ${deadlineStr}\n\n`;
+
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
+    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
+    msg += "Terima kasih atas kepercayaannya. 🙏";
+    return msg;
+  }
+
   function sendWa() {
-    const phone = customer?.phone || order.customer_name;
-    if (!phone) return;
-    const msg = `Halo ${order.customer_name || "Kak"},\nOrder ${shortId(order.id)} Anda:\n${items.map((i) => `- ${i.product_name} x${i.quantity}: ${rupiah(i.price * i.quantity - i.discount)}`).join("\n")}\nTotal: ${rupiah(order.total)}\n\nTerima kasih! 🙏`;
-    window.open(`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(msg)}`, "_blank");
+    const phone = customer?.phone || "";
+    const wa = toWaNumber(phone);
+    if (!wa) return;
+    const msg = buildInvoiceMsg();
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
   async function handleDelete() {
@@ -155,17 +214,17 @@ export default function OrderDetail() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="shrink-0 px-4 pt-3 pb-2 relative z-10">
-        <div className="order-header flex items-center gap-3 mb-3">
+      <div className="shrink-0 px-5 pt-4 pb-3 relative z-10">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => navigate(returnTo || "/orders")}
-            className="w-9 h-9 rounded-xl border border-gray-200 bg-white flex items-center justify-center shrink-0 hover:bg-gray-50 transition-all"
+            className="w-10 h-10 rounded-xl border border-gray-200 bg-white flex items-center justify-center shrink-0 hover:bg-gray-50 transition-all"
           >
-            <ArrowLeft className="w-4 h-4 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-extrabold text-gray-900">{shortId(order.id)}</h1>
-            <p className="text-[11px] text-gray-400">
+            <h1 className="text-xl font-extrabold text-gray-900">{shortId(order.id)}</h1>
+            <p className="text-sm text-gray-400">
               {new Date(order.created_at).toLocaleDateString("id-ID", {
                 day: "numeric", month: "long", year: "numeric",
               })} · {new Date(order.created_at).toLocaleTimeString("id-ID", {
@@ -175,100 +234,100 @@ export default function OrderDetail() {
           </div>
           <button
             onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: location.pathname } })}
-            className="w-9 h-9 rounded-xl bg-pink-500 text-white flex items-center justify-center shrink-0 hover:bg-pink-600 transition-all"
+            className="w-10 h-10 rounded-xl bg-pink-500 text-white flex items-center justify-center shrink-0 hover:bg-pink-600 transition-all"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex items-center gap-2 mb-3">
-          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getStatusColor(order.status)}`}>
+        <div className="flex items-center gap-2 mb-4">
+          <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${getStatusColor(order.status)}`}>
             {STATUS_LABELS[order.status] || order.status}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="bg-white border border-gray-100 rounded-xl p-2.5">
-            <p className="text-[9px] text-gray-400 uppercase font-semibold mb-0.5">Pelanggan</p>
+        <div className="grid grid-cols-2 gap-2.5 mb-4">
+          <div className="bg-white border border-gray-100 rounded-xl p-3">
+            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Pelanggan</p>
             {customer ? (
               <button
                 onClick={() => navigate(`/customer/${customer.id}`)}
-                className="text-xs font-bold text-pink-500 hover:text-pink-600 truncate block text-left"
+                className="text-sm font-bold text-pink-500 hover:text-pink-600 truncate block text-left"
               >
                 {customer.name}
               </button>
             ) : (
-              <p className="text-xs font-bold text-gray-800 truncate">{order.customer_name || "Tanpa kontak"}</p>
+              <p className="text-sm font-bold text-gray-800 truncate">{order.customer_name || "Tanpa kontak"}</p>
             )}
           </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-2.5">
-            <p className="text-[9px] text-gray-400 uppercase font-semibold mb-0.5">Tipe</p>
-            <p className="text-xs font-bold text-gray-800 capitalize">{order.order_type === "penjualan" ? "Penjualan" : "Pembelian"}</p>
+          <div className="bg-white border border-gray-100 rounded-xl p-3">
+            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Tipe</p>
+            <p className="text-sm font-bold text-gray-800 capitalize">{order.order_type === "penjualan" ? "Penjualan" : "Pembelian"}</p>
           </div>
         </div>
       </div>
 
-      <main className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 relative z-10">
-        <div className="space-y-3">
+      <main className="flex-1 min-h-0 overflow-y-auto px-5 pb-5 relative z-10">
+        <div className="space-y-4">
 
           <div>
-            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1.5">Item ({items.length})</p>
-            <div className="space-y-1.5">
+            <p className="text-xs text-gray-400 uppercase font-bold mb-2">Item ({items.length})</p>
+            <div className="space-y-2">
               {items.map((item, idx) => (
-                <div key={item.id || idx} className="bg-white border border-gray-100 rounded-xl p-2.5 flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
-                    <Package className="w-3.5 h-3.5 text-pink-400" />
+                <div key={item.id || idx} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4 text-pink-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{item.product_name}</p>
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{item.product_name}</p>
+                    <p className="text-xs text-gray-400">
                       {item.quantity} × {rupiah(item.price)}
                       {item.discount > 0 && <span className="text-red-400 ml-1">-{rupiah(item.discount)}</span>}
                     </p>
                   </div>
-                  <p className="text-xs font-bold text-gray-800 shrink-0">{rupiah(item.price * item.quantity - item.discount)}</p>
+                  <p className="text-sm font-bold text-gray-800 shrink-0">{rupiah(item.price * item.quantity - item.discount)}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-xl p-3 space-y-1.5">
+          <div className="bg-white border border-gray-100 rounded-xl p-3.5 space-y-2">
             {subtotal !== order.total && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Subtotal</span>
                 <span className="text-gray-600 font-semibold">{rupiah(subtotal)}</span>
               </div>
             )}
             {totalDiscount > 0 && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Diskon Item</span>
                 <span className="text-red-400 font-semibold">-{rupiah(totalDiscount)}</span>
               </div>
             )}
             {order.ongkir > 0 && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Ongkir</span>
                 <span className="text-gray-600 font-semibold">{rupiah(order.ongkir)}</span>
               </div>
             )}
             {order.diskon > 0 && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Diskon</span>
                 <span className="text-red-400 font-semibold">-{rupiah(order.diskon)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center pt-1.5 border-t border-gray-100">
-              <span className="text-sm font-bold text-gray-800">Total</span>
-              <span className="text-base font-extrabold text-pink-500">{rupiah(order.total)}</span>
+            <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+              <span className="text-base font-bold text-gray-800">Total</span>
+              <span className="text-lg font-extrabold text-pink-500">{rupiah(order.total)}</span>
             </div>
             {order.paid_total > 0 && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Dibayar</span>
                 <span className="text-emerald-500 font-bold">{rupiah(order.paid_total)}</span>
               </div>
             )}
             {sisa > 0 && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-amber-500 font-bold">Sisa</span>
                 <span className="text-amber-500 font-bold">{rupiah(sisa)}</span>
               </div>
@@ -277,45 +336,45 @@ export default function OrderDetail() {
 
           {order.payment_type && (
             <div className="bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Pembayaran</p>
-              <p className="text-xs font-bold text-gray-800">{PAYMENT_LABELS[order.payment_type] || order.payment_type}</p>
+              <p className="text-xs text-gray-400 uppercase font-bold mb-1">Pembayaran</p>
+              <p className="text-sm font-bold text-gray-800">{PAYMENT_LABELS[order.payment_type] || order.payment_type}</p>
               {order.shopee_order_no && (
-                <p className="text-[10px] text-gray-400 mt-0.5">No. Shopee: {order.shopee_order_no}</p>
+                <p className="text-xs text-gray-400 mt-0.5">No. Shopee: {order.shopee_order_no}</p>
               )}
             </div>
           )}
 
           {(order.courier || order.resi) && (
             <div className="bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 uppercase font-bold mb-1 flex items-center gap-1">
-                <Truck className="w-3 h-3" /> Pengiriman
+              <p className="text-xs text-gray-400 uppercase font-bold mb-1 flex items-center gap-1.5">
+                <Truck className="w-4 h-4" /> Pengiriman
               </p>
-              <p className="text-xs font-bold text-gray-800">{COURIER_LABELS[order.courier || ""] || "Kurir"}</p>
-              {order.resi && <p className="text-[10px] text-gray-600 mt-0.5 break-all">{order.resi}</p>}
+              <p className="text-sm font-bold text-gray-800">{COURIER_LABELS[order.courier || ""] || "Kurir"}</p>
+              {order.resi && <p className="text-xs text-gray-600 mt-0.5 break-all">{order.resi}</p>}
             </div>
           )}
 
           {order.notes && (
             <div className="bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Catatan</p>
-              <p className="text-xs text-gray-600 whitespace-pre-wrap">{order.notes}</p>
+              <p className="text-xs text-gray-400 uppercase font-bold mb-1">Catatan</p>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">{order.notes}</p>
             </div>
           )}
 
           {!isOrderLunas(order) && order.total > 0 && qrisLink && (
             <div className="bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 uppercase font-bold mb-2">Link Pembayaran</p>
-              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg mb-1.5">
-                <div className="w-7 h-7 rounded-md bg-gray-900 text-white flex items-center justify-center shrink-0">
-                  <ExternalLink className="w-3 h-3" />
+              <p className="text-xs text-gray-400 uppercase font-bold mb-2">Link Pembayaran</p>
+              <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-lg">
+                <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center shrink-0">
+                  <ExternalLink className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-gray-800">QRIS Dinamis</p>
-                  <p className="text-[9px] text-gray-400 truncate">{qrisLink}</p>
+                  <p className="text-xs font-semibold text-gray-800">QRIS Dinamis</p>
+                  <p className="text-[10px] text-gray-400 truncate">{qrisLink}</p>
                 </div>
                 <button
                   onClick={() => copyToClipboard(qrisLink, "qris")}
-                  className="px-2 py-1 bg-pink-500 text-white rounded-md text-[9px] font-bold shrink-0"
+                  className="px-2.5 py-1.5 bg-pink-500 text-white rounded-lg text-[10px] font-bold shrink-0"
                 >
                   {copiedId === "qris" ? "✓" : "Salin"}
                 </button>
@@ -324,39 +383,39 @@ export default function OrderDetail() {
           )}
 
           {!isOrderLunas(order) && order.total > 0 && (
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2.5 pt-1">
               <button
                 onClick={sendWa}
-                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
               >
-                <MessageCircle className="w-3.5 h-3.5" /> Kirim WA
+                <MessageCircle className="w-4 h-4" /> Kirim WA
               </button>
               <button
                 onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: location.pathname } })}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-all"
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all"
               >
                 Edit
               </button>
               <button
                 onClick={() => setDeleteConfirm(true)}
-                className="py-2.5 px-3 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl text-xs transition-all border border-red-100"
+                className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl text-sm transition-all border border-red-100"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           )}
 
           {(isOrderLunas(order) || order.total === 0) && (
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2.5 pt-1">
               <button
                 onClick={() => navigate(returnTo || "/orders")}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-all"
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all"
               >
                 Kembali
               </button>
               <button
                 onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: location.pathname } })}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-all"
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all"
               >
                 Edit
               </button>
@@ -369,18 +428,18 @@ export default function OrderDetail() {
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl">
-            <h3 className="text-base font-bold text-gray-800 mb-1">Hapus Order?</h3>
-            <p className="text-xs text-gray-400 mb-4">Order ini akan dihapus permanen. Stok produk akan dikembalikan.</p>
-            <div className="flex gap-2">
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Hapus Order?</h3>
+            <p className="text-sm text-gray-400 mb-4">Order ini akan dihapus permanen. Stok produk akan dikembalikan.</p>
+            <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(false)}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-xs"
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
               >
                 Batal
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-all text-xs"
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-all text-sm"
               >
                 Hapus
               </button>
