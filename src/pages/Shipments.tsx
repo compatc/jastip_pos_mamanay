@@ -390,54 +390,52 @@ export default function Shipments() {
                             key={idx}
                             onClick={() => !notReady && toggleItemCheck(order.id, idx)}
                             className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all ${
-                              notReady && order.isHold
-                                ? "bg-amber-100 border border-dashed border-amber-300"
+                              notReady
+                                ? "bg-amber-50 border border-amber-200 opacity-70"
                                 : isChecked
                                 ? "bg-emerald-50 border border-emerald-200"
-                                : "bg-slate-50 border border-transparent"
-                            } ${!notReady ? "cursor-pointer active:bg-slate-100" : ""}`}
+                                : "bg-slate-50 border border-transparent active:bg-slate-100 cursor-pointer"
+                            }`}
                           >
                             {/* Checkbox */}
-                            {!notReady ? (
-                              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                                isChecked
-                                  ? "bg-emerald-500 border-emerald-500"
-                                  : "border-slate-300 bg-white"
-                              }`}>
-                                {isChecked && (
-                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="w-5 h-5 rounded-md border-2 border-amber-300 bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                <span className="text-amber-500 text-xs">⏳</span>
-                              </div>
-                            )}
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                              notReady
+                                ? "border-amber-300 bg-amber-50"
+                                : isChecked
+                                ? "bg-emerald-500 border-emerald-500"
+                                : "border-slate-300 bg-white"
+                            }`}>
+                              {notReady ? (
+                                <span className="text-amber-400 text-[10px] font-bold">—</span>
+                              ) : isChecked ? (
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : null}
+                            </div>
                             <span className={`flex-1 font-medium ${
-                              notReady && order.isHold
-                                ? "text-amber-800"
+                              notReady
+                                ? "text-amber-600"
                                 : isChecked
                                 ? "text-emerald-700 line-through"
                                 : "text-slate-700"
                             }`}>
                               {item.product_name}
                             </span>
+                            {notReady && (
+                              <span className="text-[10px] font-bold text-amber-600 bg-amber-200 px-1.5 py-0.5 rounded">
+                                Stok 0
+                              </span>
+                            )}
                             <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                              notReady && order.isHold
-                                ? "bg-amber-200 text-amber-800"
+                              notReady
+                                ? "bg-amber-100 text-amber-500"
                                 : isChecked
                                 ? "bg-emerald-200 text-emerald-700"
                                 : "bg-slate-200 text-slate-600"
                             }`}>
                               ×{item.quantity}
                             </span>
-                            {notReady && order.isHold && (
-                              <span className="text-[10px] font-bold text-amber-600 bg-amber-200 px-1.5 py-0.5 rounded">
-                                Stok 0
-                              </span>
-                            )}
                           </div>
                         );
                       })}
