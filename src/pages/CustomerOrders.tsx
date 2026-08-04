@@ -17,14 +17,6 @@ function rupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
-function shortId(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
-  }
-  return "NAY" + String(Math.abs(hash) % 10000).padStart(4, "0");
-}
-
 const STATUS_LABELS: Record<string, string> = {
   new: "Baru",
   "belum-ready": "Belum Ready",
@@ -35,17 +27,19 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Selesai",
 };
 
-function getOrderStatusColor(order: any): string {
-  const colors: Record<string, string> = {
-    new: "bg-blue-50 text-blue-600 border-blue-200",
-    "belum-ready": "bg-orange-50 text-orange-600 border-orange-200",
-    ready: "bg-teal-50 text-teal-600 border-teal-200",
-    paid: "bg-emerald-50 text-emerald-600 border-emerald-200",
-    shipped: "bg-amber-50 text-amber-600 border-amber-200",
-    delivered: "bg-violet-50 text-violet-600 border-violet-200",
-    completed: "bg-gray-100 text-gray-500 border-gray-200",
+function getOrderStatusBadge(order: any): { label: string; cls: string; accent: string } {
+  const paid = order.paid_total >= order.total && order.total > 0;
+  if (paid) return { label: "Lunas", cls: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-400" };
+  const map: Record<string, { label: string; cls: string; accent: string }> = {
+    new: { label: "Baru", cls: "bg-blue-50 text-blue-600", accent: "bg-blue-400" },
+    "belum-ready": { label: "Belum Ready", cls: "bg-orange-50 text-orange-600", accent: "bg-orange-400" },
+    ready: { label: "Ready", cls: "bg-amber-50 text-amber-600", accent: "bg-amber-400" },
+    paid: { label: "Dibayar", cls: "bg-teal-50 text-teal-600", accent: "bg-teal-400" },
+    shipped: { label: "Dikirim", cls: "bg-violet-50 text-violet-600", accent: "bg-violet-400" },
+    delivered: { label: "Diterima", cls: "bg-blue-50 text-blue-600", accent: "bg-blue-400" },
+    completed: { label: "Selesai", cls: "bg-gray-100 text-gray-500", accent: "bg-gray-300" },
   };
-  return colors[order.status] || "bg-yellow-50 text-yellow-600 border-yellow-200";
+  return map[order.status] || { label: STATUS_LABELS[order.status] || order.status, cls: "bg-yellow-50 text-yellow-600", accent: "bg-yellow-400" };
 }
 
 interface OrderItemData {
@@ -54,6 +48,8 @@ interface OrderItemData {
   price: number;
   discount: number;
 }
+
+type FilterType = "all" | "unpaid" | "ready" | "completed";
 
 export default function CustomerOrders() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -77,6 +73,7 @@ export default function CustomerOrders() {
   const [paidModalOpen, setPaidModalOpen] = useState(false);
   const [selectedPaidOrders, setSelectedPaidOrders] = useState<Set<string>>(new Set());
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [filter, setFilter] = useState<FilterType>("all");
 
   function toggleSelectOrder(id: string) {
     setSelectedOrders((prev) => {
@@ -142,6 +139,26 @@ export default function CustomerOrders() {
   const customer = customers.find((c) => c.id === customerId);
   const unpaidOrders = orders.filter((o) => o.paid_total < o.total && o.total > 0);
 
+  const totalBelanja = orders.reduce((s, o) => s + o.total, 0);
+  const totalLunas = orders.filter((o) => o.paid_total >= o.total && o.total > 0).length;
+  const sisaPiutang = unpaidOrders.reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+  const totalPiutang = unpaidOrders.reduce((s, o) => s + o.total, 0);
+
+  const filteredOrders = orders.filter((o) => {
+    if (filter === "all") return true;
+    if (filter === "unpaid") return o.paid_total < o.total && o.total > 0;
+    if (filter === "ready") return o.status === "ready";
+    if (filter === "completed") return o.status === "completed" || (o.paid_total >= o.total && o.total > 0);
+    return true;
+  });
+
+  const filterCounts = {
+    all: orders.length,
+    unpaid: unpaidOrders.length,
+    ready: orders.filter((o) => o.status === "ready").length,
+    completed: orders.filter((o) => o.status === "completed" || (o.paid_total >= o.total && o.total > 0)).length,
+  };
+
   function sendWhatsApp(selected: typeof orders) {
     const phone = customer?.phone;
     if (!phone || selected.length === 0) return;
@@ -182,7 +199,6 @@ export default function CustomerOrders() {
       list.forEach((order) => {
         const items = itemsByOrder[order.id] || [];
         const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
-        const payMethod = paymentLabels[order.payment_type] || order.payment_type;
         const statusLabel = STATUS_LABELS[order.status] || order.status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
         msg += `Status barang: ${statusLabel}\n`;
@@ -247,202 +263,206 @@ export default function CustomerOrders() {
 
   return (
     <div className="h-full flex flex-col relative z-10">
+      <main className="flex-1 px-4 py-4 max-w-7xl w-full mx-auto overflow-y-auto">
 
-      <main className="flex-1 px-5 py-4 max-w-7xl w-full mx-auto overflow-y-auto">
-        <div className="mb-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                onClick={() => navigate("/")}
-                className="p-2.5 bg-white hover:bg-pink-50 rounded-xl transition-all border border-pink-100 shrink-0"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <div className="min-w-0">
-                <h2 className="text-lg font-bold text-gray-800 truncate">
-                  {customer?.name || "Pelanggan"}
-                </h2>
-                <p className="text-sm text-gray-400">
-                  {orders.length} transaksi
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={openPaidModal}
-                className="px-3 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium text-sm flex items-center gap-1.5 transition-all shadow-lg shadow-emerald-200/40 active:scale-[0.97]"
-              >
-                <CheckCheck className="w-4 h-4" />
-                Lunas
-              </button>
-              <button
-                onClick={() =>
-                  navigate("/orders/new", {
-                    state: {
-                      contactName: customer?.name,
-                      returnTo: `/customer/${customerId}`,
-                    },
-                  })
-                }
-                className="px-4 py-2.5 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-medium text-sm flex items-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
-              >
-                <Plus className="w-4 h-4" />
-                Order
-              </button>
-            </div>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => navigate("/")}
+            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-extrabold text-slate-800 truncate">
+              {customer?.name || "Pelanggan"}
+            </h1>
+            <p className="text-sm text-slate-400">{orders.length} transaksi</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={openPaidModal}
+              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition-all active:scale-[0.97]"
+            >
+              <CheckCheck className="w-4 h-4 inline mr-1" />
+              Lunas
+            </button>
+            <button
+              onClick={() =>
+                navigate("/orders/new", {
+                  state: { contactName: customer?.name, returnTo: `/customer/${customerId}` },
+                })
+              }
+              className="px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-bold transition-all active:scale-[0.97]"
+            >
+              <Plus className="w-4 h-4 inline mr-1" />
+              Order
+            </button>
           </div>
         </div>
 
-        {(() => {
-          const belumLunas = orders.filter((o) => o.paid_total < o.total && o.total > 0);
-          const grandTotal = belumLunas.reduce((sum, o) => sum + o.total, 0);
-          const totalPaid = belumLunas.reduce((sum, o) => sum + (o.paid_total || 0), 0);
-          const sisa = grandTotal - totalPaid;
-          if (belumLunas.length === 0) return null;
-          return (
-            <div className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-amber-500 uppercase tracking-wide">Belum Lunas</span>
-                <span className="text-xs font-semibold text-amber-500">{belumLunas.length} transaksi</span>
-              </div>
-              <div className="flex items-baseline justify-between mb-2">
-                <div>
-                  <span className="text-lg font-bold text-amber-700">{rupiah(sisa)}</span>
-                  <span className="text-xs text-amber-400 ml-2">sisa tagihan</span>
-                </div>
-                <span className="text-xs text-amber-500/60">
-                  Total: {rupiah(grandTotal)}
-                </span>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); openWaModal(); }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-all active:scale-[0.97]"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Kirim Tagihan via WA
-              </button>
+        {/* Info Grid */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="bg-white border border-slate-100 rounded-xl p-3 text-center">
+            <div className="text-xl font-extrabold text-pink-500">
+              {totalBelanja > 999999
+                ? `${(totalBelanja / 1000000).toFixed(1)}jt`
+                : totalBelanja > 999
+                ? `${Math.round(totalBelanja / 1000)}rb`
+                : rupiah(totalBelanja)}
             </div>
-          );
-        })()}
+            <div className="text-xs text-slate-400 mt-0.5 font-medium">Total Belanja</div>
+          </div>
+          <div className="bg-white border border-slate-100 rounded-xl p-3 text-center">
+            <div className="text-xl font-extrabold text-blue-500">{orders.length}</div>
+            <div className="text-xs text-slate-400 mt-0.5 font-medium">Transaksi</div>
+          </div>
+          <div className="bg-white border border-slate-100 rounded-xl p-3 text-center">
+            <div className="text-xl font-extrabold text-emerald-500">{totalLunas}</div>
+            <div className="text-xs text-slate-400 mt-0.5 font-medium">Lunas</div>
+          </div>
+        </div>
 
-        {orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-5">
-              <Package className="w-8 h-8 text-pink-300" />
+        {/* Piutang Banner */}
+        {unpaidOrders.length > 0 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-xl p-4 mb-4">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-bold text-amber-600">Belum Lunas</span>
+              <span className="text-sm font-semibold text-amber-500">{unpaidOrders.length} transaksi</span>
             </div>
-            <p className="text-gray-500 text-xl font-medium">
-              Belum ada transaksi
-            </p>
-            <p className="text-gray-300 text-base mt-1">
-              Tap "Order" untuk membuat baru
-            </p>
+            <div className="text-2xl font-black text-amber-800">{rupiah(sisaPiutang)}</div>
+            <div className="text-sm text-amber-600 mt-0.5">Sisa tagihan dari total {rupiah(totalPiutang)}</div>
+            <button
+              onClick={openWaModal}
+              className="w-full mt-3 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.97]"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Kirim Tagihan via WA
+            </button>
+          </div>
+        )}
+
+        {/* Filter Pills */}
+        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar">
+          {([
+            ["all", "Semua"],
+            ["unpaid", "Belum Bayar"],
+            ["ready", "Ready"],
+            ["completed", "Selesai"],
+          ] as [FilterType, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all border ${
+                filter === key
+                  ? "bg-pink-500 text-white border-pink-500"
+                  : "bg-white text-slate-500 border-slate-200"
+              }`}
+            >
+              {label} ({filterCounts[key]})
+            </button>
+          ))}
+        </div>
+
+        {/* Order List */}
+        {filteredOrders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 bg-pink-50 border border-pink-100 rounded-2xl flex items-center justify-center mb-4">
+              <Package className="w-7 h-7 text-pink-300" />
+            </div>
+            <p className="text-gray-500 font-semibold">Belum ada transaksi</p>
+            <p className="text-gray-300 text-sm mt-1">Tap "Order" untuk membuat baru</p>
           </div>
         ) : (
-          <div className="space-y-3">
-                  {orders.map((order) => {
-                    const items = itemsByOrder[order.id] || [];
-                    return (
-                      <div
-                        key={order.id}
-                          onClick={() =>
-                            navigate(`/orders/${order.id}`, {
-                              state: { returnTo: `/customer/${customerId}` },
-                            })
-                          }
-                        className="bg-white/90 border border-pink-100/80 rounded-2xl shadow-sm p-4 hover:bg-pink-50/40 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-semibold border ${getOrderStatusColor(
-                                order
-                              )}`}
-                            >
-                              {STATUS_LABELS[order.status] || order.status}
-                            </span>
-                            {order.paid_total >= order.total && order.total > 0 && (
-                              <span className="inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-semibold border bg-emerald-50 text-emerald-500 border-emerald-100">
-                                LUNAS
-                              </span>
-                            )}
-                            <span className="text-gray-500 text-sm">
-                              {new Date(order.created_at).toLocaleDateString(
-                                "id-ID",
-                                { day: "numeric", month: "short", year: "numeric" }
-                              )}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showConfirm(
-                                "Hapus Order?",
-                                "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
-                                async () => {
-                                  await deleteOrder(order.id);
-                                  await loadOrders(customerId!);
-                                }
-                              );
-                            }}
-                            className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-all border border-red-100"
-                            title="Hapus Order"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                        {items.length > 0 && (
-                          <div className="mt-2 text-base">
-                            <div className="grid grid-cols-[6fr_1fr_3fr] gap-1 text-gray-400 text-sm uppercase tracking-wider font-semibold mb-1">
-                              <span>Item</span>
-                              <span className="text-center">Qty</span>
-                              <span className="text-right">Subtotal</span>
-                            </div>
-                            <div className="grid grid-cols-[6fr_1fr_3fr] gap-1 text-gray-600">
-                              {items.map((item, idx) => (
-                                <Fragment key={idx}>
-                                  <span className="truncate">{item.product_name}</span>
-                                  <span className="text-center">{item.quantity}</span>
-                                  <span className="text-right">{rupiah(item.price * item.quantity - item.discount)}</span>
-                                </Fragment>
-                              ))}
-                            </div>
-                            {(() => {
-                              const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
-                              const ongkir = order.ongkir || 0;
-                              return (
-                                <>
-                                  {totalDiscount > 0 && (
-                                    <div className="flex justify-between text-gray-400 mt-1 text-base">
-                                      <span>Diskon</span>
-                                      <span>-{rupiah(totalDiscount)}</span>
-                                    </div>
-                                  )}
-                                  {ongkir > 0 && (
-                                    <div className="flex justify-between text-gray-400 mt-1 text-base">
-                                      <span>Ongkir</span>
-                                      <span>{rupiah(ongkir)}</span>
-                                    </div>
-                                  )}
-                                  {(order.diskon || 0) > 0 && (
-                                    <div className="flex justify-between text-gray-400 mt-1 text-base">
-                                      <span>Diskon</span>
-                                      <span>-{rupiah(order.diskon)}</span>
-                                    </div>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-                        <div className="mt-2 pt-2 border-t border-pink-100/40 flex justify-between text-base font-bold text-gray-800">
-                          <span>Total</span>
-                          <span>{rupiah(order.total)}</span>
-                        </div>
+          <div className="space-y-2.5">
+            {filteredOrders.map((order) => {
+              const items = itemsByOrder[order.id] || [];
+              const badge = getOrderStatusBadge(order);
+              const paid = order.paid_total >= order.total && order.total > 0;
+              const sisa = order.total - (order.paid_total || 0);
+              const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+              const dateStr = new Date(order.created_at).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              });
+              const timeStr = new Date(order.created_at).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+
+              return (
+                <div
+                  key={order.id}
+                  onClick={() =>
+                    navigate(`/orders/${order.id}`, {
+                      state: { returnTo: `/customer/${customerId}` },
+                    })
+                  }
+                  className="bg-white border border-slate-100 rounded-xl p-3.5 relative overflow-hidden cursor-pointer active:bg-slate-50 transition-colors"
+                >
+                  {/* Accent bar */}
+                  <div className={`absolute top-0 left-0 w-[3px] h-full ${badge.accent}`} />
+
+                  {/* Top row */}
+                  <div className="flex justify-between items-start mb-2 pl-2">
+                    <div>
+                      <div className="text-base font-extrabold text-slate-800">
+                        {shortId(order.id)}
                       </div>
-                    );
-                  })}
+                      <div className="text-xs text-slate-400">
+                        {dateStr} · {timeStr}
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${badge.cls}`}>
+                      {paid ? "Lunas" : badge.label}
+                    </span>
+                  </div>
+
+                  {/* Items */}
+                  {productNames && (
+                    <div className="text-sm text-slate-500 mb-2 pl-2 leading-relaxed">
+                      {productNames}
+                    </div>
+                  )}
+
+                  {/* Bottom row */}
+                  <div className="flex justify-between items-center pl-2">
+                    <div className={`text-lg font-extrabold ${!paid && order.total > 0 ? "text-red-500" : "text-slate-800"}`}>
+                      {rupiah(order.total)}
+                    </div>
+                    {paid ? (
+                      <span className="text-sm text-emerald-500 font-semibold">Lunas ✓</span>
+                    ) : (
+                      <span className="text-sm text-amber-500 font-bold">
+                        Sisa: {rupiah(sisa)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showConfirm(
+                        "Hapus Order?",
+                        "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
+                        async () => {
+                          await deleteOrder(order.id);
+                          await loadOrders(customerId!);
+                        }
+                      );
+                    }}
+                    className="absolute top-3 right-3 p-1.5 bg-red-50 hover:bg-red-100 text-red-400 rounded-lg transition-colors"
+                    title="Hapus Order"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
+              );
+            })}
+          </div>
         )}
       </main>
 
@@ -458,11 +478,13 @@ export default function CustomerOrders() {
         }}
         onCancel={() => setConfirmVisible(false)}
       />
+
+      {/* WA Modal */}
       {waModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30" onClick={() => setWaModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 max-h-[85vh] flex flex-col overflow-hidden">
-            <p className="text-sm font-bold text-gray-800 shrink-0">Pilih Tagihan</p>
+            <p className="text-base font-bold text-gray-800 shrink-0">Pilih Tagihan</p>
             <div className="overflow-y-auto flex-1 min-h-0 space-y-2 -mx-5 px-5">
               {orders.map((order) => {
                 const isUnpaid = order.paid_total < order.total && order.total > 0;
@@ -483,9 +505,9 @@ export default function CustomerOrders() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-gray-800 truncate">
-                          {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                          {shortId(order.id)}
                         </span>
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getOrderStatusColor(order)}`}>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${getOrderStatusBadge(order).cls}`}>
                           {STATUS_LABELS[order.status] || order.status}
                         </span>
                         {!isUnpaid && (
@@ -527,11 +549,13 @@ export default function CustomerOrders() {
           </div>
         </div>
       )}
+
+      {/* Paid Modal */}
       {paidModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30" onClick={() => setPaidModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 max-h-[85vh] flex flex-col overflow-hidden">
-            <p className="text-sm font-bold text-gray-800 shrink-0">Tandai Lunas</p>
+            <p className="text-base font-bold text-gray-800 shrink-0">Tandai Lunas</p>
             <p className="text-xs text-gray-400 leading-relaxed shrink-0">
               Pilih order yang sudah dibayar, lalu tandai lunas sekaligus.
             </p>
@@ -559,9 +583,9 @@ export default function CustomerOrders() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-gray-800 truncate">
-                          {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                          {shortId(order.id)}
                         </span>
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getOrderStatusColor(order)}`}>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${getOrderStatusBadge(order).cls}`}>
                           {STATUS_LABELS[order.status] || order.status}
                         </span>
                       </div>
@@ -610,4 +634,12 @@ export default function CustomerOrders() {
       )}
     </div>
   );
+}
+
+function shortId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  }
+  return "NAY" + String(Math.abs(hash) % 10000).padStart(4, "0");
 }
