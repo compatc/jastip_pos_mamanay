@@ -23,6 +23,7 @@ import UploadOrders from "./pages/UploadOrders";
 import Accounts from "./pages/Accounts";
 import AccountDetail from "./pages/AccountDetail";
 import Maintenance from "./pages/Maintenance";
+import Shipments from "./pages/Shipments";
 import AppLayout from "./components/AppLayout";
 import { Component, useEffect } from "react";
 import type { ErrorInfo, ReactNode } from "react";
@@ -187,6 +188,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Orders />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/shipments"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Shipments />
                 </AppLayout>
               </ProtectedRoute>
             }

@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   BellRing,
+  Truck,
   Wrench,
 } from "lucide-react";
 
@@ -174,6 +175,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <ShoppingBag className="w-[18px] h-[18px]" />
                 <span className="text-[11px] font-semibold uppercase">
                   Pelanggan
+                </span>
+              </button>
+              <button
+                onClick={() => navigate("/shipments")}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
+                  location.pathname === "/shipments" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
+                }`}
+              >
+                <Truck className="w-[18px] h-[18px]" />
+                <span className="text-[11px] font-semibold uppercase">
+                  Kirim
                 </span>
               </button>
             <button
