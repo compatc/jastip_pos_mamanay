@@ -184,64 +184,65 @@ export default function Inventory() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
 
-      <div className="shrink-0 px-4 pt-4 pb-3 relative z-10">
-        <h1 className="text-lg font-bold text-gray-800 mb-3">📦 Inventaris</h1>
-
-        <div className="flex gap-2 mb-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari produk..."
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
-            />
-          </div>
+      <div className="shrink-0 px-4 pt-3 pb-2 relative z-10">
+        <div className="flex items-center gap-2 mb-2">
+          <h1 className="text-base font-bold text-gray-800">📦 Inventaris</h1>
+          <div className="flex-1" />
           <button
             onClick={openAdd}
-            className="shrink-0 px-4 py-2.5 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
+            className="shrink-0 px-3 py-2 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             Produk
           </button>
         </div>
 
+        <div className="relative mb-2">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari produk..."
+            className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+          />
+        </div>
+
         {filtered.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="bg-white border border-gray-100 rounded-xl p-2.5 text-center">
-              <p className="text-lg font-extrabold text-pink-500">{filtered.length}</p>
-              <p className="text-[10px] text-gray-400 font-medium">Total Item</p>
+          <div className="grid grid-cols-3 gap-1.5 mb-2">
+            <div className="bg-white border border-gray-100 rounded-lg py-1.5 text-center">
+              <p className="text-sm font-extrabold text-pink-500">{filtered.length}</p>
+              <p className="text-[9px] text-gray-400 font-medium leading-tight">Total Item</p>
             </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-2.5 text-center">
-              <p className="text-lg font-extrabold text-blue-500">
+            <div className="bg-white border border-gray-100 rounded-lg py-1.5 text-center">
+              <p className="text-sm font-extrabold text-blue-500">
                 {totalModal >= 1000000
                   ? `Rp ${(totalModal / 1000000).toFixed(1)}jt`
                   : totalModal >= 1000
                     ? `Rp ${(totalModal / 1000).toFixed(0)}rb`
                     : `Rp ${totalModal.toLocaleString("id-ID")}`}
               </p>
-              <p className="text-[10px] text-gray-400 font-medium">Total Modal</p>
+              <p className="text-[9px] text-gray-400 font-medium leading-tight">Total Modal</p>
             </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-2.5 text-center">
-              <p className="text-lg font-extrabold text-emerald-500">
+            <div className="bg-white border border-gray-100 rounded-lg py-1.5 text-center">
+              <p className="text-sm font-extrabold text-emerald-500">
                 {totalJual >= 1000000
                   ? `Rp ${(totalJual / 1000000).toFixed(1)}jt`
                   : totalJual >= 1000
                     ? `Rp ${(totalJual / 1000).toFixed(0)}rb`
                     : `Rp ${totalJual.toLocaleString("id-ID")}`}
               </p>
-              <p className="text-[10px] text-gray-400 font-medium">Total Jual</p>
+              <p className="text-[9px] text-gray-400 font-medium leading-tight">Total Jual</p>
             </div>
           </div>
         )}
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
           {filters.map((f) => (
             <button
               key={f.key}
               onClick={() => setCategoryFilter(f.key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all ${
+              className={`px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap border transition-all ${
                 categoryFilter === f.key
                   ? f.key === "habis"
                     ? "bg-red-500 text-white border-red-500"
@@ -255,7 +256,7 @@ export default function Inventory() {
         </div>
       </div>
 
-      <main className="px-4 py-3 relative z-10 flex-1 overflow-y-auto">
+      <main className="px-4 py-2 relative z-10 flex-1 min-h-0 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-16 h-16 bg-pink-50 border border-pink-100 rounded-2xl flex items-center justify-center mb-4">
