@@ -100,7 +100,7 @@ export default function OrderDetail() {
 
   useEffect(() => {
     if (order && !isOrderLunas(order) && order.total > 0) {
-      payOrderLink(order.id, order.total).then(setQrisLink).catch(() => {});
+      setQrisLink(payOrderLink(order.id));
     }
   }, [order?.id]);
 
