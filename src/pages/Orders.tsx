@@ -517,65 +517,201 @@ export default function Orders() {
     await markInvoiceSent(sentIds);
   }
 
+  function getOrderAccentColor(order: Order): string {
+    if (!isOrderLunas(order) && order.total > 0) return "border-rose-500";
+    if (order.status === "ready") return "border-sky-500";
+    if (order.status === "paid" || order.status === "shipped" || order.status === "delivered" || order.status === "completed") return "border-emerald-500";
+    return "border-slate-200/80";
+  }
+
+  function getOrderAvatarBg(order: Order): string {
+    if (!isOrderLunas(order) && order.total > 0) return "bg-rose-100 text-rose-600";
+    if (order.status === "ready") return "bg-sky-100 text-sky-600";
+    if (order.status === "paid" || order.status === "shipped" || order.status === "delivered" || order.status === "completed") return "bg-emerald-100 text-emerald-600";
+    return "bg-slate-100 text-slate-600";
+  }
+
+  function getOrderStatusBadge(order: Order): { text: string; className: string } {
+    if (!isOrderLunas(order) && order.total > 0) return { text: "Belum Bayar", className: "bg-rose-50 border-rose-200 text-rose-600" };
+    if (order.status === "new") return { text: "Baru", className: "bg-blue-50 border-blue-200 text-blue-600" };
+    if (order.status === "belum-ready") return { text: "Belum Ready", className: "bg-orange-50 border-orange-200 text-orange-600" };
+    if (order.status === "ready") return { text: "READY SIAP AMBIL", className: "bg-sky-50 border-sky-200 text-sky-600" };
+    if (order.status === "paid") return { text: "Dibayar", className: "bg-emerald-50 border-emerald-200 text-emerald-600" };
+    if (order.status === "shipped") return { text: "Dikirim", className: "bg-amber-50 border-amber-200 text-amber-600" };
+    if (order.status === "delivered") return { text: "Diterima", className: "bg-violet-50 border-violet-200 text-violet-600" };
+    if (order.status === "completed") return { text: "Selesai", className: "bg-gray-50 border-gray-200 text-gray-500" };
+    return { text: order.status, className: "bg-gray-50 border-gray-200 text-gray-500" };
+  }
+
+  function getTimeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Baru saja";
+    if (mins < 60) return `${mins} menit yang lalu`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} jam yang lalu`;
+    const days = Math.floor(hrs / 24);
+    return `${days} hari yang lalu`;
+  }
+
+  function getInitial(name: string): string {
+    return (name || "?").charAt(0).toUpperCase();
+  }
+
+  const countBelumBayar = allOrders.filter((o) => !isOrderLunas(o) && o.total > 0).length;
+  const totalBelumBayar = allOrders.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + (o.total - o.paid_total), 0);
+  const countReady = allOrders.filter((o) => o.status === "ready").length;
+  const today = new Date().toISOString().slice(0, 10);
+  const todayPaidOrders = allOrders.filter((o) => isOrderLunas(o) && o.created_at?.slice(0, 10) === today);
+  const todayLunasTotal = todayPaidOrders.reduce((s, o) => s + o.total, 0);
+  const todayLunasCount = todayPaidOrders.length;
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="shrink-0 px-5 pt-4 pb-3 relative z-10">
-          <div className="flex gap-2 mb-3">
-            <div className="flex-1 relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  if (productFilter) setProductFilter("");
-                }}
-                onFocus={() => setShowProductSuggest(search.length > 0)}
-                onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
-                placeholder={productFilter || "Cari order atau produk..."}
-                className="w-full pl-10 pr-10 py-3 bg-white/80 border border-pink-100 rounded-xl text-gray-700 placeholder-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
-              />
-              {productFilter && (
-                <button
-                  onClick={() => setProductFilter("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {showProductSuggest && search && !productFilter && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-pink-100 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-                  {(() => {
-                    const matched = allProductNames.filter((n) =>
-                      n.toLowerCase().includes(search.toLowerCase())
-                    );
-                    return matched.length > 0 ? matched.slice(0, 8).map((name) => (
-                      <button
-                        key={name}
-                        onMouseDown={() => {
-                          setProductFilter(name);
-                          setSearch("");
-                          setShowProductSuggest(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-pink-50 text-left border-b border-pink-50 last:border-0"
-                      >
-                        <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                        {name}
-                      </button>
-                    )) : (
-                      <div className="px-4 py-3 text-sm text-gray-400">Produk tidak ditemukan</div>
-                    );
-                  })()}
-                </div>
-              )}
+      <div className="shrink-0 px-4 sm:px-8 pt-4 pb-3 relative z-10 space-y-4">
+
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-pink-500 animate-pulse" />
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pesanan</h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola dan pantau semua transaksi jastip & penjualan</p>
             </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative flex-1 sm:w-72">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    if (productFilter) setProductFilter("");
+                  }}
+                  onFocus={() => setShowProductSuggest(search.length > 0)}
+                  onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
+                  placeholder={productFilter || "Cari nama, produk, atau ID..."}
+                  className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
+                />
+                {productFilter && (
+                  <button
+                    onClick={() => setProductFilter("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {showProductSuggest && search && !productFilter && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                    {(() => {
+                      const matched = allProductNames.filter((n) =>
+                        n.toLowerCase().includes(search.toLowerCase())
+                      );
+                      return matched.length > 0 ? matched.slice(0, 8).map((name) => (
+                        <button
+                          key={name}
+                          onMouseDown={() => {
+                            setProductFilter(name);
+                            setSearch("");
+                            setShowProductSuggest(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-pink-50 text-left border-b border-slate-100 last:border-0"
+                        >
+                          <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                          {name}
+                        </button>
+                      )) : (
+                        <div className="px-4 py-3 text-sm text-slate-400">Produk tidak ditemukan</div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => navigate("/orders/new")}
+                className="px-3.5 py-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm shadow-pink-500/20 transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-[0.97]"
+              >
+                + Order Baru
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
           <button
-            onClick={() => navigate("/orders/new")}
-            className="w-28 px-4 py-3 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl font-medium text-base flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-pink-200/40 shrink-0 active:scale-[0.97]"
+            onClick={() => navigate("/orders/bulk")}
+            className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-pink-50/50 border border-slate-200/80 hover:border-pink-300 rounded-2xl transition-all shadow-sm group"
           >
-            <ClipboardList className="w-4 h-4" />
-            Baru
+            <div className="w-8 h-8 rounded-xl bg-pink-50 text-pink-600 font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Package className="w-4 h-4" />
+            </div>
+            <div className="text-left hidden sm:block">
+              <p className="text-xs font-bold text-slate-800 leading-none">Order Massal</p>
+              <p className="text-[10px] text-slate-400 mt-1">Multi-customer</p>
+            </div>
+            <span className="text-xs font-bold text-slate-700 sm:hidden">Order Massal</span>
           </button>
+          <button
+            onClick={() => navigate("/orders/upload")}
+            className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-purple-50/50 border border-slate-200/80 hover:border-purple-300 rounded-2xl transition-all shadow-sm group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <FileSpreadsheet className="w-4 h-4" />
+            </div>
+            <div className="text-left hidden sm:block">
+              <p className="text-xs font-bold text-slate-800 leading-none">Import CSV</p>
+              <p className="text-[10px] text-slate-400 mt-1">Upload template</p>
+            </div>
+            <span className="text-xs font-bold text-slate-700 sm:hidden">Import CSV</span>
+          </button>
+          <button
+            onClick={openWaModal}
+            disabled={groupedCustomers.length === 0}
+            className="flex items-center justify-center gap-2 p-3 bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-700 rounded-2xl transition-all shadow-sm group disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm shadow-emerald-500/20">
+              <MessageCircle className="w-4 h-4" />
+            </div>
+            <div className="text-left hidden sm:block">
+              <p className="text-xs font-bold text-emerald-900 leading-none">Invoice WA</p>
+              <p className="text-[10px] text-emerald-600 mt-1">Kirim / salin teks</p>
+            </div>
+            <span className="text-xs font-bold text-emerald-800 sm:hidden">Invoice WA</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Perlu Ditagih (Unpaid)</p>
+              <p className="text-xl sm:text-2xl font-black text-rose-600 mt-0.5">Rp {totalBelumBayar.toLocaleString("id-ID")}</p>
+              <p className="text-xs text-rose-500 font-semibold mt-0.5">{countBelumBayar} Order Pending</p>
+            </div>
+            <div className="w-11 h-11 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 font-bold text-lg">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Siap Diambil (Ready)</p>
+              <p className="text-xl sm:text-2xl font-black text-sky-600 mt-0.5">{countReady} Order</p>
+              <p className="text-xs text-sky-500 font-semibold mt-0.5">Siap diserahkan</p>
+            </div>
+            <div className="w-11 h-11 bg-sky-50 rounded-2xl flex items-center justify-center text-sky-500 font-bold text-lg">
+              <PackageCheck className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Lunas Hari Ini</p>
+              <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">Rp {todayLunasTotal.toLocaleString("id-ID")}</p>
+              <p className="text-xs text-emerald-600 font-semibold mt-0.5">{todayLunasCount} Transaksi Lunas</p>
+            </div>
+            <div className="w-11 h-11 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-bold text-lg">
+              <Check className="w-5 h-5" />
+            </div>
+          </div>
         </div>
 
         {productFilter && (
@@ -584,7 +720,7 @@ export default function Orders() {
             onClick={() =>
               showConfirm(
                 "Tandai Semua Ready?",
-                `${readyTargets.length} order berisi "${productFilter}" akan diubah jadi READY (khusus status Baru / Belum Ready).`,
+                `${readyTargets.length} order berisi "${productFilter}" akan diubah jadi READY.`,
                 async () => {
                   const ids = readyTargets.map((o) => o.id);
                   if (ids.length === 0) return;
@@ -598,106 +734,84 @@ export default function Orders() {
               )
             }
             disabled={readyTargets.length === 0}
-            className="w-full mb-3 px-3 py-2.5 bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2.5 bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check className="w-4 h-4" />
             Tandai Semua Ready ({readyTargets.length}) — {productFilter}
           </button>
         )}
 
-        <div className="flex gap-2 mb-3">
-          <button
-            onClick={() => navigate("/orders/bulk")}
-            className="flex-1 px-3 py-2.5 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97]"
-          >
-            <Package className="w-4 h-4" />
-            Massal
-          </button>
-          <button
-            onClick={() => navigate("/orders/upload")}
-            className="flex-1 px-3 py-2.5 bg-white/80 border border-pink-100 hover:bg-pink-50 text-gray-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97]"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            CSV
-          </button>
-          <button
-            onClick={openWaModal}
-            disabled={groupedCustomers.length === 0}
-            className="flex-1 px-3 py-2.5 bg-green-50 border border-green-200 hover:bg-green-100 text-green-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <MessageCircle className="w-4 h-4" />
-            Invoice
-          </button>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           <button
             onClick={() => setTab("all")}
-            className={`px-4 py-2 rounded-xl text-base font-semibold transition-all shrink-0 ${
+            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
               tab === "all"
-                ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
+                ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
+                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold flex items-center gap-1.5"
             }`}
           >
             Semua ({countTab("all")})
           </button>
           <button
-            onClick={() => setTab("penjualan")}
-            className={`px-4 py-2 rounded-xl text-base font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
-              tab === "penjualan"
-                ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
+            onClick={() => setTab("belum-lunas")}
+            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
+              tab === "belum-lunas"
+                ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
+                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
-            <TrendingUp className="w-3 h-3" />
-            Penjualan ({countPenjualan})
+            <span className="w-2 h-2 rounded-full bg-rose-500" />
+            Belum Bayar
+            <span className="bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countBelumBayar}</span>
           </button>
           <button
-            onClick={() => setTab("pembelian")}
-            className={`px-4 py-2 rounded-xl text-base font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
-              tab === "pembelian"
-                ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
+            onClick={() => setTab("belum-diambil")}
+            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
+              tab === "belum-diambil"
+                ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
+                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
-            <TrendingDown className="w-3 h-3" />
-            Pembelian ({countPembelian})
+            <span className="w-2 h-2 rounded-full bg-sky-500" />
+            Ready
+            <span className="bg-sky-100 text-sky-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countReady}</span>
+          </button>
+          <button
+            onClick={() => setTab("penjualan")}
+            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
+              tab === "penjualan"
+                ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
+                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            Selesai / Lunas
+            <span className="bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countTab("penjualan")}</span>
           </button>
           <button
             onClick={() => setTab("belum-dikirim")}
-            className={`px-4 py-2 rounded-xl text-base font-semibold transition-all shrink-0 ${
+            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
               tab === "belum-dikirim"
-                ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
+                ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
+                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
             Belum Dikirim ({countBelumDikirim})
           </button>
           <button
-            onClick={() => setTab("belum-lunas")}
-            className={`px-4 py-2 rounded-xl text-base font-semibold transition-all shrink-0 ${
-              tab === "belum-lunas"
-                ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
+            onClick={() => setTab("pembelian")}
+            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
+              tab === "pembelian"
+                ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
+                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
-            Belum Lunas ({countBelumLunas})
-          </button>
-          <button
-            onClick={() => setTab("belum-diambil")}
-            className={`px-4 py-2 rounded-xl text-base font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
-              tab === "belum-diambil"
-                ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
-            }`}
-          >
-            <PackageCheck className="w-3 h-3" />
-            Belum Diambil ({countBelumDiambil})
+            Pembelian ({countPembelian})
           </button>
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-5 pb-4 relative z-10">
+      <main className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4 relative z-10">
         {tab === "belum-lunas" && filtered.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm">
             <div>
@@ -727,7 +841,7 @@ export default function Orders() {
             <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-5">
               <ClipboardList className="w-8 h-8 text-pink-300" />
             </div>
-            <p className="text-gray-500 text-xl font-medium">
+            <p className="text-slate-500 text-xl font-medium">
               {tab === "all"
                 ? "Belum ada order"
                 : tab === "penjualan"
@@ -736,154 +850,151 @@ export default function Orders() {
                     ? "Tidak ada barang yang menunggu diambil"
                     : "Belum ada pembelian"}
             </p>
-            <p className="text-gray-300 text-base mt-1">
-              Tap "Baru" untuk membuat order
+            <p className="text-slate-300 text-base mt-1">
+              Tap "+ Order Baru" untuk membuat order
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedOrders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-white/80 hover:bg-white border border-pink-100/60 rounded-2xl p-4 flex items-center justify-between transition-all shadow-sm shadow-pink-50 cursor-pointer"
-                onClick={() => navigate(`/orders/${order.id}`, { state: { returnTo: `/orders?${searchParams.toString()}` } })}
-              >
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center border ${
-                      order.order_type === "penjualan"
-                        ? "bg-gradient-to-br from-pink-100 to-rose-100 border-pink-200/50"
-                        : "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200/50"
-                    }`}
-                  >
-                    {order.order_type === "penjualan" ? (
-                      <TrendingUp className="w-5 h-5 text-pink-500" />
-                    ) : (
-                      <TrendingDown className="w-5 h-5 text-amber-500" />
-                    )}
+            {sortedOrders.map((order) => {
+              const badge = getOrderStatusBadge(order);
+              return (
+                <div
+                  key={order.id}
+                  className={`bg-white rounded-2xl border-2 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all relative overflow-hidden cursor-pointer group ${getOrderAccentColor(order)}`}
+                  onClick={() => navigate(`/orders/${order.id}`, { state: { returnTo: `/orders?${searchParams.toString()}` } })}
+                >
+                  {!isOrderLunas(order) && order.total > 0 && (
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500" />
+                  )}
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full font-bold text-sm flex items-center justify-center shrink-0 ${getOrderAvatarBg(order)}`}>
+                        {getInitial(order.customer_name)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-extrabold text-slate-900 text-base">{order.customer_name || "Tanpa kontak"}</h3>
+                          <span className={`text-[11px] px-2 py-0.5 font-bold rounded-full border ${badge.className}`}>{badge.text}</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          ID: <span className="font-mono text-slate-600">#{order.id.slice(0, 8).toUpperCase()}</span> · {getTimeAgo(order.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-[11px] text-slate-400 font-medium">Total Tagihan</p>
+                      <p className={`text-lg font-black ${!isOrderLunas(order) && order.total > 0 ? "text-rose-600" : "text-slate-900"}`}>
+                        Rp {order.total.toLocaleString("id-ID")}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-800 font-semibold text-base truncate">
-                      {order.customer_name || "Tanpa kontak"}
-                    </p>
-                    {itemsByOrder[order.id] && itemsByOrder[order.id].length > 0 && (
-                      <p className="text-gray-400 text-sm truncate mt-0.5">
-                        {itemsByOrder[order.id].map((i) => `${i.product_name}×${i.quantity}`).join(", ")}
-                      </p>
-                    )}
-                    {order.resi && (
-                      <p className="text-xs text-gray-400 mt-0.5 truncate">
-                        {COURIER_LABELS[order.courier || ""] || "Kurir"} · Resi: {order.resi}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-gray-400 text-base">
-                        {new Date(order.created_at).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                        })}
+
+                  <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="text-slate-600 font-medium flex items-center gap-2 min-w-0">
+                      <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md font-semibold shrink-0">
+                        {itemsByOrder[order.id]?.length || 0} Barang
                       </span>
-                      <span className="text-gray-300">·</span>
-                      <span className="text-gray-400 text-base">
-                        {PAYMENT_LABELS[order.payment_type]}
+                      <span className="truncate">
+                        {itemsByOrder[order.id]?.map((i) => `${i.product_name} x${i.quantity}`).join(", ") || "Loading..."}
                       </span>
-                      {tab === "belum-lunas" && (
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${getAgeBadge(getAgeDays(order.created_at))}`}>
-                          {getAgeDays(order.created_at) === 0
-                            ? "Hari ini"
-                            : `Hari ke-${getAgeDays(order.created_at)}`}
-                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!isOrderLunas(order) && order.total > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sendInvoiceWA(order);
+                            }}
+                            className="px-3.5 py-2 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                          >
+                            QRIS Dinamis
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sendReminder(order);
+                            }}
+                            className="px-3.5 py-2 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition-all shadow-sm shadow-rose-500/20"
+                          >
+                            Tandai Lunas
+                          </button>
+                        </>
+                      )}
+                      {(isOrderLunas(order) || order.total === 0) && (
+                        <>
+                          {tab === "belum-diambil" && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                showConfirm(
+                                  "Tandai Diambil?",
+                                  `Tandai pesanan ${order.customer_name || "ini"} sebagai sudah diambil?`,
+                                  async () => {
+                                    await supabase
+                                      .from("orders")
+                                      .update({ status: "completed", updated_at: new Date().toISOString() })
+                                      .eq("id", order.id);
+                                    await loadAllOrders();
+                                  },
+                                  "Tandai Diambil"
+                                );
+                              }}
+                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-sm shadow-emerald-600/20"
+                            >
+                              Tandai Diambil
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              showConfirm(
+                                "Hapus Order?",
+                                "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
+                                async () => {
+                                  await deleteOrder(order.id);
+                                  await loadAllOrders();
+                                }
+                              );
+                            }}
+                            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all"
+                          >
+                            Detail
+                          </button>
+                        </>
+                      )}
+                      {!isOrderLunas(order) && order.total > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            showConfirm(
+                              "Hapus Order?",
+                              "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
+                              async () => {
+                                await deleteOrder(order.id);
+                                await loadAllOrders();
+                              }
+                            );
+                          }}
+                          className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-all border border-red-100"
+                          title="Hapus Order"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right shrink-0">
-                      <p className="text-gray-800 font-bold text-base">
-                        Rp {order.total.toLocaleString("id-ID")}
-                      </p>
-                      <div className="flex items-center justify-end gap-1 mt-0.5">
-                        {order.status === "completed" && order.paid_total < order.total && (
-                          <span className="text-orange-500 text-xs font-semibold">!</span>
-                        )}
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded text-xs font-semibold border mt-0.5 ${getOrderStatusColor(order)}`}
-                        >
-                          {STATUS_LABELS[order.status] || order.status}
-                        </span>
-                      </div>
-                    </div>
-                    {!isOrderLunas(order) && order.total > 0 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            sendReminder(order);
-                          }}
-                          className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-500 rounded-xl transition-all border border-amber-200 shrink-0"
-                          title="Kirim Pengingat WA"
-                        >
-                          <BellRing className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            sendInvoiceWA(order);
-                          }}
-                          className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl transition-all border border-emerald-200 shrink-0"
-                          title="Kirim Tagihan via WA"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                    {tab === "belum-diambil" && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          showConfirm(
-                            "Tandai Diambil?",
-                            `Tandai pesanan ${order.customer_name || "ini"} sebagai sudah diambil? Order akan keluar dari daftar "Belum Diambil".`,
-                            async () => {
-                              await supabase
-                                .from("orders")
-                                .update({ status: "completed", updated_at: new Date().toISOString() })
-                                .eq("id", order.id);
-                              await loadAllOrders();
-                            },
-                            "Tandai Diambil"
-                          );
-                        }}
-                        className="p-2.5 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl transition-all border border-teal-200 shrink-0"
-                        title="Tandai Sudah Diambil"
-                      >
-                        <PackageCheck className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showConfirm(
-                          "Hapus Order?",
-                          "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
-                          async () => {
-                            await deleteOrder(order.id);
-                            await loadAllOrders();
-                          }
-                        );
-                      }}
-                      className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-all border border-red-100 shrink-0"
-                      title="Hapus Order"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

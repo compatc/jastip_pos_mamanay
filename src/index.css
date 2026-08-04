@@ -11,3 +11,11 @@ html[data-fs="kecil"] {
 html[data-fs="besar"] {
   font-size: clamp(15px, 3.8vw, 22px);
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

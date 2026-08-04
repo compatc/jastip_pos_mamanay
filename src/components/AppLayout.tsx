@@ -85,54 +85,59 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="absolute top-1/3 -left-20 w-60 h-60 bg-rose-100/40 rounded-full blur-3xl" />
       </div>
 
-      <header className="shrink-0 bg-white/70 backdrop-blur-xl border-b border-pink-100/60 relative z-10">
-        <div className="px-5 py-4">
+      <header className="shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200/80 relative z-10 sticky top-0">
+        <div className="px-4 sm:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Jastip_mamanay" className="w-10 h-10 rounded-xl object-contain bg-pink-50 border border-pink-100" />
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
-                  Jastip_mamanay
-                </h1>
-                <div className="mt-0.5">
-                  <span className="text-base text-gray-400">
-                    {user?.name}
-                  </span>
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 p-0.5 shadow-md shadow-pink-500/20 shrink-0">
+                <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
+                  <img src="/logo.png" alt="M" className="w-8 h-8 object-contain" />
                 </div>
               </div>
+              <div>
+                <h1 className="text-base sm:text-lg font-black bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent tracking-tight">
+                  Jastip_mamanay
+                </h1>
+                <p className="text-[11px] text-slate-400 font-semibold">{user?.name} · Admin</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {!isOnline && (
-                <span className="px-2.5 py-1 bg-amber-50 text-amber-500 text-xs font-semibold rounded-lg border border-amber-200">
+                <span className="px-2.5 py-1 bg-amber-50 text-amber-500 text-xs font-semibold rounded-xl border border-amber-200">
                   OFFLINE
                 </span>
               )}
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-bold rounded-xl">
+                <span className={`w-2 h-2 rounded-full bg-emerald-500 ${isOnline ? "animate-pulse" : ""}`} /> ONLINE
+              </span>
               <button
                 onClick={() => navigate("/maintenance")}
-                className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
+                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-all"
                 title="Perawatan Data"
               >
-                <Wrench className="w-4 h-4" />
+                <Wrench className="w-4 h-4 stroke-[2]" />
               </button>
               <button
                 onClick={() => setShowQrisHistory(true)}
-                className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
-                title="Histori Notifikasi QRIS"
+                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-all relative"
+                title="Notifikasi QRIS"
               >
-                <BellRing className="w-4 h-4" />
+                <BellRing className="w-4 h-4 stroke-[2]" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
               </button>
               <button
                 onClick={() => navigate("/profile")}
-                className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
+                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-all"
                 title="Profil"
               >
-                <User className="w-4 h-4" />
+                <User className="w-4 h-4 stroke-[2]" />
               </button>
               <button
                 onClick={handleLogout}
-                className="p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-gray-400 transition-all border border-pink-100"
+                className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 transition-all"
+                title="Keluar"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 stroke-[2]" />
               </button>
             </div>
           </div>
