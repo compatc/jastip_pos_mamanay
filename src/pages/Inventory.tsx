@@ -82,7 +82,7 @@ export default function Inventory() {
     if (categoryFilter === "all") return true;
     if (categoryFilter === "habis") return p.stock === 0;
     if (categoryFilter === "rendah") return p.stock > 0 && p.stock <= 5;
-    if (categoryFilter === "ada") return p.stock > 5;
+    if (categoryFilter === "ada") return p.stock > 0;
     return true;
   });
 
@@ -170,7 +170,7 @@ export default function Inventory() {
 
   const filters = [
     { key: "all", label: "Semua" },
-    { key: "ada", label: "Banyak" },
+    { key: "ada", label: "Ada Stok" },
     { key: "rendah", label: "Stok Rendah" },
     { key: "habis", label: "Stok Habis" },
   ];
