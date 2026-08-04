@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 html {
-  font-size: clamp(13px, 3.2vw, 18px);
+  font-size: clamp(15px, 3.8vw, 20px);
 }
 
 html[data-fs="kecil"] {
