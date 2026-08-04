@@ -149,23 +149,38 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   const basePayload = { merchant_id: merchantId, unique_amount: false, expires_in: BOQRIS_EXPIRES_IN };
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
-  for (let code = 1; code <= BOQRIS_UNIQUE_MAX; code++) {
+  const MAX_RETRIES = Math.min(BOQRIS_UNIQUE_MAX, 10);
+  const FETCH_TIMEOUT_MS = 5000;
+
+  for (let code = 1; code <= MAX_RETRIES; code++) {
     const qrAmount = amount - code;
     if (qrAmount <= 0) break;
     const payload = { ...basePayload, amount: qrAmount };
-    const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await bo.json();
-    if (bo.status === 201) {
-      data.requested_amount = amount;
-      data.custom_unique_code = code;
-      return data;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      const data = await bo.json();
+      if (bo.status === 201) {
+        data.requested_amount = amount;
+        data.custom_unique_code = code;
+        return data;
+      }
+      if (bo.status === 409) continue;
+      throw new Error(data.error || data.message || `BOQris ${bo.status}`);
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === "AbortError") {
+        throw new Error("BOQris API timeout, coba lagi nanti");
+      }
+      throw err;
     }
-    if (bo.status === 409) continue;
-    throw new Error(data.error || data.message || `BOQris ${bo.status}`);
   }
   throw new Error("Semua kode unik terpakai, coba lagi nanti");
 }

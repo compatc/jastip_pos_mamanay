@@ -59,13 +59,17 @@ export default function PayOrder() {
     setOrder(null);
     setOrders([]);
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
       const res = await fetch("/api/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isMulti ? { action: "create", orderIds: multiIds } : { action: "create", orderId }
         ),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
       if (isMulti) {
@@ -75,7 +79,11 @@ export default function PayOrder() {
       }
       setTx(data.tx);
     } catch (e: any) {
-      setError(e.message || "Gagal memuat pembayaran");
+      if (e.name === "AbortError") {
+        setError("Server lambat, coba lagi dalam beberapa saat.");
+      } else {
+        setError(e.message || "Gagal memuat pembayaran");
+      }
     } finally {
       setLoading(false);
     }
@@ -102,14 +110,20 @@ export default function PayOrder() {
     if (!tx || tx.status !== "pending") return;
     const poll = setInterval(async () => {
       try {
+        const pollController = new AbortController();
+        const pollTimer = setTimeout(() => pollController.abort(), 10000);
         const res = await fetch("/api/pay", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "status", transactionId: tx.transaction_id }),
+          signal: pollController.signal,
         });
+        clearTimeout(pollTimer);
         const data = await res.json();
         if (data.status === "paid") {
           setTx((prev) => (prev ? { ...prev, status: "paid" } : prev));
+          const confController = new AbortController();
+          const confTimer = setTimeout(() => confController.abort(), 10000);
           const conf = await fetch("/api/pay", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -118,7 +132,9 @@ export default function PayOrder() {
                 ? { action: "confirm", orderIds: multiIds, transactionId: tx.transaction_id }
                 : { action: "confirm", orderId, transactionId: tx.transaction_id }
             ),
+            signal: confController.signal,
           });
+          clearTimeout(confTimer);
           const confData = await conf.json();
           if (confData.confirmed) setConfirmed(true);
           clearInterval(poll);

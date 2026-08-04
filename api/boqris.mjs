@@ -58,8 +58,10 @@ export default async function handler(req, res) {
       const useUniqueAmount = Number(body.unique_amount ?? 0) === 1;
       let lastStatus = 0;
       let lastData = null;
+      const MAX_RETRIES = useUniqueAmount ? 1 : Math.min(UNIQUE_MAX, 10);
+      const FETCH_TIMEOUT_MS = 5000;
 
-      const attempts = useUniqueAmount ? [0] : Array.from({ length: UNIQUE_MAX }, (_, i) => i + 1);
+      const attempts = useUniqueAmount ? [0] : Array.from({ length: MAX_RETRIES }, (_, i) => i + 1);
       for (const code of attempts) {
         const qrAmount = amount - code;
         if (qrAmount <= 0) break;
@@ -68,27 +70,40 @@ export default async function handler(req, res) {
           amount: qrAmount,
           unique_amount: useUniqueAmount,
         };
-        const bo = await fetch(`${BASE}/api/v1/transactions`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-        const data = await bo.json();
-        lastStatus = bo.status;
-        lastData = data;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+        try {
+          const bo = await fetch(`${BASE}/api/v1/transactions`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+          const data = await bo.json();
+          lastStatus = bo.status;
+          lastData = data;
 
-        if (bo.status === 201) {
-          data.requested_amount = amount;
-          data.custom_unique_code = useUniqueAmount ? (data.unique_code ?? 0) : code;
-          json(res, 201, data);
-          return;
-        }
-        if (bo.status !== 409) {
-          json(res, bo.status, data);
-          return;
+          if (bo.status === 201) {
+            data.requested_amount = amount;
+            data.custom_unique_code = useUniqueAmount ? (data.unique_code ?? 0) : code;
+            json(res, 201, data);
+            return;
+          }
+          if (bo.status !== 409) {
+            json(res, bo.status, data);
+            return;
+          }
+        } catch (err) {
+          clearTimeout(timer);
+          if (err.name === "AbortError") {
+            json(res, 504, { error: "BOQris API timeout, coba lagi nanti" });
+            return;
+          }
+          throw err;
         }
       }
 
