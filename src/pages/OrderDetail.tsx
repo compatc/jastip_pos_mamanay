@@ -98,17 +98,17 @@ export default function OrderDetail() {
     load();
   }, [orderId]);
 
-  useEffect(() => {
-    if (order && !isOrderLunas(order) && order.total > 0) {
-      setQrisLink(payOrderLink(order.id));
-    }
-  }, [order?.id]);
-
   const order = allOrders.find((o) => o.id === orderId);
   const items = orderItems;
   const customer = order?.customer_id
     ? customers.find((c) => c.id === order.customer_id)
     : null;
+
+  useEffect(() => {
+    if (order && !isOrderLunas(order) && order.total > 0) {
+      setQrisLink(payOrderLink(order.id));
+    }
+  }, [order?.id]);
 
   if (loading) {
     return (
