@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import webpush from "web-push";
+import QRCode from "qrcode";
 
 const BOQRIS_BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const BOQRIS_UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
@@ -611,7 +612,8 @@ export default async function handler(req, res) {
           // riwayat tidak wajib; jangan gagalkan pembayaran
         }
         const info = await loadOrderInfo(sb, order);
-        json(res, 201, { order: info, tx });
+        const qrSvg = await QRCode.toString(tx.qris_dynamic || tx.qr_url, { type: "svg", margin: 0, width: 200, color: { dark: "#ec4899", light: "#ffffff" } }).catch(() => null);
+        json(res, 201, { order: info, tx: { ...tx, qr_svg: qrSvg } });
         return;
       }
 
@@ -631,11 +633,12 @@ export default async function handler(req, res) {
         return;
       }
 
-      const infoList = [];
+        const infoList = [];
       for (const order of validOrders) {
         infoList.push(await loadOrderInfo(sb, order));
       }
 
+      const qrSvg = await QRCode.toString(tx.qris_dynamic || tx.qr_url, { type: "svg", margin: 0, width: 200, color: { dark: "#ec4899", light: "#ffffff" } }).catch(() => null);
       json(res, 201, {
         group: {
           id: invoiceNo,
@@ -643,7 +646,7 @@ export default async function handler(req, res) {
           sisa_total: sisaTotal,
         },
         orders: infoList,
-        tx,
+        tx: { ...tx, qr_svg: qrSvg },
       });
       return;
     }

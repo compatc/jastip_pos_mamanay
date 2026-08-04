@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-import QRCode from "qrcode";
 
-function QrImage({ data, color = "#ec4899" }: { data: string; color?: string }) {
-  const [svg, setSvg] = useState<string | null>(null);
-  useEffect(() => {
-    QRCode.toString(data, {
-      type: "svg",
-      margin: 0,
-      width: 200,
-      color: { dark: color, light: "#ffffff" },
-    }).then(setSvg).catch(() => {});
-  }, [data, color]);
-  if (!svg) return <div className="w-full h-full flex items-center justify-center"><Loader2 className="w-8 h-8 text-pink-300 animate-spin" /></div>;
+function QrImage({ svg }: { svg: string }) {
   return <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
@@ -23,6 +12,7 @@ interface Tx {
   amount: number;
   qr_url: string;
   qris_dynamic: string;
+  qr_svg: string | null;
   expires_at: string;
   custom_unique_code?: number;
   unique_code?: number;
@@ -234,7 +224,13 @@ export default function PayOrder() {
             </div>
 
             <div className="mx-auto w-56 h-56 bg-white border-2 border-pink-100 rounded-2xl p-3 mb-4">
-              <QrImage data={tx.qris_dynamic} color="#ec4899" />
+              {tx.qr_svg ? (
+                <QrImage svg={tx.qr_svg} />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-pink-300 animate-spin" />
+                </div>
+              )}
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
             <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(tx.amount)}</p>
