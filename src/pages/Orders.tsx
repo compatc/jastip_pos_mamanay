@@ -681,36 +681,30 @@ export default function Orders() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Perlu Ditagih (Unpaid)</p>
-              <p className="text-xl sm:text-2xl font-black text-rose-600 mt-0.5">Rp {totalBelumBayar.toLocaleString("id-ID")}</p>
-              <p className="text-xs text-rose-500 font-semibold mt-0.5">{countBelumBayar} Order Pending</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-white p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm text-center">
+            <div className="w-8 h-8 mx-auto bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 mb-1.5">
+              <TrendingUp className="w-4 h-4" />
             </div>
-            <div className="w-11 h-11 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 font-bold text-lg">
-              <TrendingUp className="w-5 h-5" />
-            </div>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Unpaid</p>
+            <p className="text-sm sm:text-lg font-black text-rose-600 mt-0.5 leading-tight">Rp {totalBelumBayar < 1000 ? "0" : `${(totalBelumBayar / 1000).toFixed(0)}rb`}</p>
+            <p className="text-[9px] sm:text-[10px] text-rose-400 font-semibold">{countBelumBayar} order</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Siap Diambil (Ready)</p>
-              <p className="text-xl sm:text-2xl font-black text-sky-600 mt-0.5">{countReady} Order</p>
-              <p className="text-xs text-sky-500 font-semibold mt-0.5">Siap diserahkan</p>
+          <div className="bg-white p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm text-center">
+            <div className="w-8 h-8 mx-auto bg-sky-50 rounded-xl flex items-center justify-center text-sky-500 mb-1.5">
+              <PackageCheck className="w-4 h-4" />
             </div>
-            <div className="w-11 h-11 bg-sky-50 rounded-2xl flex items-center justify-center text-sky-500 font-bold text-lg">
-              <PackageCheck className="w-5 h-5" />
-            </div>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Ready</p>
+            <p className="text-sm sm:text-lg font-black text-sky-600 mt-0.5 leading-tight">{countReady} Order</p>
+            <p className="text-[9px] sm:text-[10px] text-sky-400 font-semibold">Siap ambil</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Lunas Hari Ini</p>
-              <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">Rp {todayLunasTotal.toLocaleString("id-ID")}</p>
-              <p className="text-xs text-emerald-600 font-semibold mt-0.5">{todayLunasCount} Transaksi Lunas</p>
+          <div className="bg-white p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm text-center">
+            <div className="w-8 h-8 mx-auto bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-1.5">
+              <Check className="w-4 h-4" />
             </div>
-            <div className="w-11 h-11 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-bold text-lg">
-              <Check className="w-5 h-5" />
-            </div>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Lunas</p>
+            <p className="text-sm sm:text-lg font-black text-emerald-600 mt-0.5 leading-tight">Rp {todayLunasTotal < 1000 ? "0" : `${(todayLunasTotal / 1000).toFixed(0)}rb`}</p>
+            <p className="text-[9px] sm:text-[10px] text-emerald-400 font-semibold">{todayLunasCount} trx</p>
           </div>
         </div>
 
