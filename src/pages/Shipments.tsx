@@ -383,54 +383,36 @@ export default function Shipments() {
                     {/* Items */}
                     <div className="space-y-1">
                       {order.items.map((item, idx) => {
-                        const notReady = item.stock <= 0;
                         const isChecked = checkedItems[order.id]?.has(idx) || false;
                         return (
                           <div
                             key={idx}
-                            onClick={() => !notReady && toggleItemCheck(order.id, idx)}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all ${
-                              notReady
-                                ? "bg-amber-50 border border-amber-200 opacity-70"
-                                : isChecked
+                            onClick={() => toggleItemCheck(order.id, idx)}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all cursor-pointer ${
+                              isChecked
                                 ? "bg-emerald-50 border border-emerald-200"
-                                : "bg-slate-50 border border-transparent active:bg-slate-100 cursor-pointer"
+                                : "bg-slate-50 border border-transparent active:bg-slate-100"
                             }`}
                           >
                             {/* Checkbox */}
                             <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                              notReady
-                                ? "border-amber-300 bg-amber-50"
-                                : isChecked
+                              isChecked
                                 ? "bg-emerald-500 border-emerald-500"
                                 : "border-slate-300 bg-white"
                             }`}>
-                              {notReady ? (
-                                <span className="text-amber-400 text-[10px] font-bold">—</span>
-                              ) : isChecked ? (
+                              {isChecked && (
                                 <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
-                              ) : null}
+                              )}
                             </div>
                             <span className={`flex-1 font-medium ${
-                              notReady
-                                ? "text-amber-600"
-                                : isChecked
-                                ? "text-emerald-700 line-through"
-                                : "text-slate-700"
+                              isChecked ? "text-emerald-700" : "text-slate-700"
                             }`}>
                               {item.product_name}
                             </span>
-                            {notReady && (
-                              <span className="text-[10px] font-bold text-amber-600 bg-amber-200 px-1.5 py-0.5 rounded">
-                                Stok 0
-                              </span>
-                            )}
                             <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                              notReady
-                                ? "bg-amber-100 text-amber-500"
-                                : isChecked
+                              isChecked
                                 ? "bg-emerald-200 text-emerald-700"
                                 : "bg-slate-200 text-slate-600"
                             }`}>
