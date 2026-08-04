@@ -153,74 +153,39 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <QrisHistoryModal open={showQrisHistory} onClose={() => setShowQrisHistory(false)} />
 
       {!isSubPage && (
-        <nav className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-xl border-t border-pink-100/60 z-20">
-          <div className="flex">
-           <button
-                onClick={() => navigate("/orders")}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
-                  location.pathname.startsWith("/orders") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-                }`}
-              >
-                <ClipboardList className="w-[18px] h-[18px]" />
-                <span className="text-[11px] font-semibold uppercase">
-                  Order
-                </span>
-              </button>
-              <button
-                onClick={() => navigate("/")}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
-                  location.pathname === "/" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-                }`}
-              >
-                <ShoppingBag className="w-[18px] h-[18px]" />
-                <span className="text-[11px] font-semibold uppercase">
-                  Pelanggan
-                </span>
-              </button>
-              <button
-                onClick={() => navigate("/shipments")}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
-                  location.pathname === "/shipments" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-                }`}
-              >
-                <Truck className="w-[18px] h-[18px]" />
-                <span className="text-[11px] font-semibold uppercase">
-                  Kirim
-                </span>
-              </button>
-            <button
-              onClick={() => navigate("/inventory")}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
-                location.pathname === "/inventory" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-              }`}
-            >
-              <Package className="w-[18px] h-[18px]" />
-              <span className="text-[11px] font-semibold uppercase">
-                Inventaris
-              </span>
-            </button>
-            <button
-              onClick={() => navigate("/sales")}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
-                location.pathname === "/sales" ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-              }`}
-            >
-              <DollarSign className="w-[18px] h-[18px]" />
-              <span className="text-[11px] font-semibold uppercase">
-                Laporan
-              </span>
-            </button>
-            <button
-              onClick={() => navigate("/accounts")}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
-                location.pathname.startsWith("/accounts") ? "text-pink-500" : "text-gray-300 hover:text-gray-500"
-              }`}
-            >
-              <Wallet className="w-[18px] h-[18px]" />
-              <span className="text-[11px] font-semibold uppercase">
-                Akun
-              </span>
-            </button>
+        <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 z-20" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+          <div className="flex items-stretch max-w-lg mx-auto">
+           {[
+              { path: "/orders", icon: ClipboardList, label: "Order", match: (p: string) => p.startsWith("/orders") },
+              { path: "/", icon: ShoppingBag, label: "Pelanggan", match: (p: string) => p === "/" },
+              { path: "/shipments", icon: Truck, label: "Kirim", match: (p: string) => p === "/shipments" },
+              { path: "/inventory", icon: Package, label: "Inventaris", match: (p: string) => p === "/inventory" },
+              { path: "/sales", icon: DollarSign, label: "Laporan", match: (p: string) => p === "/sales" },
+              { path: "/accounts", icon: Wallet, label: "Akun", match: (p: string) => p.startsWith("/accounts") },
+            ].map(({ path, icon: Icon, label, match }) => {
+              const active = match(location.pathname);
+              return (
+                <button
+                  key={path}
+                  onClick={() => navigate(path)}
+                  className={`flex-1 flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 transition-all relative ${
+                    active ? "text-pink-500" : "text-gray-400 active:text-gray-600"
+                  }`}
+                >
+                  <div className={`relative flex items-center justify-center w-8 h-8 rounded-xl transition-all ${
+                    active ? "bg-pink-50" : ""
+                  }`}>
+                    <Icon className={`w-[20px] h-[20px] transition-all ${active ? "stroke-[2.5px]" : "stroke-[1.8px]"}`} />
+                    {active && (
+                      <div className="absolute -bottom-1.5 w-4 h-[3px] rounded-full bg-pink-500" />
+                    )}
+                  </div>
+                  <span className={`text-[10px] leading-tight ${active ? "font-bold" : "font-medium"}`}>
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </nav>
       )}
