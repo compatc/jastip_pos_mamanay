@@ -562,144 +562,114 @@ export default function Orders() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="shrink-0 px-4 sm:px-8 pt-4 pb-3 relative z-10 space-y-4">
+      <div className="shrink-0 px-4 pt-3 pb-2 relative z-10">
 
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-pink-500 animate-pulse" />
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pesanan</h2>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola dan pantau semua transaksi jastip & penjualan</p>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="relative flex-1 sm:w-72">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setShowProductSuggest(e.target.value.length > 0);
-                    if (productFilter) setProductFilter("");
-                  }}
-                  onFocus={() => setShowProductSuggest(search.length > 0)}
-                  onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
-                  placeholder={productFilter || "Cari nama, produk, atau ID..."}
-                  className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
-                />
-                {productFilter && (
-                  <button
-                    onClick={() => setProductFilter("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {showProductSuggest && search && !productFilter && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-                    {(() => {
-                      const matched = allProductNames.filter((n) =>
-                        n.toLowerCase().includes(search.toLowerCase())
-                      );
-                      return matched.length > 0 ? matched.slice(0, 8).map((name) => (
-                        <button
-                          key={name}
-                          onMouseDown={() => {
-                            setProductFilter(name);
-                            setSearch("");
-                            setShowProductSuggest(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-pink-50 text-left border-b border-slate-100 last:border-0"
-                        >
-                          <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                          {name}
-                        </button>
-                      )) : (
-                        <div className="px-4 py-3 text-sm text-slate-400">Produk tidak ditemukan</div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse shrink-0" />
+          <h2 className="text-base font-bold text-slate-900 shrink-0">Daftar Pesanan</h2>
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setShowProductSuggest(e.target.value.length > 0);
+                if (productFilter) setProductFilter("");
+              }}
+              onFocus={() => setShowProductSuggest(search.length > 0)}
+              onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
+              placeholder={productFilter || "Cari..."}
+              className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
+            />
+            {productFilter && (
               <button
-                onClick={() => navigate("/orders/new")}
-                className="px-3.5 py-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm shadow-pink-500/20 transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-[0.97]"
+                onClick={() => setProductFilter("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-md transition-all"
               >
-                + Order Baru
+                <X className="w-3 h-3" />
               </button>
-            </div>
+            )}
+            {showProductSuggest && search && !productFilter && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                {(() => {
+                  const matched = allProductNames.filter((n) =>
+                    n.toLowerCase().includes(search.toLowerCase())
+                  );
+                  return matched.length > 0 ? matched.slice(0, 8).map((name) => (
+                    <button
+                      key={name}
+                      onMouseDown={() => {
+                        setProductFilter(name);
+                        setSearch("");
+                        setShowProductSuggest(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-pink-50 text-left border-b border-slate-100 last:border-0"
+                    >
+                      <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                      {name}
+                    </button>
+                  )) : (
+                    <div className="px-4 py-3 text-sm text-slate-400">Produk tidak ditemukan</div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
+          <button
+            onClick={() => navigate("/orders/new")}
+            className="shrink-0 px-3 py-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-xs rounded-xl shadow-sm shadow-pink-500/20 transition-all flex items-center gap-1 whitespace-nowrap active:scale-[0.97]"
+          >
+            + Order
+          </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-3 gap-1.5 mb-2">
           <button
             onClick={() => navigate("/orders/bulk")}
-            className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-pink-50/50 border border-slate-200/80 hover:border-pink-300 rounded-2xl transition-all shadow-sm group"
+            className="flex items-center justify-center gap-1.5 p-2 bg-white hover:bg-pink-50/50 border border-slate-200/80 hover:border-pink-300 rounded-xl transition-all shadow-sm group"
           >
-            <div className="w-8 h-8 rounded-xl bg-pink-50 text-pink-600 font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <Package className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Package className="w-3 h-3" />
             </div>
-            <div className="text-left hidden sm:block">
-              <p className="text-xs font-bold text-slate-800 leading-none">Order Massal</p>
-              <p className="text-[10px] text-slate-400 mt-1">Multi-customer</p>
-            </div>
-            <span className="text-xs font-bold text-slate-700 sm:hidden">Order Massal</span>
+            <span className="text-[10px] font-bold text-slate-700">Massal</span>
           </button>
           <button
             onClick={() => navigate("/orders/upload")}
-            className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-purple-50/50 border border-slate-200/80 hover:border-purple-300 rounded-2xl transition-all shadow-sm group"
+            className="flex items-center justify-center gap-1.5 p-2 bg-white hover:bg-purple-50/50 border border-slate-200/80 hover:border-purple-300 rounded-xl transition-all shadow-sm group"
           >
-            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <FileSpreadsheet className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <FileSpreadsheet className="w-3 h-3" />
             </div>
-            <div className="text-left hidden sm:block">
-              <p className="text-xs font-bold text-slate-800 leading-none">Import CSV</p>
-              <p className="text-[10px] text-slate-400 mt-1">Upload template</p>
-            </div>
-            <span className="text-xs font-bold text-slate-700 sm:hidden">Import CSV</span>
+            <span className="text-[10px] font-bold text-slate-700">CSV</span>
           </button>
           <button
             onClick={openWaModal}
             disabled={groupedCustomers.length === 0}
-            className="flex items-center justify-center gap-2 p-3 bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-700 rounded-2xl transition-all shadow-sm group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-1.5 p-2 bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-700 rounded-xl transition-all shadow-sm group disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm shadow-emerald-500/20">
-              <MessageCircle className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm shadow-emerald-500/20">
+              <MessageCircle className="w-3 h-3" />
             </div>
-            <div className="text-left hidden sm:block">
-              <p className="text-xs font-bold text-emerald-900 leading-none">Invoice WA</p>
-              <p className="text-[10px] text-emerald-600 mt-1">Kirim / salin teks</p>
-            </div>
-            <span className="text-xs font-bold text-emerald-800 sm:hidden">Invoice WA</span>
+            <span className="text-[10px] font-bold text-emerald-800">Invoice</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm text-center">
-            <div className="w-8 h-8 mx-auto bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 mb-1.5">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Unpaid</p>
-            <p className="text-sm sm:text-lg font-black text-rose-600 mt-0.5 leading-tight">Rp {totalBelumBayar < 1000 ? "0" : `${(totalBelumBayar / 1000).toFixed(0)}rb`}</p>
-            <p className="text-[9px] sm:text-[10px] text-rose-400 font-semibold">{countBelumBayar} order</p>
+        <div className="grid grid-cols-3 gap-1.5 mb-2">
+          <div className="bg-white py-2 rounded-xl border border-slate-200/80 shadow-sm text-center">
+            <p className="text-[9px] font-semibold text-slate-400 uppercase leading-none">Unpaid</p>
+            <p className="text-sm font-black text-rose-600 mt-0.5 leading-tight">Rp {totalBelumBayar < 1000 ? "0" : `${(totalBelumBayar / 1000).toFixed(0)}rb`}</p>
+            <p className="text-[9px] text-rose-400 font-semibold">{countBelumBayar} order</p>
           </div>
-          <div className="bg-white p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm text-center">
-            <div className="w-8 h-8 mx-auto bg-sky-50 rounded-xl flex items-center justify-center text-sky-500 mb-1.5">
-              <PackageCheck className="w-4 h-4" />
-            </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Ready</p>
-            <p className="text-sm sm:text-lg font-black text-sky-600 mt-0.5 leading-tight">{countReady} Order</p>
-            <p className="text-[9px] sm:text-[10px] text-sky-400 font-semibold">Siap ambil</p>
+          <div className="bg-white py-2 rounded-xl border border-slate-200/80 shadow-sm text-center">
+            <p className="text-[9px] font-semibold text-slate-400 uppercase leading-none">Ready</p>
+            <p className="text-sm font-black text-sky-600 mt-0.5 leading-tight">{countReady} Order</p>
+            <p className="text-[9px] text-sky-400 font-semibold">Siap ambil</p>
           </div>
-          <div className="bg-white p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm text-center">
-            <div className="w-8 h-8 mx-auto bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-1.5">
-              <Check className="w-4 h-4" />
-            </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Lunas</p>
-            <p className="text-sm sm:text-lg font-black text-emerald-600 mt-0.5 leading-tight">Rp {todayLunasTotal < 1000 ? "0" : `${(todayLunasTotal / 1000).toFixed(0)}rb`}</p>
-            <p className="text-[9px] sm:text-[10px] text-emerald-400 font-semibold">{todayLunasCount} trx</p>
+          <div className="bg-white py-2 rounded-xl border border-slate-200/80 shadow-sm text-center">
+            <p className="text-[9px] font-semibold text-slate-400 uppercase leading-none">Lunas</p>
+            <p className="text-sm font-black text-emerald-600 mt-0.5 leading-tight">Rp {todayLunasTotal < 1000 ? "0" : `${(todayLunasTotal / 1000).toFixed(0)}rb`}</p>
+            <p className="text-[9px] text-emerald-400 font-semibold">{todayLunasCount} trx</p>
           </div>
         </div>
 
@@ -723,73 +693,73 @@ export default function Orders() {
               )
             }
             disabled={readyTargets.length === 0}
-            className="w-full px-3 py-2.5 bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-600 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-600 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mb-2"
           >
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5" />
             Tandai Semua Ready ({readyTargets.length}) — {productFilter}
           </button>
         )}
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setTab("all")}
-            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
+            className={`px-3 py-1.5 font-bold text-[11px] rounded-full whitespace-nowrap transition-all shrink-0 ${
               tab === "all"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
-                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold flex items-center gap-1.5"
+                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
             Semua ({countTab("all")})
           </button>
           <button
             onClick={() => setTab("belum-lunas")}
-            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 font-bold text-[11px] rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1 ${
               tab === "belum-lunas"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
             Belum Bayar
-            <span className="bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countBelumBayar}</span>
+            <span className="bg-rose-100 text-rose-700 font-bold px-1 py-0.5 rounded-full text-[8px]">{countBelumBayar}</span>
           </button>
           <button
             onClick={() => setTab("ready")}
-            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 font-bold text-[11px] rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1 ${
               tab === "ready"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-sky-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
             Ready
-            <span className="bg-sky-100 text-sky-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countReady}</span>
+            <span className="bg-sky-100 text-sky-700 font-bold px-1 py-0.5 rounded-full text-[8px]">{countReady}</span>
           </button>
           <button
             onClick={() => setTab("lunas")}
-            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 font-bold text-[11px] rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1 ${
               tab === "lunas"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Selesai / Lunas
-            <span className="bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countLunas}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Selesai
+            <span className="bg-emerald-100 text-emerald-700 font-bold px-1 py-0.5 rounded-full text-[8px]">{countLunas}</span>
           </button>
           <button
             onClick={() => setTab("belum-dikirim")}
-            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
+            className={`px-3 py-1.5 font-bold text-[11px] rounded-full whitespace-nowrap transition-all shrink-0 ${
               tab === "belum-dikirim"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
           >
-            Belum Dikirim ({countBelumDikirim})
+            Dikirim ({countBelumDikirim})
           </button>
           <button
             onClick={() => setTab("pembelian")}
-            className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
+            className={`px-3 py-1.5 font-bold text-[11px] rounded-full whitespace-nowrap transition-all shrink-0 ${
               tab === "pembelian"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
@@ -800,7 +770,7 @@ export default function Orders() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4 relative z-10">
+      <main className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 relative z-10">
         {tab === "belum-lunas" && filtered.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm">
             <div>
