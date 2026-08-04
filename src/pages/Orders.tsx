@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 
-type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil" | "lunas";
+type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil" | "lunas" | "ready";
 
 const PAYMENT_LABELS: Record<PaymentType, string> = {
   tf: "TF",
@@ -147,11 +147,12 @@ export default function Orders() {
       tabFilter === "all" ||
       o.order_type === tabFilter ||
       (tabFilter === "lunas" && isOrderLunas(o)) ||
+      (tabFilter === "ready" && o.status === "ready") ||
       (tabFilter === "belum-dikirim" &&
         o.status !== "shipped" &&
         o.status !== "delivered" &&
         o.status !== "completed") ||
-      (tabFilter === "belum-lunas" && !isOrderLunas(o)) ||
+      (tabFilter === "belum-lunas" && !isOrderLunas(o) && o.total > 0) ||
       (tabFilter === "belum-diambil" &&
         o.order_type === "penjualan" &&
         isOrderLunas(o) &&
@@ -753,9 +754,9 @@ export default function Orders() {
             <span className="bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded-full text-[10px]">{countBelumBayar}</span>
           </button>
           <button
-            onClick={() => setTab("belum-diambil")}
+            onClick={() => setTab("ready")}
             className={`px-4 py-2 font-bold text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
-              tab === "belum-diambil"
+              tab === "ready"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
             }`}
@@ -834,9 +835,11 @@ export default function Orders() {
                 ? "Belum ada order"
                 : tab === "lunas"
                   ? "Belum ada order lunas"
-                  : tab === "belum-diambil"
-                    ? "Tidak ada barang yang menunggu diambil"
-                    : "Belum ada data"}
+                  : tab === "ready"
+                    ? "Tidak ada order yang ready"
+                    : tab === "belum-diambil"
+                      ? "Tidak ada barang yang menunggu diambil"
+                      : "Belum ada data"}
             </p>
             <p className="text-slate-300 text-base mt-1">
               Tap "+ Order Baru" untuk membuat order
