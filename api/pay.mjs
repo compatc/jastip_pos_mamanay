@@ -12,11 +12,11 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 }
 
-function rupiah(n) {
+export function rupiah(n) {
   return "Rp " + Number(n || 0).toLocaleString("id-ID");
 }
 
-async function summarizeOrders(sb, orders) {
+export async function summarizeOrders(sb, orders) {
   const names = [];
   let total = 0;
   const productQtys = new Map();
@@ -43,7 +43,7 @@ async function summarizeOrders(sb, orders) {
 }
 
 // Kirim notifikasi push ke semua perangkat yang terdaftar (user yang sama dengan server).
-async function sendPushNotification(sb, { title, body, url, type, orderIds, amount }) {
+export async function sendPushNotification(sb, { title, body, url, type, orderIds, amount }) {
   try {
     const { data: subs, error } = await sb.from("push_subscriptions").select("id, endpoint, p256dh, auth");
     if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && !error && subs && subs.length > 0) {
@@ -89,7 +89,7 @@ const SUPABASE_PASSWORD = process.env.SUPABASE_PASSWORD || process.env.BOT_PASSW
 
 let adminPromise = null;
 
-async function getAdmin() {
+export async function getAdmin() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_EMAIL || !SUPABASE_PASSWORD) {
     throw new Error("SUPABASE_EMAIL/PASSWORD belum di-set");
   }
@@ -106,7 +106,6 @@ async function getAdmin() {
   }
   return adminPromise;
 }
-
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
@@ -170,7 +169,7 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   throw new Error("Semua kode unik terpakai, coba lagi nanti");
 }
 
-async function checkBoqrisTransaction(transactionId) {
+export async function checkBoqrisTransaction(transactionId) {
   const apiKey = process.env.BOQRIS_API_KEY;
   const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions/${transactionId}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -178,7 +177,7 @@ async function checkBoqrisTransaction(transactionId) {
   return bo.json();
 }
 
-async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) {
+export async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) {
   const bo = boData || await checkBoqrisTransaction(transactionId);
   if (bo.status !== "paid") {
     return { status: bo.status || "pending", confirmed: false };
@@ -295,7 +294,7 @@ async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) 
 // Bagi satu pembayaran QRIS gabungan: semua order dibayar lunas sesuai sisa
 // tagihannya, lalu selisih (kode unik/rounding) dipotong mundur mulai order
 // TERAKHIR sehingga nominal order lain tetap persis harga barangnya.
-function allocatePaymentShares(orders, totalPaid) {
+export function allocatePaymentShares(orders, totalPaid) {
   const sisa = (orders || []).map((o) => Math.max(0, (o.total || 0) - (o.paid_total || 0)));
   const shares = sisa.map(() => 0);
   const totalSisa = sisa.reduce((a, b) => a + b, 0);
@@ -313,6 +312,77 @@ function allocatePaymentShares(orders, totalPaid) {
     shares[shares.length - 1] += -remaining;
   }
   return shares;
+}
+
+// Cek semua pembayaran QRIS pending yang menyimpan transaction_id, konfirmasi
+// yang ternyata sudah dibayar di BOQris, lalu kirim notifikasi. Dipanggil oleh
+// poll dari halaman web (action "reconcile") dan oleh cron (/api/qris-reconcile)
+// sehingga pembayaran tetap dikonfirmasi walau halaman PayOrder ditutup.
+export async function reconcilePending(sb, limit = 30) {
+  const { data: pendings, error } = await sb
+    .from("qris_payments")
+    .select("id, order_ids, transaction_id, amount")
+    .eq("status", "pending")
+    .not("transaction_id", "is", null)
+    .limit(limit);
+  if (error) throw new Error("Gagal memuat pembayaran pending: " + error.message);
+
+  const results = [];
+  for (const g of pendings || []) {
+    try {
+      const bo = await checkBoqrisTransaction(g.transaction_id);
+      if (bo.status !== "paid") {
+        results.push({ id: g.id, status: bo.status || "pending" });
+        continue;
+      }
+      const { data: grpOrders } = await sb
+        .from("orders")
+        .select("id, total, paid_total")
+        .in("id", g.order_ids || []);
+      const byId = new Map((grpOrders || []).map((o) => [o.id, o]));
+      const orderedOrders = (g.order_ids || []).map((id) => byId.get(id)).filter(Boolean);
+      if (orderedOrders.length === 0) {
+        results.push({ id: g.id, status: "no-orders" });
+        continue;
+      }
+      const shares = allocatePaymentShares(
+        orderedOrders,
+        Number(bo.amount || bo.base_amount || g.amount || 0)
+      );
+      let anyFresh = false;
+      let anyError = false;
+      for (let i = 0; i < orderedOrders.length; i++) {
+        const r = await confirmOrder(sb, orderedOrders[i].id, g.transaction_id, bo, shares[i]);
+        if (r.error) anyError = true;
+        else if (r.confirmed && !r.already) anyFresh = true;
+      }
+      if (anyError) {
+        results.push({ id: g.id, status: "error" });
+        continue;
+      }
+      await sb.from("qris_payments").update({ status: "paid" }).eq("id", g.id);
+      if (anyFresh) {
+        const { data: finalOrders } = await sb
+          .from("orders")
+          .select("id, total, paid_total, customer_id")
+          .in("id", g.order_ids || []);
+        const info = await summarizeOrders(sb, finalOrders || []);
+        const paidAmount = Number(bo.amount || bo.base_amount || g.amount || 0);
+        await sendPushNotification(sb, {
+          title: "QRIS Lunas",
+          body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}${info.lines.length ? `\n${info.lines.join("\n")}` : ""}`,
+          url: "/orders",
+          type: "qris",
+          orderIds: g.order_ids || [],
+          amount: paidAmount,
+        });
+      }
+      results.push({ id: g.id, status: "paid" });
+    } catch (err) {
+      results.push({ id: g.id, status: "error", error: err.message });
+    }
+  }
+  return results;
 }
 
 async function findOrderByInvoiceNo(sb, invoiceNo) {
@@ -512,6 +582,18 @@ export default async function handler(req, res) {
         const order = validOrders[0];
         const sisa = (order.total || 0) - (order.paid_total || 0);
         const tx = await createBoqrisTransaction(sisa, order.id.slice(0, 25));
+        try {
+          await sb.from("qris_payments").insert({
+            id: "qg-" + randomUUID().replace(/-/g, "").slice(0, 22),
+            order_ids: [order.id],
+            amount: sisa,
+            status: "pending",
+            transaction_id: tx.transaction_id,
+            requested_amount: sisa,
+          });
+        } catch {
+          // riwayat tidak wajib; jangan gagalkan pembayaran
+        }
         const info = await loadOrderInfo(sb, order);
         json(res, 201, { order: info, tx });
         return;
@@ -519,18 +601,19 @@ export default async function handler(req, res) {
 
       const groupId = "qg-" + randomUUID().replace(/-/g, "").slice(0, 22);
       const invoiceNo = groupId.slice(0, 25);
+      const tx = await createBoqrisTransaction(sisaTotal, invoiceNo);
       const { error: groupErr } = await sb.from("qris_payments").insert({
         id: invoiceNo,
         order_ids: validOrders.map((o) => o.id),
         amount: sisaTotal,
         status: "pending",
+        transaction_id: tx.transaction_id,
+        requested_amount: sisaTotal,
       });
       if (groupErr) {
         json(res, 500, { error: "Gagal menyimpan pembayaran gabungan: " + groupErr.message });
         return;
       }
-
-      const tx = await createBoqrisTransaction(sisaTotal, invoiceNo);
 
       const infoList = [];
       for (const order of validOrders) {
@@ -610,6 +693,12 @@ export default async function handler(req, res) {
         });
       }
       json(res, 200, { status: "paid", confirmed: true, orders: results });
+      return;
+    }
+
+    if (body.action === "reconcile") {
+      const results = await reconcilePending(sb);
+      json(res, 200, { processed: results.length, results });
       return;
     }
 

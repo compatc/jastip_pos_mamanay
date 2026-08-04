@@ -167,6 +167,27 @@ export default function QrisNotifier() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    // Konfirmasi ulang QRIS pending: menutup celah saat halaman PayOrder
+    // ditutup dan webhook BOQris tidak aktif.
+    const reconcile = window.setInterval(async () => {
+      try {
+        const res = await fetch("/api/pay", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "reconcile" }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.processed > 0) await useStore.getState().loadAllOrders();
+        }
+      } catch {
+        // jaringan bermasalah, coba lagi tick berikutnya
+      }
+    }, 30000);
+    return () => window.clearInterval(reconcile);
+  }, []);
+
   if (toasts.length === 0) return null;
 
   return (
