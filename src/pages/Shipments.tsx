@@ -10,6 +10,7 @@ import {
   MessageCircle,
   CheckCircle2,
   Undo2,
+  Calendar,
 } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -70,6 +71,7 @@ export default function Shipments() {
   const [checkedItems, setCheckedItems] = useState<Record<string, Set<number>>>({});
   const [search, setSearch] = useState("");
   const [shippedOrders, setShippedOrders] = useState<ShipmentOrder[]>([]);
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
 
   function toggleItemCheck(orderId: string, itemIdx: number) {
     setCheckedItems((prev) => {
@@ -225,8 +227,29 @@ export default function Shipments() {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  function isWithinDateRange(dateStr: string, range: "all" | "today" | "week" | "month"): boolean {
+    if (range === "all") return true;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (range === "today") {
+      return d.toDateString() === now.toDateString();
+    }
+    if (range === "week") {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return d >= weekAgo;
+    }
+    if (range === "month") {
+      const monthAgo = new Date(now);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      return d >= monthAgo;
+    }
+    return true;
+  }
+
   const shippedGrouped: Record<string, ShipmentOrder[]> = {};
   for (const o of shippedOrders) {
+    if (!isWithinDateRange(o.created_at, dateFilter)) continue;
     const custId = o.customer_id || "__none__";
     if (!shippedGrouped[custId]) shippedGrouped[custId] = [];
     shippedGrouped[custId].push(o);
@@ -391,6 +414,31 @@ export default function Shipments() {
             </button>
           ))}
         </div>
+
+        {/* Date Filter - only show for shipped */}
+        {filter === "shipped" && (
+          <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar">
+            <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+            {([
+              ["all", "Semua"],
+              ["today", "Hari Ini"],
+              ["week", "7 Hari"],
+              ["month", "1 Bulan"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setDateFilter(key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                  dateFilter === key
+                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                    : "bg-white text-slate-500 border-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Customer Groups */}
         {loading ? (
