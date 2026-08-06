@@ -173,31 +173,48 @@ export default async function handler(req, res) {
     const data = body.data || body;
 
     if (event === "payment.success" || event === "paid" || data.status === "paid") {
-      const truncatedOrderId = data.order_id || "";
+      const shortOrderId = data.order_id || "";
       const amount = data.amount || data.base_amount || 0;
       const payerName = data.payer_name || "";
 
-      if (!truncatedOrderId) {
+      if (!shortOrderId) {
         json(res, 400, { error: "order_id tidak ada" });
         return;
       }
 
       const sb = await getAdmin();
 
-      // Cari order dengan id yang di-truncate (startsWith)
-      const { data: orders, error: searchErr } = await sb
-        .from("orders")
-        .select("id, customer_id, total, paid_total, diskon, order_type, account_id, status, notes")
-        .ilike("id", `${truncatedOrderId}%`)
-        .limit(1);
+      // Cari mapping di qris_payments
+      const { data: payment } = await sb
+        .from("qris_payments")
+        .select("order_ids")
+        .eq("id", shortOrderId)
+        .single();
 
-      if (searchErr || !orders || orders.length === 0) {
+      let orderId;
+      if (payment && payment.order_ids && payment.order_ids.length > 0) {
+        orderId = payment.order_ids[0];
+      } else {
+        // Fallback: cari order dengan id yang di-truncate
+        const { data: orders } = await sb
+          .from("orders")
+          .select("id")
+          .ilike("id", `${shortOrderId}%`)
+          .limit(1);
+        if (orders && orders.length > 0) {
+          orderId = orders[0].id;
+        }
+      }
+
+      if (!orderId) {
         json(res, 404, { error: "Order tidak ditemukan" });
         return;
       }
 
-      const order = orders[0];
-      const result = await confirmOrder(sb, order.id, amount, payerName);
+      const result = await confirmOrder(sb, orderId, amount, payerName);
+
+      // Update status qris_payments
+      await sb.from("qris_payments").update({ status: "paid" }).eq("id", shortOrderId).catch(() => {});
 
       json(res, 200, result);
       return;

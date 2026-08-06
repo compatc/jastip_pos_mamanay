@@ -115,8 +115,9 @@ async function generateDynamicQris(amount, description, orderId) {
   const uniqueCode = generateUniqueCode();
   const finalAmount = amount + uniqueCode;
 
-  // truncat order_id max 30 karakter
-  const shortOrderId = String(orderId || "").slice(0, 30);
+  // Generate short unique ID (max 30 char)
+  // Format: ORD-XXXXXXXX (8 random chars)
+  const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 
   const result = await temanqrisApi("/payment-link", {
     method: "POST",
@@ -129,6 +130,16 @@ async function generateDynamicQris(amount, description, orderId) {
       webhook_secret: process.env.TEMANQRIS_WEBHOOK_SECRET || "b3343d1581a0e15cbe353e5f8f37e5ca9bf8bc938e7da8e42adddfb216af831b",
     }),
   });
+
+  // Simpan mapping short_order_id → order_id asli di qris_payments
+  const sb = await getAdmin();
+  await sb.from("qris_payments").insert({
+    id: shortOrderId,
+    order_ids: [orderId],
+    amount: finalAmount,
+    status: "pending",
+    requested_amount: finalAmount,
+  }).catch(() => {});
 
   // Return dengan info kode unik
   return {
