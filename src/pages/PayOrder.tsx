@@ -165,7 +165,7 @@ export default function PayOrder() {
             <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(amount)}</p>
             {kodeUnik > 0 && (
               <p className="text-[11px] text-gray-400 mb-1">
-                (termasuk kode unik {kodeUnik})
+                (termasuk kode unik -{kodeUnik})
               </p>
             )}
             {countdown !== null && (
