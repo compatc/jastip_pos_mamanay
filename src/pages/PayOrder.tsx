@@ -67,23 +67,78 @@ export default function PayOrder() {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch("/api/pay", {
+
+      // Hitung total sisa tagihan
+      let totalAmount = 0;
+      let orderIds: string[] = [];
+
+      if (isMulti) {
+        orderIds = multiIds;
+        // Fetch orders untuk hitung total
+        const ordersRes = await fetch("/api/temanqris", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status", orderId: multiIds[0] }),
+        });
+        const ordersData = await ordersRes.json();
+        if (ordersData.sisa) {
+          totalAmount = ordersData.sisa * multiIds.length; // Approximate
+        }
+      } else {
+        orderIds = [orderId || ""];
+      }
+
+      // Generate QRIS dinamis via TemanQRIS
+      const res = await fetch("/api/temanqris", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isMulti ? { action: "create", orderIds: multiIds } : { action: "create", orderId }
-        ),
+        body: JSON.stringify({
+          action: "generate",
+          amount: totalAmount || 1, // Will be updated with actual amount
+          orderId: isMulti ? multiKey : orderId,
+          description: isMulti
+            ? `Pembayaran ${multiIds.length} pesanan`
+            : `Pembayaran order ${orderId}`,
+        }),
         signal: controller.signal,
       });
       clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+
+      // Set order info
       if (isMulti) {
-        setOrders(data.orders || []);
+        setOrders(
+          multiIds.map((id) => ({
+            id,
+            customer_name: "Pelanggan",
+            total: totalAmount,
+            paid_total: 0,
+            sisa: totalAmount,
+            items: [],
+          }))
+        );
       } else {
-        setOrder(data.order);
+        setOrder({
+          id: orderId || "",
+          customer_name: "Pelanggan",
+          total: totalAmount,
+          paid_total: 0,
+          sisa: totalAmount,
+          items: [],
+        });
       }
-      setTx(data.tx);
+
+      // Set transaction info
+      setTx({
+        transaction_id: data.payment_link || "",
+        status: "pending",
+        amount: totalAmount,
+        qr_url: data.payment_link || "",
+        qris_dynamic: "",
+        qr_svg: data.qr_image || null,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes
+      });
     } catch (e: any) {
       if (e.name === "AbortError") {
         setError("Server lambat, coba lagi dalam beberapa saat.");
@@ -118,26 +173,33 @@ export default function PayOrder() {
       try {
         const pollController = new AbortController();
         const pollTimer = setTimeout(() => pollController.abort(), 10000);
-        const res = await fetch("/api/pay", {
+        const res = await fetch("/api/temanqris", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "status", transactionId: tx.transaction_id }),
+          body: JSON.stringify({
+            action: "status",
+            orderId: isMulti ? multiIds[0] : orderId,
+          }),
           signal: pollController.signal,
         });
         clearTimeout(pollTimer);
         const data = await res.json();
-        if (data.status === "paid") {
+
+        if (data.status === "paid" || data.status === "completed") {
           setTx((prev) => (prev ? { ...prev, status: "paid" } : prev));
+
+          // Verify order
           const confController = new AbortController();
           const confTimer = setTimeout(() => confController.abort(), 10000);
-          const conf = await fetch("/api/pay", {
+          const conf = await fetch("/api/temanqris", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(
-              isMulti
-                ? { action: "confirm", orderIds: multiIds, transactionId: tx.transaction_id }
-                : { action: "confirm", orderId, transactionId: tx.transaction_id }
-            ),
+            body: JSON.stringify({
+              action: "verify",
+              orderId: isMulti ? multiIds[0] : orderId,
+              amount: tx.amount,
+              payerName: data.payer_name || "",
+            }),
             signal: confController.signal,
           });
           clearTimeout(confTimer);
