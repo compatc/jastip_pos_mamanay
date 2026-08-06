@@ -52,6 +52,14 @@ interface StokAlert {
   daysLeft: number;
 }
 
+interface Expense {
+  id: string;
+  category: string;
+  description: string;
+  amount: number;
+  expense_date: string;
+}
+
 function rupiah(n: number): string {
   if (Math.abs(n) >= 1000000) return "Rp " + (n / 1000000).toFixed(1).replace(".0", "") + "jt";
   if (Math.abs(n) >= 1000) return "Rp " + (n / 1000).toFixed(0) + "rb";
@@ -73,6 +81,7 @@ export default function SalesDashboard() {
   const [showStokAlert, setShowStokAlert] = useState(true);
   const [chartMode, setChartMode] = useState<"daily" | "monthly">("daily");
   const [products, setProducts] = useState<{ name: string; stock: number; cost_price: number; sell_price: number }[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   useEffect(() => {
     loadData();
@@ -81,7 +90,7 @@ export default function SalesDashboard() {
   async function loadData() {
     setLoading(true);
 
-    const [ordersRes, productsRes] = await Promise.all([
+    const [ordersRes, productsRes, expensesRes] = await Promise.all([
       supabase
         .from("orders")
         .select("id, status, total, paid_total, order_type, payment_type, ongkir, notes, created_at, customer_id")
@@ -90,6 +99,9 @@ export default function SalesDashboard() {
       supabase
         .from("products")
         .select("name, cost_price, sell_price, stock"),
+      supabase
+        .from("expenses")
+        .select("id, category, description, amount, expense_date"),
     ]);
 
     const orders = ordersRes.data;
@@ -101,6 +113,10 @@ export default function SalesDashboard() {
 
     if (productsRes.data) {
       setProducts(productsRes.data);
+    }
+
+    if (expensesRes.data) {
+      setExpenses(expensesRes.data);
     }
 
     const costMap: Record<string, number> = {};
@@ -172,7 +188,11 @@ export default function SalesDashboard() {
     .filter((o) => o.order_type === "pembelian")
     .reduce((s, o) => s + o.total, 0);
 
-  const laba = totalPenjualan - totalPembelian;
+  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalOngkir = expenses.filter((e) => e.category === "ongkir").reduce((s, e) => s + e.amount, 0);
+  const totalKemasan = expenses.filter((e) => e.category === "kemasan").reduce((s, e) => s + e.amount, 0);
+
+  const laba = totalPenjualan - totalPembelian - totalExpenses;
 
   const totalItemTerjual = allOrders
     .filter((o) => o.order_type === "penjualan")
@@ -352,19 +372,20 @@ export default function SalesDashboard() {
                 <p className="text-[10px] text-slate-400">{allOrders.filter((o) => o.order_type === "pembelian").length} transaksi</p>
               </div>
               <div className="bg-white border border-slate-100 rounded-xl p-3">
+                <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center mb-2">
+                  <Receipt className="w-4 h-4 text-rose-500" />
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Biaya Operasional</p>
+                <p className="text-lg font-extrabold text-rose-500">{rupiah(totalExpenses)}</p>
+                <p className="text-[10px] text-slate-400">Ongkir {rupiah(totalOngkir)} · Kemasan {rupiah(totalKemasan)}</p>
+              </div>
+              <div className="bg-white border border-slate-100 rounded-xl p-3">
                 <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center mb-2">
                   <DollarSign className="w-4 h-4 text-pink-500" />
                 </div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase">Laba Bersih</p>
                 <p className={`text-lg font-extrabold ${laba >= 0 ? "text-emerald-600" : "text-red-500"}`}>{rupiah(laba)}</p>
-              </div>
-              <div className="bg-white border border-slate-100 rounded-xl p-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mb-2">
-                  <Package className="w-4 h-4 text-blue-500" />
-                </div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Item Terjual</p>
-                <p className="text-lg font-extrabold text-blue-600">{totalItemTerjual}</p>
-                <p className="text-[10px] text-slate-400">{totalProdukTerjual} produk</p>
+                <p className="text-[10px] text-slate-400">Jual - Beli - Biaya</p>
               </div>
             </div>
 
