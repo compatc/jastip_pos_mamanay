@@ -115,9 +115,15 @@ async function generateDynamicQris(amount, description, orderId) {
   const uniqueCode = generateUniqueCode();
   const finalAmount = amount + uniqueCode;
 
-  // Generate short unique ID (max 30 char)
-  // Format: ORD-XXXXXXXX (8 random chars)
-  const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+  // Generate short unique ID (max 30 char) - pastikan unik
+  const sb = await getAdmin();
+  let shortOrderId;
+  let exists = true;
+  while (exists) {
+    shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+    const { data } = await sb.from("qris_payments").select("id").eq("id", shortOrderId).single();
+    exists = !!data;
+  }
 
   const result = await temanqrisApi("/payment-link", {
     method: "POST",
@@ -132,7 +138,6 @@ async function generateDynamicQris(amount, description, orderId) {
   });
 
   // Simpan mapping short_order_id → order_id asli di qris_payments
-  const sb = await getAdmin();
   await sb.from("qris_payments").insert({
     id: shortOrderId,
     order_ids: [orderId],
@@ -147,6 +152,7 @@ async function generateDynamicQris(amount, description, orderId) {
     unique_code: uniqueCode,
     original_amount: amount,
     final_amount: finalAmount,
+    short_order_id: shortOrderId,
   };
 }
 
