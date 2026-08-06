@@ -87,6 +87,17 @@ export default function Orders() {
   const [previewQris, setPreviewQris] = useState<{ order: Order; url: string }[] | undefined>(undefined);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState("Hapus");
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  async function updateOrderStatus(orderId: string, newStatus: string) {
+    setUpdatingStatus(orderId);
+    await supabase
+      .from("orders")
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+    await loadAllOrders();
+    setUpdatingStatus(null);
+  }
 
   function showConfirm(title: string, message: string, onConfirm: () => void, label = "Hapus") {
     setConfirmTitle(title);
@@ -866,7 +877,19 @@ export default function Orders() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="font-bold text-slate-900 text-sm">{order.customer_name || "Tanpa kontak"}</h3>
-                          <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded-full border ${badge.className}`}>{badge.text}</span>
+                          <div className="relative" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={order.status}
+                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                              disabled={updatingStatus === order.id}
+                              className={`text-[10px] px-1.5 py-0.5 font-bold rounded-full border appearance-none cursor-pointer pr-4 bg-no-repeat bg-[length:10px] bg-[right_4px_center] ${badge.className} disabled:opacity-50`}
+                              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
+                            >
+                              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                                <option key={value} value={value}>{label}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                         <p className="text-[10px] text-slate-400">
                           #{order.id.slice(0, 8).toUpperCase()} · {getTimeAgo(order.created_at)}
