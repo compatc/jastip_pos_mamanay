@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import {
   ArrowLeft, Store, CreditCard, Phone, Bell, QrCode, Package,
   Download, RefreshCw, Wrench, HelpCircle, MessageCircle, LogOut,
-  ChevronRight, Shield, Database
+  ChevronRight, Shield, Database, TrendingDown
 } from "lucide-react";
 
 export default function Accounts() {
@@ -44,6 +44,7 @@ export default function Accounts() {
     {
       title: "Data",
       items: [
+        { icon: TrendingDown, iconBg: "bg-rose-100", iconColor: "text-rose-500", label: "Biaya Operasional", desc: "Ongkir, kemasan, dll", onClick: () => navigate("/expenses") },
         { icon: Download, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Export Data", desc: "Download data order & produk", onClick: () => alert("Export Data - Segera hadir") },
         { icon: RefreshCw, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Backup & Restore", desc: "Cadangkan data ke cloud", onClick: () => alert("Backup & Restore - Segera hadir") },
         { icon: Wrench, iconBg: "bg-red-100", iconColor: "text-red-500", label: "Maintenance", desc: "Audit & perbaiki stok", onClick: () => navigate("/maintenance") },

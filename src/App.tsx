@@ -24,6 +24,7 @@ import Accounts from "./pages/Accounts";
 import AccountDetail from "./pages/AccountDetail";
 import Maintenance from "./pages/Maintenance";
 import Shipments from "./pages/Shipments";
+import Expenses from "./pages/Expenses";
 import AppLayout from "./components/AppLayout";
 import { Component, useEffect } from "react";
 import type { ErrorInfo, ReactNode } from "react";
@@ -268,6 +269,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Accounts />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Expenses />
                 </AppLayout>
               </ProtectedRoute>
             }
