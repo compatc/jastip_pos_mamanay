@@ -1,290 +1,146 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
-import { Plus, Trash2, Wallet, Landmark, Pencil } from "lucide-react";
-
-function rupiah(n: number): string {
-  return "Rp" + n.toLocaleString("id-ID");
-}
+import { supabase } from "../lib/supabase";
+import {
+  ArrowLeft, Store, CreditCard, Phone, Bell, QrCode, Package,
+  Download, RefreshCw, Wrench, HelpCircle, MessageCircle, LogOut,
+  ChevronRight, Shield, Database
+} from "lucide-react";
 
 export default function Accounts() {
-  const { accounts, loadAccounts, addAccount, updateAccount, deleteAccount } = useStore();
+  const { user, accounts, loadAccounts } = useStore();
   const navigate = useNavigate();
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [type, setType] = useState<"cash" | "bank">("cash");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editType, setEditType] = useState<"cash" | "bank">("cash");
-  const [editAccountNumber, setEditAccountNumber] = useState("");
-  const [editBalance, setEditBalance] = useState(0);
+  const [notifEnabled, setNotifEnabled] = useState(true);
 
   useEffect(() => {
     loadAccounts();
   }, []);
 
-  async function handleAdd() {
-    if (!name.trim()) return;
-    const icon = type === "cash" ? "💵" : "🏦";
-    try {
-      await addAccount(name.trim(), type, icon, accountNumber.trim());
-      setName("");
-      setAccountNumber("");
-      setShowForm(false);
-    } catch (err: any) {
-      alert("Gagal simpan akun: " + (err.message || err));
-    }
-  }
-
-  function openEdit(a: typeof accounts[0]) {
-    setEditId(a.id);
-    setEditName(a.name);
-    setEditType(a.type as "cash" | "bank");
-    setEditAccountNumber(a.account_number || "");
-    setEditBalance(a.balance);
-  }
-
-  async function handleUpdate() {
-    if (!editId || !editName.trim()) return;
-    const icon = editType === "cash" ? "💵" : "🏦";
-    try {
-      await updateAccount(editId, editName.trim(), editType, icon, editAccountNumber.trim(), editBalance);
-      setEditId(null);
-    } catch (err: any) {
-      alert("Gagal update akun: " + (err.message || err));
-    }
-  }
-
   const totalSaldo = accounts.reduce((s, a) => s + a.balance, 0);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
+  const menuSections = [
+    {
+      title: "Toko",
+      items: [
+        { icon: Store, iconBg: "bg-pink-100", iconColor: "text-pink-500", label: "Profil Toko", desc: "Nama, alamat, logo toko", onClick: () => {} },
+        { icon: CreditCard, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Rekening Bank", desc: "BCA 5271330651 a.n. Nurul Azizah", onClick: () => {} },
+        { icon: Phone, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Nomor WhatsApp", desc: user?.phone || "Belum diatur", onClick: () => {} },
+      ]
+    },
+    {
+      title: "Pengaturan",
+      items: [
+        { icon: Bell, iconBg: "bg-purple-100", iconColor: "text-purple-500", label: "Notifikasi", desc: "Notifikasi order masuk", toggle: true, toggleValue: notifEnabled, onToggle: () => setNotifEnabled(!notifEnabled) },
+        { icon: QrCode, iconBg: "bg-amber-100", iconColor: "text-amber-500", label: "QRIS", desc: "Pengaturan pembayaran QRIS", badge: "Aktif", onClick: () => {} },
+        { icon: Package, iconBg: "bg-slate-100", iconColor: "text-slate-500", label: "Stok Minimum", desc: "Alert stok rendah otomatis", onClick: () => {} },
+      ]
+    },
+    {
+      title: "Data",
+      items: [
+        { icon: Download, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Export Data", desc: "Download data order & produk", onClick: () => {} },
+        { icon: RefreshCw, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Backup & Restore", desc: "Cadangkan data ke cloud", onClick: () => {} },
+        { icon: Wrench, iconBg: "bg-red-100", iconColor: "text-red-500", label: "Maintenance", desc: "Audit & perbaiki stok", onClick: () => navigate("/maintenance") },
+      ]
+    },
+    {
+      title: "Bantuan",
+      items: [
+        { icon: HelpCircle, iconBg: "bg-green-100", iconColor: "text-green-500", label: "FAQ", desc: "Pertanyaan umum", onClick: () => {} },
+        { icon: MessageCircle, iconBg: "bg-pink-100", iconColor: "text-pink-500", label: "Hubungi Support", desc: "Chat via WhatsApp", onClick: () => {} },
+      ]
+    }
+  ];
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <main className="px-5 py-4 relative z-10 flex-1 overflow-y-auto pb-6">
-        <div className="bg-gradient-to-br from-pink-400 to-rose-500 rounded-2xl p-5 mb-5 shadow-lg shadow-pink-200/40">
-          <p className="text-pink-100 text-sm font-semibold mb-1">Total Saldo</p>
-          <p className="text-2xl font-bold text-white">{rupiah(totalSaldo)}</p>
-          <div className="flex gap-3 mt-3">
-            {accounts.map((a) => (
-              <div key={a.id} className="bg-white/20 rounded-xl px-3 py-2 flex-1">
-                <p className="text-xs text-pink-100 font-semibold">{a.icon} {a.name}</p>
-                <p className="text-sm font-bold text-white mt-0.5">{rupiah(a.balance)}</p>
+      <main className="px-4 py-4 relative z-10 flex-1 overflow-y-auto pb-6">
+        {/* Profile Card */}
+        <div className="bg-gradient-to-br from-pink-400 to-rose-500 rounded-2xl p-5 mb-4 shadow-lg shadow-pink-200/40">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-2xl font-extrabold text-white">
+              {user?.name?.charAt(0)?.toUpperCase() || "N"}
+            </div>
+            <div className="flex-1">
+              <p className="text-lg font-extrabold text-white">{user?.name || "NAY"}</p>
+              <p className="text-xs text-pink-100">{user?.email || "nurulazizahy@gmail.com"}</p>
+              <span className="inline-block px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold text-white mt-1">
+                👑 Owner
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white/15 rounded-xl p-2.5 text-center">
+              <p className="text-base font-extrabold text-white">247</p>
+              <p className="text-[10px] text-pink-100 font-semibold">Total Order</p>
+            </div>
+            <div className="bg-white/15 rounded-xl p-2.5 text-center">
+              <p className="text-base font-extrabold text-white">89</p>
+              <p className="text-[10px] text-pink-100 font-semibold">Pelanggan</p>
+            </div>
+            <div className="bg-white/15 rounded-xl p-2.5 text-center">
+              <p className="text-base font-extrabold text-white">12</p>
+              <p className="text-[10px] text-pink-100 font-semibold">Produk</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Menu Sections */}
+        {menuSections.map((section) => (
+          <div key={section.title} className="bg-white border border-slate-100 rounded-2xl mb-3 overflow-hidden">
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{section.title}</p>
+            </div>
+            {section.items.map((item) => (
+              <div
+                key={item.label}
+                onClick={item.toggle ? item.onToggle : item.onClick}
+                className="flex items-center gap-3 px-4 py-3 border-b border-slate-50 last:border-b-0 active:bg-slate-50 transition-all cursor-pointer"
+              >
+                <div className={`w-9 h-9 rounded-xl ${item.iconBg} flex items-center justify-center flex-shrink-0`}>
+                  <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{item.desc}</p>
+                </div>
+                {item.badge && (
+                  <span className="px-2 py-0.5 bg-pink-500 text-white text-[10px] font-bold rounded">
+                    {item.badge}
+                  </span>
+                )}
+                {item.toggle ? (
+                  <div className={`w-11 h-6 rounded-full relative transition-all cursor-pointer ${
+                    item.toggleValue ? "bg-pink-500" : "bg-slate-200"
+                  }`}>
+                    <div className={`absolute w-5 h-5 rounded-full bg-white top-0.5 transition-all shadow-sm ${
+                      item.toggleValue ? "left-[22px]" : "left-0.5"
+                    }`} />
+                  </div>
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                )}
               </div>
             ))}
           </div>
-        </div>
+        ))}
 
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-800">Daftar Akun</h3>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-pink-400 to-rose-500 text-white rounded-xl text-xs font-bold shadow-md shadow-pink-200/30"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Akun
-          </button>
-        </div>
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full py-3 rounded-2xl border border-red-200 bg-white text-red-500 font-bold text-sm flex items-center justify-center gap-2 mb-3 active:bg-red-50 transition-all"
+        >
+          <LogOut className="w-4 h-4" />
+          Keluar
+        </button>
 
-        <div className="space-y-3">
-          {accounts.map((a) => (
-            <div
-              key={a.id}
-              onClick={() => navigate(`/accounts/${a.id}`)}
-              className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50 cursor-pointer hover:shadow-md hover:shadow-pink-100/40 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                    a.type === "cash" ? "bg-emerald-50 border border-emerald-100" : "bg-blue-50 border border-blue-100"
-                  }`}>
-                    {a.icon}
-                  </div>
-                  <div>
-                    <p className="text-base font-bold text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-400 font-semibold">{a.type === "cash" ? "Kas Tunai" : "Bank"}{a.account_number ? ` · ${a.account_number}` : ""}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <p className={`text-lg font-bold ${a.balance >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                    {rupiah(a.balance)}
-                  </p>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openEdit(a); }}
-                    className="p-2 hover:bg-pink-50 rounded-xl transition-all"
-                  >
-                    <Pencil className="w-4 h-4 text-pink-400" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(a.id); }}
-                    className="p-2 hover:bg-red-50 rounded-xl transition-all"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-400" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {accounts.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-4">
-                <Wallet className="w-8 h-8 text-pink-300" />
-              </div>
-              <p className="text-gray-500 font-medium">Belum ada akun</p>
-              <p className="text-gray-400 text-sm">Buat akun kas atau bank untuk mulai</p>
-            </div>
-          )}
-        </div>
-
-        {showForm && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
-            <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Tambah Akun</h3>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nama akun (contoh: Bank BCA)"
-                className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
-              />
-              {type === "bank" && (
-                <input
-                  value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
-                  placeholder="Nomor rekening (opsional)"
-                  className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
-                />
-              )}
-              <div className="flex gap-2 mb-5">
-                <button
-                  onClick={() => setType("cash")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                    type === "cash"
-                      ? "bg-pink-500 text-white border-pink-500"
-                      : "bg-pink-50 text-gray-400 border-pink-100 hover:bg-pink-100"
-                  }`}
-                >
-                  <span>💵</span> Kas Tunai
-                </button>
-                <button
-                  onClick={() => setType("bank")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                    type === "bank"
-                      ? "bg-pink-500 text-white border-pink-500"
-                      : "bg-pink-50 text-gray-400 border-pink-100 hover:bg-pink-100"
-                  }`}
-                >
-                  <span>🏦</span> Bank
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-gray-400 bg-gray-50 hover:bg-gray-100 transition-all"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleAdd}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-pink-400 to-rose-500 shadow-md shadow-pink-200/30"
-                >
-                  Simpan
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {deleteConfirm && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
-            <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
-              <h3 className="text-lg font-bold text-gray-800 mb-2">Hapus Akun?</h3>
-              <p className="text-sm text-gray-400 mb-5">Semua riwayat transaksi di akun ini akan dihapus.</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-gray-400 bg-gray-50 hover:bg-gray-100 transition-all"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={async () => {
-                    await deleteAccount(deleteConfirm);
-                    setDeleteConfirm(null);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-all"
-                >
-                  Hapus
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {editId && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
-            <div className="bg-white border border-pink-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl shadow-pink-100/50">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Edit Akun</h3>
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="Nama akun"
-                className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
-              />
-              <input
-                type="number"
-                value={editBalance}
-                onChange={(e) => setEditBalance(Number(e.target.value))}
-                placeholder="Saldo"
-                className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
-              />
-              {editType === "bank" && (
-                <input
-                  value={editAccountNumber}
-                  onChange={(e) => setEditAccountNumber(e.target.value)}
-                  placeholder="Nomor rekening (opsional)"
-                  className="w-full border border-pink-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
-                />
-              )}
-              <div className="flex gap-2 mb-5">
-                <button
-                  onClick={() => setEditType("cash")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                    editType === "cash"
-                      ? "bg-pink-500 text-white border-pink-500"
-                      : "bg-pink-50 text-gray-400 border-pink-100 hover:bg-pink-100"
-                  }`}
-                >
-                  <span>💵</span> Kas Tunai
-                </button>
-                <button
-                  onClick={() => setEditType("bank")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                    editType === "bank"
-                      ? "bg-pink-500 text-white border-pink-500"
-                      : "bg-pink-50 text-gray-400 border-pink-100 hover:bg-pink-100"
-                  }`}
-                >
-                  <span>🏦</span> Bank
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEditId(null)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-gray-400 bg-gray-50 hover:bg-gray-100 transition-all"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleUpdate}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-pink-400 to-rose-500 shadow-md shadow-pink-200/30"
-                >
-                  Simpan
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <p className="text-center text-[11px] text-slate-400">POS NAY v2.0</p>
       </main>
     </div>
   );
