@@ -143,14 +143,11 @@ export default function PayOrder() {
       setTx({
         transaction_id: data.payment_link || "",
         status: "pending",
-        amount: data.final_amount || totalAmount,
+        amount: data.amount || totalAmount,
         qr_url: data.payment_link || "",
         qris_dynamic: "",
         qr_svg: data.qr_image || null,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes
-        custom_unique_code: data.unique_code || 0,
-        original_amount: data.original_amount || totalAmount,
-        final_amount: data.final_amount || totalAmount,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       });
     } catch (e: any) {
       if (e.name === "AbortError") {
@@ -309,15 +306,9 @@ export default function PayOrder() {
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
             <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(tx.amount)}</p>
-            {tx.custom_unique_code && tx.custom_unique_code > 0 ? (
-              <p className="text-xs text-gray-400 mb-1">
-                Sisa tagihan {rupiah(tx.original_amount || sisaTotal)} + kode unik {rupiah(tx.custom_unique_code)}
-              </p>
-            ) : (
-              <p className="text-xs text-gray-400 mb-1">
-                {sisaTotal > 0 ? `Sisa tagihan: ${rupiah(sisaTotal)}` : ""}
-              </p>
-            )}
+            <p className="text-xs text-gray-400 mb-1">
+              {sisaTotal > 0 ? `Sisa tagihan: ${rupiah(sisaTotal)}` : ""}
+            </p>
             <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-4">
               <Clock className="w-3.5 h-3.5" />
               {countdown !== null && (

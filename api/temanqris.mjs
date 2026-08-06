@@ -106,50 +106,30 @@ async function checkMyQris() {
   return temanqrisApi("/my-qris");
 }
 
-// Generate QRIS dinamis dengan kode unik
+// Generate QRIS dinamis
 async function generateDynamicQris(sb, amount, description, orderId) {
   const webhookUrl = process.env.WEBHOOK_URL || "https://mamanay.vercel.app/api/temanqris-webhook";
   const callbackUrl = "https://mamanay.vercel.app/callback.html";
 
-  // Generate kode unik (1-999)
-  const uniqueCode = generateUniqueCode();
-  const finalAmount = amount + uniqueCode;
-
-  // Short ID: ORD + 8 char random
   const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 
-  console.log("[TemanQRIS] Generating:", { shortOrderId, finalAmount, orderId });
+  console.log("[TemanQRIS] Generating:", { shortOrderId, amount, orderId });
 
   const result = await temanqrisApi("/payment-link", {
     method: "POST",
     body: JSON.stringify({
-      amount: finalAmount,
+      amount: amount,
       description: description || `Pembayaran order ${shortOrderId}`,
       order_id: shortOrderId,
       webhook_url: webhookUrl,
       callback_url: callbackUrl,
-      webhook_secret: process.env.TEMANQRIS_WEBHOOK_SECRET || "b3343d1581a0e15cbe353e5f8f37e5ca9bf8bc938e7da8e42adddfb216af831b",
     }),
   });
 
-  console.log("[TemanQRIS] Result:", JSON.stringify(result).slice(0, 200));
-
-  // Simpan mapping
-  try {
-    await sb.from("order_qris_map").insert({
-      short_id: shortOrderId,
-      order_id: orderId,
-      amount: finalAmount,
-    });
-  } catch (e) {
-    console.error("[TemanQRIS] Map insert error:", e.message);
-  }
+  console.log("[TemanQRIS] Success:", JSON.stringify(result).slice(0, 300));
 
   return {
     ...result,
-    unique_code: uniqueCode,
-    original_amount: amount,
-    final_amount: finalAmount,
     short_order_id: shortOrderId,
   };
 }
@@ -311,9 +291,6 @@ export default async function handler(req, res) {
         qr_image: result.qr_image,
         order_id: orderId,
         amount,
-        unique_code: result.unique_code,
-        original_amount: result.original_amount,
-        final_amount: result.final_amount,
       });
       return;
     }
