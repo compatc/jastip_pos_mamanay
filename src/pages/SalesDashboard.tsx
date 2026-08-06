@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  ShoppingCart,
-  Package,
-  ChevronDown,
-  ChevronUp,
+  TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package,
+  ChevronDown, ChevronUp, Download, AlertTriangle, Trophy, Receipt
 } from "lucide-react";
 
 type TabFilter = "all" | "penjualan" | "pembelian";
@@ -20,6 +15,7 @@ interface OrderRow {
   total: number;
   paid_total: number;
   payment_type: string;
+  status: string;
   items: { product_name: string; quantity: number; price: number; discount: number; cost_price: number }[];
 }
 
@@ -31,8 +27,39 @@ interface ItemProfit {
   total_laba: number;
 }
 
+interface PiutangRow {
+  customer_name: string;
+  order_id: string;
+  total: number;
+  paid: number;
+  sisa: number;
+  date: string;
+  items: string;
+}
+
+interface TopProduct {
+  name: string;
+  qty: number;
+  revenue: number;
+  cost: number;
+  stock: number;
+}
+
+interface StokAlert {
+  name: string;
+  stock: number;
+  avgPerDay: number;
+  daysLeft: number;
+}
+
 function rupiah(n: number): string {
-  return "Rp" + n.toLocaleString("id-ID");
+  if (Math.abs(n) >= 1000000) return "Rp " + (n / 1000000).toFixed(1).replace(".0", "") + "jt";
+  if (Math.abs(n) >= 1000) return "Rp " + (n / 1000).toFixed(0) + "rb";
+  return "Rp " + n.toLocaleString("id-ID");
+}
+
+function rupiahFull(n: number): string {
+  return "Rp " + n.toLocaleString("id-ID");
 }
 
 export default function SalesDashboard() {
@@ -41,7 +68,11 @@ export default function SalesDashboard() {
   const [loading, setLoading] = useState(true);
   const [showChart, setShowChart] = useState(true);
   const [showLabaDetail, setShowLabaDetail] = useState(true);
+  const [showPiutang, setShowPiutang] = useState(true);
+  const [showTopProduk, setShowTopProduk] = useState(true);
+  const [showStokAlert, setShowStokAlert] = useState(true);
   const [chartMode, setChartMode] = useState<"daily" | "monthly">("daily");
+  const [products, setProducts] = useState<{ name: string; stock: number; cost_price: number; sell_price: number }[]>([]);
 
   useEffect(() => {
     loadData();
@@ -58,7 +89,7 @@ export default function SalesDashboard() {
         .order("created_at", { ascending: false }),
       supabase
         .from("products")
-        .select("name, cost_price"),
+        .select("name, cost_price, sell_price, stock"),
     ]);
 
     const orders = ordersRes.data;
@@ -66,6 +97,10 @@ export default function SalesDashboard() {
       setAllOrders([]);
       setLoading(false);
       return;
+    }
+
+    if (productsRes.data) {
+      setProducts(productsRes.data);
     }
 
     const costMap: Record<string, number> = {};
@@ -116,6 +151,7 @@ export default function SalesDashboard() {
       total: o.total,
       paid_total: o.paid_total,
       payment_type: o.payment_type,
+      status: o.status,
       items: itemsByOrder[o.id] || [],
     }));
 
@@ -138,6 +174,17 @@ export default function SalesDashboard() {
 
   const laba = totalPenjualan - totalPembelian;
 
+  const totalItemTerjual = allOrders
+    .filter((o) => o.order_type === "penjualan")
+    .reduce((s, o) => s + o.items.reduce((s2, i) => s2 + i.quantity, 0), 0);
+
+  const totalProdukTerjual = new Set(
+    allOrders
+      .filter((o) => o.order_type === "penjualan")
+      .flatMap((o) => o.items.map((i) => i.product_name))
+  ).size;
+
+  // Chart data
   const groupedByDate: Record<string, OrderRow[]> = {};
   for (const o of filtered) {
     if (!groupedByDate[o.date]) groupedByDate[o.date] = [];
@@ -165,17 +212,12 @@ export default function SalesDashboard() {
   const chartKey = chartMode === "daily" ? "date" : "month";
   const maxChart = Math.max(1, ...chartData.map((d) => Math.max(d.penjualan, d.pembelian)));
 
+  // Item profits
   const itemProfitMap: Record<string, ItemProfit> = {};
-  for (const o of filtered) {
+  for (const o of allOrders.filter((o) => o.order_type === "penjualan")) {
     for (const item of o.items) {
       if (!itemProfitMap[item.product_name]) {
-        itemProfitMap[item.product_name] = {
-          product_name: item.product_name,
-          total_qty: 0,
-          total_jual: 0,
-          total_modal: 0,
-          total_laba: 0,
-        };
+        itemProfitMap[item.product_name] = { product_name: item.product_name, total_qty: 0, total_jual: 0, total_modal: 0, total_laba: 0 };
       }
       const entry = itemProfitMap[item.product_name];
       entry.total_qty += item.quantity;
@@ -188,146 +230,177 @@ export default function SalesDashboard() {
   }
   const itemProfits = Object.values(itemProfitMap).sort((a, b) => b.total_laba - a.total_laba);
 
+  // Piutang
+  const piutangList: PiutangRow[] = allOrders
+    .filter((o) => o.order_type === "penjualan" && o.paid_total < o.total && o.status !== "deleted")
+    .map((o) => ({
+      customer_name: o.contact_name,
+      order_id: o.id,
+      total: o.total,
+      paid: o.paid_total,
+      sisa: o.total - o.paid_total,
+      date: o.date,
+      items: o.items.map((i) => `${i.product_name} ×${i.quantity}`).join(", "),
+    }))
+    .sort((a, b) => b.sisa - a.sisa);
+
+  const totalPiutang = piutangList.reduce((s, p) => s + p.sisa, 0);
+
+  // Top produk
+  const topProdukMap: Record<string, TopProduct> = {};
+  for (const o of allOrders.filter((o) => o.order_type === "penjualan")) {
+    for (const item of o.items) {
+      if (!topProdukMap[item.product_name]) {
+        const prod = products.find((p) => p.name === item.product_name);
+        topProdukMap[item.product_name] = { name: item.product_name, qty: 0, revenue: 0, cost: 0, stock: prod?.stock || 0 };
+      }
+      topProdukMap[item.product_name].qty += item.quantity;
+      topProdukMap[item.product_name].revenue += (item.price * item.quantity) - item.discount;
+      topProdukMap[item.product_name].cost += item.cost_price * item.quantity;
+    }
+  }
+  const topProduks = Object.values(topProdukMap).sort((a, b) => b.qty - a.qty).slice(0, 5);
+  const maxTopQty = Math.max(1, ...topProduks.map((p) => p.qty));
+
+  // Stok alert
+  const stokAlerts: StokAlert[] = products
+    .filter((p) => p.stock <= 10)
+    .map((p) => {
+      const sold = topProdukMap[p.name]?.qty || 0;
+      const avgPerDay = sold / 30;
+      const daysLeft = avgPerDay > 0 ? Math.floor(p.stock / avgPerDay) : 999;
+      return { name: p.name, stock: p.stock, avgPerDay, daysLeft };
+    })
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  function handleExport() {
+    const rows: string[][] = [
+      ["LAPORAN POS NAY"],
+      [""],
+      ["Ringkasan"],
+      ["Penjualan", rupiahFull(totalPenjualan)],
+      ["Pembelian", rupiahFull(totalPembelian)],
+      ["Laba Bersih", rupiahFull(laba)],
+      ["Item Terjual", totalItemTerjual.toString()],
+      [""],
+      ["Rincian Laba per Item"],
+      ["Produk", "Qty", "Penjualan", "Modal", "Laba"],
+    ];
+    for (const ip of itemProfits) {
+      rows.push([ip.product_name, String(ip.total_qty), rupiahFull(ip.total_jual), rupiahFull(ip.total_modal), rupiahFull(ip.total_laba)]);
+    }
+    rows.push([""]);
+    rows.push(["Piutang"]);
+    rows.push(["Pelanggan", "Order ID", "Total", "Dibayar", "Sisa"]);
+    for (const p of piutangList) {
+      rows.push([p.customer_name, p.order_id.slice(0, 8), rupiahFull(p.total), rupiahFull(p.paid), rupiahFull(p.sisa)]);
+    }
+    rows.push([""]);
+    rows.push(["Produk Terlaris"]);
+    rows.push(["Produk", "Qty Terjual", "Revenue"]);
+    for (const tp of topProduks) {
+      rows.push([tp.name, String(tp.qty), rupiahFull(tp.revenue)]);
+    }
+
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `laporan-pos-nay-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
-
-      <main className="px-5 py-4 relative z-10 flex-1 overflow-y-auto pb-6">
+      <main className="px-4 py-4 relative z-10 flex-1 overflow-y-auto pb-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24">
             <div className="w-10 h-10 border-3 border-pink-400 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-3 mb-5">
-              <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  </div>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-xl font-extrabold text-slate-800">Laporan</h1>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export Excel
+              </button>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="bg-white border border-slate-100 rounded-xl p-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center mb-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-500" />
                 </div>
-                <p className="text-base text-gray-400 uppercase tracking-wider font-semibold">
-                  Penjualan
-                </p>
-                <p className="text-base font-bold text-emerald-600 mt-1">
-                  {rupiah(totalPenjualan)}
-                </p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Penjualan</p>
+                <p className="text-lg font-extrabold text-emerald-600">{rupiah(totalPenjualan)}</p>
+                <p className="text-[10px] text-slate-400">{allOrders.filter((o) => o.order_type === "penjualan").length} transaksi</p>
               </div>
-              <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
-                    <TrendingDown className="w-4 h-4 text-red-500" />
-                  </div>
+              <div className="bg-white border border-slate-100 rounded-xl p-3">
+                <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center mb-2">
+                  <TrendingDown className="w-4 h-4 text-red-500" />
                 </div>
-                <p className="text-base text-gray-400 uppercase tracking-wider font-semibold">
-                  Pembelian
-                </p>
-                <p className="text-base font-bold text-red-500 mt-1">
-                  {rupiah(totalPembelian)}
-                </p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Pembelian</p>
+                <p className="text-lg font-extrabold text-red-500">{rupiah(totalPembelian)}</p>
+                <p className="text-[10px] text-slate-400">{allOrders.filter((o) => o.order_type === "pembelian").length} transaksi</p>
               </div>
-              <div className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                    <DollarSign className="w-4 h-4 text-pink-500" />
-                  </div>
+              <div className="bg-white border border-slate-100 rounded-xl p-3">
+                <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center mb-2">
+                  <DollarSign className="w-4 h-4 text-pink-500" />
                 </div>
-                <p className="text-base text-gray-400 uppercase tracking-wider font-semibold">
-                  Laba
-                </p>
-                <p
-                  className={`text-base font-bold mt-1 ${
-                    laba >= 0 ? "text-emerald-600" : "text-red-500"
-                  }`}
-                >
-                  {rupiah(laba)}
-                </p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Laba Bersih</p>
+                <p className={`text-lg font-extrabold ${laba >= 0 ? "text-emerald-600" : "text-red-500"}`}>{rupiah(laba)}</p>
+              </div>
+              <div className="bg-white border border-slate-100 rounded-xl p-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mb-2">
+                  <Package className="w-4 h-4 text-blue-500" />
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Item Terjual</p>
+                <p className="text-lg font-extrabold text-blue-600">{totalItemTerjual}</p>
+                <p className="text-[10px] text-slate-400">{totalProdukTerjual} produk</p>
               </div>
             </div>
 
-            {dailyStats.length > 0 && (
-              <div className="bg-gradient-to-br from-white via-pink-50/30 to-white border border-pink-100/60 rounded-2xl p-5 shadow-md shadow-pink-100/40 mb-5">
-                <button
-                  onClick={() => setShowChart(!showChart)}
-                  className="flex items-center justify-between w-full"
-                >
-                  <h3 className="text-lg font-bold text-gray-800">Grafik</h3>
-                  {showChart ? <ChevronUp className="w-5 h-5 text-pink-400" /> : <ChevronDown className="w-5 h-5 text-pink-400" />}
+            {/* Chart */}
+            {chartData.length > 0 && (
+              <div className="bg-white border border-slate-100 rounded-xl p-4 mb-4">
+                <button onClick={() => setShowChart(!showChart)} className="flex items-center justify-between w-full">
+                  <h3 className="text-sm font-bold text-slate-800">Grafik</h3>
+                  {showChart ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </button>
                 {showChart && (
-                  <div className="mt-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <button
-                        onClick={() => setChartMode("daily")}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          chartMode === "daily"
-                            ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/40"
-                            : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
-                        }`}
-                      >
-                        Harian
-                      </button>
-                      <button
-                        onClick={() => setChartMode("monthly")}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          chartMode === "monthly"
-                            ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/40"
-                            : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
-                        }`}
-                      >
-                        Bulanan
-                      </button>
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex gap-1">
+                        <button onClick={() => setChartMode("daily")} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${chartMode === "daily" ? "bg-pink-500 text-white" : "bg-slate-100 text-slate-500"}`}>Harian</button>
+                        <button onClick={() => setChartMode("monthly")} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${chartMode === "monthly" ? "bg-pink-500 text-white" : "bg-slate-100 text-slate-500"}`}>Bulanan</button>
+                      </div>
                       <div className="flex-1" />
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-500 shadow-sm shadow-emerald-200" />
-                          <span className="text-xs text-gray-500 font-semibold">Jual</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-full bg-gradient-to-b from-rose-400 to-rose-500 shadow-sm shadow-rose-200" />
-                          <span className="text-xs text-gray-500 font-semibold">Beli</span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[10px] text-slate-500 font-semibold">Jual</span></div>
+                        <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-rose-400" /><span className="text-[10px] text-slate-500 font-semibold">Beli</span></div>
                       </div>
                     </div>
-                    <div className="flex items-end gap-1" style={{ height: 200 }}>
-                      {chartData.map((d, idx) => {
+                    <div className="flex items-end gap-1" style={{ height: 140 }}>
+                      {chartData.map((d) => {
                         const key = (d as any)[chartKey];
                         const label = chartMode === "daily"
                           ? new Date(key + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short" })
                           : new Date(key + "-01T00:00:00").toLocaleDateString("id-ID", { month: "short", year: "2-digit" });
-                        const total = d.penjualan + d.pembelian;
-                        const showLabel = total > 0;
                         return (
-                          <div key={key} className="flex-1 flex flex-col items-center min-w-0 group">
-                            {showLabel && (
-                              <div className="text-[9px] font-bold text-gray-500 mb-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                {d.penjualan > 0 && <span className="text-emerald-500">{rupiah(d.penjualan)}</span>}
-                                {d.penjualan > 0 && d.pembelian > 0 && <span className="text-gray-300"> / </span>}
-                                {d.pembelian > 0 && <span className="text-rose-400">{rupiah(d.pembelian)}</span>}
-                              </div>
-                            )}
-                            <div className="flex items-end gap-[3px] w-full" style={{ height: 170 }}>
-                              <div
-                                className="flex-1 rounded-t-lg transition-all duration-300 group-hover:opacity-90"
-                                style={{
-                                  height: `${(d.penjualan / maxChart) * 100}%`,
-                                  minHeight: d.penjualan > 0 ? 6 : 0,
-                                  background: "linear-gradient(180deg, #34d399 0%, #10b981 100%)",
-                                  boxShadow: d.penjualan > 0 ? "0 -2px 8px rgba(16,185,129,0.25)" : "none",
-                                }}
-                              />
-                              <div
-                                className="flex-1 rounded-t-lg transition-all duration-300 group-hover:opacity-90"
-                                style={{
-                                  height: `${(d.pembelian / maxChart) * 100}%`,
-                                  minHeight: d.pembelian > 0 ? 6 : 0,
-                                  background: "linear-gradient(180deg, #fb7185 0%, #f43f5e 100%)",
-                                  boxShadow: d.pembelian > 0 ? "0 -2px 8px rgba(244,63,94,0.25)" : "none",
-                                }}
-                              />
+                          <div key={key} className="flex-1 flex flex-col items-center min-w-0">
+                            <div className="flex items-end gap-[2px] w-full" style={{ height: 120 }}>
+                              <div className="flex-1 rounded-t" style={{ height: `${(d.penjualan / maxChart) * 100}%`, minHeight: d.penjualan > 0 ? 4 : 0, background: "linear-gradient(180deg, #34d399, #10b981)" }} />
+                              <div className="flex-1 rounded-t" style={{ height: `${(d.pembelian / maxChart) * 100}%`, minHeight: d.pembelian > 0 ? 4 : 0, background: "linear-gradient(180deg, #fb7185, #ef4444)" }} />
                             </div>
-                            <p className="text-[10px] text-gray-400 font-semibold truncate w-full text-center mt-1.5">
-                              {label}
-                            </p>
+                            <p className="text-[8px] text-slate-400 font-semibold truncate w-full text-center mt-1">{label}</p>
                           </div>
                         );
                       })}
@@ -337,179 +410,169 @@ export default function SalesDashboard() {
               </div>
             )}
 
-            {itemProfits.length > 0 && (
-              <div className="bg-gradient-to-br from-white via-pink-50/30 to-white border border-pink-100/60 rounded-2xl p-5 shadow-md shadow-pink-100/40 mb-5">
-                <button
-                  onClick={() => setShowLabaDetail(!showLabaDetail)}
-                  className="flex items-center justify-between w-full"
-                >
-                  <h3 className="text-lg font-bold text-gray-800">Rincian Laba per Item</h3>
-                  {showLabaDetail ? <ChevronUp className="w-5 h-5 text-pink-400" /> : <ChevronDown className="w-5 h-5 text-pink-400" />}
+            {/* Piutang */}
+            {piutangList.length > 0 && (
+              <div className="bg-white border border-slate-100 rounded-xl p-4 mb-4">
+                <button onClick={() => setShowPiutang(!showPiutang)} className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800">Piutang</h3>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded">{piutangList.length} order</span>
+                  </div>
+                  {showPiutang ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </button>
-                {showLabaDetail && (
-                  <div className="mt-4 space-y-2.5">
-                    {itemProfits.map((ip) => {
-                      const maxJual = Math.max(...itemProfits.map((x) => x.total_jual), 1);
-                      const pct = (ip.total_jual / maxJual) * 100;
-                      return (
-                        <div
-                          key={ip.product_name}
-                          className="bg-white/60 border border-pink-50 rounded-xl p-3.5 hover:shadow-md hover:shadow-pink-50 transition-all"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-base font-bold text-gray-800 truncate">{ip.product_name}</p>
-                            <span
-                              className={`text-base font-bold ml-3 ${
-                                ip.total_laba >= 0 ? "text-emerald-600" : "text-red-500"
-                              }`}
-                            >
-                              {ip.total_laba >= 0 ? "+" : ""}{rupiah(ip.total_laba)}
-                            </span>
+                {showPiutang && (
+                  <div className="mt-3">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 flex justify-between items-center">
+                      <span className="text-xs font-semibold text-amber-700">Total Piutang</span>
+                      <span className="text-base font-extrabold text-amber-600">{rupiahFull(totalPiutang)}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {piutangList.slice(0, 5).map((p) => (
+                        <div key={p.order_id} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                          <div className="w-9 h-9 rounded-xl bg-pink-100 flex items-center justify-center text-sm font-bold text-pink-500 flex-shrink-0">
+                            {p.customer_name.charAt(0)}
                           </div>
-                          <div className="h-2 bg-pink-50 rounded-full overflow-hidden mb-2">
-                            <div
-                              className="h-full rounded-full transition-all"
-                              style={{
-                                width: `${pct}%`,
-                                background: ip.total_laba >= 0
-                                  ? "linear-gradient(90deg, #34d399, #10b981)"
-                                  : "linear-gradient(90deg, #fb7185, #f43f5e)",
-                              }}
-                            />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 truncate">{p.customer_name}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{p.items}</p>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-400 font-semibold">
-                            <span>{ip.total_qty} terjual</span>
-                            <span className="text-pink-200">·</span>
-                            <span>Jual {rupiah(ip.total_jual)}</span>
-                            <span className="text-pink-200">·</span>
-                            <span>Modal {rupiah(ip.total_modal)}</span>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-extrabold text-amber-600">{rupiahFull(p.sisa)}</p>
                           </div>
                         </div>
-                      );
-                    })}
-                    <div className="flex items-center justify-between pt-3 mt-1 border-t border-pink-100">
-                      <p className="text-lg font-bold text-gray-800">Total Laba</p>
-                      <span
-                        className={`text-lg font-bold ${
-                          laba >= 0 ? "text-emerald-600" : "text-red-500"
-                        }`}
-                      >
-                        {rupiah(laba)}
-                      </span>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="flex gap-2 mb-5">
-              <button
-                onClick={() => setTab("all")}
-                className={`px-4 py-2 rounded-xl text-base font-semibold transition-all ${
-                  tab === "all"
-                    ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                    : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
-                }`}
-              >
-                Semua ({allOrders.length})
-              </button>
-              <button
-                onClick={() => setTab("penjualan")}
-                className={`px-4 py-2 rounded-xl text-base font-semibold transition-all flex items-center gap-1.5 ${
-                  tab === "penjualan"
-                    ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                    : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
-                }`}
-              >
-                <ShoppingCart className="w-3 h-3" />
-                Penjualan ({allOrders.filter((o) => o.order_type === "penjualan").length})
-              </button>
-              <button
-                onClick={() => setTab("pembelian")}
-                className={`px-4 py-2 rounded-xl text-base font-semibold transition-all flex items-center gap-1.5 ${
-                  tab === "pembelian"
-                    ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200/30"
-                    : "bg-pink-50 text-gray-400 hover:bg-pink-100 border border-pink-100"
-                }`}
-              >
-                <Package className="w-3 h-3" />
-                Pembelian ({allOrders.filter((o) => o.order_type === "pembelian").length})
-              </button>
-            </div>
-
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24">
-                <div className="w-20 h-20 bg-pink-50 border border-pink-100 rounded-3xl flex items-center justify-center mb-5">
-                  <DollarSign className="w-8 h-8 text-pink-300" />
-                </div>
-                <p className="text-gray-500 text-xl font-medium">
-                  Belum ada data
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {Object.entries(groupedByDate).map(([date, orders]) => {
-                  const dayPenjualan = orders
-                    .filter((o) => o.order_type === "penjualan")
-                    .reduce((s, o) => s + o.total, 0);
-                  const dayPembelian = orders
-                    .filter((o) => o.order_type === "pembelian")
-                    .reduce((s, o) => s + o.total, 0);
-                  return (
-                    <div key={date}>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-base font-bold text-gray-700">
-                          {new Date(date + "T00:00:00").toLocaleDateString(
-                            "id-ID",
-                            {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            }
-                          )}
-                        </h3>
-                        <div className="flex items-center gap-3">
-                          {dayPenjualan > 0 && (
-                            <span className="text-base font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                              +{rupiah(dayPenjualan)}
-                            </span>
-                          )}
-                          {dayPembelian > 0 && (
-                            <span className="text-base font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-                              -{rupiah(dayPembelian)}
-                            </span>
-                          )}
+            {/* Top Produk */}
+            {topProduks.length > 0 && (
+              <div className="bg-white border border-slate-100 rounded-xl p-4 mb-4">
+                <button onClick={() => setShowTopProduk(!showTopProduk)} className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800">Produk Terlaris</h3>
+                  </div>
+                  {showTopProduk ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+                {showTopProduk && (
+                  <div className="mt-3 space-y-2">
+                    {topProduks.map((tp, idx) => (
+                      <div key={tp.name} className="flex items-center gap-3 py-2">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold flex-shrink-0 ${
+                          idx === 0 ? "bg-amber-100 text-amber-600" : idx === 1 ? "bg-slate-100 text-slate-500" : idx === 2 ? "bg-orange-100 text-orange-600" : "bg-slate-50 text-slate-400"
+                        }`}>{idx + 1}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate">{tp.name}</p>
+                          <div className="h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-pink-400 to-pink-500 rounded-full" style={{ width: `${(tp.qty / maxTopQty) * 100}%` }} />
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm font-extrabold text-pink-500">{tp.qty} terjual</p>
+                          <p className="text-[10px] text-slate-400">{rupiah(tp.revenue)}</p>
                         </div>
                       </div>
-                      <div className="space-y-2">
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Stok Alert */}
+            {stokAlerts.length > 0 && (
+              <div className="bg-white border border-slate-100 rounded-xl p-4 mb-4">
+                <button onClick={() => setShowStokAlert(!showStokAlert)} className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800">Stok Rendah</h3>
+                    <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded">{stokAlerts.length} produk</span>
+                  </div>
+                  {showStokAlert ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+                {showStokAlert && (
+                  <div className="mt-3 space-y-2">
+                    {stokAlerts.map((sa) => (
+                      <div key={sa.name} className="flex items-center gap-3 py-2">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${sa.stock === 0 ? "bg-red-100" : "bg-amber-100"}`}>
+                          <AlertTriangle className={`w-4 h-4 ${sa.stock === 0 ? "text-red-500" : "text-amber-500"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate">{sa.name}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {sa.stock === 0 ? "Stok habis" : `Stok habis dalam ${sa.daysLeft} hari`}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex-shrink-0 ${sa.stock === 0 ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>
+                          Stok {sa.stock}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar">
+              {([
+                ["all", "Semua"],
+                ["penjualan", "Penjualan"],
+                ["pembelian", "Pembelian"],
+              ] as [TabFilter, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                    tab === key
+                      ? "bg-pink-500 text-white border-pink-500"
+                      : "bg-white text-slate-500 border-slate-200"
+                  }`}
+                >
+                  {label} ({key === "all" ? allOrders.length : allOrders.filter((o) => o.order_type === key).length})
+                </button>
+              ))}
+            </div>
+
+            {/* Transactions */}
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="w-16 h-16 bg-pink-50 border border-pink-100 rounded-2xl flex items-center justify-center mb-4">
+                  <DollarSign className="w-7 h-7 text-pink-300" />
+                </div>
+                <p className="text-slate-500 font-semibold">Belum ada data</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(groupedByDate).map(([date, orders]) => {
+                  const dayPenjualan = orders.filter((o) => o.order_type === "penjualan").reduce((s, o) => s + o.total, 0);
+                  const dayPembelian = orders.filter((o) => o.order_type === "pembelian").reduce((s, o) => s + o.total, 0);
+                  return (
+                    <div key={date}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xs font-bold text-slate-500">
+                          {new Date(date + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                        </h3>
+                        <div className="flex gap-1.5">
+                          {dayPenjualan > 0 && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-600">+{rupiah(dayPenjualan)}</span>}
+                          {dayPembelian > 0 && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-500">-{rupiah(dayPembelian)}</span>}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
                         {orders.map((o) => (
-                          <div
-                            key={o.id}
-                            className="bg-white/80 border border-pink-100/60 rounded-2xl p-4 shadow-sm shadow-pink-50"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-base font-bold ${
-                                    o.order_type === "penjualan"
-                                      ? "bg-emerald-50 text-emerald-600"
-                                      : "bg-red-50 text-red-500"
-                                  }`}
-                                >
-                                  {o.order_type === "penjualan" ? "Jual" : "Beli"}
-                                </span>
-                                <span className="text-base font-semibold text-gray-700">
-                                  {o.contact_name}
-                                </span>
-                              </div>
-                              <span className="text-base font-bold text-gray-800">
-                                {rupiah(o.total)}
-                              </span>
+                          <div key={o.id} className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${o.order_type === "penjualan" ? "bg-emerald-50" : "bg-red-50"}`}>
+                              {o.order_type === "penjualan" ? <ShoppingCart className="w-4 h-4 text-emerald-500" /> : <Package className="w-4 h-4 text-red-500" />}
                             </div>
-                            <div className="flex items-center justify-between text-base text-gray-400 mb-1">
-                              <span>{o.items.map((i) => `${i.product_name} x${i.quantity}`).join(", ")}</span>
-                              <span className="uppercase text-xs font-semibold">{o.payment_type}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-slate-800 truncate">{o.contact_name}</p>
+                              <p className="text-[10px] text-slate-400 truncate">{o.items.map((i) => `${i.product_name} ×${i.quantity}`).join(", ")}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className={`text-sm font-extrabold ${o.order_type === "penjualan" ? "text-emerald-600" : "text-red-500"}`}>
+                                {o.order_type === "penjualan" ? "+" : "-"}{rupiahFull(o.total)}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{o.payment_type}</p>
                             </div>
                           </div>
                         ))}
@@ -517,6 +580,48 @@ export default function SalesDashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Laba Detail */}
+            {itemProfits.length > 0 && (
+              <div className="bg-white border border-slate-100 rounded-xl p-4 mt-4">
+                <button onClick={() => setShowLabaDetail(!showLabaDetail)} className="flex items-center justify-between w-full">
+                  <h3 className="text-sm font-bold text-slate-800">Rincian Laba per Item</h3>
+                  {showLabaDetail ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+                {showLabaDetail && (
+                  <div className="mt-3 space-y-2">
+                    {itemProfits.map((ip) => {
+                      const maxJual = Math.max(...itemProfits.map((x) => x.total_jual), 1);
+                      const pct = (ip.total_jual / maxJual) * 100;
+                      return (
+                        <div key={ip.product_name} className="py-2 border-b border-slate-50 last:border-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-bold text-slate-800 truncate">{ip.product_name}</p>
+                            <span className={`text-sm font-extrabold ml-2 ${ip.total_laba >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                              {ip.total_laba >= 0 ? "+" : ""}{rupiah(ip.total_laba)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-1">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: ip.total_laba >= 0 ? "linear-gradient(90deg, #34d399, #10b981)" : "linear-gradient(90deg, #fb7185, #ef4444)" }} />
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-semibold">
+                            <span>{ip.total_qty} terjual</span>
+                            <span>·</span>
+                            <span>Jual {rupiah(ip.total_jual)}</span>
+                            <span>·</span>
+                            <span>Modal {rupiah(ip.total_modal)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                      <p className="text-sm font-bold text-slate-800">Total Laba</p>
+                      <span className={`text-base font-extrabold ${laba >= 0 ? "text-emerald-600" : "text-red-500"}`}>{rupiahFull(laba)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
