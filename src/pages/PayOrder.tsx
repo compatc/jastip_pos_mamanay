@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
@@ -22,60 +22,56 @@ export default function PayOrder() {
   const [confirmed, setConfirmed] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const txIdRef = useRef<string>("");
+  const txIdRef = useRef("");
   const orderIdsRef = useRef<string[]>([]);
-
-  const actualOrderIds = isMulti
-    ? multiKey.split(",").filter(Boolean)
-    : orderId
-      ? [orderId]
-      : [];
-
-  const go = useCallback(async () => {
-    if (actualOrderIds.length === 0) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const body = isMulti
-        ? { action: "create", orderIds: actualOrderIds }
-        : { action: "create", orderId: actualOrderIds[0] };
-
-      const res = await fetch("/api/pay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal membuat QR");
-
-      const tx = data.tx || {};
-      const qrSvg = tx.qr_svg || null;
-      let finalQr = qrSvg;
-
-      txIdRef.current = tx.transaction_id || "";
-      orderIdsRef.current = isMulti
-        ? (data.group?.order_ids || actualOrderIds)
-        : [actualOrderIds[0]];
-
-      const sisa = isMulti
-        ? (data.group?.sisa_total || 0)
-        : (data.order?.sisa || 0);
-      setAmount(tx.requested_amount || tx.amount || sisa);
-
-      const uniq = tx.custom_unique_code || 0;
-      setKodeUnik(uniq);
-
-      setQrImage(finalQr);
-    } catch (e: any) {
-      setError(e.message || "Gagal");
-    } finally {
-      setLoading(false);
-    }
-  }, [actualOrderIds, isMulti]);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
-    go();
-  }, [go]);
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    const actualOrderIds = isMulti
+      ? multiKey.split(",").filter(Boolean)
+      : orderId
+        ? [orderId]
+        : [];
+
+    if (actualOrderIds.length === 0) return;
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const body = isMulti
+          ? { action: "create", orderIds: actualOrderIds }
+          : { action: "create", orderId: actualOrderIds[0] };
+
+        const res = await fetch("/api/pay", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Gagal membuat QR");
+
+        const tx = data.tx || {};
+        const qrSvg = tx.qr_svg || null;
+
+        txIdRef.current = tx.transaction_id || "";
+        orderIdsRef.current = isMulti
+          ? (data.group?.order_ids || actualOrderIds)
+          : [actualOrderIds[0]];
+
+        setAmount(tx.requested_amount || tx.amount || 0);
+        setKodeUnik(tx.custom_unique_code || 0);
+        setQrImage(qrSvg);
+      } catch (e: any) {
+        setError(e.message || "Gagal");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [orderId, multiKey, isMulti]);
 
   useEffect(() => {
     if (!qrImage) return;
@@ -111,6 +107,15 @@ export default function PayOrder() {
     return () => clearInterval(poll);
   }, [qrImage]);
 
+  function retry() {
+    fetchedRef.current = false;
+    setQrImage(null);
+    setConfirmed(false);
+    setError(null);
+    setAmount(0);
+    setKodeUnik(0);
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl shadow-pink-100/30">
@@ -135,7 +140,7 @@ export default function PayOrder() {
             <p className="text-red-500 font-semibold mb-2">Gagal</p>
             <p className="text-sm text-gray-500 mb-4">{error}</p>
             <div className="flex gap-2 justify-center">
-              <button onClick={go} className="px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
+              <button onClick={retry} className="px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
                 Coba lagi
               </button>
               <button onClick={() => navigate("/")} className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm">
@@ -192,7 +197,7 @@ export default function PayOrder() {
         {!loading && !error && !qrImage && !confirmed && (
           <div className="py-8 text-center">
             <p className="text-sm text-gray-500">Tidak ada data QR</p>
-            <button onClick={go} className="mt-4 px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
+            <button onClick={retry} className="mt-4 px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
               Coba lagi
             </button>
           </div>
