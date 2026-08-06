@@ -178,12 +178,11 @@ export default function Shipments() {
     return true;
   });
 
-  const totalOrders = lunasOrders.length;
-  const totalItems = lunasOrders.reduce(
-    (s, o) => s + (itemsByOrder[o.id] || []).reduce((s2, i) => s2 + i.quantity, 0),
-    0
-  );
   const holdCount = customerGroups.filter((g) => g.hasHold).length;
+
+  const filteredOrders = filteredGroups.flatMap((g) => g.orders);
+  const totalOrders = filteredOrders.length;
+  const totalItems = filteredGroups.reduce((s, g) => s + g.totalItems, 0);
 
   async function toggleHold(order: ShipmentOrder) {
     const newNotes = order.isHold
