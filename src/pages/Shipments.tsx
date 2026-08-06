@@ -46,7 +46,7 @@ interface ShipmentOrder {
   holdReason: string;
 }
 
-type FilterType = "all" | "ready" | "hold";
+type FilterType = "all" | "ready" | "hold" | "shipped";
 
 function isOrderLunas(o: { paid_total: number; total: number }) {
   return (o.paid_total || 0) >= (o.total || 0) && o.total > 0;
@@ -69,6 +69,7 @@ export default function Shipments() {
   const [loading, setLoading] = useState(true);
   const [checkedItems, setCheckedItems] = useState<Record<string, Set<number>>>({});
   const [search, setSearch] = useState("");
+  const [shippedOrders, setShippedOrders] = useState<ShipmentOrder[]>([]);
 
   function toggleItemCheck(orderId: string, itemIdx: number) {
     setCheckedItems((prev) => {
@@ -121,6 +122,67 @@ export default function Shipments() {
     loadAllItems();
   }, [allOrders]);
 
+  useEffect(() => {
+    async function loadShipped() {
+      const { data: shipped } = await supabase
+        .from("orders")
+        .select("id, customer_id, status, total, paid_total, notes, created_at, order_type")
+        .eq("order_type", "penjualan")
+        .eq("status", "shipped")
+        .order("created_at", { ascending: false });
+
+      if (!shipped) return;
+
+      const ids = shipped.map((o) => o.id);
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, quantity, price")
+        .in("order_id", ids);
+
+      const { data: customersData } = await supabase
+        .from("customers")
+        .select("id, name, phone");
+
+      const customerMapLocal: Record<string, { name: string; phone: string }> = {};
+      if (customersData) {
+        for (const c of customersData) {
+          customerMapLocal[c.id] = { name: c.name, phone: c.phone };
+        }
+      }
+
+      const map: Record<string, OrderItemData[]> = {};
+      if (items) {
+        for (const row of items) {
+          if (!map[row.order_id]) map[row.order_id] = [];
+          map[row.order_id].push({
+            product_name: row.product_name,
+            quantity: row.quantity,
+            price: row.price,
+            stock: 0,
+          });
+        }
+      }
+
+      setShippedOrders(
+        shipped.map((o) => ({
+          id: o.id,
+          customer_id: o.customer_id,
+          customer_name: customerMapLocal[o.customer_id]?.name || "Tanpa Nama",
+          customer_phone: customerMapLocal[o.customer_id]?.phone || "",
+          status: o.status,
+          total: o.total,
+          paid_total: o.paid_total,
+          notes: o.notes,
+          created_at: o.created_at,
+          items: map[o.id] || [],
+          isHold: false,
+          holdReason: "",
+        }))
+      );
+    }
+    loadShipped();
+  }, [allOrders]);
+
   const lunasOrders = allOrders.filter(
     (o) =>
       o.order_type === "penjualan" &&
@@ -163,7 +225,30 @@ export default function Shipments() {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const filteredGroups = customerGroups.filter((g) => {
+  const shippedGrouped: Record<string, ShipmentOrder[]> = {};
+  for (const o of shippedOrders) {
+    const custId = o.customer_id || "__none__";
+    if (!shippedGrouped[custId]) shippedGrouped[custId] = [];
+    shippedGrouped[custId].push(o);
+  }
+
+  const shippedCustomerGroups = Object.entries(shippedGrouped)
+    .map(([custId, orders]) => ({
+      custId,
+      name: orders[0].customer_name,
+      phone: orders[0].customer_phone,
+      orders,
+      totalItems: orders.reduce(
+        (s, o) => s + o.items.reduce((s2, i) => s2 + i.quantity, 0),
+        0
+      ),
+      hasHold: false,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const activeGroups = filter === "shipped" ? shippedCustomerGroups : customerGroups;
+
+  const filteredGroups = activeGroups.filter((g) => {
     if (filter === "ready" && g.hasHold) return false;
     if (filter === "hold" && !g.hasHold) return false;
     if (search) {
@@ -179,12 +264,13 @@ export default function Shipments() {
   });
 
   const holdCount = customerGroups.filter((g) => g.hasHold).length;
+  const shippedCount = shippedCustomerGroups.length;
 
   const filteredOrders = filteredGroups.flatMap((g) => g.orders);
   const totalOrders = filteredOrders.length;
   const totalItems = filteredGroups.reduce((s, g) => s + g.totalItems, 0);
-  const filteredHoldCount = filteredGroups.filter((g) => g.hasHold).length;
-  const filteredReadyCount = filteredGroups.length - filteredHoldCount;
+  const filteredHoldCount = filter === "shipped" ? 0 : filteredGroups.filter((g) => g.hasHold).length;
+  const filteredReadyCount = filter === "shipped" ? 0 : filteredGroups.length - filteredHoldCount;
 
   async function toggleHold(order: ShipmentOrder) {
     const newNotes = order.isHold
@@ -237,19 +323,23 @@ export default function Shipments() {
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className={`grid gap-2 mb-4 ${filter === "shipped" ? "grid-cols-2" : "grid-cols-3"}`}>
           <div className="bg-white border border-slate-100 rounded-xl p-3 text-center">
-            <div className="text-xl font-extrabold text-pink-500">{customerGroups.length}</div>
+            <div className="text-xl font-extrabold text-pink-500">
+              {filter === "shipped" ? shippedCustomerGroups.length : customerGroups.length}
+            </div>
             <div className="text-xs text-slate-400 mt-0.5 font-medium">Pelanggan</div>
           </div>
           <div className="bg-white border border-slate-100 rounded-xl p-3 text-center">
             <div className="text-xl font-extrabold text-blue-500">{totalOrders}</div>
             <div className="text-xs text-slate-400 mt-0.5 font-medium">Order</div>
           </div>
-          <div className="bg-white border border-slate-100 rounded-xl p-3 text-center">
-            <div className="text-xl font-extrabold text-orange-500">{totalItems}</div>
-            <div className="text-xs text-slate-400 mt-0.5 font-medium">Item</div>
-          </div>
+          {filter !== "shipped" && (
+            <div className="bg-white border border-slate-100 rounded-xl p-3 text-center">
+              <div className="text-xl font-extrabold text-orange-500">{totalItems}</div>
+              <div className="text-xs text-slate-400 mt-0.5 font-medium">Item</div>
+            </div>
+          )}
         </div>
 
         {/* Search */}
@@ -282,6 +372,7 @@ export default function Shipments() {
             ["all", "Semua"],
             ["ready", "Siap Kirim"],
             ["hold", "⏳ Tunda"],
+            ["shipped", "🚚 Sudah Kirim"],
           ] as [FilterType, string][]).map(([key, label]) => (
             <button
               key={key}
@@ -290,11 +381,13 @@ export default function Shipments() {
                 filter === key
                   ? key === "hold"
                     ? "bg-amber-400 text-amber-900 border-amber-400"
+                    : key === "shipped"
+                    ? "bg-blue-500 text-white border-blue-500"
                     : "bg-pink-500 text-white border-pink-500"
                   : "bg-white text-slate-500 border-slate-200"
               }`}
             >
-              {label} ({key === "hold" ? filteredHoldCount : key === "ready" ? filteredReadyCount : filteredGroups.length})
+              {label} ({key === "hold" ? filteredHoldCount : key === "shipped" ? shippedCount : key === "ready" ? filteredReadyCount : filteredGroups.length})
             </button>
           ))}
         </div>
@@ -309,8 +402,12 @@ export default function Shipments() {
             <div className="w-16 h-16 bg-pink-50 border border-pink-100 rounded-2xl flex items-center justify-center mb-4">
               <Truck className="w-7 h-7 text-pink-300" />
             </div>
-            <p className="text-gray-500 font-semibold">Tidak ada barang perlu dikirim</p>
-            <p className="text-gray-300 text-sm mt-1">Semua order sudah terkirim</p>
+            <p className="text-gray-500 font-semibold">
+              {filter === "shipped" ? "Belum ada barang terkirim" : "Tidak ada barang perlu dikirim"}
+            </p>
+            <p className="text-gray-300 text-sm mt-1">
+              {filter === "shipped" ? "Barang yang sudah dikirim akan muncul di sini" : "Semua order sudah terkirim"}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -432,65 +529,78 @@ export default function Shipments() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() => toggleHold(order)}
-                        className={`flex items-center justify-center gap-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                          order.isHold
-                            ? "bg-amber-200 text-amber-800 hover:bg-amber-300"
-                            : "bg-amber-100 text-amber-600 hover:bg-amber-200"
-                        }`}
-                      >
-                        {order.isHold ? (
-                          <><Undo2 className="w-3 h-3" /> Batal Tunda</>
-                        ) : (
-                          <><Clock className="w-3 h-3" /> Tunda</>
-                        )}
-                      </button>
-                      {!order.isHold && (() => {
-                        const totalItems = order.items.length;
-                        const checked = checkedItems[order.id]?.size || 0;
-                        const allChecked = totalItems > 0 && checked === totalItems;
-                        return (
-                          <button
-                            onClick={() => allChecked && markShipped([order.id])}
-                            disabled={!allChecked}
-                            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                              allChecked
-                                ? "bg-pink-500 text-white hover:bg-pink-600"
-                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            }`}
-                          >
-                            <Truck className="w-3 h-3" />
-                            {allChecked ? "Kirim" : `Kirim (${checked}/${totalItems})`}
-                          </button>
-                        );
-                      })()}
-                    </div>
+                    {filter !== "shipped" && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => toggleHold(order)}
+                          className={`flex items-center justify-center gap-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                            order.isHold
+                              ? "bg-amber-200 text-amber-800 hover:bg-amber-300"
+                              : "bg-amber-100 text-amber-600 hover:bg-amber-200"
+                          }`}
+                        >
+                          {order.isHold ? (
+                            <><Undo2 className="w-3 h-3" /> Batal Tunda</>
+                          ) : (
+                            <><Clock className="w-3 h-3" /> Tunda</>
+                          )}
+                        </button>
+                        {!order.isHold && (() => {
+                          const totalItems = order.items.length;
+                          const checked = checkedItems[order.id]?.size || 0;
+                          const allChecked = totalItems > 0 && checked === totalItems;
+                          return (
+                            <button
+                              onClick={() => allChecked && markShipped([order.id])}
+                              disabled={!allChecked}
+                              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                                allChecked
+                                  ? "bg-pink-500 text-white hover:bg-pink-600"
+                                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                              }`}
+                            >
+                              <Truck className="w-3 h-3" />
+                              {allChecked ? "Kirim" : `Kirim (${checked}/${totalItems})`}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    )}
+                    {filter === "shipped" && (
+                      <div className="flex items-center gap-1.5 mt-2 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-xs font-semibold text-blue-600">Sudah Terkirim</span>
+                        <span className="text-xs text-blue-400 ml-auto">
+                          {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
 
                 {/* Customer actions */}
-                <div className="flex gap-2 ml-13">
-                  <button
-                    onClick={() =>
-                      sendWhatsApp(group.phone, group.name, group.orders.filter((o) => !o.isHold))
-                    }
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-green-500 text-white hover:bg-green-600 transition-all"
-                  >
-                    <MessageCircle className="w-3 h-3" /> WhatsApp
-                  </button>
-                  {group.orders.filter((o) => !o.isHold).length > 0 && (
+                {filter !== "shipped" && (
+                  <div className="flex gap-2 ml-13">
                     <button
                       onClick={() =>
-                        markShipped(group.orders.filter((o) => !o.isHold).map((o) => o.id))
+                        sendWhatsApp(group.phone, group.name, group.orders.filter((o) => !o.isHold))
                       }
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-pink-500 text-white hover:bg-pink-600 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-green-500 text-white hover:bg-green-600 transition-all"
                     >
-                      <CheckCircle2 className="w-3 h-3" /> Kirim Semua
+                      <MessageCircle className="w-3 h-3" /> WhatsApp
                     </button>
-                  )}
-                </div>
+                    {group.orders.filter((o) => !o.isHold).length > 0 && (
+                      <button
+                        onClick={() =>
+                          markShipped(group.orders.filter((o) => !o.isHold).map((o) => o.id))
+                        }
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-pink-500 text-white hover:bg-pink-600 transition-all"
+                      >
+                        <CheckCircle2 className="w-3 h-3" /> Kirim Semua
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
