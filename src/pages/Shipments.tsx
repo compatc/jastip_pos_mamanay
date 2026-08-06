@@ -423,6 +423,13 @@ export default function Shipments() {
                       })}
                     </div>
 
+                    {/* Notes */}
+                    {order.notes && !order.notes.match(/^\[DITUNDA\]/) && (
+                      <div className="mt-2 px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                        <p className="text-xs text-slate-500 whitespace-pre-wrap">{order.notes.replace(/\[DITUNDA\]\s*.*/, "").trim()}</p>
+                      </div>
+                    )}
+
                     {/* Actions */}
                     <div className="flex gap-2 mt-2">
                       <button
