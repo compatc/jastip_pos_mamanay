@@ -1017,6 +1017,13 @@ export const useStore = create<PosStore>((set, get) => ({
       })
       .eq("id", id);
     if (error) throw error;
+
+    // Update price in existing order_items for this product
+    await supabase
+      .from("order_items")
+      .update({ price: sellPrice })
+      .eq("product_id", id);
+
     await get().loadProducts();
   },
 
