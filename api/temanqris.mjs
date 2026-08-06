@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 
 const TEMANQRIS_BASE = "https://temanqris.com/api/qris";
-const UNIQUE_MAX = 999; // Kode unik 1-999
+const UNIQUE_MAX = 200; // Kode unik 1-200
 
 // Generate kode unik (1-999)
 function generateUniqueCode() {
@@ -113,10 +113,14 @@ async function generateDynamicQris(sb, amount, description, orderId) {
 
   const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 
+  // Kode unik 1-200
+  const kodeUnik = Math.floor(Math.random() * 200) + 1;
+  const qrAmount = amount + kodeUnik;
+
   const result = await temanqrisApi("/generate", {
     method: "POST",
     body: JSON.stringify({
-      amount: amount,
+      amount: qrAmount,
       order_id: shortOrderId,
       webhook_url: webhookUrl,
       callback_url: callbackUrl,
@@ -148,7 +152,7 @@ async function generateDynamicQris(sb, amount, description, orderId) {
     await sb.from("order_qris_map").insert({
       short_id: shortOrderId,
       order_id: orderId,
-      amount: amount,
+      amount: qrAmount,
     });
   } catch (e) {}
 
@@ -156,7 +160,9 @@ async function generateDynamicQris(sb, amount, description, orderId) {
     qr_image: qrSvg,
     payment_link: paymentLink,
     qris: result.qris || null,
-    amount: amount,
+    amount: qrAmount,
+    original_amount: amount,
+    kode_unik: kodeUnik,
     short_order_id: shortOrderId,
   };
 }
@@ -271,9 +277,9 @@ async function confirmOrder(sb, orderId, amount, payerName) {
     contactName = cust?.name || "";
   }
 
-  // Hitung kode unik (selisih antara yang dibayar dan sisa tagihan)
+  // Hitung kode unik: customer bayar lebih → selisih jadi diskon
   const sisaInvoice = (order.total || 0) - (order.paid_total || 0);
-  const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
+  const kodeUnik = Number(shareOfPayment) - Number(sisaInvoice);
   const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= UNIQUE_MAX;
 
   // Final values
@@ -365,7 +371,9 @@ export default async function handler(req, res) {
           qr_image: result.qr_image || null,
           qris: result.qris || null,
           order_id: orderId,
-          amount,
+          amount: result.amount,
+          original_amount: result.original_amount,
+          kode_unik: result.kode_unik,
         });
       } catch (err) {
         console.error("[TemanQRIS] Generate error:", err.message);

@@ -41,7 +41,7 @@ function readBody(req) {
   });
 }
 
-const UNIQUE_MAX = 999;
+const UNIQUE_MAX = 200;
 
 async function confirmOrder(sb, orderId, amount, payerName) {
   const { data: order, error } = await sb
@@ -75,9 +75,9 @@ async function confirmOrder(sb, orderId, amount, payerName) {
     contactName = cust?.name || "";
   }
 
-  // Hitung kode unik
+  // Hitung kode unik: customer bayar lebih → selisih jadi diskon
   const sisaInvoice = (order.total || 0) - (order.paid_total || 0);
-  const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
+  const kodeUnik = Number(shareOfPayment) - Number(sisaInvoice);
   const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= UNIQUE_MAX;
 
   const finalTotal = isKodeUnik ? (order.total || 0) - kodeUnik : (order.total || 0);

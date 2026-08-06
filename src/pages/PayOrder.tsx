@@ -16,6 +16,7 @@ export default function PayOrder() {
 
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [amount, setAmount] = useState(0);
+  const [kodeUnik, setKodeUnik] = useState(0);
   const [paymentLink, setPaymentLink] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +61,8 @@ export default function PayOrder() {
 
       setQrImage(gData.qr_image || null);
       setPaymentLink(gData.payment_link || "");
+      setKodeUnik(gData.kode_unik || 0);
+      setAmount(gData.amount || total);
     } catch (e: any) {
       setError(e.message || "Gagal");
     } finally {
@@ -160,6 +163,11 @@ export default function PayOrder() {
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
             <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(amount)}</p>
+            {kodeUnik > 0 && (
+              <p className="text-[11px] text-gray-400 mb-1">
+                (termasuk kode unik {kodeUnik})
+              </p>
+            )}
             {countdown !== null && (
               <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-4">
                 <Clock className="w-3.5 h-3.5" />
