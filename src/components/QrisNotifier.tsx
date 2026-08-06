@@ -182,37 +182,8 @@ export default function QrisNotifier() {
       } catch {}
     }, 30000);
 
-    const reconcileTeman = window.setInterval(async () => {
-      try {
-        const since = new Date(Date.now() - POLL_WINDOW_MS).toISOString();
-        const { data: unpaid } = await supabase
-          .from("orders")
-          .select("id")
-          .eq("payment_type", "qris")
-          .not("status", "eq", "paid")
-          .not("status", "eq", "completed")
-          .gte("created_at", since)
-          .limit(10);
-        if (!unpaid || unpaid.length === 0) return;
-        for (const o of unpaid) {
-          try {
-            const res = await fetch("/api/temanqris", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "status", orderId: o.id }),
-            });
-            const data = await res.json();
-            if (data.paid_via_polling) {
-              await useStore.getState().loadAllOrders();
-            }
-          } catch {}
-        }
-      } catch {}
-    }, 15000);
-
     return () => {
       window.clearInterval(reconcile);
-      window.clearInterval(reconcileTeman);
     };
   }, []);
 

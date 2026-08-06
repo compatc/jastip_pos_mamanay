@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
@@ -17,64 +17,66 @@ export default function PayOrder() {
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [amount, setAmount] = useState(0);
   const [kodeUnik, setKodeUnik] = useState(0);
-  const [paymentLink, setPaymentLink] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const actualOrderId = isMulti ? multiKey.split(",")[0].trim() : orderId;
+  const txIdRef = useRef<string>("");
+  const orderIdsRef = useRef<string[]>([]);
+
+  const actualOrderIds = isMulti
+    ? multiKey.split(",").filter(Boolean)
+    : orderId
+      ? [orderId]
+      : [];
 
   const go = useCallback(async () => {
-    if (!actualOrderId) return;
+    if (actualOrderIds.length === 0) return;
     setLoading(true);
     setError(null);
     try {
-      const sRes = await fetch("/api/temanqris", {
+      const body = isMulti
+        ? { action: "create", orderIds: actualOrderIds }
+        : { action: "create", orderId: actualOrderIds[0] };
+
+      const res = await fetch("/api/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "status", orderId: actualOrderId }),
+        body: JSON.stringify(body),
       });
-      const sData = await sRes.json();
-      if (sData.error) throw new Error(sData.error);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal membuat QR");
 
-      const total = isMulti
-        ? (sData.sisa || 0) * multiKey.split(",").filter(Boolean).length
-        : sData.sisa || sData.total || 0;
+      const tx = data.tx || {};
+      const qrSvg = tx.qr_svg || null;
+      let finalQr = qrSvg;
 
-      if (total <= 0) throw new Error("Sudah lunas");
+      txIdRef.current = tx.transaction_id || "";
+      orderIdsRef.current = isMulti
+        ? (data.group?.order_ids || actualOrderIds)
+        : [actualOrderIds[0]];
 
-      setAmount(total);
+      const sisa = isMulti
+        ? (data.group?.sisa_total || 0)
+        : (data.order?.sisa || 0);
+      setAmount(tx.requested_amount || tx.amount || sisa);
 
-      const gRes = await fetch("/api/temanqris", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "generate",
-          amount: total,
-          orderId: actualOrderId,
-          description: "Pembayaran",
-        }),
-      });
-      const gData = await gRes.json();
-      if (!gRes.ok) throw new Error(gData.error || "Gagal generate QR");
+      const uniq = tx.custom_unique_code || 0;
+      setKodeUnik(uniq);
 
-      setQrImage(gData.qr_image || null);
-      setPaymentLink(gData.payment_link || "");
-      setKodeUnik(gData.kode_unik || 0);
-      setAmount(gData.amount || total);
+      setQrImage(finalQr);
     } catch (e: any) {
       setError(e.message || "Gagal");
     } finally {
       setLoading(false);
     }
-  }, [actualOrderId, isMulti, multiKey]);
+  }, [actualOrderIds, isMulti]);
 
   useEffect(() => {
     go();
   }, [go]);
 
-  // Countdown 15 menit
   useEffect(() => {
     if (!qrImage) return;
     const end = Date.now() + 15 * 60 * 1000;
@@ -86,25 +88,28 @@ export default function PayOrder() {
     return () => clearInterval(t);
   }, [qrImage]);
 
-  // Polling status
   useEffect(() => {
-    if (!actualOrderId || !qrImage) return;
+    if (!txIdRef.current || !qrImage) return;
     const poll = setInterval(async () => {
       try {
-        const res = await fetch("/api/temanqris", {
+        const res = await fetch("/api/pay", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "status", orderId: actualOrderId }),
+          body: JSON.stringify({
+            action: "confirm",
+            orderIds: orderIdsRef.current,
+            transactionId: txIdRef.current,
+          }),
         });
         const data = await res.json();
-        if (data.paid_total > 0 || data.status === "paid" || data.status === "completed") {
+        if (data.status === "paid" || data.confirmed) {
           setConfirmed(true);
           clearInterval(poll);
         }
       } catch {}
     }, 5000);
     return () => clearInterval(poll);
-  }, [actualOrderId, qrImage]);
+  }, [qrImage]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex items-center justify-center p-4">
