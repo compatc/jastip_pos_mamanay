@@ -48,7 +48,7 @@ export default function PayOrder() {
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [orders, setOrders] = useState<OrderInfo[]>([]);
   const [tx, setTx] = useState<Tx | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -67,34 +67,34 @@ export default function PayOrder() {
     setOrder(null);
     setOrders([]);
     try {
-      // Hitung total sisa tagihan
-      let totalAmount = 0;
-
-      console.log("[PayOrder] Fetching status for:", orderId);
       const statusRes = await fetch("/api/temanqris", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "status", orderId: isMulti ? multiIds[0] : orderId }),
       });
-      console.log("[PayOrder] Status response:", statusRes.status);
       const statusData = await statusRes.json();
-      console.log("[PayOrder] Status data:", statusData);
-      
+
       if (statusData.error) {
         throw new Error(statusData.error);
       }
 
-      if (isMulti) {
-        totalAmount = (statusData.sisa || 0) * multiIds.length;
-      } else {
-        totalAmount = statusData.sisa || statusData.total || 0;
-      }
+      let totalAmount = isMulti
+        ? (statusData.sisa || 0) * multiIds.length
+        : statusData.sisa || statusData.total || 0;
 
       if (!totalAmount || totalAmount <= 0) {
-        throw new Error("Nominal pembayaran kosong atau sudah lunas");
+        throw new Error("Sudah lunas");
       }
 
-      console.log("[PayOrder] Generating QR for amount:", totalAmount);
+      setOrder({
+        id: orderId || "",
+        customer_name: "Pelanggan",
+        total: totalAmount,
+        paid_total: 0,
+        sisa: totalAmount,
+        items: [],
+      });
+
       const res = await fetch("/api/temanqris", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,40 +102,12 @@ export default function PayOrder() {
           action: "generate",
           amount: totalAmount,
           orderId: isMulti ? multiKey : orderId,
-          description: isMulti
-            ? `Pembayaran ${multiIds.length} pesanan`
-            : `Pembayaran order ${orderId}`,
+          description: `Pembayaran order ${orderId}`,
         }),
       });
-      console.log("[PayOrder] Generate response:", res.status);
       const data = await res.json();
-      console.log("[PayOrder] Generate data:", data);
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
 
-      // Set order info
-      if (isMulti) {
-        setOrders(
-          multiIds.map((id) => ({
-            id,
-            customer_name: "Pelanggan",
-            total: totalAmount,
-            paid_total: 0,
-            sisa: totalAmount,
-            items: [],
-          }))
-        );
-      } else {
-        setOrder({
-          id: orderId || "",
-          customer_name: "Pelanggan",
-          total: totalAmount,
-          paid_total: 0,
-          sisa: totalAmount,
-          items: [],
-        });
-      }
-
-      // Set transaction info
       setTx({
         transaction_id: data.payment_link || "",
         status: "pending",
@@ -153,8 +125,10 @@ export default function PayOrder() {
   }, [orderId, isMulti, multiKey]);
 
   useEffect(() => {
-    createPayment();
-  }, [createPayment]);
+    if (orderId || isMulti) {
+      createPayment();
+    }
+  }, [orderId, isMulti, createPayment]);
 
   useEffect(() => {
     if (!tx || tx.status !== "pending") return;
