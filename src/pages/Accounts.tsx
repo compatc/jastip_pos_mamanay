@@ -28,32 +28,32 @@ export default function Accounts() {
     {
       title: "Toko",
       items: [
-        { icon: Store, iconBg: "bg-pink-100", iconColor: "text-pink-500", label: "Profil Toko", desc: "Nama, alamat, logo toko", onClick: () => {} },
-        { icon: CreditCard, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Rekening Bank", desc: "BCA 5271330651 a.n. Nurul Azizah", onClick: () => {} },
-        { icon: Phone, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Nomor WhatsApp", desc: user?.phone || "Belum diatur", onClick: () => {} },
+        { icon: Store, iconBg: "bg-pink-100", iconColor: "text-pink-500", label: "Profil Toko", desc: "Nama, alamat, logo toko", onClick: () => navigate("/profile") },
+        { icon: CreditCard, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Rekening Bank", desc: "BCA 5271330651 a.n. Nurul Azizah", onClick: () => navigate("/accounts/bank") },
+        { icon: Phone, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Nomor WhatsApp", desc: user?.phone || "Belum diatur", onClick: () => navigate("/profile") },
       ]
     },
     {
       title: "Pengaturan",
       items: [
         { icon: Bell, iconBg: "bg-purple-100", iconColor: "text-purple-500", label: "Notifikasi", desc: "Notifikasi order masuk", toggle: true, toggleValue: notifEnabled, onToggle: () => setNotifEnabled(!notifEnabled) },
-        { icon: QrCode, iconBg: "bg-amber-100", iconColor: "text-amber-500", label: "QRIS", desc: "Pengaturan pembayaran QRIS", badge: "Aktif", onClick: () => {} },
-        { icon: Package, iconBg: "bg-slate-100", iconColor: "text-slate-500", label: "Stok Minimum", desc: "Alert stok rendah otomatis", onClick: () => {} },
+        { icon: QrCode, iconBg: "bg-amber-100", iconColor: "text-amber-500", label: "QRIS", desc: "Pengaturan pembayaran QRIS", badge: "Aktif", onClick: () => alert("Pengaturan QRIS - Segera hadir") },
+        { icon: Package, iconBg: "bg-slate-100", iconColor: "text-slate-500", label: "Stok Minimum", desc: "Alert stok rendah otomatis", onClick: () => alert("Stok Minimum - Segera hadir") },
       ]
     },
     {
       title: "Data",
       items: [
-        { icon: Download, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Export Data", desc: "Download data order & produk", onClick: () => {} },
-        { icon: RefreshCw, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Backup & Restore", desc: "Cadangkan data ke cloud", onClick: () => {} },
+        { icon: Download, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Export Data", desc: "Download data order & produk", onClick: () => alert("Export Data - Segera hadir") },
+        { icon: RefreshCw, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Backup & Restore", desc: "Cadangkan data ke cloud", onClick: () => alert("Backup & Restore - Segera hadir") },
         { icon: Wrench, iconBg: "bg-red-100", iconColor: "text-red-500", label: "Maintenance", desc: "Audit & perbaiki stok", onClick: () => navigate("/maintenance") },
       ]
     },
     {
       title: "Bantuan",
       items: [
-        { icon: HelpCircle, iconBg: "bg-green-100", iconColor: "text-green-500", label: "FAQ", desc: "Pertanyaan umum", onClick: () => {} },
-        { icon: MessageCircle, iconBg: "bg-pink-100", iconColor: "text-pink-500", label: "Hubungi Support", desc: "Chat via WhatsApp", onClick: () => {} },
+        { icon: HelpCircle, iconBg: "bg-green-100", iconColor: "text-green-500", label: "FAQ", desc: "Pertanyaan umum", onClick: () => alert("FAQ - Segera hadir") },
+        { icon: MessageCircle, iconBg: "bg-pink-100", iconColor: "text-pink-500", label: "Hubungi Support", desc: "Chat via WhatsApp", onClick: () => window.open("https://wa.me/6281234567890", "_blank") },
       ]
     }
   ];
