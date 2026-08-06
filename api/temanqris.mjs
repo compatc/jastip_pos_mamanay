@@ -113,9 +113,9 @@ async function generateDynamicQris(sb, amount, description, orderId) {
 
   const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 
-  // Kode unik 1-50
+  // Kode unik 1-50: QR amount = total - kode_unik (customer bayar lebih dikit)
   const kodeUnik = Math.floor(Math.random() * 50) + 1;
-  const qrAmount = amount + kodeUnik;
+  const qrAmount = amount - kodeUnik;
 
   const result = await temanqrisApi("/generate", {
     method: "POST",
