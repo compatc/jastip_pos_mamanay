@@ -113,42 +113,47 @@ async function generateDynamicQris(sb, amount, description, orderId) {
 
   const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 
-  console.log("[TemanQRIS] Generating:", { shortOrderId, amount, orderId });
-
-  const result = await temanqrisApi("/payment-link", {
+  const result = await temanqrisApi("/generate", {
     method: "POST",
     body: JSON.stringify({
       amount: amount,
-      description: description || `Pembayaran order ${shortOrderId}`,
       order_id: shortOrderId,
       webhook_url: webhookUrl,
       callback_url: callbackUrl,
     }),
   });
 
-  console.log("[TemanQRIS] Result keys:", Object.keys(result));
-  console.log("[TemanQRIS] Result:", JSON.stringify(result).slice(0, 500));
-
-  // Generate QR SVG dari qris string jika qr_image tidak ada
+  // Generate QR SVG dari qris string kalau qr_image kosong
   let qrSvg = result.qr_image || null;
   if (!qrSvg && result.qris) {
-    try {
-      const QRCode = await import("qrcode");
-      qrSvg = await QRCode.toString(result.qris, {
-        type: "svg",
-        margin: 2,
-        width: 200,
-        color: { dark: "#ec4899", light: "#ffffff" },
-      });
-    } catch (e) {
-      console.error("[TemanQRIS] QR gen error:", e.message);
-    }
+    const QRCode = await import("qrcode");
+    qrSvg = await QRCode.toString(result.qris, {
+      type: "svg",
+      margin: 2,
+      width: 200,
+      color: { dark: "#ec4899", light: "#ffffff" },
+    });
   }
 
+  // Payment link
+  const linkCode = result.payment_link?.link_code || "";
+  const paymentLink = linkCode ? `https://temanqris.com/p/${linkCode}` : "";
+
+  // Simpan mapping
+  try {
+    await sb.from("order_qris_map").insert({
+      short_id: shortOrderId,
+      order_id: orderId,
+      amount: amount,
+    });
+  } catch (e) {}
+
   return {
-    ...result,
-    short_order_id: shortOrderId,
     qr_image: qrSvg,
+    payment_link: paymentLink,
+    qris: result.qris || null,
+    amount: amount,
+    short_order_id: shortOrderId,
   };
 }
 
