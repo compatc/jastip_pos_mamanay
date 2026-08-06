@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 
 const TEMANQRIS_BASE = "https://temanqris.com/api/qris";
-const UNIQUE_MAX = 200; // Kode unik 1-200
+const UNIQUE_MAX = 50; // Kode unik 1-50
 
 // Generate kode unik (1-999)
 function generateUniqueCode() {
@@ -113,8 +113,8 @@ async function generateDynamicQris(sb, amount, description, orderId) {
 
   const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 
-  // Kode unik 1-200
-  const kodeUnik = Math.floor(Math.random() * 200) + 1;
+  // Kode unik 1-50
+  const kodeUnik = Math.floor(Math.random() * 50) + 1;
   const qrAmount = amount + kodeUnik;
 
   const result = await temanqrisApi("/generate", {

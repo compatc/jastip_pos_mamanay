@@ -41,7 +41,7 @@ function readBody(req) {
   });
 }
 
-const UNIQUE_MAX = 200;
+const UNIQUE_MAX = 50;
 
 async function confirmOrder(sb, orderId, amount, payerName) {
   const { data: order, error } = await sb
