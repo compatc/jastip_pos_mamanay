@@ -154,9 +154,21 @@ async function generateDynamicQris(sb, amount, description, orderId) {
   };
 }
 
-// Cek status order
-async function checkOrderStatus(orderId) {
-  return temanqrisApi(`/orders/${orderId}`);
+// Cek status order dari Supabase
+async function checkOrderStatus(sb, orderId) {
+  const { data: order, error } = await sb
+    .from("orders")
+    .select("id, total, paid_total, status")
+    .eq("id", orderId)
+    .single();
+  if (error || !order) return { error: "Order tidak ditemukan" };
+  return {
+    id: order.id,
+    total: order.total,
+    paid_total: order.paid_total || 0,
+    sisa: (order.total || 0) - (order.paid_total || 0),
+    status: order.status,
+  };
 }
 
 // Verify order (setelah admin konfirmasi dana masuk)
@@ -314,7 +326,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      const result = await checkOrderStatus(orderId);
+      const result = await checkOrderStatus(sb, orderId);
       json(res, 200, result);
       return;
     }

@@ -88,6 +88,14 @@ export default function PayOrder() {
         }
       } else {
         orderIds = [orderId || ""];
+        // Fetch order untuk dapat sisa tagihan
+        const orderRes = await fetch("/api/temanqris", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status", orderId }),
+        });
+        const orderData = await orderRes.json();
+        totalAmount = orderData.sisa || orderData.total || 0;
       }
 
       // Generate QRIS dinamis via TemanQRIS
