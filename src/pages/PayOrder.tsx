@@ -70,12 +70,15 @@ export default function PayOrder() {
       // Hitung total sisa tagihan
       let totalAmount = 0;
 
+      console.log("[PayOrder] Fetching status for:", orderId);
       const statusRes = await fetch("/api/temanqris", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "status", orderId: isMulti ? multiIds[0] : orderId }),
       });
+      console.log("[PayOrder] Status response:", statusRes.status);
       const statusData = await statusRes.json();
+      console.log("[PayOrder] Status data:", statusData);
       
       if (statusData.error) {
         throw new Error(statusData.error);
@@ -91,7 +94,7 @@ export default function PayOrder() {
         throw new Error("Nominal pembayaran kosong atau sudah lunas");
       }
 
-      // Generate QRIS dinamis via TemanQRIS
+      console.log("[PayOrder] Generating QR for amount:", totalAmount);
       const res = await fetch("/api/temanqris", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,7 +107,9 @@ export default function PayOrder() {
             : `Pembayaran order ${orderId}`,
         }),
       });
+      console.log("[PayOrder] Generate response:", res.status);
       const data = await res.json();
+      console.log("[PayOrder] Generate data:", data);
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
 
       // Set order info
@@ -136,7 +141,7 @@ export default function PayOrder() {
         status: "pending",
         amount: data.amount || totalAmount,
         qr_url: data.payment_link || "",
-        qris_dynamic: "",
+        qris_dynamic: data.qris || "",
         qr_svg: data.qr_image || null,
         expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       });

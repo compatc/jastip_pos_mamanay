@@ -126,11 +126,29 @@ async function generateDynamicQris(sb, amount, description, orderId) {
     }),
   });
 
-  console.log("[TemanQRIS] Success:", JSON.stringify(result).slice(0, 300));
+  console.log("[TemanQRIS] Result keys:", Object.keys(result));
+  console.log("[TemanQRIS] Result:", JSON.stringify(result).slice(0, 500));
+
+  // Generate QR SVG dari qris string jika qr_image tidak ada
+  let qrSvg = result.qr_image || null;
+  if (!qrSvg && result.qris) {
+    try {
+      const QRCode = await import("qrcode");
+      qrSvg = await QRCode.toString(result.qris, {
+        type: "svg",
+        margin: 2,
+        width: 200,
+        color: { dark: "#ec4899", light: "#ffffff" },
+      });
+    } catch (e) {
+      console.error("[TemanQRIS] QR gen error:", e.message);
+    }
+  }
 
   return {
     ...result,
     short_order_id: shortOrderId,
+    qr_image: qrSvg,
   };
 }
 
@@ -283,15 +301,21 @@ export default async function handler(req, res) {
         return;
       }
 
-      const result = await generateDynamicQris(sb, amount, description, orderId);
+      try {
+        const result = await generateDynamicQris(sb, amount, description, orderId);
 
-      json(res, 201, {
-        success: true,
-        payment_link: result.payment_link || result.url,
-        qr_image: result.qr_image,
-        order_id: orderId,
-        amount,
-      });
+        json(res, 201, {
+          success: true,
+          payment_link: `https://temanqris.com${result.payment_link?.url || ""}`,
+          qr_image: result.qr_image || null,
+          qris: result.qris || null,
+          order_id: orderId,
+          amount,
+        });
+      } catch (err) {
+        console.error("[TemanQRIS] Generate error:", err.message);
+        json(res, 500, { error: err.message });
+      }
       return;
     }
 
