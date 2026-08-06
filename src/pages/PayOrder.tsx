@@ -67,35 +67,28 @@ export default function PayOrder() {
     setOrder(null);
     setOrders([]);
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000);
-
       // Hitung total sisa tagihan
       let totalAmount = 0;
-      let orderIds: string[] = [];
+
+      const statusRes = await fetch("/api/temanqris", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status", orderId: isMulti ? multiIds[0] : orderId }),
+      });
+      const statusData = await statusRes.json();
+      
+      if (statusData.error) {
+        throw new Error(statusData.error);
+      }
 
       if (isMulti) {
-        orderIds = multiIds;
-        // Fetch orders untuk hitung total
-        const ordersRes = await fetch("/api/temanqris", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "status", orderId: multiIds[0] }),
-        });
-        const ordersData = await ordersRes.json();
-        if (ordersData.sisa) {
-          totalAmount = ordersData.sisa * multiIds.length; // Approximate
-        }
+        totalAmount = (statusData.sisa || 0) * multiIds.length;
       } else {
-        orderIds = [orderId || ""];
-        // Fetch order untuk dapat sisa tagihan
-        const orderRes = await fetch("/api/temanqris", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "status", orderId }),
-        });
-        const orderData = await orderRes.json();
-        totalAmount = orderData.sisa || orderData.total || 0;
+        totalAmount = statusData.sisa || statusData.total || 0;
+      }
+
+      if (!totalAmount || totalAmount <= 0) {
+        throw new Error("Nominal pembayaran kosong atau sudah lunas");
       }
 
       // Generate QRIS dinamis via TemanQRIS
@@ -104,15 +97,13 @@ export default function PayOrder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "generate",
-          amount: totalAmount || 1, // Will be updated with actual amount
+          amount: totalAmount,
           orderId: isMulti ? multiKey : orderId,
           description: isMulti
             ? `Pembayaran ${multiIds.length} pesanan`
             : `Pembayaran order ${orderId}`,
         }),
-        signal: controller.signal,
       });
-      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
 
@@ -150,11 +141,7 @@ export default function PayOrder() {
         expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       });
     } catch (e: any) {
-      if (e.name === "AbortError") {
-        setError("Server lambat, coba lagi dalam beberapa saat.");
-      } else {
-        setError(e.message || "Gagal memuat pembayaran");
-      }
+      setError(e.message || "Gagal memuat pembayaran");
     } finally {
       setLoading(false);
     }
