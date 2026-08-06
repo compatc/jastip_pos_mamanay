@@ -42,6 +42,7 @@ interface ShipmentOrder {
   paid_total: number;
   notes: string;
   created_at: string;
+  shipped_at: string | null;
   items: OrderItemData[];
   isHold: boolean;
   holdReason: string;
@@ -129,10 +130,10 @@ export default function Shipments() {
     async function loadShipped() {
       const { data: shipped } = await supabase
         .from("orders")
-        .select("id, customer_id, status, total, paid_total, notes, created_at, order_type")
+        .select("id, customer_id, status, total, paid_total, notes, created_at, shipped_at, order_type")
         .eq("order_type", "penjualan")
         .eq("status", "shipped")
-        .order("created_at", { ascending: false });
+        .order("shipped_at", { ascending: false, nullsFirst: false });
 
       if (!shipped) return;
 
@@ -177,6 +178,7 @@ export default function Shipments() {
           paid_total: o.paid_total,
           notes: o.notes,
           created_at: o.created_at,
+          shipped_at: o.shipped_at,
           items: map[o.id] || [],
           isHold: false,
           holdReason: "",
@@ -253,7 +255,8 @@ export default function Shipments() {
 
   const shippedGrouped: Record<string, ShipmentOrder[]> = {};
   for (const o of shippedOrders) {
-    if (!isWithinDateRange(o.created_at, dateFilter)) continue;
+    const dateToCheck = o.shipped_at || o.created_at;
+    if (!isWithinDateRange(dateToCheck, dateFilter)) continue;
     const custId = o.customer_id || "__none__";
     if (!shippedGrouped[custId]) shippedGrouped[custId] = [];
     shippedGrouped[custId].push(o);
@@ -311,9 +314,10 @@ export default function Shipments() {
   }
 
   async function markShipped(orderIds: string[]) {
+    const now = new Date().toISOString();
     await supabase
       .from("orders")
-      .update({ status: "shipped", updated_at: new Date().toISOString() })
+      .update({ status: "shipped", shipped_at: now, updated_at: now })
       .in("id", orderIds);
     loadAllOrders();
   }
@@ -634,7 +638,10 @@ export default function Shipments() {
                         <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
                         <span className="text-xs font-semibold text-blue-600">Sudah Terkirim</span>
                         <span className="text-xs text-blue-400 ml-auto">
-                          {new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                          {order.shipped_at
+                            ? new Date(order.shipped_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+                            : new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+                          }
                         </span>
                       </div>
                     )}
