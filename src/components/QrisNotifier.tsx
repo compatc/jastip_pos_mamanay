@@ -168,8 +168,6 @@ export default function QrisNotifier() {
   }, []);
 
   useEffect(() => {
-    // Konfirmasi ulang QRIS pending: menutup celah saat halaman PayOrder
-    // ditutup dan webhook BOQris tidak aktif.
     const reconcile = window.setInterval(async () => {
       try {
         const res = await fetch("/api/pay", {
@@ -181,11 +179,41 @@ export default function QrisNotifier() {
           const data = await res.json();
           if (data.processed > 0) await useStore.getState().loadAllOrders();
         }
-      } catch {
-        // jaringan bermasalah, coba lagi tick berikutnya
-      }
+      } catch {}
     }, 30000);
-    return () => window.clearInterval(reconcile);
+
+    const reconcileTeman = window.setInterval(async () => {
+      try {
+        const since = new Date(Date.now() - POLL_WINDOW_MS).toISOString();
+        const { data: unpaid } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("payment_type", "qris")
+          .not("status", "eq", "paid")
+          .not("status", "eq", "completed")
+          .gte("created_at", since)
+          .limit(10);
+        if (!unpaid || unpaid.length === 0) return;
+        for (const o of unpaid) {
+          try {
+            const res = await fetch("/api/temanqris", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "status", orderId: o.id }),
+            });
+            const data = await res.json();
+            if (data.paid_via_polling) {
+              await useStore.getState().loadAllOrders();
+            }
+          } catch {}
+        }
+      } catch {}
+    }, 15000);
+
+    return () => {
+      window.clearInterval(reconcile);
+      window.clearInterval(reconcileTeman);
+    };
   }, []);
 
   if (toasts.length === 0) return null;

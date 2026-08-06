@@ -161,21 +161,67 @@ async function generateDynamicQris(sb, amount, description, orderId) {
   };
 }
 
-// Cek status order dari Supabase
+// Cek status order dari Supabase + TemanQRIS
 async function checkOrderStatus(sb, orderId) {
   const { data: order, error } = await sb
     .from("orders")
-    .select("id, total, paid_total, status")
+    .select("id, total, paid_total, status, customer_id, diskon, order_type, account_id, notes")
     .eq("id", orderId)
     .single();
   if (error || !order) return { error: "Order tidak ditemukan" };
-  return {
+
+  const supabaseStatus = {
     id: order.id,
     total: order.total,
     paid_total: order.paid_total || 0,
     sisa: (order.total || 0) - (order.paid_total || 0),
     status: order.status,
   };
+
+  if ((order.paid_total || 0) >= (order.total || 0) || order.status === "paid") {
+    return supabaseStatus;
+  }
+
+  try {
+    const { data: mappings } = await sb
+      .from("order_qris_map")
+      .select("short_id, amount")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (mappings && mappings.length > 0) {
+      const shortId = mappings[0].short_id;
+      const temanResult = await temanqrisApi(`/orders/${shortId}`);
+      const temanOrder = temanResult.order || temanResult;
+
+      if (temanOrder.status === "paid" || temanOrder.is_paid) {
+        const payerName = temanOrder.payer_name || "";
+        const amount = temanOrder.amount || mappings[0].amount;
+        await confirmOrder(sb, orderId, amount, payerName);
+
+        const { data: updated } = await sb
+          .from("orders")
+          .select("id, total, paid_total, status")
+          .eq("id", orderId)
+          .single();
+        if (updated) {
+          return {
+            id: updated.id,
+            total: updated.total,
+            paid_total: updated.paid_total || 0,
+            sisa: (updated.total || 0) - (updated.paid_total || 0),
+            status: updated.status,
+            paid_via_polling: true,
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[TemanQRIS] Polling error:", e.message);
+  }
+
+  return supabaseStatus;
 }
 
 // Verify order (setelah admin konfirmasi dana masuk)
