@@ -173,17 +173,31 @@ export default async function handler(req, res) {
     const data = body.data || body;
 
     if (event === "payment.success" || event === "paid" || data.status === "paid") {
-      const orderId = data.order_id || "";
+      const truncatedOrderId = data.order_id || "";
       const amount = data.amount || data.base_amount || 0;
       const payerName = data.payer_name || "";
 
-      if (!orderId) {
+      if (!truncatedOrderId) {
         json(res, 400, { error: "order_id tidak ada" });
         return;
       }
 
       const sb = await getAdmin();
-      const result = await confirmOrder(sb, orderId, amount, payerName);
+
+      // Cari order dengan id yang di-truncate (startsWith)
+      const { data: orders, error: searchErr } = await sb
+        .from("orders")
+        .select("id, customer_id, total, paid_total, diskon, order_type, account_id, status, notes")
+        .ilike("id", `${truncatedOrderId}%`)
+        .limit(1);
+
+      if (searchErr || !orders || orders.length === 0) {
+        json(res, 404, { error: "Order tidak ditemukan" });
+        return;
+      }
+
+      const order = orders[0];
+      const result = await confirmOrder(sb, order.id, amount, payerName);
 
       json(res, 200, result);
       return;

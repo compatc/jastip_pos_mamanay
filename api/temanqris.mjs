@@ -309,7 +309,19 @@ export default async function handler(req, res) {
         return;
       }
 
-      const result = await confirmOrder(sb, orderId, amount, payerName);
+      // Cari order dengan id yang di-truncate (startsWith)
+      const { data: orders, error: searchErr } = await sb
+        .from("orders")
+        .select("id")
+        .ilike("id", `${String(orderId).slice(0, 30)}%`)
+        .limit(1);
+
+      if (searchErr || !orders || orders.length === 0) {
+        json(res, 404, { error: "Order tidak ditemukan" });
+        return;
+      }
+
+      const result = await confirmOrder(sb, orders[0].id, amount, payerName);
       json(res, 200, result);
       return;
     }
