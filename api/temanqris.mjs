@@ -107,7 +107,7 @@ async function checkMyQris() {
 }
 
 // Generate QRIS dinamis dengan kode unik
-async function generateDynamicQris(amount, description, orderId) {
+async function generateDynamicQris(sb, amount, description, orderId) {
   const webhookUrl = process.env.WEBHOOK_URL || "https://mamanay.vercel.app/api/temanqris-webhook";
   const callbackUrl = "https://mamanay.vercel.app/callback.html";
 
@@ -115,8 +115,10 @@ async function generateDynamicQris(amount, description, orderId) {
   const uniqueCode = generateUniqueCode();
   const finalAmount = amount + uniqueCode;
 
-  // Short ID: ORD + 8 char random (unik)
+  // Short ID: ORD + 8 char random
   const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+
+  console.log("[TemanQRIS] Generating:", { shortOrderId, finalAmount, orderId });
 
   const result = await temanqrisApi("/payment-link", {
     method: "POST",
@@ -130,17 +132,17 @@ async function generateDynamicQris(amount, description, orderId) {
     }),
   });
 
-  // Simpan mapping di Supabase (table: order_qris_map)
+  console.log("[TemanQRIS] Result:", JSON.stringify(result).slice(0, 200));
+
+  // Simpan mapping
   try {
-    const sb = await getAdmin();
-    const { error } = await sb.from("order_qris_map").insert({
+    await sb.from("order_qris_map").insert({
       short_id: shortOrderId,
       order_id: orderId,
       amount: finalAmount,
     });
-    if (error) console.error("order_qris_map insert error:", error.message);
   } catch (e) {
-    console.error("order_qris_map insert exception:", e.message);
+    console.error("[TemanQRIS] Map insert error:", e.message);
   }
 
   return {
@@ -289,7 +291,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      const result = await generateDynamicQris(amount, description, orderId);
+      const result = await generateDynamicQris(sb, amount, description, orderId);
 
       json(res, 201, {
         success: true,
@@ -297,6 +299,9 @@ export default async function handler(req, res) {
         qr_image: result.qr_image,
         order_id: orderId,
         amount,
+        unique_code: result.unique_code,
+        original_amount: result.original_amount,
+        final_amount: result.final_amount,
       });
       return;
     }
