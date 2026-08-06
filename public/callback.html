@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pembayaran Berhasil</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #fdf2f8, #fce7f3, #fff);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 48px 32px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(236, 72, 153, 0.15);
+      max-width: 320px;
+      width: 90%;
+    }
+    .icon {
+      width: 72px;
+      height: 72px;
+      background: #ecfdf5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .icon svg { width: 36px; height: 36px; color: #10b981; }
+    h1 { font-size: 20px; color: #1f2937; margin-bottom: 8px; }
+    .amount { font-size: 28px; font-weight: 800; color: #ec4899; margin: 12px 0; }
+    .info { font-size: 13px; color: #9ca3af; margin-bottom: 24px; }
+    .btn {
+      background: #ec4899;
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn:active { transform: scale(0.97); }
+    .countdown { font-size: 12px; color: #d1d5db; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <h1>Pembayaran Berhasil</h1>
+    <div class="amount" id="amount">-</div>
+    <p class="info">Terima kasih telah berbelanja di Jastip Mama Nay</p>
+    <button class="btn" onclick="closeTab()">Tutup</button>
+    <p class="countdown" id="countdown"></p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const amount = params.get('amount');
+    if (amount) {
+      document.getElementById('amount').textContent = 'Rp ' + Number(amount).toLocaleString('id-ID');
+    } else {
+      document.getElementById('amount').textContent = 'Lunas';
+    }
+
+    function closeTab() {
+      window.close();
+      // Fallback kalau window.close() tidak jalan
+      document.body.innerHTML = '<div style="text-align:center;padding:40px;font-family:sans-serif;"><h1 style="color:#10b981;">✅ Berhasil</h1><p style="color:#6b7280;margin-top:12px;">Tab bisa ditutup manual</p></div>';
+    }
+
+    // Auto-close setelah 5 detik
+    let seconds = 5;
+    const el = document.getElementById('countdown');
+    const timer = setInterval(() => {
+      seconds--;
+      if (seconds <= 0) {
+        clearInterval(timer);
+        closeTab();
+      } else {
+        el.textContent = `Tutup otomatis dalam ${seconds} detik`;
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

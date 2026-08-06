@@ -103,7 +103,7 @@ async function checkMyQris() {
 // Generate QRIS dinamis
 async function generateDynamicQris(amount, description, orderId) {
   const webhookUrl = process.env.WEBHOOK_URL || "https://mamanay.vercel.app/api/temanqris-webhook";
-  const callbackUrl = process.env.CALLBACK_URL || "https://mamanay.vercel.app/orders";
+  const callbackUrl = "https://mamanay.vercel.app/callback.html";
 
   return temanqrisApi("/payment-link", {
     method: "POST",
