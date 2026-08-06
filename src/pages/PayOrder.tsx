@@ -1,33 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-
-function QrImage({ svg }: { svg: string }) {
-  return <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: svg }} />;
-}
-
-interface Tx {
-  transaction_id: string;
-  status: string;
-  amount: number;
-  qr_url: string;
-  qris_dynamic: string;
-  qr_svg: string | null;
-  expires_at: string;
-  custom_unique_code?: number;
-  unique_code?: number;
-  original_amount?: number;
-  final_amount?: number;
-}
-
-interface OrderInfo {
-  id: string;
-  customer_name: string;
-  total: number;
-  paid_total: number;
-  sisa: number;
-  items: string[];
-}
 
 function rupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -39,164 +12,96 @@ export default function PayOrder() {
   const navigate = useNavigate();
 
   const multiKey = searchParams.get("orders") || "";
-  const multiIds = multiKey
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const isMulti = multiIds.length > 0;
+  const isMulti = multiKey.split(",").filter(Boolean).length > 1;
 
-  const [order, setOrder] = useState<OrderInfo | null>(null);
-  const [orders, setOrders] = useState<OrderInfo[]>([]);
-  const [tx, setTx] = useState<Tx | null>(null);
+  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [amount, setAmount] = useState(0);
+  const [paymentLink, setPaymentLink] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [closing, setClosing] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
-  const closePage = useCallback(() => {
-    setClosing(true);
-    window.close();
-  }, []);
+  const actualOrderId = isMulti ? multiKey.split(",")[0].trim() : orderId;
 
-  const createPayment = useCallback(async () => {
+  const go = useCallback(async () => {
+    if (!actualOrderId) return;
     setLoading(true);
     setError(null);
-    setTx(null);
-    setConfirmed(false);
-    setOrder(null);
-    setOrders([]);
     try {
-      const statusRes = await fetch("/api/temanqris", {
+      const sRes = await fetch("/api/temanqris", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "status", orderId: isMulti ? multiIds[0] : orderId }),
+        body: JSON.stringify({ action: "status", orderId: actualOrderId }),
       });
-      const statusData = await statusRes.json();
+      const sData = await sRes.json();
+      if (sData.error) throw new Error(sData.error);
 
-      if (statusData.error) {
-        throw new Error(statusData.error);
-      }
+      const total = isMulti
+        ? (sData.sisa || 0) * multiKey.split(",").filter(Boolean).length
+        : sData.sisa || sData.total || 0;
 
-      let totalAmount = isMulti
-        ? (statusData.sisa || 0) * multiIds.length
-        : statusData.sisa || statusData.total || 0;
+      if (total <= 0) throw new Error("Sudah lunas");
 
-      if (!totalAmount || totalAmount <= 0) {
-        throw new Error("Sudah lunas");
-      }
+      setAmount(total);
 
-      setOrder({
-        id: orderId || "",
-        customer_name: "Pelanggan",
-        total: totalAmount,
-        paid_total: 0,
-        sisa: totalAmount,
-        items: [],
-      });
-
-      const res = await fetch("/api/temanqris", {
+      const gRes = await fetch("/api/temanqris", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "generate",
-          amount: totalAmount,
-          orderId: isMulti ? multiKey : orderId,
-          description: `Pembayaran order ${orderId}`,
+          amount: total,
+          orderId: actualOrderId,
+          description: "Pembayaran",
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      const gData = await gRes.json();
+      if (!gRes.ok) throw new Error(gData.error || "Gagal generate QR");
 
-      setTx({
-        transaction_id: data.payment_link || "",
-        status: "pending",
-        amount: data.amount || totalAmount,
-        qr_url: data.payment_link || "",
-        qris_dynamic: data.qris || "",
-        qr_svg: data.qr_image || null,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      });
+      setQrImage(gData.qr_image || null);
+      setPaymentLink(gData.payment_link || "");
     } catch (e: any) {
-      setError(e.message || "Gagal memuat pembayaran");
+      setError(e.message || "Gagal");
     } finally {
       setLoading(false);
     }
-  }, [orderId, isMulti, multiKey]);
+  }, [actualOrderId, isMulti, multiKey]);
 
   useEffect(() => {
-    if (orderId || isMulti) {
-      createPayment();
-    }
-  }, [orderId, isMulti, createPayment]);
+    go();
+  }, [go]);
 
+  // Countdown 15 menit
   useEffect(() => {
-    if (!tx || tx.status !== "pending") return;
-    const t = new Date(tx.expires_at).getTime();
-    const tick = () => {
-      const left = Math.max(0, Math.floor((t - Date.now()) / 1000));
+    if (!qrImage) return;
+    const end = Date.now() + 15 * 60 * 1000;
+    const t = setInterval(() => {
+      const left = Math.max(0, Math.floor((end - Date.now()) / 1000));
       setCountdown(left);
-      if (left <= 0) setTx((prev) => (prev ? { ...prev, status: "expired" } : prev));
-    };
-    tick();
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
-  }, [tx]);
+      if (left <= 0) clearInterval(t);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [qrImage]);
 
+  // Polling status
   useEffect(() => {
-    if (!tx || tx.status !== "pending") return;
+    if (!actualOrderId || !qrImage) return;
     const poll = setInterval(async () => {
       try {
-        const pollController = new AbortController();
-        const pollTimer = setTimeout(() => pollController.abort(), 10000);
         const res = await fetch("/api/temanqris", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "status",
-            orderId: isMulti ? multiIds[0] : orderId,
-          }),
-          signal: pollController.signal,
+          body: JSON.stringify({ action: "status", orderId: actualOrderId }),
         });
-        clearTimeout(pollTimer);
         const data = await res.json();
-
-        if (data.status === "paid" || data.status === "completed") {
-          setTx((prev) => (prev ? { ...prev, status: "paid" } : prev));
-
-          // Verify order
-          const confController = new AbortController();
-          const confTimer = setTimeout(() => confController.abort(), 10000);
-          const conf = await fetch("/api/temanqris", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "verify",
-              orderId: isMulti ? multiIds[0] : orderId,
-              amount: tx.amount,
-              payerName: data.payer_name || "",
-            }),
-            signal: confController.signal,
-          });
-          clearTimeout(confTimer);
-          const confData = await conf.json();
-          if (confData.confirmed) setConfirmed(true);
-          clearInterval(poll);
-        } else if (data.status === "expired") {
-          setTx((prev) => (prev ? { ...prev, status: "expired" } : prev));
+        if (data.paid_total > 0 || data.status === "paid" || data.status === "completed") {
+          setConfirmed(true);
           clearInterval(poll);
         }
-      } catch {
-        // retry next tick
-      }
+      } catch {}
     }, 5000);
     return () => clearInterval(poll);
-  }, [tx?.transaction_id, tx?.status, orderId, isMulti, multiKey]);
-
-  const displayOrders = isMulti ? orders : order ? [order] : [];
-  const sisaTotal = displayOrders.reduce((s, o) => s + (o.sisa || 0), 0);
-  const customerName = displayOrders[0]?.customer_name || "Pelanggan";
-  const allItems = displayOrders.flatMap((o) => o.items || []);
+  }, [actualOrderId, qrImage]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex items-center justify-center p-4">
@@ -209,80 +114,54 @@ export default function PayOrder() {
           <p className="text-xs text-gray-400">Jastip_mamanay</p>
         </div>
 
-        {closing && (
-          <div className="py-16 text-center">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-            <p className="text-gray-700 font-semibold">Terima kasih!</p>
-            <p className="text-xs text-gray-400 mt-1">Halaman ini bisa ditutup.</p>
-          </div>
-        )}
-
-        {!closing && loading && (
+        {loading && (
           <div className="flex flex-col items-center py-10 gap-3">
             <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
             <p className="text-sm text-gray-500">Membuat QRIS...</p>
           </div>
         )}
 
-        {!closing && error && !loading && (
+        {!loading && error && (
           <div className="py-8 text-center">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
             <p className="text-red-500 font-semibold mb-2">Gagal</p>
             <p className="text-sm text-gray-500 mb-4">{error}</p>
             <div className="flex gap-2 justify-center">
-              <button
-                onClick={createPayment}
-                className="px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm"
-              >
+              <button onClick={go} className="px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
                 Coba lagi
               </button>
-              <button
-                onClick={() => navigate("/")}
-                className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm"
-              >
+              <button onClick={() => navigate("/")} className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm">
                 Beranda
               </button>
             </div>
           </div>
         )}
 
-        {displayOrders.length > 0 && tx && tx.status === "pending" && (
-          <div className="text-center">
-            <div className="bg-pink-50 border border-pink-100 rounded-2xl p-3 mb-4">
-              <p className="text-xs text-gray-500 mb-1">Untuk</p>
-              <p className="text-sm font-bold text-gray-800 mb-1">{customerName}</p>
-              {allItems.length > 0 && (
-                <p className="text-xs text-gray-400">{allItems.join(", ")}</p>
-              )}
-              {isMulti && displayOrders.length > 1 && (
-                <p className="text-[11px] text-pink-400 mt-1 font-semibold">
-                  {displayOrders.length} pesanan digabung dalam 1 QRIS
-                </p>
-              )}
-            </div>
+        {!loading && !error && confirmed && (
+          <div className="py-10 text-center">
+            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+            <h2 className="text-lg font-bold text-gray-800 mb-1">Pembayaran diterima</h2>
+            <p className="text-sm text-gray-500 mb-1">{rupiah(amount)}</p>
+            <p className="text-xs text-emerald-500 font-semibold mb-6">Order telah ditandai lunas</p>
+            <button onClick={() => window.close()} className="mt-2 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-sm">
+              Selesai
+            </button>
+          </div>
+        )}
 
+        {!loading && !error && qrImage && !confirmed && (
+          <div className="text-center">
             <div className="mx-auto w-56 h-56 bg-white border-2 border-pink-100 rounded-2xl p-3 mb-4">
-              {tx.qr_svg ? (
-                <QrImage svg={tx.qr_svg} />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-pink-300 animate-spin" />
-                </div>
-              )}
+              <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrImage }} />
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
-            <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(tx.amount)}</p>
-            <p className="text-xs text-gray-400 mb-1">
-              {sisaTotal > 0 ? `Sisa tagihan: ${rupiah(sisaTotal)}` : ""}
-            </p>
-            <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-4">
-              <Clock className="w-3.5 h-3.5" />
-              {countdown !== null && (
-                <span>
-                  Kedaluwarsa dalam {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
-                </span>
-              )}
-            </div>
+            <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(amount)}</p>
+            {countdown !== null && (
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-4">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Kedaluwarsa dalam {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}</span>
+              </div>
+            )}
             <div className="flex items-center justify-center gap-2 text-xs text-gray-400 animate-pulse">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Menunggu pembayaran...
@@ -293,39 +172,11 @@ export default function PayOrder() {
           </div>
         )}
 
-        {tx && tx.status === "paid" && (
-          <div className="py-10 text-center">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-            <h2 className="text-lg font-bold text-gray-800 mb-1">
-              {confirmed ? "Pembayaran diterima" : "Pembayaran diterima"}
-            </h2>
-            <p className="text-sm text-gray-500 mb-1">{rupiah(tx.amount)}</p>
-            {confirmed && (
-              <p className="text-xs text-emerald-500 font-semibold mb-6">
-                {isMulti && displayOrders.length > 1
-                  ? "Semua pesanan telah ditandai lunas"
-                  : "Order telah ditandai lunas"}
-              </p>
-            )}
-            <button
-              onClick={closePage}
-              className="mt-6 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-sm"
-            >
-              Selesai
-            </button>
-          </div>
-        )}
-
-        {tx && tx.status === "expired" && (
-          <div className="py-10 text-center">
-            <Clock className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-            <h2 className="text-lg font-bold text-gray-800 mb-1">QRIS kedaluwarsa</h2>
-            <p className="text-sm text-gray-500 mb-6">Transaksi sudah lewat masa berlaku.</p>
-            <button
-              onClick={createPayment}
-              className="px-6 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm"
-            >
-              Buat QRIS baru
+        {!loading && !error && !qrImage && !confirmed && (
+          <div className="py-8 text-center">
+            <p className="text-sm text-gray-500">Tidak ada data QR</p>
+            <button onClick={go} className="mt-4 px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
+              Coba lagi
             </button>
           </div>
         )}
