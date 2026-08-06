@@ -152,7 +152,11 @@ export default function PayOrder() {
         {!loading && !error && qrImage && !confirmed && (
           <div className="text-center">
             <div className="mx-auto w-56 h-56 bg-white border-2 border-pink-100 rounded-2xl p-3 mb-4">
-              <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrImage }} />
+              {qrImage.startsWith("data:") ? (
+                <img src={qrImage} alt="QRIS" className="w-full h-full object-contain" />
+              ) : (
+                <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrImage }} />
+              )}
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
             <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(amount)}</p>

@@ -126,13 +126,17 @@ async function generateDynamicQris(sb, amount, description, orderId) {
   // Generate QR SVG dari qris string kalau qr_image kosong
   let qrSvg = result.qr_image || null;
   if (!qrSvg && result.qris) {
-    const QRCode = await import("qrcode");
-    qrSvg = await QRCode.toString(result.qris, {
-      type: "svg",
-      margin: 2,
-      width: 200,
-      color: { dark: "#ec4899", light: "#ffffff" },
-    });
+    try {
+      const QRCode = await import("qrcode");
+      const svgStr = await QRCode.toString(result.qris, {
+        type: "svg",
+        margin: 2,
+        width: 200,
+      });
+      qrSvg = "data:image/svg+xml;base64," + Buffer.from(svgStr).toString("base64");
+    } catch (e) {
+      console.error("[TemanQRIS] QR gen error:", e.message);
+    }
   }
 
   // Payment link
