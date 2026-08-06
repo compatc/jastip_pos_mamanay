@@ -214,7 +214,11 @@ export default async function handler(req, res) {
       const result = await confirmOrder(sb, orderId, amount, payerName);
 
       // Update status qris_payments
-      await sb.from("qris_payments").update({ status: "paid" }).eq("id", shortOrderId).catch(() => {});
+      try {
+        await sb.from("qris_payments").update({ status: "paid" }).eq("id", shortOrderId);
+      } catch (e) {
+        // ignore
+      }
 
       json(res, 200, result);
       return;

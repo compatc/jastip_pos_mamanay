@@ -138,13 +138,17 @@ async function generateDynamicQris(amount, description, orderId) {
   });
 
   // Simpan mapping short_order_id → order_id asli di qris_payments
-  await sb.from("qris_payments").insert({
-    id: shortOrderId,
-    order_ids: [orderId],
-    amount: finalAmount,
-    status: "pending",
-    requested_amount: finalAmount,
-  }).catch(() => {});
+  try {
+    await sb.from("qris_payments").insert({
+      id: shortOrderId,
+      order_ids: [orderId],
+      amount: finalAmount,
+      status: "pending",
+      requested_amount: finalAmount,
+    });
+  } catch (e) {
+    // ignore error
+  }
 
   // Return dengan info kode unik
   return {
