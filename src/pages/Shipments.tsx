@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   Undo2,
   Calendar,
+  Camera,
+  Image,
+  X,
 } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -43,6 +46,7 @@ interface ShipmentOrder {
   notes: string;
   created_at: string;
   shipped_at: string | null;
+  packing_photo: string | null;
   items: OrderItemData[];
   isHold: boolean;
   holdReason: string;
@@ -74,6 +78,64 @@ export default function Shipments() {
   const [shippedOrders, setShippedOrders] = useState<ShipmentOrder[]>([]);
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month" | "custom">("all");
   const [customDate, setCustomDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [photoPreview, setPhotoPreview] = useState<Record<string, string | null>>({});
+  const [photoFile, setPhotoFile] = useState<Record<string, File | null>>({});
+  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  async function compressPhoto(file: File): Promise<Blob> {
+    return new Promise((resolve) => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const img = new window.Image();
+      img.onload = () => {
+        const maxDim = 800;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round((h / w) * maxDim); w = maxDim; }
+          else { w = Math.round((w / h) * maxDim); h = maxDim; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.6);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  function handlePhotoSelect(orderId: string, file: File) {
+    setPhotoFile((prev) => ({ ...prev, [orderId]: file }));
+    const url = URL.createObjectURL(file);
+    setPhotoPreview((prev) => ({ ...prev, [orderId]: url }));
+  }
+
+  function removePhoto(orderId: string) {
+    setPhotoFile((prev) => ({ ...prev, [orderId]: null }));
+    setPhotoPreview((prev) => ({ ...prev, [orderId]: null }));
+  }
+
+  async function uploadPhoto(orderId: string): Promise<string | null> {
+    const file = photoFile[orderId];
+    if (!file) return null;
+    setUploadingPhoto(orderId);
+    try {
+      const compressed = await compressPhoto(file);
+      const fileName = `${orderId}-${Date.now()}.jpg`;
+      const { error } = await supabase.storage
+        .from("packing-photos")
+        .upload(fileName, compressed, { contentType: "image/jpeg" });
+      if (error) throw error;
+      const { data } = supabase.storage.from("packing-photos").getPublicUrl(fileName);
+      setUploadingPhoto(null);
+      return data.publicUrl;
+    } catch (e) {
+      console.error("Upload error:", e);
+      setUploadingPhoto(null);
+      return null;
+    }
+  }
 
   function toggleItemCheck(orderId: string, itemIdx: number) {
     setCheckedItems((prev) => {
@@ -130,7 +192,7 @@ export default function Shipments() {
     async function loadShipped() {
       const { data: shipped } = await supabase
         .from("orders")
-        .select("id, customer_id, status, total, paid_total, notes, created_at, shipped_at, order_type")
+        .select("id, customer_id, status, total, paid_total, notes, created_at, shipped_at, packing_photo, order_type")
         .eq("order_type", "penjualan")
         .eq("status", "shipped")
         .order("shipped_at", { ascending: false, nullsFirst: false });
@@ -179,6 +241,7 @@ export default function Shipments() {
           notes: o.notes,
           created_at: o.created_at,
           shipped_at: o.shipped_at,
+          packing_photo: o.packing_photo,
           items: map[o.id] || [],
           isHold: false,
           holdReason: "",
@@ -313,11 +376,13 @@ export default function Shipments() {
     loadAllOrders();
   }
 
-  async function markShipped(orderIds: string[]) {
+  async function markShipped(orderIds: string[], photoUrl?: string) {
     const now = new Date().toISOString();
+    const update: Record<string, unknown> = { status: "shipped", shipped_at: now, updated_at: now };
+    if (photoUrl) update.packing_photo = photoUrl;
     await supabase
       .from("orders")
-      .update({ status: "shipped", shipped_at: now, updated_at: now })
+      .update(update)
       .in("id", orderIds);
     loadAllOrders();
   }
@@ -595,6 +660,50 @@ export default function Shipments() {
                       </div>
                     )}
 
+                    {/* Photo Upload - only for non-shipped */}
+                    {filter !== "shipped" && !order.isHold && (() => {
+                      const totalItems = order.items.length;
+                      const checked = checkedItems[order.id]?.size || 0;
+                      const allChecked = totalItems > 0 && checked === totalItems;
+                      if (!allChecked) return null;
+                      const preview = photoPreview[order.id];
+                      const isUploading = uploadingPhoto === order.id;
+                      return (
+                        <div className="mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            ref={(el) => { fileInputRefs.current[order.id] = el; }}
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handlePhotoSelect(order.id, file);
+                            }}
+                          />
+                          {preview ? (
+                            <div className="relative">
+                              <img src={preview} alt="Foto packing" className="w-full h-32 object-cover rounded-lg" />
+                              <button
+                                onClick={() => removePhoto(order.id)}
+                                className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => fileInputRefs.current[order.id]?.click()}
+                              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-pink-400 hover:text-pink-500 transition-all"
+                            >
+                              <Camera className="w-4 h-4" />
+                              <span className="text-xs font-semibold">Foto Packing (Opsional)</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {/* Actions */}
                     {filter !== "shipped" && (
                       <div className="flex gap-2 mt-2">
@@ -616,33 +725,57 @@ export default function Shipments() {
                           const totalItems = order.items.length;
                           const checked = checkedItems[order.id]?.size || 0;
                           const allChecked = totalItems > 0 && checked === totalItems;
+                          const isUploading = uploadingPhoto === order.id;
                           return (
                             <button
-                              onClick={() => allChecked && markShipped([order.id])}
-                              disabled={!allChecked}
+                              onClick={async () => {
+                                if (!allChecked) return;
+                                let photoUrl: string | null = null;
+                                if (photoFile[order.id]) {
+                                  photoUrl = await uploadPhoto(order.id);
+                                }
+                                await markShipped([order.id], photoUrl || undefined);
+                              }}
+                              disabled={!allChecked || isUploading}
                               className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                                allChecked
+                                allChecked && !isUploading
                                   ? "bg-pink-500 text-white hover:bg-pink-600"
                                   : "bg-slate-100 text-slate-400 cursor-not-allowed"
                               }`}
                             >
-                              <Truck className="w-3 h-3" />
-                              {allChecked ? "Kirim" : `Kirim (${checked}/${totalItems})`}
+                              {isUploading ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  Upload...
+                                </span>
+                              ) : (
+                                <>
+                                  <Truck className="w-3 h-3" />
+                                  {allChecked ? "Kirim" : `Kirim (${checked}/${totalItems})`}
+                                </>
+                              )}
                             </button>
                           );
                         })()}
                       </div>
                     )}
                     {filter === "shipped" && (
-                      <div className="flex items-center gap-1.5 mt-2 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
-                        <span className="text-xs font-semibold text-blue-600">Sudah Terkirim</span>
-                        <span className="text-xs text-blue-400 ml-auto">
-                          {order.shipped_at
-                            ? new Date(order.shipped_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
-                            : new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
-                          }
-                        </span>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center gap-1.5 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
+                          <span className="text-xs font-semibold text-blue-600">Sudah Terkirim</span>
+                          <span className="text-xs text-blue-400 ml-auto">
+                            {order.shipped_at
+                              ? new Date(order.shipped_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+                              : new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+                            }
+                          </span>
+                        </div>
+                        {order.packing_photo && (
+                          <div className="relative">
+                            <img src={order.packing_photo} alt="Foto packing" className="w-full h-32 object-cover rounded-lg border border-slate-200" />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
