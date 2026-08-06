@@ -41,6 +41,8 @@ function readBody(req) {
   });
 }
 
+const UNIQUE_MAX = 999;
+
 async function confirmOrder(sb, orderId, amount, payerName) {
   const { data: order, error } = await sb
     .from("orders")
@@ -73,10 +75,23 @@ async function confirmOrder(sb, orderId, amount, payerName) {
     contactName = cust?.name || "";
   }
 
-  const paidNote = `QRIS ${shareOfPayment} (${payerName || "TemanQRIS"}) - ${now}`;
+  // Hitung kode unik
+  const sisaInvoice = (order.total || 0) - (order.paid_total || 0);
+  const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
+  const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= UNIQUE_MAX;
+
+  const finalTotal = isKodeUnik ? (order.total || 0) - kodeUnik : (order.total || 0);
+  const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
+  const finalPaid = (order.paid_total || 0) + shareOfPayment;
+
+  const paidNote = isKodeUnik
+    ? `QRIS ${shareOfPayment} (kode unik ${kodeUnik}) - ${payerName || "TemanQRIS"} - ${now}`
+    : `QRIS ${shareOfPayment} (${payerName || "TemanQRIS"}) - ${now}`;
 
   let lockQuery = sb.from("orders").update({
-    paid_total: (order.paid_total || 0) + shareOfPayment,
+    total: finalTotal,
+    diskon: finalDiskon,
+    paid_total: finalPaid,
     payment_type: "qris",
     status: newStatus,
     notes: order.notes ? `${order.notes}\n${paidNote}` : paidNote,
@@ -111,7 +126,7 @@ async function confirmOrder(sb, orderId, amount, payerName) {
     }
   }
 
-  return { status: "paid", confirmed: true };
+  return { status: "paid", confirmed: true, kode_unik: isKodeUnik ? kodeUnik : 0 };
 }
 
 function verifyWebhook(rawBody, signatureHeader) {

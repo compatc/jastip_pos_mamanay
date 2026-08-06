@@ -3,6 +3,12 @@ import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 
 const TEMANQRIS_BASE = "https://temanqris.com/api/qris";
+const UNIQUE_MAX = 999; // Kode unik 1-999
+
+// Generate kode unik (1-999)
+function generateUniqueCode() {
+  return Math.floor(Math.random() * UNIQUE_MAX) + 1;
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -100,15 +106,19 @@ async function checkMyQris() {
   return temanqrisApi("/my-qris");
 }
 
-// Generate QRIS dinamis
+// Generate QRIS dinamis dengan kode unik
 async function generateDynamicQris(amount, description, orderId) {
   const webhookUrl = process.env.WEBHOOK_URL || "https://mamanay.vercel.app/api/temanqris-webhook";
   const callbackUrl = "https://mamanay.vercel.app/callback.html";
 
-  return temanqrisApi("/payment-link", {
+  // Generate kode unik (1-999)
+  const uniqueCode = generateUniqueCode();
+  const finalAmount = amount + uniqueCode;
+
+  const result = await temanqrisApi("/payment-link", {
     method: "POST",
     body: JSON.stringify({
-      amount,
+      amount: finalAmount,
       description: description || `Pembayaran order ${orderId}`,
       order_id: orderId,
       webhook_url: webhookUrl,
@@ -116,6 +126,14 @@ async function generateDynamicQris(amount, description, orderId) {
       webhook_secret: process.env.TEMANQRIS_WEBHOOK_SECRET || "b3343d1581a0e15cbe353e5f8f37e5ca9bf8bc938e7da8e42adddfb216af831b",
     }),
   });
+
+  // Return dengan info kode unik
+  return {
+    ...result,
+    unique_code: uniqueCode,
+    original_amount: amount,
+    final_amount: finalAmount,
+  };
 }
 
 // Cek status order
@@ -170,11 +188,23 @@ async function confirmOrder(sb, orderId, amount, payerName) {
     contactName = cust?.name || "";
   }
 
+  // Hitung kode unik (selisih antara yang dibayar dan sisa tagihan)
   const sisaInvoice = (order.total || 0) - (order.paid_total || 0);
+  const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
+  const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= UNIQUE_MAX;
+
+  // Final values
+  const finalTotal = isKodeUnik ? (order.total || 0) - kodeUnik : (order.total || 0);
+  const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
   const finalPaid = (order.paid_total || 0) + shareOfPayment;
-  const paidNote = `QRIS ${shareOfPayment} (${payerName || "TemanQRIS"}) - ${now}`;
+
+  const paidNote = isKodeUnik
+    ? `QRIS ${shareOfPayment} (kode unik ${kodeUnik}) - ${payerName || "TemanQRIS"} - ${now}`
+    : `QRIS ${shareOfPayment} (${payerName || "TemanQRIS"}) - ${now}`;
 
   let lockQuery = sb.from("orders").update({
+    total: finalTotal,
+    diskon: finalDiskon,
     paid_total: finalPaid,
     payment_type: "qris",
     status: newStatus,
@@ -211,7 +241,7 @@ async function confirmOrder(sb, orderId, amount, payerName) {
     }
   }
 
-  return { status: "paid", confirmed: true };
+  return { status: "paid", confirmed: true, kode_unik: isKodeUnik ? kodeUnik : 0 };
 }
 
 // ============================================================
