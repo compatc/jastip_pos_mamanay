@@ -115,12 +115,15 @@ async function generateDynamicQris(amount, description, orderId) {
   const uniqueCode = generateUniqueCode();
   const finalAmount = amount + uniqueCode;
 
+  // truncat order_id max 30 karakter
+  const shortOrderId = String(orderId || "").slice(0, 30);
+
   const result = await temanqrisApi("/payment-link", {
     method: "POST",
     body: JSON.stringify({
       amount: finalAmount,
-      description: description || `Pembayaran order ${orderId}`,
-      order_id: orderId,
+      description: description || `Pembayaran order ${shortOrderId}`,
+      order_id: shortOrderId,
       webhook_url: webhookUrl,
       callback_url: callbackUrl,
       webhook_secret: process.env.TEMANQRIS_WEBHOOK_SECRET || "b3343d1581a0e15cbe353e5f8f37e5ca9bf8bc938e7da8e42adddfb216af831b",
