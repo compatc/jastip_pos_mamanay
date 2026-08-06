@@ -184,26 +184,19 @@ export default async function handler(req, res) {
 
       const sb = await getAdmin();
 
-      // Cari mapping di qris_payments
-      const { data: payment } = await sb
-        .from("qris_payments")
-        .select("order_ids")
-        .eq("id", shortOrderId)
-        .single();
-
+      // Cari mapping di order_qris_map
       let orderId;
-      if (payment && payment.order_ids && payment.order_ids.length > 0) {
-        orderId = payment.order_ids[0];
-      } else {
-        // Fallback: cari order dengan id yang di-truncate
-        const { data: orders } = await sb
-          .from("orders")
-          .select("id")
-          .ilike("id", `${shortOrderId}%`)
-          .limit(1);
-        if (orders && orders.length > 0) {
-          orderId = orders[0].id;
+      try {
+        const { data: mapping } = await sb
+          .from("order_qris_map")
+          .select("order_id")
+          .eq("short_id", shortOrderId)
+          .maybeSingle();
+        if (mapping) {
+          orderId = mapping.order_id;
         }
+      } catch (e) {
+        // table belum ada, skip
       }
 
       if (!orderId) {
@@ -212,14 +205,6 @@ export default async function handler(req, res) {
       }
 
       const result = await confirmOrder(sb, orderId, amount, payerName);
-
-      // Update status qris_payments
-      try {
-        await sb.from("qris_payments").update({ status: "paid" }).eq("id", shortOrderId);
-      } catch (e) {
-        // ignore
-      }
-
       json(res, 200, result);
       return;
     }

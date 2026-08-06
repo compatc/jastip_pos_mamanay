@@ -115,15 +115,8 @@ async function generateDynamicQris(amount, description, orderId) {
   const uniqueCode = generateUniqueCode();
   const finalAmount = amount + uniqueCode;
 
-  // Generate short unique ID (max 30 char) - pastikan unik
-  const sb = await getAdmin();
-  let shortOrderId;
-  let exists = true;
-  while (exists) {
-    shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
-    const { data } = await sb.from("qris_payments").select("id").eq("id", shortOrderId).single();
-    exists = !!data;
-  }
+  // Short ID: ORD + 8 char random (unik)
+  const shortOrderId = "ORD-" + randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 
   const result = await temanqrisApi("/payment-link", {
     method: "POST",
@@ -137,20 +130,18 @@ async function generateDynamicQris(amount, description, orderId) {
     }),
   });
 
-  // Simpan mapping short_order_id → order_id asli di qris_payments
+  // Simpan mapping di Supabase (table: order_qris_map)
+  const sb = await getAdmin();
   try {
-    await sb.from("qris_payments").insert({
-      id: shortOrderId,
-      order_ids: [orderId],
+    await sb.from("order_qris_map").insert({
+      short_id: shortOrderId,
+      order_id: orderId,
       amount: finalAmount,
-      status: "pending",
-      requested_amount: finalAmount,
     });
   } catch (e) {
-    // ignore error
+    // table belum ada, skip
   }
 
-  // Return dengan info kode unik
   return {
     ...result,
     unique_code: uniqueCode,
