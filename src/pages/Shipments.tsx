@@ -183,6 +183,8 @@ export default function Shipments() {
   const filteredOrders = filteredGroups.flatMap((g) => g.orders);
   const totalOrders = filteredOrders.length;
   const totalItems = filteredGroups.reduce((s, g) => s + g.totalItems, 0);
+  const filteredHoldCount = filteredGroups.filter((g) => g.hasHold).length;
+  const filteredReadyCount = filteredGroups.length - filteredHoldCount;
 
   async function toggleHold(order: ShipmentOrder) {
     const newNotes = order.isHold
@@ -292,7 +294,7 @@ export default function Shipments() {
                   : "bg-white text-slate-500 border-slate-200"
               }`}
             >
-              {label} ({key === "hold" ? holdCount : key === "ready" ? customerGroups.length - holdCount : customerGroups.length})
+              {label} ({key === "hold" ? filteredHoldCount : key === "ready" ? filteredReadyCount : filteredGroups.length})
             </button>
           ))}
         </div>
