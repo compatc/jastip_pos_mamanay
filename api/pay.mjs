@@ -150,7 +150,7 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   const basePayload = { merchant_id: merchantId, unique_amount: false, expires_in: BOQRIS_EXPIRES_IN };
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
-  const MAX_RETRIES = Math.min(BOQRIS_UNIQUE_MAX, 10);
+  const MAX_RETRIES = Math.min(BOQRIS_UNIQUE_MAX, 50);
   const FETCH_TIMEOUT_MS = 5000;
 
   for (let code = 1; code <= MAX_RETRIES; code++) {
