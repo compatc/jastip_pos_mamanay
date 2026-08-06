@@ -131,15 +131,16 @@ async function generateDynamicQris(amount, description, orderId) {
   });
 
   // Simpan mapping di Supabase (table: order_qris_map)
-  const sb = await getAdmin();
   try {
-    await sb.from("order_qris_map").insert({
+    const sb = await getAdmin();
+    const { error } = await sb.from("order_qris_map").insert({
       short_id: shortOrderId,
       order_id: orderId,
       amount: finalAmount,
     });
+    if (error) console.error("order_qris_map insert error:", error.message);
   } catch (e) {
-    // table belum ada, skip
+    console.error("order_qris_map insert exception:", e.message);
   }
 
   return {

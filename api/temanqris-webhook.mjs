@@ -187,16 +187,17 @@ export default async function handler(req, res) {
       // Cari mapping di order_qris_map
       let orderId;
       try {
-        const { data: mapping } = await sb
+        const sb = await getAdmin();
+        const { data: mappings, error } = await sb
           .from("order_qris_map")
           .select("order_id")
           .eq("short_id", shortOrderId)
-          .maybeSingle();
-        if (mapping) {
-          orderId = mapping.order_id;
+          .limit(1);
+        if (!error && mappings && mappings.length > 0) {
+          orderId = mappings[0].order_id;
         }
       } catch (e) {
-        // table belum ada, skip
+        console.error("order_qris_map query error:", e.message);
       }
 
       if (!orderId) {
