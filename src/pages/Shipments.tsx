@@ -71,7 +71,8 @@ export default function Shipments() {
   const [checkedItems, setCheckedItems] = useState<Record<string, Set<number>>>({});
   const [search, setSearch] = useState("");
   const [shippedOrders, setShippedOrders] = useState<ShipmentOrder[]>([]);
-  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month" | "custom">("all");
+  const [customDate, setCustomDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   function toggleItemCheck(orderId: string, itemIdx: number) {
     setCheckedItems((prev) => {
@@ -227,7 +228,7 @@ export default function Shipments() {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  function isWithinDateRange(dateStr: string, range: "all" | "today" | "week" | "month"): boolean {
+  function isWithinDateRange(dateStr: string, range: "all" | "today" | "week" | "month" | "custom"): boolean {
     if (range === "all") return true;
     const d = new Date(dateStr);
     const now = new Date();
@@ -243,6 +244,9 @@ export default function Shipments() {
       const monthAgo = new Date(now);
       monthAgo.setMonth(monthAgo.getMonth() - 1);
       return d >= monthAgo;
+    }
+    if (range === "custom") {
+      return d.toDateString() === new Date(customDate).toDateString();
     }
     return true;
   }
@@ -417,26 +421,37 @@ export default function Shipments() {
 
         {/* Date Filter - only show for shipped */}
         {filter === "shipped" && (
-          <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar">
-            <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-            {([
-              ["all", "Semua"],
-              ["today", "Hari Ini"],
-              ["week", "7 Hari"],
-              ["month", "1 Bulan"],
-            ] as const).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setDateFilter(key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
-                  dateFilter === key
-                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                    : "bg-white text-slate-500 border-slate-200"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+              {([
+                ["all", "Semua"],
+                ["today", "Hari Ini"],
+                ["week", "7 Hari"],
+                ["month", "1 Bulan"],
+                ["custom", "Pilih Tanggal"],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setDateFilter(key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                    dateFilter === key
+                      ? "bg-blue-100 text-blue-700 border-blue-200"
+                      : "bg-white text-slate-500 border-slate-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {dateFilter === "custom" && (
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+              />
+            )}
           </div>
         )}
 
