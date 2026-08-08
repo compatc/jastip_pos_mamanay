@@ -3,11 +3,10 @@
 // Confirmed service/characteristic from nRF Connect scan
 
 // @ts-ignore
-import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 
-// Disable worker - process in main thread
-// @ts-ignore
-pdfjsLib.GlobalWorkerOptions.workerPort = null;
+// Disable worker for legacy build
+pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
 const ESC = "\x1B";
 const GS = "\x1D";

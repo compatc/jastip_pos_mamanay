@@ -20,7 +20,7 @@
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.26.0",
     "papaparse": "^5.5.4",
-    "pdfjs-dist": "^6.2.108",
+    "pdfjs-dist": "^3.11.174",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
