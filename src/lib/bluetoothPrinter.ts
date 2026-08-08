@@ -4,8 +4,8 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Disable worker for simpler setup (works for small PDFs)
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+// Use local worker from public folder
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 const ESC = "\x1B";
 const GS = "\x1D";
