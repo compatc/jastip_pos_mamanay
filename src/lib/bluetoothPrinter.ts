@@ -672,64 +672,12 @@ export async function printPdfDirect(
 
 // ========== BATCH PDF PRINTING ==========
 
-// Helper: process single PDF to ESC/POS data
-async function processPdfToEscPos(
-  pdfFile: File,
-  options: PrintOptions
-): Promise<Uint8Array[]> {
-  const { rotation = 90, sharpness = 190 } = options;
-  const allData: Uint8Array[] = [];
-  
-  const arrayBuffer = await pdfFile.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = PRINTER_WIDTH / viewport.width;
-    const scaledViewport = page.getViewport({ scale });
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-    const ctx = canvas.getContext('2d')!;
-    
-    if (rotation === 90 || rotation === 270) {
-      canvas.width = scaledViewport.height;
-      canvas.height = scaledViewport.width;
-    }
-    
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.save();
-    if (rotation === 90) {
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);
-    } else if (rotation === 180) {
-      ctx.translate(canvas.width, canvas.height);
-      ctx.rotate(Math.PI);
-    } else if (rotation === 270) {
-      ctx.translate(0, canvas.height);
-      ctx.rotate(-Math.PI / 2);
-    }
-    
-    await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
-    ctx.restore();
-    
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    allData.push(imageDataToEscPos(imageData, sharpness));
-  }
-  
-  return allData;
-}
-
 export async function printPdfBatch(
   pdfFiles: File[],
   onProgress?: (progress: string) => void,
   options: PrintOptions = {}
 ): Promise<{ success: number; failed: number }> {
+  const { rotation = 90, sharpness = 190 } = options;
   let success = 0;
   let failed = 0;
   
@@ -737,62 +685,90 @@ export async function printPdfBatch(
     return { success: 0, failed: 0 };
   }
   
-  // Step 1: Pre-process all PDFs first (no Bluetooth yet)
-  onProgress?.("Memproses semua PDF...");
-  const allPagesData: { name: string; pages: Uint8Array[] }[] = [];
-  
+  // Process each file with its own connection and LONG delay
   for (let i = 0; i < pdfFiles.length; i++) {
     const pdfFile = pdfFiles[i];
-    onProgress?.(`[${i + 1}/${pdfFiles.length}] Konversi ${pdfFile.name}...`);
+    onProgress?.(`[${i + 1}/${pdfFiles.length}] Cetak ${pdfFile.name}...`);
     
     try {
-      const pages = await processPdfToEscPos(pdfFile, options);
-      allPagesData.push({ name: pdfFile.name, pages });
-    } catch (error) {
-      console.error(`Failed to convert ${pdfFile.name}:`, error);
-      failed++;
-    }
-  }
-  
-  if (allPagesData.length === 0) {
-    alert("Semua file gagal diproses.");
-    return { success: 0, failed };
-  }
-  
-  // Step 2: Print each file with separate connection
-  for (let i = 0; i < allPagesData.length; i++) {
-    const { name, pages } = allPagesData[i];
-    onProgress?.(`[${i + 1}/${allPagesData.length}] Cetak ${name}...`);
-    
-    try {
-      // Each file gets fresh connection
+      // Each file: fresh PDF load + fresh Bluetooth connection
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      // Get fresh Bluetooth writer for this file
       const writer = await getBluetoothWriter(onProgress);
       
-      for (let pageNum = 0; pageNum < pages.length; pageNum++) {
-        onProgress?.(`[${i + 1}/${allPagesData.length}] Halaman ${pageNum + 1}/${pages.length}...`);
+      // Small init command
+      const initCmd = new Uint8Array([0x1B, 0x40]); // ESC @
+      await writer.writeValueWithoutResponse(initCmd);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        onProgress?.(`[${i + 1}/${pdfFiles.length}] Hal ${pageNum}/${pdf.numPages}...`);
         
-        await sendEscPosData(writer, pages[pageNum], onProgress);
+        const page = await pdf.getPage(pageNum);
         
-        // Wait for printer to finish page
-        await new Promise(resolve => setTimeout(resolve, 300));
+        const viewport = page.getViewport({ scale: 1 });
+        const scale = PRINTER_WIDTH / viewport.width;
+        const scaledViewport = page.getViewport({ scale });
         
-        // Page break (not after last page of last file)
-        if (pageNum < pages.length - 1 || i < allPagesData.length - 1) {
-          const pageBreak = new Uint8Array([0x1B, 0x64, 0x03]);
-          await writer.writeValueWithoutResponse(pageBreak);
-          await new Promise(resolve => setTimeout(resolve, 200));
+        const canvas = document.createElement('canvas');
+        canvas.width = scaledViewport.width;
+        canvas.height = scaledViewport.height;
+        const ctx = canvas.getContext('2d')!;
+        
+        if (rotation === 90 || rotation === 270) {
+          canvas.width = scaledViewport.height;
+          canvas.height = scaledViewport.width;
         }
+        
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.save();
+        if (rotation === 90) {
+          ctx.translate(canvas.width, 0);
+          ctx.rotate(Math.PI / 2);
+        } else if (rotation === 180) {
+          ctx.translate(canvas.width, canvas.height);
+          ctx.rotate(Math.PI);
+        } else if (rotation === 270) {
+          ctx.translate(0, canvas.height);
+          ctx.rotate(-Math.PI / 2);
+        }
+        
+        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+        ctx.restore();
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const escPosData = imageDataToEscPos(imageData, sharpness);
+        
+        await sendEscPosData(writer, escPosData, onProgress);
+        
+        // Long wait after each page
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Cut after each page
+        const cutCmd = new Uint8Array([0x1D, 0x56, 0x01]);
+        await writer.writeValueWithoutResponse(cutCmd);
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
       
       success++;
+      onProgress?.(`[${i + 1}/${pdfFiles.length}] ✅ Selesai`);
       
-      // Disconnect after each file
-      // (BLE will auto-disconnect or user can reuse for next file)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // LONG delay between files - let printer fully recover
+      if (i < pdfFiles.length - 1) {
+        onProgress?.(`Menunggu printer...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
       
     } catch (error) {
-      console.error(`Failed to print ${name}:`, error);
+      console.error(`Failed to print ${pdfFile.name}:`, error);
       failed++;
+      onProgress?.(`[${i + 1}/${pdfFiles.length}] ❌ Gagal: ${(error as Error).message}`);
+      // Wait before trying next file
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
   
