@@ -1,35 +1,28 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, Printer, FileText, X, RotateCw, Bluetooth } from "lucide-react";
+import { ArrowLeft, Upload, Printer, FileText, X, RotateCw, Bluetooth, ShoppingBag } from "lucide-react";
 import { printReceipt, generateReceiptFromOrder } from "../lib/bluetoothPrinter";
+import { useStore } from "../stores/useStore";
 
-const ESC = "\x1B";
-const GS = "\x1D";
-
-const COMMANDS = {
-  init: ESC + "@",
-  center: ESC + "a" + "\x01",
-  left: ESC + "a" + "\x00",
-  bold: ESC + "E" + "\x01",
-  boldOff: ESC + "E" + "\x00",
-  feedLines: (n: number) => ESC + "d" + String.fromCharCode(n),
-  cut: GS + "V" + "\x01",
-  normal: GS + "!" + "\x00",
-};
-
-type PrintMode = 'bluetooth' | 'share';
+type PrintMode = 'order' | 'pdf';
 
 export default function PrintReceipt() {
   const navigate = useNavigate();
+  const { orders, itemsByOrder, products, customers } = useStore();
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfPreview, setPdfPreview] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [rotation, setRotation] = useState(0);
-  const [printMode, setPrintMode] = useState<PrintMode>('bluetooth');
-  const [printProgress, setPrintProgress] = useState<string>("");
+  const [printMode, setPrintMode] = useState<PrintMode>('order');
+  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get recent completed orders for quick print
+  const recentOrders = orders
+    .filter(o => o.status === "completed" || o.status === "paid" || o.status === "ready")
+    .slice(0, 10);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -58,73 +51,75 @@ export default function PrintReceipt() {
     setRotation((prev) => (prev + 90) % 360);
   }
 
-  async function handlePrint() {
+  async function handlePrintOrder() {
+    if (!selectedOrderId) {
+      alert("Pilih order terlebih dahulu.");
+      return;
+    }
+
+    setPrinting(true);
+    setStatus("Menghubungkan ke printer...");
+
+    try {
+      const order = orders.find(o => o.id === selectedOrderId);
+      const items = itemsByOrder[selectedOrderId] || [];
+      
+      if (!order) {
+        throw new Error("Order tidak ditemukan");
+      }
+
+      const receiptData = generateReceiptFromOrder(order, items, products);
+      const success = await printReceipt(receiptData);
+      
+      if (success) {
+        setStatus("✅ Berhasil cetak resi!");
+        setPrinterName("Printer connected");
+      } else {
+        setStatus("Gagal mencetak. Pastikan printer sudah terhubung.");
+      }
+    } catch (error) {
+      console.error("Print error:", error);
+      setStatus("Error: " + (error as Error).message);
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  async function handleSharePdf() {
     if (!pdfFile) {
       alert("Pilih file PDF terlebih dahulu.");
       return;
     }
 
     setPrinting(true);
-    setPrintProgress("Mempersiapkan...");
+    setStatus("Membuka share...");
 
     try {
-      if (printMode === 'bluetooth') {
-        // Direct Bluetooth printing
-        setPrintProgress("Mencari printer...");
+      if (navigator.share && navigator.canShare) {
+        const file = new File([pdfFile], pdfFile.name, { type: "application/pdf" });
         
-        // For Bluetooth, we'll share the PDF since we can't parse PDF to ESC/POS
-        // The user can then use Thermer app to print
-        if (navigator.share && navigator.canShare) {
-          const file = new File([pdfFile], pdfFile.name, { type: "application/pdf" });
-          
-          if (navigator.canShare({ files: [file] })) {
-            setPrintProgress("Membuka printer selection...");
-            await navigator.share({
-              title: "Cetak Resi via Bluetooth",
-              text: "Pilih app printer (Thermer/Print) untuk cetak via Bluetooth",
-              files: [file],
-            });
-            setStatus("✅ PDF di-share ke app printer. Pastikan printer sudah terhubung via Bluetooth.");
-          } else {
-            // Fallback: download
-            downloadPdf();
-          }
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: "Cetak Resi",
+            text: "Pilih app printer (Thermer/Print) untuk cetak",
+            files: [file],
+          });
+          setStatus("✅ PDF di-share! Pilih app printer untuk cetak.");
         } else {
-          // Fallback: download
           downloadPdf();
         }
       } else {
-        // Share mode - simple Web Share
-        setPrintProgress("Membuka share...");
-        if (navigator.share && navigator.canShare) {
-          const file = new File([pdfFile], pdfFile.name, { type: "application/pdf" });
-          
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: "Cetak Resi",
-              text: "Share ke app printer",
-              files: [file],
-            });
-            setStatus("✅ PDF sudah di-share!");
-          } else {
-            downloadPdf();
-          }
-        } else {
-          downloadPdf();
-        }
+        downloadPdf();
       }
     } catch (error) {
       if ((error as Error).name === "AbortError") {
-        setStatus("Dibatalkan oleh user");
+        setStatus("Dibatalkan");
       } else {
-        console.error("Print error:", error);
         setStatus("Error: " + (error as Error).message);
-        // Fallback: download PDF
         downloadPdf();
       }
     } finally {
       setPrinting(false);
-      setPrintProgress("");
     }
   }
 
@@ -138,7 +133,12 @@ export default function PrintReceipt() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setStatus("PDF didownload. Buka dari File Manager lalu share ke app printer.");
+    setStatus("PDF didownload. Buka lalu share ke app printer.");
+  }
+
+  function getCustomerName(customerId: string): string {
+    const customer = customers.find(c => c.id === customerId);
+    return customer?.name || '-';
   }
 
   return (
@@ -156,106 +156,168 @@ export default function PrintReceipt() {
       </div>
 
       <main className="px-5 py-4 flex-1 overflow-y-auto pb-6">
-        {/* Upload Area */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-4">
-          <h2 className="text-sm font-bold text-gray-700 mb-3">Upload PDF Resi Shopee</h2>
-
-          {!pdfFile ? (
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-pink-400 hover:bg-pink-50/30 transition-all cursor-pointer"
-            >
-              <Upload className="w-10 h-10 text-gray-400" />
-              <p className="text-sm text-gray-500 font-semibold">Klik untuk upload PDF</p>
-              <p className="text-xs text-gray-400">Format: PDF (Maks 5MB)</p>
-            </div>
-          ) : (
-            <div className="relative">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <FileText className="w-10 h-10 text-red-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-800 truncate">{pdfFile.name}</p>
-                  <p className="text-xs text-gray-400">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                </div>
-                <button
-                  onClick={rotatePdf}
-                  className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
-                  title="Rotate"
-                >
-                  <RotateCw className="w-4 h-4 text-blue-500" />
-                </button>
-                <button
-                  onClick={removeFile}
-                  className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
-                >
-                  <X className="w-4 h-4 text-red-500" />
-                </button>
-              </div>
-
-              {pdfPreview && (
-                <div className="mt-3 overflow-hidden border border-gray-200 rounded-xl">
-                  <iframe
-                    src={pdfPreview}
-                    className="w-full h-64 origin-center transition-transform"
-                    style={{ transform: `rotate(${rotation}deg)` }}
-                    title="PDF Preview"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-        </div>
-
-        {/* Printer Status */}
-        {printerName && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
-            <p className="text-xs text-blue-600 font-semibold">Printer Terhubung</p>
-            <p className="text-sm font-bold text-blue-800">{printerName}</p>
-          </div>
-        )}
-
-        {/* Print Mode Selector */}
+        {/* Mode Selector */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
-          <h2 className="text-sm font-bold text-gray-700 mb-3">Mode Cetak</h2>
+          <h2 className="text-sm font-bold text-gray-700 mb-3">Pilih Mode Cetak</h2>
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setPrintMode('bluetooth')}
-              className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                printMode === 'bluetooth'
+              onClick={() => setPrintMode('order')}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                printMode === 'order'
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <Bluetooth className={`w-6 h-6 ${printMode === 'bluetooth' ? 'text-blue-500' : 'text-gray-400'}`} />
-              <span className={`text-sm font-semibold ${printMode === 'bluetooth' ? 'text-blue-700' : 'text-gray-600'}`}>
-                Bluetooth
+              <ShoppingBag className={`w-8 h-8 ${printMode === 'order' ? 'text-blue-500' : 'text-gray-400'}`} />
+              <span className={`text-sm font-bold ${printMode === 'order' ? 'text-blue-700' : 'text-gray-600'}`}>
+                Resi Order
               </span>
-              <span className="text-xs text-gray-400">Koneksi langsung</span>
+              <span className="text-xs text-gray-400 text-center">Cetak langsung via Bluetooth</span>
             </button>
             <button
-              onClick={() => setPrintMode('share')}
-              className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                printMode === 'share'
+              onClick={() => setPrintMode('pdf')}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                printMode === 'pdf'
                   ? 'border-green-500 bg-green-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <Printer className={`w-6 h-6 ${printMode === 'share' ? 'text-green-500' : 'text-gray-400'}`} />
-              <span className={`text-sm font-semibold ${printMode === 'share' ? 'text-green-700' : 'text-gray-600'}`}>
-                Share
+              <FileText className={`w-8 h-8 ${printMode === 'pdf' ? 'text-green-500' : 'text-gray-400'}`} />
+              <span className={`text-sm font-bold ${printMode === 'pdf' ? 'text-green-700' : 'text-gray-600'}`}>
+                PDF Shopee
               </span>
-              <span className="text-xs text-gray-400">Via app lain</span>
+              <span className="text-xs text-gray-400 text-center">Share ke Thermer app</span>
             </button>
           </div>
         </div>
+
+        {/* Order Selection Mode */}
+        {printMode === 'order' && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
+            <h2 className="text-sm font-bold text-gray-700 mb-3">Pilih Order</h2>
+            
+            {recentOrders.length === 0 ? (
+              <div className="text-center py-6 text-gray-400">
+                <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Belum ada order selesai</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {recentOrders.map(order => (
+                  <button
+                    key={order.id}
+                    onClick={() => setSelectedOrderId(order.id)}
+                    className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                      selectedOrderId === order.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-bold text-gray-800">
+                          {getCustomerName(order.customer_id)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(order.created_at).toLocaleDateString('id-ID')} • 
+                          Rp {order.total.toLocaleString('id-ID')}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                        order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        order.status === 'paid' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {order.status === 'completed' ? 'Selesai' : 
+                         order.status === 'paid' ? 'Dibayar' : 'Ready'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Print Button for Order */}
+            <button
+              onClick={handlePrintOrder}
+              disabled={!selectedOrderId || printing}
+              className="w-full mt-4 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <Bluetooth className="w-4 h-4" />
+              {printing ? "Mencetak..." : "Cetak via Bluetooth"}
+            </button>
+          </div>
+        )}
+
+        {/* PDF Upload Mode */}
+        {printMode === 'pdf' && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-4">
+            <h2 className="text-sm font-bold text-gray-700 mb-3">Upload PDF Resi Shopee</h2>
+
+            {!pdfFile ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-pink-400 hover:bg-pink-50/30 transition-all cursor-pointer"
+              >
+                <Upload className="w-10 h-10 text-gray-400" />
+                <p className="text-sm text-gray-500 font-semibold">Klik untuk upload PDF</p>
+                <p className="text-xs text-gray-400">Format: PDF (Maks 5MB)</p>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <FileText className="w-10 h-10 text-red-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800 truncate">{pdfFile.name}</p>
+                    <p className="text-xs text-gray-400">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                  <button
+                    onClick={rotatePdf}
+                    className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
+                    title="Rotate"
+                  >
+                    <RotateCw className="w-4 h-4 text-blue-500" />
+                  </button>
+                  <button
+                    onClick={removeFile}
+                    className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
+                  >
+                    <X className="w-4 h-4 text-red-500" />
+                  </button>
+                </div>
+
+                {pdfPreview && (
+                  <div className="mt-3 overflow-hidden border border-gray-200 rounded-xl">
+                    <iframe
+                      src={pdfPreview}
+                      className="w-full h-64 origin-center transition-transform"
+                      style={{ transform: `rotate(${rotation}deg)` }}
+                      title="PDF Preview"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {/* Share Button for PDF */}
+            <button
+              onClick={handleSharePdf}
+              disabled={!pdfFile || printing}
+              className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              {printing ? "Mencetak..." : "Share ke App Printer"}
+            </button>
+          </div>
+        )}
 
         {/* Status */}
         {status && (
@@ -276,46 +338,15 @@ export default function PrintReceipt() {
           </div>
         )}
 
-        {/* Print Progress */}
-        {printProgress && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-              <p className="text-sm text-blue-700 font-semibold">{printProgress}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Print Button */}
-        <button
-          onClick={handlePrint}
-          disabled={!pdfFile || printing}
-          className={`w-full py-3 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 ${
-            printMode === 'bluetooth'
-              ? 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white'
-              : 'bg-pink-500 hover:bg-pink-600 disabled:bg-gray-300 text-white'
-          }`}
-        >
-          {printMode === 'bluetooth' ? (
-            <Bluetooth className="w-4 h-4" />
-          ) : (
-            <Printer className="w-4 h-4" />
-          )}
-          {printing ? "Mencetak..." : printMode === 'bluetooth' ? "Cetak via Bluetooth" : "Share PDF"}
-        </button>
-
         {/* Info */}
         <div className="mt-4 p-4 bg-gray-50 rounded-xl">
           <p className="text-xs text-gray-500 font-semibold mb-2">Tips:</p>
           <ul className="text-xs text-gray-400 space-y-1">
+            <li>• <strong>Resi Order</strong>: Cetak struk langsung via Bluetooth</li>
+            <li>• <strong>PDF Shopee</strong>: Share ke Thermer/Print app untuk cetak</li>
+            <li>• Pairing printer dulu di Pengaturan Bluetooth HP</li>
             <li>• Gunakan Chrome di Android</li>
-            <li>• Aktifkan Bluetooth di HP</li>
-            <li>• <strong>Pairing printer dulu</strong> di Pengaturan Bluetooth HP</li>
-            <li>• Setelah pairing, baru klik "Cetak via Bluetooth"</li>
-            <li>• Jika tidak muncul, matikan nyalakan Bluetooth</li>
-            <li>• Pastikan printer menyala dan dalam jangkauan</li>
-            <li>• Mode Bluetooth: akan membuka Thermer/Print app</li>
-            <li>• Mode Share: pilih app untuk share PDF</li>
+            <li>• Web Bluetooth tidak support cetak PDF langsung</li>
           </ul>
         </div>
       </main>
