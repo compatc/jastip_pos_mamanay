@@ -4,8 +4,10 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Use local worker from public folder
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// Disable worker completely - PDF will be processed in main thread
+// This works fine for small PDFs like shipping receipts
+delete (pdfjsLib.GlobalWorkerOptions as any).workerSrc;
+(pdfjsLib.GlobalWorkerOptions as any).worker = null;
 
 const ESC = "\x1B";
 const GS = "\x1D";
@@ -582,7 +584,7 @@ export async function printPdfDirect(
     onProgress?.("Memuat PDF...");
     
     const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
     
     // Get Bluetooth writer
     const writer = await getBluetoothWriter(onProgress);
@@ -693,7 +695,7 @@ export async function printPdfBatch(
     try {
       // Each file: fresh PDF load + fresh Bluetooth connection
       const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
       
       // Get fresh Bluetooth writer for this file
       const writer = await getBluetoothWriter(onProgress);
