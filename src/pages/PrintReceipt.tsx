@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, Printer, FileText, X, RotateCw, Bluetooth, ShoppingBag, Image } from "lucide-react";
-import { printReceipt, printImage, generateReceiptFromOrder } from "../lib/bluetoothPrinter";
+import { printReceipt, printImage, printPdfDirect, generateReceiptFromOrder } from "../lib/bluetoothPrinter";
 import { useStore } from "../stores/useStore";
 
 type PrintMode = 'order' | 'pdf' | 'image';
@@ -146,6 +146,34 @@ export default function PrintReceipt() {
       }
     } finally {
       setPrinting(false);
+    }
+  }
+
+  async function handlePrintPdfDirect() {
+    if (!pdfFile) {
+      alert("Pilih file PDF terlebih dahulu.");
+      return;
+    }
+
+    setPrinting(true);
+    setPrintProgress("Mempersiapkan...");
+
+    try {
+      const success = await printPdfDirect(pdfFile, (progress) => {
+        setPrintProgress(progress);
+      });
+      
+      if (success) {
+        setStatus("✅ Berhasil cetak PDF!");
+      } else {
+        setStatus("Gagal mencetak. Pastikan printer sudah terhubung.");
+      }
+    } catch (error) {
+      console.error("Print PDF error:", error);
+      setStatus("Error: " + (error as Error).message);
+    } finally {
+      setPrinting(false);
+      setPrintProgress("");
     }
   }
 
@@ -375,15 +403,25 @@ export default function PrintReceipt() {
               className="hidden"
             />
 
-            {/* Share Button for PDF */}
-            <button
-              onClick={handleSharePdf}
-              disabled={!pdfFile || printing}
-              className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
-            >
-              <Printer className="w-4 h-4" />
-              {printing ? "Mencetak..." : "Share ke App Printer"}
-            </button>
+            {/* Print Buttons for PDF */}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handlePrintPdfDirect}
+                disabled={!pdfFile || printing}
+                className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <Bluetooth className="w-4 h-4" />
+                {printing ? (printProgress || "Mencetak...") : "Cetak Langsung"}
+              </button>
+              <button
+                onClick={handleSharePdf}
+                disabled={!pdfFile || printing}
+                className="flex-1 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                {printing ? "Mencetak..." : "Share ke App"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -474,10 +512,9 @@ export default function PrintReceipt() {
           <ul className="text-xs text-gray-400 space-y-1">
             <li>• <strong>Resi Order</strong>: Cetak struk dari order langsung via Bluetooth</li>
             <li>• <strong>Foto/Gambar</strong>: Upload screenshot/foto → cetak langsung via Bluetooth</li>
-            <li>• <strong>PDF Shopee</strong>: Share ke Thermer/Print app untuk cetak</li>
+            <li>• <strong>PDF Shopee</strong>: "Cetak Langsung" (Bluetooth) atau "Share ke App" (Thermer)</li>
             <li>• Pairing printer dulu di Pengaturan Bluetooth HP</li>
             <li>• Gunakan Chrome di Android</li>
-            <li>• Gambar akan di-scale ke lebar printer (576 dot)</li>
           </ul>
         </div>
       </main>

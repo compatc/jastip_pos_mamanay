@@ -2,6 +2,11 @@
 // Putian POS80-01 uses KT6368A BLE chip
 // Confirmed service/characteristic from nRF Connect scan
 
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set worker source
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
 const ESC = "\x1B";
 const GS = "\x1D";
 
@@ -496,6 +501,141 @@ export async function printImage(
     return true;
   } catch (error) {
     console.error("Print image error:", error);
+    if ((error as Error).name === "NotFoundError") {
+      console.log("User cancelled device selection");
+    } else {
+      alert("Gagal mencetak: " + (error as Error).message);
+    }
+    return false;
+  }
+}
+
+// ========== PDF DIRECT PRINTING ==========
+
+async function getBluetoothWriter(onProgress?: (progress: string) => void): Promise<BluetoothRemoteGATTCharacteristic> {
+  if (!navigator.bluetooth) {
+    throw new Error("Browser tidak mendukung Web Bluetooth");
+  }
+
+  onProgress?.("Mencari printer...");
+  const device = await navigator.bluetooth.requestDevice({
+    filters: [
+      { namePrefix: "POS" },
+      { namePrefix: "RPP" },
+      { namePrefix: "BT" },
+      { namePrefix: "Thermal" },
+      { namePrefix: "Printer" },
+    ],
+    optionalServices: [
+      '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+      '0000ffe0-0000-1000-8000-00805f9b34fb',
+      '0000ff00-0000-1000-8000-00805f9b34fb',
+      '0000fee7-0000-1000-8000-00805f9b34fb',
+      '00001bf0-0000-1000-8000-00805f9b34fb',
+    ],
+  });
+
+  onProgress?.("Menghubungkan...");
+  const server = await device.gatt?.connect();
+  if (!server) throw new Error("Gagal koneksi ke printer");
+
+  const SERVICE_CHARS: { service: string; writeChar: string }[] = [
+    { service: '49535343-fe7d-4ae5-8fa9-9fafd205e455', writeChar: '49535343-8841-43f4-a8d4-ecbe34729bb3' },
+    { service: '0000ffe0-0000-1000-8000-00805f9b34fb', writeChar: '0000ffe1-0000-1000-8000-00805f9b34fb' },
+    { service: '0000ff00-0000-1000-8000-00805f9b34fb', writeChar: '0000ff02-0000-1000-8000-00805f9b34fb' },
+  ];
+
+  for (const { service, writeChar } of SERVICE_CHARS) {
+    try {
+      const svc = await server.getPrimaryService(service);
+      return await svc.getCharacteristic(writeChar);
+    } catch {}
+  }
+
+  throw new Error("Tidak ditemukan characteristic yang bisa ditulis");
+}
+
+async function sendEscPosData(
+  writer: BluetoothRemoteGATTCharacteristic,
+  data: Uint8Array,
+  onProgress?: (progress: string) => void
+): Promise<void> {
+  const CHUNK_SIZE = 20;
+  
+  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+    const chunk = data.slice(i, i + CHUNK_SIZE);
+    await writer.writeValueWithoutResponse(chunk);
+    
+    const progress = Math.round(((i + chunk.length) / data.length) * 100);
+    onProgress?.(`Mencetak: ${progress}%`);
+    
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+}
+
+export async function printPdfDirect(
+  pdfFile: File,
+  onProgress?: (progress: string) => void
+): Promise<boolean> {
+  try {
+    onProgress?.("Memuat PDF...");
+    
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    // Get Bluetooth writer
+    const writer = await getBluetoothWriter(onProgress);
+    
+    // Process each page
+    const totalPages = pdf.numPages;
+    onProgress?.(`Memproses ${totalPages} halaman...`);
+    
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      onProgress?.(`Halaman ${pageNum}/${totalPages}...`);
+      
+      const page = await pdf.getPage(pageNum);
+      
+      // Scale to fit printer width (576 dots)
+      const viewport = page.getViewport({ scale: 1 });
+      const scale = PRINTER_WIDTH / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
+      
+      // Render to canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = scaledViewport.width;
+      canvas.height = scaledViewport.height;
+      const ctx = canvas.getContext('2d')!;
+      
+      // Fill white background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      await page.render({
+        canvasContext: ctx,
+        viewport: scaledViewport,
+      }).promise;
+      
+      // Get image data and convert to ESC/POS
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const escPosData = imageDataToEscPos(imageData);
+      
+      console.log(`Page ${pageNum}: ${canvas.width}x${canvas.height}, ${escPosData.length} bytes`);
+      
+      // Send to printer
+      await sendEscPosData(writer, escPosData, onProgress);
+      
+      // Add page break between pages (feed lines)
+      if (pageNum < totalPages) {
+        const pageBreak = new Uint8Array([0x1B, 0x64, 0x05]); // Feed 5 lines
+        await writer.writeValueWithoutResponse(pageBreak);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    console.log("✅ PDF printed successfully!");
+    return true;
+  } catch (error) {
+    console.error("Print PDF error:", error);
     if ((error as Error).name === "NotFoundError") {
       console.log("User cancelled device selection");
     } else {
