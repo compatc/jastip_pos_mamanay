@@ -598,22 +598,43 @@ export async function printPdfDirect(
       
       const page = await pdf.getPage(pageNum);
       
-      // Scale to fit printer width (576 dots)
+      // Get original page dimensions
       const viewport = page.getViewport({ scale: 1 });
-      const scale = PRINTER_WIDTH / viewport.width;
-      const scaledViewport = page.getViewport({ scale });
+      const pageWidth = viewport.width;
+      const pageHeight = viewport.height;
       
-      // Render to canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = scaledViewport.width;
-      canvas.height = scaledViewport.height;
-      const ctx = canvas.getContext('2d')!;
+      // Calculate scale to fill printer width AFTER rotation
+      // For rotation 90/270: canvas width = pageHeight, canvas height = pageWidth
+      // For rotation 0/180: canvas width = pageWidth, canvas height = pageHeight
+      let targetWidth: number;
+      let targetHeight: number;
       
-      // Apply rotation
       if (rotation === 90 || rotation === 270) {
-        canvas.width = scaledViewport.height;
-        canvas.height = scaledViewport.width;
+        targetWidth = pageHeight;
+        targetHeight = pageWidth;
+      } else {
+        targetWidth = pageWidth;
+        targetHeight = pageHeight;
       }
+      
+      // Scale to fill printer width (576 dots) - fill, not fit
+      const scale = PRINTER_WIDTH / targetWidth;
+      
+      // Render at scaled size
+      const renderViewport = page.getViewport({ scale });
+      
+      const canvas = document.createElement('canvas');
+      
+      // Set canvas size based on rotation
+      if (rotation === 90 || rotation === 270) {
+        canvas.width = Math.floor(renderViewport.height);
+        canvas.height = Math.floor(renderViewport.width);
+      } else {
+        canvas.width = Math.floor(renderViewport.width);
+        canvas.height = Math.floor(renderViewport.height);
+      }
+      
+      const ctx = canvas.getContext('2d')!;
       
       // Fill white background
       ctx.fillStyle = 'white';
@@ -634,7 +655,7 @@ export async function printPdfDirect(
       
       await page.render({
         canvasContext: ctx,
-        viewport: scaledViewport,
+        viewport: renderViewport,
       }).promise;
       
       ctx.restore();
@@ -643,7 +664,7 @@ export async function printPdfDirect(
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const escPosData = imageDataToEscPos(imageData, sharpness);
       
-      console.log(`Page ${pageNum}: ${canvas.width}x${canvas.height}, ${escPosData.length} bytes`);
+      console.log(`Page ${pageNum}: ${canvas.width}x${canvas.height}, scale: ${scale.toFixed(2)}, ${escPosData.length} bytes`);
       
       // Send to printer
       await sendEscPosData(writer, escPosData, onProgress);
@@ -710,19 +731,33 @@ export async function printPdfBatch(
         
         const page = await pdf.getPage(pageNum);
         
+        // Get original page dimensions
         const viewport = page.getViewport({ scale: 1 });
-        const scale = PRINTER_WIDTH / viewport.width;
-        const scaledViewport = page.getViewport({ scale });
+        const pageWidth = viewport.width;
+        const pageHeight = viewport.height;
+        
+        // Calculate scale to fill printer width AFTER rotation
+        let targetWidth: number;
+        if (rotation === 90 || rotation === 270) {
+          targetWidth = pageHeight;
+        } else {
+          targetWidth = pageWidth;
+        }
+        
+        const scale = PRINTER_WIDTH / targetWidth;
+        const renderViewport = page.getViewport({ scale });
         
         const canvas = document.createElement('canvas');
-        canvas.width = scaledViewport.width;
-        canvas.height = scaledViewport.height;
-        const ctx = canvas.getContext('2d')!;
         
         if (rotation === 90 || rotation === 270) {
-          canvas.width = scaledViewport.height;
-          canvas.height = scaledViewport.width;
+          canvas.width = Math.floor(renderViewport.height);
+          canvas.height = Math.floor(renderViewport.width);
+        } else {
+          canvas.width = Math.floor(renderViewport.width);
+          canvas.height = Math.floor(renderViewport.height);
         }
+        
+        const ctx = canvas.getContext('2d')!;
         
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -739,7 +774,11 @@ export async function printPdfBatch(
           ctx.rotate(-Math.PI / 2);
         }
         
-        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+        await page.render({
+          canvasContext: ctx,
+          viewport: renderViewport,
+        }).promise;
+        
         ctx.restore();
         
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
