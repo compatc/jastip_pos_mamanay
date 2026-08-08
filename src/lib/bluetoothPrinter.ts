@@ -556,8 +556,8 @@ async function sendEscPosData(
   data: Uint8Array,
   onProgress?: (progress: string) => void
 ): Promise<void> {
-  // Use larger chunks for faster printing (BLE MTU usually 20-512 bytes)
-  const CHUNK_SIZE = 128;
+  // Smaller chunks for reliability (printer buffer is limited)
+  const CHUNK_SIZE = 64;
   
   for (let i = 0; i < data.length; i += CHUNK_SIZE) {
     const chunk = data.slice(i, i + CHUNK_SIZE);
@@ -566,8 +566,8 @@ async function sendEscPosData(
     const progress = Math.round(((i + chunk.length) / data.length) * 100);
     onProgress?.(`Mencetak: ${progress}%`);
     
-    // Minimal delay - just enough for printer to process
-    await new Promise(resolve => setTimeout(resolve, 5));
+    // Delay for printer to process buffer
+    await new Promise(resolve => setTimeout(resolve, 10));
   }
 }
 
@@ -646,11 +646,14 @@ export async function printPdfDirect(
       // Send to printer
       await sendEscPosData(writer, escPosData, onProgress);
       
+      // Wait for printer to finish before next page
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       // Add page break between pages (feed lines)
       if (pageNum < totalPages) {
         const pageBreak = new Uint8Array([0x1B, 0x64, 0x03]); // Feed 3 lines
         await writer.writeValueWithoutResponse(pageBreak);
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
     }
 
@@ -701,7 +704,7 @@ export async function printPdfBatch(
           
           const page = await pdf.getPage(pageNum);
           
-          // Scale to fit printer width
+          // Scale to fit printer width (use smaller scale for less data)
           const viewport = page.getViewport({ scale: 1 });
           const scale = PRINTER_WIDTH / viewport.width;
           const scaledViewport = page.getViewport({ scale });
@@ -746,26 +749,30 @@ export async function printPdfBatch(
           
           await sendEscPosData(writer, escPosData, onProgress);
           
+          // Wait for printer to finish before next page
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
           // Page break between pages
           if (pageNum < totalPages) {
             const pageBreak = new Uint8Array([0x1B, 0x64, 0x03]);
             await writer.writeValueWithoutResponse(pageBreak);
-            await new Promise(resolve => setTimeout(resolve, 30));
+            await new Promise(resolve => setTimeout(resolve, 150));
           }
         }
         
         success++;
         
-        // Delay between files
+        // Longer delay between files to let printer cool down
         if (i < pdfFiles.length - 1) {
-          const delay = new Uint8Array([0x1B, 0x64, 0x08]); // Feed 8 lines between files
-          await writer.writeValueWithoutResponse(delay);
-          await new Promise(resolve => setTimeout(resolve, 100));
+          const pageBreak = new Uint8Array([0x1B, 0x64, 0x0A]); // Feed 10 lines
+          await writer.writeValueWithoutResponse(pageBreak);
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
         
       } catch (error) {
         console.error(`Failed to print ${pdfFile.name}:`, error);
         failed++;
+        // Continue with next file
       }
     }
     
