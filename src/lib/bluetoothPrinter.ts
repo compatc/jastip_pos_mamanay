@@ -304,7 +304,7 @@ export function generateReceiptFromOrder(order: any, items: any[], products: any
   });
 
   const totalPcs = orderItems.reduce((sum, item) => {
-    return sum + (item.qty * item.shopeePcs) / 1000;
+    return sum + (item.qty * shopeePcs) / 1000;
   }, 0);
 
   return {
@@ -324,4 +324,183 @@ export function generateReceiptFromOrder(order: any, items: any[], products: any
     shopeePcs: totalPcs > 0 ? totalPcs : undefined,
     shopeeLink: totalPcs > 0 ? "https://s.shopee.co.id/8pjZ07JBJe" : undefined,
   };
+}
+
+// ========== IMAGE PRINTING ==========
+
+// Convert image to ESC/POS raster format (GS v 0)
+// Thermal printer 76mm = 576 dots wide
+const PRINTER_WIDTH = 576;
+
+function imageDataToEscPos(imageData: ImageData): Uint8Array {
+  const { width, height, data } = imageData;
+  const commands: number[] = [];
+  
+  // Initialize
+  commands.push(0x1B, 0x40); // ESC @
+  
+  // Center alignment
+  commands.push(0x1B, 0x61, 0x01);
+  
+  // Use GS v 0 command for bit image
+  // Format: GS v 0 m xL xH yL yH d1...dk
+  // m = 0 (normal density)
+  // x = width in bytes (width / 8, rounded up)
+  // y = height in dots
+  
+  const bytesPerRow = Math.ceil(width / 8);
+  const totalBytes = bytesPerRow * height;
+  
+  // GS v 0 command header
+  commands.push(0x1D, 0x76, 0x30, 0x00);
+  
+  // xL, xH (width in bytes)
+  commands.push(bytesPerRow & 0xFF, (bytesPerRow >> 8) & 0xFF);
+  
+  // yL, yH (height in dots)
+  commands.push(height & 0xFF, (height >> 8) & 0xFF);
+  
+  // Image data (1-bit per pixel, MSB first)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x += 8) {
+      let byte = 0;
+      for (let bit = 0; bit < 8; bit++) {
+        const pixelIndex = (y * width + (x + bit)) * 4;
+        if (pixelIndex < data.length) {
+          // Use red channel, threshold at 128
+          if (data[pixelIndex] < 128) {
+            byte |= (1 << (7 - bit));
+          }
+        }
+      }
+      commands.push(byte);
+    }
+  }
+  
+  // Feed lines after image
+  commands.push(0x1B, 0x64, 0x03); // Feed 3 lines
+  
+  // Cut paper
+  commands.push(0x1D, 0x56, 0x01);
+  
+  return new Uint8Array(commands);
+}
+
+export async function printImage(
+  imageFile: File,
+  onProgress?: (progress: string) => void
+): Promise<boolean> {
+  if (!navigator.bluetooth) {
+    alert("Browser tidak mendukung Web Bluetooth.");
+    return false;
+  }
+
+  try {
+    onProgress?.("Memuat gambar...");
+    
+    // Load image to canvas
+    const img = new Image();
+    const imageUrl = URL.createObjectURL(imageFile);
+    
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
+    
+    // Create canvas and draw image
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Scale to fit printer width (576 dots)
+    const scale = PRINTER_WIDTH / img.width;
+    canvas.width = PRINTER_WIDTH;
+    canvas.height = Math.floor(img.height * scale);
+    
+    // Fill white background
+    ctx!.fillStyle = 'white';
+    ctx!.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw image
+    ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(imageUrl);
+    
+    // Get image data
+    const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
+    
+    // Convert to ESC/POS
+    onProgress?.("Konversi gambar...");
+    const escPosData = imageDataToEscPos(imageData);
+    
+    console.log(`Image size: ${canvas.width}x${canvas.height}, ESC/POS bytes: ${escPosData.length}`);
+    
+    // Request Bluetooth device
+    onProgress?.("Mencari printer...");
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [
+        { namePrefix: "POS" },
+        { namePrefix: "RPP" },
+        { namePrefix: "BT" },
+        { namePrefix: "Thermal" },
+        { namePrefix: "Printer" },
+      ],
+      optionalServices: [
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        '0000ffe0-0000-1000-8000-00805f9b34fb',
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '0000fee7-0000-1000-8000-00805f9b34fb',
+        '00001bf0-0000-1000-8000-00805f9b34fb',
+      ],
+    });
+
+    onProgress?.("Menghubungkan...");
+    const server = await device.gatt?.connect();
+    if (!server) throw new Error("Gagal koneksi ke printer");
+
+    // Try known service/characteristic pairs
+    const SERVICE_CHARS: { service: string; writeChar: string }[] = [
+      { service: '49535343-fe7d-4ae5-8fa9-9fafd205e455', writeChar: '49535343-8841-43f4-a8d4-ecbe34729bb3' },
+      { service: '0000ffe0-0000-1000-8000-00805f9b34fb', writeChar: '0000ffe1-0000-1000-8000-00805f9b34fb' },
+      { service: '0000ff00-0000-1000-8000-00805f9b34fb', writeChar: '0000ff02-0000-1000-8000-00805f9b34fb' },
+    ];
+
+    let writeCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
+
+    for (const { service, writeChar } of SERVICE_CHARS) {
+      try {
+        const svc = await server.getPrimaryService(service);
+        writeCharacteristic = await svc.getCharacteristic(writeChar);
+        break;
+      } catch {}
+    }
+
+    if (!writeCharacteristic) {
+      throw new Error("Tidak ditemukan characteristic yang bisa ditulis");
+    }
+
+    // Send image data in chunks
+    onProgress?.("Mencetak...");
+    const CHUNK_SIZE = 20;
+    
+    for (let i = 0; i < escPosData.length; i += CHUNK_SIZE) {
+      const chunk = escPosData.slice(i, i + CHUNK_SIZE);
+      await writeCharacteristic.writeValueWithoutResponse(chunk);
+      
+      const progress = Math.round(((i + chunk.length) / escPosData.length) * 100);
+      onProgress?.(`Mencetak: ${progress}%`);
+      
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+
+    console.log("✅ Image printed successfully!");
+    return true;
+  } catch (error) {
+    console.error("Print image error:", error);
+    if ((error as Error).name === "NotFoundError") {
+      console.log("User cancelled device selection");
+    } else {
+      alert("Gagal mencetak: " + (error as Error).message);
+    }
+    return false;
+  }
 }
