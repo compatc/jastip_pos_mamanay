@@ -98,7 +98,8 @@ interface PosStore {
     sellPrice: number,
     stock: number,
     unit: string,
-    image?: string
+    image?: string,
+    shopeePcs?: number
   ) => Promise<string>;
   updateProduct: (
     id: string,
@@ -107,7 +108,8 @@ interface PosStore {
     sellPrice: number,
     stock: number,
     unit: string,
-    image?: string
+    image?: string,
+    shopeePcs?: number
   ) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
 
@@ -984,7 +986,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ products: (data || []) as Product[] });
   },
 
-  addProduct: async (name, costPrice, sellPrice, stock, unit, image) => {
+  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1) => {
     const id = uuid();
     const created_at = new Date().toISOString();
     const { error } = await supabase
@@ -997,6 +999,7 @@ export const useStore = create<PosStore>((set, get) => ({
         stock,
         unit: unit || "PCS",
         image: image || "",
+        shopee_pcs: shopeePcs,
         created_at,
       });
     if (error) throw error;
@@ -1004,7 +1007,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return id;
   },
 
-  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image) => {
+  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1) => {
     const { error } = await supabase
       .from("products")
       .update({
@@ -1014,6 +1017,7 @@ export const useStore = create<PosStore>((set, get) => ({
         stock,
         unit: unit || "PCS",
         image: image || "",
+        shopee_pcs: shopeePcs,
       })
       .eq("id", id);
     if (error) throw error;

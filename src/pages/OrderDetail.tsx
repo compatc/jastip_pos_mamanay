@@ -92,6 +92,7 @@ export default function OrderDetail() {
     customers,
     loadCustomers,
     deleteOrder,
+    products,
   } = useStore();
 
   const [loading, setLoading] = useState(true);
@@ -191,11 +192,60 @@ export default function OrderDetail() {
     msg += `${BANK_INFO}\n`;
     msg += `⏰ Batas Pembayaran: ${deadlineStr}\n\n`;
 
+    const pcsShopee = items.reduce((sum, i) => {
+      const product = products.find((p) => p.id === i.product_id);
+      const shopeePcs = product?.shopee_pcs || 1;
+      return sum + (i.quantity * shopeePcs) / 1000;
+    }, 0);
+    if (pcsShopee > 0) {
+      msg += `🛒 *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+    }
+
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
     msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
     msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
     msg += "Terima kasih atas kepercayaannya. 🙏";
     return msg;
+  }
+
+  function buildShopeeMsg(): string {
+    if (order.status !== "ready" || items.length === 0) return "";
+
+    let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
+    msg += "Pembayaran sudah masuk ya. Terima kasih banyak 😊\n\n";
+    msg += "Untuk pengiriman tersedia melalui ekspedisi manual (JNT/Indopaket) atau Shopee.\n";
+    msg += "Apabila menggunakan metode split payment via Shopee, kami tidak menanggung risiko apabila paket dinyatakan hilang oleh pihak ekspedisi. Mohon dimengerti ya 💕\n\n";
+
+    msg += "Barang yang sudah ready:\n";
+    let totalPcs = 0;
+    items.forEach((item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      const shopeePcs = product?.shopee_pcs || 1;
+      const qtyPcs = (item.quantity * shopeePcs) / 1000;
+      totalPcs += qtyPcs;
+      msg += `• ${item.product_name} x${item.quantity} → ${qtyPcs} pcs\n`;
+    });
+    msg += "\n";
+
+    msg += `Total checkout: ${totalPcs} pcs\n\n`;
+    msg += "Berikut link Shopee untuk checkout:\n";
+    msg += "https://s.shopee.co.id/8pjZ07JBJe\n\n";
+    msg += "Mohon cantumkan nama serta 4 digit terakhir nomor HP pada catatan pesanan (notes) saat checkout ya, kak.\n\n";
+    msg += "Terima kasih 🙏✨";
+
+    return msg;
+  }
+
+  function sendShopeeMsg() {
+    const phone = customer?.phone || "";
+    const wa = toWaNumber(phone);
+    if (!wa) return;
+    const msg = buildShopeeMsg();
+    if (!msg) {
+      alert("Belum ada barang yang statusnya ready.");
+      return;
+    }
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
   function sendWa() {
@@ -406,6 +456,23 @@ export default function OrderDetail() {
           )}
 
           {(isOrderLunas(order) || order.total === 0) && (
+            <div className="flex gap-2.5 pt-1">
+              {order.status === "ready" && (
+              <button
+                onClick={sendShopeeMsg}
+                className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              >
+                🛒 Kirim Pesan Shopee
+              </button>
+              )}
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl text-sm transition-all border border-red-100"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
             <div className="flex gap-2.5 pt-1">
               <button
                 onClick={() => navigate(returnTo || "/orders")}

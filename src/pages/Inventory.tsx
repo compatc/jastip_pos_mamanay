@@ -23,6 +23,7 @@ interface ProductForm {
   stock: string;
   unit: string;
   image: string;
+  shopee_pcs: string;
 }
 
 const emptyForm: ProductForm = {
@@ -32,6 +33,7 @@ const emptyForm: ProductForm = {
   stock: "",
   unit: "PCS",
   image: "",
+  shopee_pcs: "1",
 };
 
 const avatarColors = [
@@ -139,7 +141,8 @@ export default function Inventory() {
           parseFloat(form.sell_price) || 0,
           parseInt(form.stock) || 0,
           form.unit.trim() || "PCS",
-          form.image
+          form.image,
+          parseInt(form.shopee_pcs) || 1
         );
       } else {
         await addProduct(
@@ -148,7 +151,8 @@ export default function Inventory() {
           parseFloat(form.sell_price) || 0,
           parseInt(form.stock) || 0,
           form.unit.trim() || "PCS",
-          form.image
+          form.image,
+          parseInt(form.shopee_pcs) || 1
         );
       }
       setShowForm(false);
@@ -443,6 +447,19 @@ export default function Inventory() {
                       value={form.unit}
                       onChange={(e) => setForm({ ...form, unit: e.target.value })}
                       placeholder="PCS"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                      Shopee PCS
+                    </label>
+                    <input
+                      type="number"
+                      value={form.shopee_pcs}
+                      onChange={(e) => setForm({ ...form, shopee_pcs: e.target.value })}
+                      placeholder="1"
+                      min="1"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
                     />
                   </div>

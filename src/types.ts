@@ -57,6 +57,7 @@ export interface Product {
   stock: number;
   unit: string;
   image: string;
+  shopee_pcs: number;
   created_at: string;
 }
 

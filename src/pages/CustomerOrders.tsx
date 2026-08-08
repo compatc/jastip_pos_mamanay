@@ -47,6 +47,7 @@ interface OrderItemData {
   quantity: number;
   price: number;
   discount: number;
+  product_id: string;
 }
 
 type FilterType = "all" | "unpaid" | "ready" | "completed";
@@ -60,6 +61,7 @@ export default function CustomerOrders() {
     loadCustomers,
     deleteOrder,
     markOrdersPaid,
+    products,
   } = useStore();
   const navigate = useNavigate();
 
@@ -123,13 +125,13 @@ export default function CustomerOrders() {
       const ids = orders.map((o) => o.id);
       const { data } = await supabase
         .from("order_items")
-        .select("order_id, product_name, quantity, price, discount")
+        .select("order_id, product_name, quantity, price, discount, product_id")
         .in("order_id", ids);
       if (!data) return;
       const map: Record<string, OrderItemData[]> = {};
       for (const row of data) {
         if (!map[row.order_id]) map[row.order_id] = [];
-        map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, price: row.price, discount: row.discount || 0 });
+        map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, price: row.price, discount: row.discount || 0, product_id: row.product_id });
       }
       setItemsByOrder(map);
     }
@@ -251,6 +253,18 @@ export default function CustomerOrders() {
     msg += `\u{1F4B3} Metode Pembayaran: ${payMethod}\n`;
     msg += "BCA 5271330651 a.n. Nurul Azizah\n";
     msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
+
+    const pcsShopee = selected.reduce((sum, order) => {
+      const items = itemsByOrder[order.id] || [];
+      return sum + items.reduce((s, i) => {
+        const product = products.find((p) => p.id === i.product_id);
+        const shopeePcs = product?.shopee_pcs || 1;
+        return s + (i.quantity * shopeePcs) / 1000;
+      }, 0);
+    }, 0);
+    if (pcsShopee > 0) {
+      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+    }
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
     msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n\n";

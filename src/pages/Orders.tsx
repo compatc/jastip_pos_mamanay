@@ -66,14 +66,14 @@ type CustomerGroup = {
 };
 
 export default function Orders() {
-  const { allOrders, loadAllOrders, deleteOrder, customers, loadCustomers } = useStore();
+  const { allOrders, loadAllOrders, deleteOrder, customers, loadCustomers, products, loadProducts } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
   const [showProductSuggest, setShowProductSuggest] = useState(false);
-  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number }[]>>({});
+  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number; product_id: string }[]>>({});
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -127,13 +127,13 @@ export default function Orders() {
       if (ids.length === 0) { setItemsByOrder({}); return; }
       const { data } = await supabase
         .from("order_items")
-        .select("order_id, product_name, quantity")
+        .select("order_id, product_name, quantity, product_id")
         .in("order_id", ids);
-      const map: Record<string, { product_name: string; quantity: number }[]> = {};
+      const map: Record<string, { product_name: string; quantity: number; product_id: string }[]> = {};
       if (data) {
         for (const row of data) {
           if (!map[row.order_id]) map[row.order_id] = [];
-          map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity });
+          map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, product_id: row.product_id });
         }
       }
       setItemsByOrder(map);
@@ -271,6 +271,15 @@ export default function Orders() {
     msg += `\u{23F0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
     msg += `\u{23F0} Batas Pembayaran: *${deadlineStr}* (2 hari setelah invoice)\n\n`;
 
+    const pcsShopee = items.reduce((sum, i) => {
+      const product = products.find((p) => p.id === i.product_id);
+      const shopeePcs = product?.shopee_pcs || 1;
+      return sum + (i.quantity * shopeePcs) / 1000;
+    }, 0);
+    if (pcsShopee > 0) {
+      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+    }
+
     if (sisa > 0) {
       msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
       msg += `Klik di sini untuk bayar pakai QRIS:\n${payOrderLink(order.id)}\n\n`;
@@ -281,6 +290,92 @@ export default function Orders() {
     msg += "Mohon segera konfirmasi pembayaran agar pesanan dapat kami proses. ";
     msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
+
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
+  function sendPickupReminder(order: (typeof allOrders)[0]) {
+    const customer = customers.find((c) => c.id === order.customer_id);
+    const phone = customer?.phone || "";
+    const cleaned = phone.replace(/\D/g, "");
+    if (!cleaned) {
+      alert(`Nomor WA untuk ${order.customer_name || "pelanggan ini"} belum diisi.`);
+      return;
+    }
+    const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
+
+    const items = itemsByOrder[order.id] || [];
+    const productText = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+    const sisa = order.total - order.paid_total;
+    const isLunas = sisa <= 0;
+
+    let msg = `Halo Kak ${order.customer_name || ""} \u{1F64F}\n\n`;
+    msg += `Barang pesanan di *Jastip_mamanay* sudah *ready* dan bisa diambil ya!\n\n`;
+    msg += `\u{1F4E6} Pesanan: ${productText}\n`;
+    msg += `\u{1F4B0} Total: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
+    if (isLunas) {
+      msg += `\u{2705} Lunas\n\n`;
+    } else {
+      msg += `Sisa bayar: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
+      msg += `\u{1F4B3} *Bayar QRIS:*\n`;
+      msg += `${payOrderLink(order.id)}\n\n`;
+      msg += `\u{1F3E6} Transfer BCA: ${BANK_INFO}\n\n`;
+    }
+
+    const pcsShopee = items.reduce((sum, i) => {
+      const product = products.find((p) => p.id === i.product_id);
+      const shopeePcs = product?.shopee_pcs || 1;
+      return sum + (i.quantity * shopeePcs) / 1000;
+    }, 0);
+    if (pcsShopee > 0) {
+      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+    }
+
+    msg += `Silakan mampir kapan saja ya Kak, atau kalau mau di-kirim juga bisa \u{1F60A}\n\n`;
+    msg += `Terima kasih! \u{1F64F}`;
+
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
+  function sendShopeeMsg(order: (typeof allOrders)[0]) {
+    const customer = customers.find((c) => c.id === order.customer_id);
+    const phone = customer?.phone || "";
+    const cleaned = phone.replace(/\D/g, "");
+    if (!cleaned) {
+      alert(`Nomor WA untuk ${order.customer_name || "pelanggan ini"} belum diisi.`);
+      return;
+    }
+    const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
+
+    const items = itemsByOrder[order.id] || [];
+    const isReady = order.status === "ready";
+
+    if (!isReady || items.length === 0) {
+      alert("Belum ada barang yang statusnya ready.");
+      return;
+    }
+
+    let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
+    msg += "Pembayaran sudah masuk ya. Terima kasih banyak 😊\n\n";
+    msg += "Untuk pengiriman tersedia melalui ekspedisi manual (JNT/Indopaket) atau Shopee.\n";
+    msg += "Apabila menggunakan metode split payment via Shopee, kami tidak menanggung risiko apabila paket dinyatakan hilang oleh pihak ekspedisi. Mohon dimengerti ya 💕\n\n";
+
+    msg += "Barang yang sudah ready:\n";
+    let totalPcs = 0;
+    items.forEach((item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      const shopeePcs = product?.shopee_pcs || 1;
+      const qtyPcs = (item.quantity * shopeePcs) / 1000;
+      totalPcs += qtyPcs;
+      msg += `• ${item.product_name} x${item.quantity} → ${qtyPcs} pcs\n`;
+    });
+    msg += "\n";
+
+    msg += `Total checkout: ${totalPcs} pcs\n\n`;
+    msg += "Berikut link Shopee untuk checkout:\n";
+    msg += "https://s.shopee.co.id/8pjZ07JBJe\n\n";
+    msg += "Mohon cantumkan nama serta 4 digit terakhir nomor HP pada catatan pesanan (notes) saat checkout ya, kak.\n\n";
+    msg += "Terima kasih 🙏✨";
 
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
   }
@@ -446,6 +541,18 @@ export default function Orders() {
     msg += `\u{1F4B3} Metode Pembayaran: ${PAYMENT_LABELS_FULL[group.orders[0]?.payment_type] || "Transfer Bank"}\n`;
     msg += BANK_INFO + "\n";
     msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
+
+    const pcsShopee = group.orders.reduce((sum, order) => {
+      const items = itemsByOrder[order.id] || [];
+      return sum + items.reduce((s, i) => {
+        const product = products.find((p) => p.id === i.product_id);
+        const shopeePcs = product?.shopee_pcs || 1;
+        return s + (i.quantity * shopeePcs) / 1000;
+      }, 0);
+    }, 0);
+    if (pcsShopee > 0) {
+      msg += `\u{1F6D2} *Untuk checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+    }
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
     msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
@@ -940,7 +1047,30 @@ export default function Orders() {
                       )}
                       {(isOrderLunas(order) || order.total === 0) && (
                         <>
+                          {order.status === "ready" && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sendShopeeMsg(order);
+                            }}
+                            className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-orange-500/20"
+                          >
+                            Shopee
+                          </button>
+                          )}
                           {tab === "belum-diambil" && (
+                            <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sendPickupReminder(order);
+                              }}
+                              className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-blue-500/20"
+                            >
+                              Ingatkan
+                            </button>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -962,6 +1092,7 @@ export default function Orders() {
                             >
                               Diambil
                             </button>
+                            </>
                           )}
                           <button
                             type="button"

@@ -15,14 +15,6 @@ export default defineConfig({
         target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
         changeOrigin: true,
       },
-      "/api/temanqris": {
-        target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
-        changeOrigin: true,
-      },
-      "/api/temanqris-webhook": {
-        target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
-        changeOrigin: true,
-      },
     },
   },
   plugins: [

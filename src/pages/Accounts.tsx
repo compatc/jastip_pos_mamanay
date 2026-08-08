@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import {
   ArrowLeft, Store, CreditCard, Phone, Bell, QrCode, Package,
   Download, RefreshCw, Wrench, HelpCircle, MessageCircle, LogOut,
-  ChevronRight, Shield, Database, TrendingDown
+  ChevronRight, Shield, Database, TrendingDown, Printer
 } from "lucide-react";
 
 export default function Accounts() {
@@ -29,7 +29,7 @@ export default function Accounts() {
       title: "Toko",
       items: [
         { icon: Store, iconBg: "bg-pink-100", iconColor: "text-pink-500", label: "Profil Toko", desc: "Nama, alamat, logo toko", onClick: () => navigate("/profile") },
-        { icon: CreditCard, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Rekening Bank", desc: "BCA 5271330651 a.n. Nurul Azizah", onClick: () => navigate("/accounts/bank") },
+        { icon: CreditCard, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Rekening Bank", desc: "BCA 5271330651 a.n. Nurul Azizah", onClick: () => {} },
         { icon: Phone, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Nomor WhatsApp", desc: user?.phone || "Belum diatur", onClick: () => navigate("/profile") },
       ]
     },
@@ -44,6 +44,7 @@ export default function Accounts() {
     {
       title: "Data",
       items: [
+        { icon: Printer, iconBg: "bg-indigo-100", iconColor: "text-indigo-500", label: "Cetak Resi", desc: "Cetak resi Shopee via Bluetooth", onClick: () => navigate("/print-receipt") },
         { icon: TrendingDown, iconBg: "bg-rose-100", iconColor: "text-rose-500", label: "Biaya Operasional", desc: "Ongkir, kemasan, dll", onClick: () => navigate("/expenses") },
         { icon: Download, iconBg: "bg-blue-100", iconColor: "text-blue-500", label: "Export Data", desc: "Download data order & produk", onClick: () => alert("Export Data - Segera hadir") },
         { icon: RefreshCw, iconBg: "bg-green-100", iconColor: "text-green-500", label: "Backup & Restore", desc: "Cadangkan data ke cloud", onClick: () => alert("Backup & Restore - Segera hadir") },
@@ -91,6 +92,31 @@ export default function Accounts() {
             </div>
           </div>
         </div>
+
+        {/* Accounts List */}
+        {accounts.length > 0 && (
+          <div className="bg-white border border-slate-100 rounded-2xl mb-3 overflow-hidden">
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Rekening</p>
+            </div>
+            {accounts.map((acc) => (
+              <div
+                key={acc.id}
+                onClick={() => navigate(`/accounts/${acc.id}`)}
+                className="flex items-center gap-3 px-4 py-3 border-b border-slate-50 last:border-b-0 active:bg-slate-50 transition-all cursor-pointer"
+              >
+                <span className="text-2xl">{acc.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-800 truncate">{acc.name}</p>
+                  <p className="text-[10px] text-gray-400">{acc.type === "cash" ? "Kas Tunai" : "Bank"}{acc.account_number ? ` · ${acc.account_number}` : ""}</p>
+                </div>
+                <p className={`text-sm font-bold ${acc.balance >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  Rp {acc.balance.toLocaleString("id-ID")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Menu Sections */}
         {menuSections.map((section) => (
