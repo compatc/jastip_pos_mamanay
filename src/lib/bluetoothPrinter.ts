@@ -4,8 +4,8 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Disable worker for simpler setup (works for small PDFs)
+pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
 const ESC = "\x1B";
 const GS = "\x1D";
