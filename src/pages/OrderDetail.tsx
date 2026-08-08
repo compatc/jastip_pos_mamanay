@@ -473,21 +473,6 @@ export default function OrderDetail() {
               </button>
             </div>
           )}
-            <div className="flex gap-2.5 pt-1">
-              <button
-                onClick={() => navigate(returnTo || "/orders")}
-                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all"
-              >
-                Kembali
-              </button>
-              <button
-                onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: location.pathname } })}
-                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all"
-              >
-                Edit
-              </button>
-            </div>
-          )}
 
         </div>
       </main>
