@@ -68,17 +68,9 @@ export default function PrintReceipt() {
     setStatus("Mencari printer...");
 
     try {
-      // Request Bluetooth device
+      // Request Bluetooth device - accept all to show full list
       const device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { namePrefix: "POS" },
-          { namePrefix: "BT" },
-          { namePrefix: "Thermal" },
-          { namePrefix: "Printer" },
-          { namePrefix: "RPP" },
-          { namePrefix: "GP" },
-          { namePrefix: "TM" },
-        ],
+        acceptAllDevices: true,
         optionalServices: ["battery_service"],
       });
 
@@ -96,26 +88,38 @@ export default function PrintReceipt() {
       setStatus("Koneksi berhasil! Mempersiapkan cetak...");
 
       // Find writable characteristic
-      const services = await server.getPrimaryServices();
       let writeChar: BluetoothRemoteGATTCharacteristic | null = null;
 
-      for (const service of services) {
-        try {
-          const chars = await service.getCharacteristics();
-          for (const char of chars) {
-            if (char.properties.write || char.properties.writeWithoutResponse) {
-              writeChar = char;
-              break;
+      try {
+        const services = await server.getPrimaryServices();
+        console.log("Found services:", services.length);
+
+        for (const service of services) {
+          try {
+            console.log("Checking service:", service.uuid);
+            const chars = await service.getCharacteristics();
+            console.log("  Characteristics:", chars.length);
+
+            for (const char of chars) {
+              console.log("    -", char.uuid, "write:", char.properties.write, "writeNoResp:", char.properties.writeWithoutResponse);
+              if (char.properties.write || char.properties.writeWithoutResponse) {
+                writeChar = char;
+                console.log("  -> Found writable characteristic!");
+                break;
+              }
             }
+            if (writeChar) break;
+          } catch (e) {
+            console.log("  -> Error getting characteristics:", e);
+            continue;
           }
-          if (writeChar) break;
-        } catch {
-          continue;
         }
+      } catch (e) {
+        console.error("Error getting services:", e);
       }
 
       if (!writeChar) {
-        setStatus("Tidak ditemukan printer yang kompatibel");
+        setStatus("Tidak ditemukan characteristic yang bisa ditulis. Coba pairing printer dulu di pengaturan Bluetooth HP.");
         setPrinting(false);
         return;
       }
@@ -285,10 +289,12 @@ export default function PrintReceipt() {
         <div className="mt-4 p-4 bg-gray-50 rounded-xl">
           <p className="text-xs text-gray-500 font-semibold mb-2">Tips:</p>
           <ul className="text-xs text-gray-400 space-y-1">
-            <li>• Gunakan Chrome atau Edge</li>
-            <li>• Aktifkan Bluetooth di HP/laptop</li>
-            <li>• Pastikan printer menyala dan visible</li>
-            <li>• Untuk resi lengkap, gunakan Print bawaan PDF viewer</li>
+            <li>• Gunakan Chrome di Android</li>
+            <li>• Aktifkan Bluetooth di HP</li>
+            <li>• <strong>Pairing printer dulu</strong> di Pengaturan Bluetooth HP</li>
+            <li>• Setelah pairing, baru klik "Cetak via Bluetooth"</li>
+            <li>• Jika tidak muncul, matikan nyalakan Bluetooth</li>
+            <li>• Pastikan printer menyala dan dalam jangkauan</li>
           </ul>
         </div>
       </main>
