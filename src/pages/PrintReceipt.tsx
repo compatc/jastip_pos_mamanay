@@ -1,32 +1,23 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, Printer, FileText, X, RotateCw, Bluetooth, ShoppingBag, Image } from "lucide-react";
-import { printReceipt, printImage, printPdfDirect, generateReceiptFromOrder } from "../lib/bluetoothPrinter";
-import { useStore } from "../stores/useStore";
+import { ArrowLeft, Upload, Printer, FileText, X, RotateCw, Bluetooth, Image } from "lucide-react";
+import { printImage, printPdfDirect } from "../lib/bluetoothPrinter";
 
-type PrintMode = 'order' | 'pdf' | 'image';
+type PrintMode = 'pdf' | 'image';
 
 export default function PrintReceipt() {
   const navigate = useNavigate();
-  const { orders, itemsByOrder, products, customers } = useStore();
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfPreview, setPdfPreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
-  const [printerName, setPrinterName] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [rotation, setRotation] = useState(0);
-  const [printMode, setPrintMode] = useState<PrintMode>('order');
-  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+  const [printMode, setPrintMode] = useState<PrintMode>('pdf');
   const [printProgress, setPrintProgress] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-
-  // Get recent completed orders for quick print
-  const recentOrders = orders
-    .filter(o => o.status === "completed" || o.status === "paid" || o.status === "ready")
-    .slice(0, 10);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -75,40 +66,6 @@ export default function PrintReceipt() {
 
   function rotatePdf() {
     setRotation((prev) => (prev + 90) % 360);
-  }
-
-  async function handlePrintOrder() {
-    if (!selectedOrderId) {
-      alert("Pilih order terlebih dahulu.");
-      return;
-    }
-
-    setPrinting(true);
-    setStatus("Menghubungkan ke printer...");
-
-    try {
-      const order = orders.find(o => o.id === selectedOrderId);
-      const items = itemsByOrder[selectedOrderId] || [];
-      
-      if (!order) {
-        throw new Error("Order tidak ditemukan");
-      }
-
-      const receiptData = generateReceiptFromOrder(order, items, products);
-      const success = await printReceipt(receiptData);
-      
-      if (success) {
-        setStatus("✅ Berhasil cetak resi!");
-        setPrinterName("Printer connected");
-      } else {
-        setStatus("Gagal mencetak. Pastikan printer sudah terhubung.");
-      }
-    } catch (error) {
-      console.error("Print error:", error);
-      setStatus("Error: " + (error as Error).message);
-    } finally {
-      setPrinting(false);
-    }
   }
 
   async function handleSharePdf() {
@@ -218,11 +175,6 @@ export default function PrintReceipt() {
     }
   }
 
-  function getCustomerName(customerId: string): string {
-    const customer = customers.find(c => c.id === customerId);
-    return customer?.name || '-';
-  }
-
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="shrink-0 px-5 pt-4 pb-3 relative z-10">
@@ -241,20 +193,20 @@ export default function PrintReceipt() {
         {/* Mode Selector */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
           <h2 className="text-sm font-bold text-gray-700 mb-3">Pilih Mode Cetak</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setPrintMode('order')}
+              onClick={() => setPrintMode('pdf')}
               className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                printMode === 'order'
-                  ? 'border-blue-500 bg-blue-50'
+                printMode === 'pdf'
+                  ? 'border-green-500 bg-green-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <ShoppingBag className={`w-8 h-8 ${printMode === 'order' ? 'text-blue-500' : 'text-gray-400'}`} />
-              <span className={`text-sm font-bold ${printMode === 'order' ? 'text-blue-700' : 'text-gray-600'}`}>
-                Resi Order
+              <FileText className={`w-8 h-8 ${printMode === 'pdf' ? 'text-green-500' : 'text-gray-400'}`} />
+              <span className={`text-sm font-bold ${printMode === 'pdf' ? 'text-green-700' : 'text-gray-600'}`}>
+                PDF Shopee
               </span>
-              <span className="text-xs text-gray-400 text-center">Dari order</span>
+              <span className="text-xs text-gray-400 text-center">Cetak langsung atau share</span>
             </button>
             <button
               onClick={() => setPrintMode('image')}
@@ -270,80 +222,8 @@ export default function PrintReceipt() {
               </span>
               <span className="text-xs text-gray-400 text-center">Screenshot/foto</span>
             </button>
-            <button
-              onClick={() => setPrintMode('pdf')}
-              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                printMode === 'pdf'
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <FileText className={`w-8 h-8 ${printMode === 'pdf' ? 'text-green-500' : 'text-gray-400'}`} />
-              <span className={`text-sm font-bold ${printMode === 'pdf' ? 'text-green-700' : 'text-gray-600'}`}>
-                PDF Shopee
-              </span>
-              <span className="text-xs text-gray-400 text-center">Share ke Thermer</span>
-            </button>
           </div>
         </div>
-
-        {/* Order Selection Mode */}
-        {printMode === 'order' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
-            <h2 className="text-sm font-bold text-gray-700 mb-3">Pilih Order</h2>
-            
-            {recentOrders.length === 0 ? (
-              <div className="text-center py-6 text-gray-400">
-                <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Belum ada order selesai</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {recentOrders.map(order => (
-                  <button
-                    key={order.id}
-                    onClick={() => setSelectedOrderId(order.id)}
-                    className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
-                      selectedOrderId === order.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-bold text-gray-800">
-                          {getCustomerName(order.customer_id)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(order.created_at).toLocaleDateString('id-ID')} • 
-                          Rp {order.total.toLocaleString('id-ID')}
-                        </p>
-                      </div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
-                        order.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        order.status === 'paid' ? 'bg-blue-100 text-blue-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {order.status === 'completed' ? 'Selesai' : 
-                         order.status === 'paid' ? 'Dibayar' : 'Ready'}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Print Button for Order */}
-            <button
-              onClick={handlePrintOrder}
-              disabled={!selectedOrderId || printing}
-              className="w-full mt-4 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
-            >
-              <Bluetooth className="w-4 h-4" />
-              {printing ? "Mencetak..." : "Cetak via Bluetooth"}
-            </button>
-          </div>
-        )}
 
         {/* PDF Upload Mode */}
         {printMode === 'pdf' && (
@@ -510,9 +390,8 @@ export default function PrintReceipt() {
         <div className="mt-4 p-4 bg-gray-50 rounded-xl">
           <p className="text-xs text-gray-500 font-semibold mb-2">Tips:</p>
           <ul className="text-xs text-gray-400 space-y-1">
-            <li>• <strong>Resi Order</strong>: Cetak struk dari order langsung via Bluetooth</li>
-            <li>• <strong>Foto/Gambar</strong>: Upload screenshot/foto → cetak langsung via Bluetooth</li>
             <li>• <strong>PDF Shopee</strong>: "Cetak Langsung" (Bluetooth) atau "Share ke App" (Thermer)</li>
+            <li>• <strong>Foto/Gambar</strong>: Upload screenshot/foto → cetak langsung via Bluetooth</li>
             <li>• Pairing printer dulu di Pengaturan Bluetooth HP</li>
             <li>• Gunakan Chrome di Android</li>
           </ul>
