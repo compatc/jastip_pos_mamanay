@@ -558,7 +558,7 @@ async function sendEscPosData(
   data: Uint8Array,
   onProgress?: (progress: string) => void
 ): Promise<void> {
-  // Use smaller chunks - many printers have MTU of only 20 bytes
+  // Smaller chunks for reliability
   const CHUNK_SIZE = 20;
   
   for (let i = 0; i < data.length; i += CHUNK_SIZE) {
@@ -568,8 +568,8 @@ async function sendEscPosData(
     const progress = Math.round(((i + chunk.length) / data.length) * 100);
     onProgress?.(`Mencetak: ${progress}%`);
     
-    // Delay for printer buffer - thermal printers need time
-    await new Promise(resolve => setTimeout(resolve, 15));
+    // Minimal delay - printer can handle this
+    await new Promise(resolve => setTimeout(resolve, 5));
   }
 }
 
@@ -669,8 +669,8 @@ export async function printPdfDirect(
       // Send to printer
       await sendEscPosData(writer, escPosData, onProgress);
       
-      // Wait for printer to finish before next page
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Minimal delay between pages
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       // Add page break between pages (feed lines)
       if (pageNum < totalPages) {
@@ -786,30 +786,28 @@ export async function printPdfBatch(
         
         await sendEscPosData(writer, escPosData, onProgress);
         
-        // Long wait after each page
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Minimal delay between pages
+        await new Promise(resolve => setTimeout(resolve, 50));
         
         // Cut after each page
         const cutCmd = new Uint8Array([0x1D, 0x56, 0x01]);
         await writer.writeValueWithoutResponse(cutCmd);
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
       success++;
       onProgress?.(`[${i + 1}/${pdfFiles.length}] ✅ Selesai`);
       
-      // LONG delay between files - let printer fully recover
+      // Short delay between files
       if (i < pdfFiles.length - 1) {
-        onProgress?.(`Menunggu printer...`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
       
     } catch (error) {
       console.error(`Failed to print ${pdfFile.name}:`, error);
       failed++;
       onProgress?.(`[${i + 1}/${pdfFiles.length}] ❌ Gagal: ${(error as Error).message}`);
-      // Wait before trying next file
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
   

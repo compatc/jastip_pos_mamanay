@@ -19,7 +19,7 @@ export default function PrintReceipt() {
   const [printProgress, setPrintProgress] = useState<string>("");
   const [printOptions, setPrintOptions] = useState<PrintOptions>({
     rotation: 90,
-    sharpness: 190,
+    sharpness: 128,
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
