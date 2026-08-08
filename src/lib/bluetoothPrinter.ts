@@ -2,12 +2,12 @@
 // Putian POS80-01 uses KT6368A BLE chip
 // Confirmed service/characteristic from nRF Connect scan
 
-import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
 
-// Disable worker completely - PDF will be processed in main thread
-// This works fine for small PDFs like shipping receipts
-delete (pdfjsLib.GlobalWorkerOptions as any).workerSrc;
-(pdfjsLib.GlobalWorkerOptions as any).worker = null;
+// Disable worker - process in main thread
+// @ts-ignore
+pdfjsLib.GlobalWorkerOptions.workerPort = null;
 
 const ESC = "\x1B";
 const GS = "\x1D";
