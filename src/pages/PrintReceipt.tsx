@@ -87,10 +87,28 @@ export default function PrintReceipt() {
 
       setStatus("Koneksi berhasil! Mempersiapkan cetak...");
 
-      // Find writable characteristic
+      // Find writable characteristic - try common printer UUIDs first
       let writeChar: BluetoothRemoteGATTCharacteristic | null = null;
 
+      // Common ESC/POS printer service UUIDs
+      const PRINTER_SERVICES = [
+        "000018f0-0000-1000-8000-00805f9b34fb", // Common thermal printer
+        "0000fee7-0000-1000-8000-00805f9b34fb", // Another common
+        "00001101-0000-1000-8000-00805f9b34fb", // Serial Port
+        "00001800-0000-1000-8000-00805f9b34fb", // Generic Access
+        "00001801-0000-1000-8000-00805f9b34fb", // Generic Attribute
+      ];
+
+      // Common writable characteristic UUIDs
+      const WRITE_CHARS = [
+        "00002af1-0000-1000-8000-00805f9b34fb", // Common write
+        "0000ffe1-0000-1000-8000-00805f9b34fb", // Another common
+        "0000ffe2-0000-1000-8000-00805f9b34fb",
+        "0000fff1-0000-1000-8000-00805f9b34fb",
+      ];
+
       try {
+        // First try: get all services and find any writable characteristic
         const services = await server.getPrimaryServices();
         console.log("Found services:", services.length);
 
@@ -101,8 +119,9 @@ export default function PrintReceipt() {
             console.log("  Characteristics:", chars.length);
 
             for (const char of chars) {
-              console.log("    -", char.uuid, "write:", char.properties.write, "writeNoResp:", char.properties.writeWithoutResponse);
-              if (char.properties.write || char.properties.writeWithoutResponse) {
+              const canWrite = char.properties.write || char.properties.writeWithoutResponse;
+              console.log("    -", char.uuid, "write:", canWrite);
+              if (canWrite) {
                 writeChar = char;
                 console.log("  -> Found writable characteristic!");
                 break;
@@ -110,8 +129,49 @@ export default function PrintReceipt() {
             }
             if (writeChar) break;
           } catch (e) {
-            console.log("  -> Error getting characteristics:", e);
+            console.log("  -> Error:", e);
             continue;
+          }
+        }
+
+        // Second try: if not found, try common printer UUIDs
+        if (!writeChar) {
+          console.log("Trying common printer UUIDs...");
+          for (const serviceUuid of PRINTER_SERVICES) {
+            try {
+              const service = await server.getPrimaryService(serviceUuid);
+              const chars = await service.getCharacteristics();
+              for (const char of chars) {
+                if (char.properties.write || char.properties.writeWithoutResponse) {
+                  writeChar = char;
+                  console.log("Found via UUID:", serviceUuid, char.uuid);
+                  break;
+                }
+              }
+              if (writeChar) break;
+            } catch {
+              continue;
+            }
+          }
+        }
+
+        // Third try: try to get characteristic directly by UUID
+        if (!writeChar) {
+          console.log("Trying direct characteristic UUID...");
+          for (const charUuid of WRITE_CHARS) {
+            try {
+              for (const service of services) {
+                const char = await service.getCharacteristic(charUuid);
+                if (char.properties.write || char.properties.writeWithoutResponse) {
+                  writeChar = char;
+                  console.log("Found direct:", charUuid);
+                  break;
+                }
+              }
+              if (writeChar) break;
+            } catch {
+              continue;
+            }
           }
         }
       } catch (e) {
@@ -119,7 +179,7 @@ export default function PrintReceipt() {
       }
 
       if (!writeChar) {
-        setStatus("Tidak ditemukan characteristic yang bisa ditulis. Coba pairing printer dulu di pengaturan Bluetooth HP.");
+        setStatus("Characteristic tidak ditemukan. Printer mungkin tidak support ESC/POS atau perlu driver khusus.");
         setPrinting(false);
         return;
       }
