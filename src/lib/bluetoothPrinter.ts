@@ -337,24 +337,20 @@ export function generateReceiptFromOrder(order: any, items: any[], products: any
 // Thermal printer 76mm = 576 dots wide
 const PRINTER_WIDTH = 576;
 
-function imageDataToEscPos(imageData: ImageData): Uint8Array {
+export interface PrintOptions {
+  rotation?: number;    // 0, 90, 180, 270
+  sharpness?: number;   // 0-255, default 190 (threshold for black/white)
+}
+
+function imageDataToEscPos(imageData: ImageData, sharpness: number = 190): Uint8Array {
   const { width, height, data } = imageData;
   const commands: number[] = [];
   
   // Initialize
   commands.push(0x1B, 0x40); // ESC @
   
-  // Center alignment
-  commands.push(0x1B, 0x61, 0x01);
-  
   // Use GS v 0 command for bit image
-  // Format: GS v 0 m xL xH yL yH d1...dk
-  // m = 0 (normal density)
-  // x = width in bytes (width / 8, rounded up)
-  // y = height in dots
-  
   const bytesPerRow = Math.ceil(width / 8);
-  const totalBytes = bytesPerRow * height;
   
   // GS v 0 command header
   commands.push(0x1D, 0x76, 0x30, 0x00);
@@ -372,8 +368,8 @@ function imageDataToEscPos(imageData: ImageData): Uint8Array {
       for (let bit = 0; bit < 8; bit++) {
         const pixelIndex = (y * width + (x + bit)) * 4;
         if (pixelIndex < data.length) {
-          // Use red channel, threshold at 128
-          if (data[pixelIndex] < 128) {
+          // Use sharpness threshold for black/white conversion
+          if (data[pixelIndex] < sharpness) {
             byte |= (1 << (7 - bit));
           }
         }
@@ -383,7 +379,7 @@ function imageDataToEscPos(imageData: ImageData): Uint8Array {
   }
   
   // Feed lines after image
-  commands.push(0x1B, 0x64, 0x03); // Feed 3 lines
+  commands.push(0x1B, 0x64, 0x02); // Feed 2 lines (faster)
   
   // Cut paper
   commands.push(0x1D, 0x56, 0x01);
@@ -560,7 +556,8 @@ async function sendEscPosData(
   data: Uint8Array,
   onProgress?: (progress: string) => void
 ): Promise<void> {
-  const CHUNK_SIZE = 20;
+  // Use larger chunks for faster printing (BLE MTU usually 20-512 bytes)
+  const CHUNK_SIZE = 128;
   
   for (let i = 0; i < data.length; i += CHUNK_SIZE) {
     const chunk = data.slice(i, i + CHUNK_SIZE);
@@ -569,14 +566,18 @@ async function sendEscPosData(
     const progress = Math.round(((i + chunk.length) / data.length) * 100);
     onProgress?.(`Mencetak: ${progress}%`);
     
-    await new Promise(resolve => setTimeout(resolve, 20));
+    // Minimal delay - just enough for printer to process
+    await new Promise(resolve => setTimeout(resolve, 5));
   }
 }
 
 export async function printPdfDirect(
   pdfFile: File,
-  onProgress?: (progress: string) => void
+  onProgress?: (progress: string) => void,
+  options: PrintOptions = {}
 ): Promise<boolean> {
+  const { rotation = 90, sharpness = 190 } = options;
+  
   try {
     onProgress?.("Memuat PDF...");
     
@@ -606,18 +607,39 @@ export async function printPdfDirect(
       canvas.height = scaledViewport.height;
       const ctx = canvas.getContext('2d')!;
       
+      // Apply rotation
+      if (rotation === 90 || rotation === 270) {
+        canvas.width = scaledViewport.height;
+        canvas.height = scaledViewport.width;
+      }
+      
       // Fill white background
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Apply rotation transform
+      ctx.save();
+      if (rotation === 90) {
+        ctx.translate(canvas.width, 0);
+        ctx.rotate(Math.PI / 2);
+      } else if (rotation === 180) {
+        ctx.translate(canvas.width, canvas.height);
+        ctx.rotate(Math.PI);
+      } else if (rotation === 270) {
+        ctx.translate(0, canvas.height);
+        ctx.rotate(-Math.PI / 2);
+      }
       
       await page.render({
         canvasContext: ctx,
         viewport: scaledViewport,
       }).promise;
       
+      ctx.restore();
+      
       // Get image data and convert to ESC/POS
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const escPosData = imageDataToEscPos(imageData);
+      const escPosData = imageDataToEscPos(imageData, sharpness);
       
       console.log(`Page ${pageNum}: ${canvas.width}x${canvas.height}, ${escPosData.length} bytes`);
       
@@ -626,9 +648,9 @@ export async function printPdfDirect(
       
       // Add page break between pages (feed lines)
       if (pageNum < totalPages) {
-        const pageBreak = new Uint8Array([0x1B, 0x64, 0x05]); // Feed 5 lines
+        const pageBreak = new Uint8Array([0x1B, 0x64, 0x03]); // Feed 3 lines
         await writer.writeValueWithoutResponse(pageBreak);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
 
@@ -642,5 +664,117 @@ export async function printPdfDirect(
       alert("Gagal mencetak: " + (error as Error).message);
     }
     return false;
+  }
+}
+
+// ========== BATCH PDF PRINTING ==========
+
+export async function printPdfBatch(
+  pdfFiles: File[],
+  onProgress?: (progress: string) => void,
+  options: PrintOptions = {}
+): Promise<{ success: number; failed: number }> {
+  const { rotation = 90, sharpness = 190 } = options;
+  let success = 0;
+  let failed = 0;
+  
+  if (pdfFiles.length === 0) {
+    return { success: 0, failed: 0 };
+  }
+  
+  try {
+    // Get Bluetooth writer once for all files
+    const writer = await getBluetoothWriter(onProgress);
+    
+    for (let i = 0; i < pdfFiles.length; i++) {
+      const pdfFile = pdfFiles[i];
+      onProgress?.(`[${i + 1}/${pdfFiles.length}] Memuat ${pdfFile.name}...`);
+      
+      try {
+        const arrayBuffer = await pdfFile.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        const totalPages = pdf.numPages;
+        
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+          onProgress?.(`[${i + 1}/${pdfFiles.length}] Halaman ${pageNum}/${totalPages}...`);
+          
+          const page = await pdf.getPage(pageNum);
+          
+          // Scale to fit printer width
+          const viewport = page.getViewport({ scale: 1 });
+          const scale = PRINTER_WIDTH / viewport.width;
+          const scaledViewport = page.getViewport({ scale });
+          
+          // Render to canvas
+          const canvas = document.createElement('canvas');
+          canvas.width = scaledViewport.width;
+          canvas.height = scaledViewport.height;
+          const ctx = canvas.getContext('2d')!;
+          
+          // Apply rotation
+          if (rotation === 90 || rotation === 270) {
+            canvas.width = scaledViewport.height;
+            canvas.height = scaledViewport.width;
+          }
+          
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          ctx.save();
+          if (rotation === 90) {
+            ctx.translate(canvas.width, 0);
+            ctx.rotate(Math.PI / 2);
+          } else if (rotation === 180) {
+            ctx.translate(canvas.width, canvas.height);
+            ctx.rotate(Math.PI);
+          } else if (rotation === 270) {
+            ctx.translate(0, canvas.height);
+            ctx.rotate(-Math.PI / 2);
+          }
+          
+          await page.render({
+            canvasContext: ctx,
+            viewport: scaledViewport,
+          }).promise;
+          
+          ctx.restore();
+          
+          // Convert and send
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const escPosData = imageDataToEscPos(imageData, sharpness);
+          
+          await sendEscPosData(writer, escPosData, onProgress);
+          
+          // Page break between pages
+          if (pageNum < totalPages) {
+            const pageBreak = new Uint8Array([0x1B, 0x64, 0x03]);
+            await writer.writeValueWithoutResponse(pageBreak);
+            await new Promise(resolve => setTimeout(resolve, 30));
+          }
+        }
+        
+        success++;
+        
+        // Delay between files
+        if (i < pdfFiles.length - 1) {
+          const delay = new Uint8Array([0x1B, 0x64, 0x08]); // Feed 8 lines between files
+          await writer.writeValueWithoutResponse(delay);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+      } catch (error) {
+        console.error(`Failed to print ${pdfFile.name}:`, error);
+        failed++;
+      }
+    }
+    
+    console.log(`✅ Batch print complete: ${success} success, ${failed} failed`);
+    return { success, failed };
+    
+  } catch (error) {
+    console.error("Batch print error:", error);
+    alert("Gagal cetak batch: " + (error as Error).message);
+    return { success, failed: failed + (pdfFiles.length - success - failed) };
   }
 }
