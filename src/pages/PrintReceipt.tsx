@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, Printer, FileText, X } from "lucide-react";
+import { ArrowLeft, Upload, Printer, FileText, X, RotateCw } from "lucide-react";
 
 const ESC = "\x1B";
 const GS = "\x1D";
@@ -23,6 +23,7 @@ export default function PrintReceipt() {
   const [printing, setPrinting] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
+  const [rotation, setRotation] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -44,7 +45,12 @@ export default function PrintReceipt() {
     if (pdfPreview) URL.revokeObjectURL(pdfPreview);
     setPdfPreview(null);
     setStatus("");
+    setRotation(0);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function rotatePdf() {
+    setRotation((prev) => (prev + 90) % 360);
   }
 
   async function handlePrint() {
@@ -202,6 +208,13 @@ export default function PrintReceipt() {
                   <p className="text-xs text-gray-400">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
                 <button
+                  onClick={rotatePdf}
+                  className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
+                  title="Rotate"
+                >
+                  <RotateCw className="w-4 h-4 text-blue-500" />
+                </button>
+                <button
                   onClick={removeFile}
                   className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
                 >
@@ -210,11 +223,14 @@ export default function PrintReceipt() {
               </div>
 
               {pdfPreview && (
-                <iframe
-                  src={pdfPreview}
-                  className="w-full h-64 mt-3 border border-gray-200 rounded-xl"
-                  title="PDF Preview"
-                />
+                <div className="mt-3 overflow-hidden border border-gray-200 rounded-xl">
+                  <iframe
+                    src={pdfPreview}
+                    className="w-full h-64 origin-center transition-transform"
+                    style={{ transform: `rotate(${rotation}deg)` }}
+                    title="PDF Preview"
+                  />
+                </div>
               )}
             </div>
           )}
