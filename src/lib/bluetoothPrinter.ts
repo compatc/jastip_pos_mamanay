@@ -1,5 +1,6 @@
-// Prototype: Print receipt via Web Bluetooth API (ESC/POS thermal printer 76mm)
-// BELUM DEPLOY - hanya prototype
+// Print receipt via Web Bluetooth API (ESC/POS thermal printer 76mm)
+// Putian POS80-01 uses KT6368A BLE chip
+// Confirmed service/characteristic from nRF Connect scan
 
 const ESC = "\x1B";
 const GS = "\x1D";
@@ -107,16 +108,27 @@ export async function printReceipt(receiptData: {
   }
 
   try {
-    // Request Bluetooth device
+    // Request Bluetooth device - Putian POS80-01 (KT6368A chip)
+    // From nRF Connect scan, the printer has these services:
+    // 1. KT6368A: 49535343-fe7d-4ae5-8fa9-9fafd205e455
+    // 2. SPP-like: 0000ffe0-0000-1000-8000-00805f9b34fb
+    // 3. Other: 0000ff00, 0000fee7, 00001bf0
     const device = await navigator.bluetooth.requestDevice({
       filters: [
-        { services: ["battery_service"] },
         { namePrefix: "POS" },
+        { namePrefix: "RPP" },  // RPP02N from nRF scan
         { namePrefix: "BT" },
         { namePrefix: "Thermal" },
         { namePrefix: "Printer" },
+        { namePrefix: "Putian" },
       ],
-      optionalServices: ["battery_service"],
+      optionalServices: [
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455', // KT6368A
+        '0000ffe0-0000-1000-8000-00805f9b34fb', // SPP-like
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '0000fee7-0000-1000-8000-00805f9b34fb',
+        '00001bf0-0000-1000-8000-00805f9b34fb',
+      ],
     });
 
     console.log("Connecting to:", device.name);
@@ -128,27 +140,68 @@ export async function printReceipt(receiptData: {
       return false;
     }
 
-    // Try to get a service that supports writing
-    // For ESC/POS printers, we typically write to a characteristic
-    // The exact service/characteristic UUID varies by printer model
-    const services = await server.getPrimaryServices();
-    console.log("Available services:", services.length);
+    // Try known service/characteristic pairs for Putian POS80-01 (KT6368A)
+    // Priority order based on nRF Connect scan
+    const SERVICE_CHARS: { service: string; writeChar: string }[] = [
+      {
+        service: '49535343-fe7d-4ae5-8fa9-9fafd205e455', // KT6368A primary
+        writeChar: '49535343-8841-43f4-a8d4-ecbe34729bb3', // WRITE NO RESPONSE
+      },
+      {
+        service: '0000ffe0-0000-1000-8000-00805f9b34fb',
+        writeChar: '0000ffe1-0000-1000-8000-00805f9b34fb',
+      },
+      {
+        service: '0000ff00-0000-1000-8000-00805f9b34fb',
+        writeChar: '0000ff02-0000-1000-8000-00805f9b34fb',
+      },
+      {
+        service: '0000fee7-0000-1000-8000-00805f9b34fb',
+        writeChar: '0000fec7-0000-1000-8000-00805f9b34fb',
+      },
+      {
+        service: '00001bf0-0000-1000-8000-00805f9b34fb',
+        writeChar: '00002af1-0000-1000-8000-00805f9b34fb',
+      },
+    ];
 
-    // Find a writable characteristic
     let writeCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
+    let matchedService = '';
 
-    for (const service of services) {
+    for (const { service, writeChar } of SERVICE_CHARS) {
       try {
-        const characteristics = await service.getCharacteristics();
-        for (const char of characteristics) {
-          if (char.properties.write || char.properties.writeWithoutResponse) {
-            writeCharacteristic = char;
-            break;
+        console.log(`Trying service: ${service.substring(0, 8)}...`);
+        const svc = await server.getPrimaryService(service);
+        writeCharacteristic = await svc.getCharacteristic(writeChar);
+        matchedService = service;
+        console.log(`✅ Connected to service: ${service}`);
+        console.log(`   Write characteristic: ${writeChar}`);
+        break;
+      } catch {
+        // Service or characteristic not found, try next
+      }
+    }
+
+    // Fallback: scan all services if known pairs didn't work
+    if (!writeCharacteristic) {
+      console.log("Known pairs failed, scanning all services...");
+      const services = await server.getPrimaryServices();
+      
+      for (const service of services) {
+        try {
+          const characteristics = await service.getCharacteristics();
+          for (const char of characteristics) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              writeCharacteristic = char;
+              matchedService = service.uuid;
+              console.log(`✅ Found fallback service: ${service.uuid}`);
+              break;
+            }
           }
+          if (writeCharacteristic) break;
+        } catch {
+          continue;
         }
-        if (writeCharacteristic) break;
-      } catch (e) {
-        continue;
       }
     }
 
@@ -206,16 +259,25 @@ export async function printReceipt(receiptData: {
     const receipt = buildReceiptLines(receiptLines);
     const data = encodeText(receipt);
 
-    // Write data in chunks (some printers have buffer limits)
-    const CHUNK_SIZE = 20;
+    // BLE has limited MTU, use smaller chunks for reliability
+    // Putian POS80-01 with KT6368A typically has MTU of 20-512 bytes
+    const CHUNK_SIZE = 20; // Safe default for BLE
+    let totalSent = 0;
+    
     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
       const chunk = data.slice(i, i + CHUNK_SIZE);
-      await writeCharacteristic.writeValue(chunk);
-      // Small delay between chunks
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await writeCharacteristic.writeValueWithoutResponse(chunk);
+      totalSent += chunk.length;
+      
+      // Update progress
+      const progress = Math.round((totalSent / data.length) * 100);
+      console.log(`Sending: ${progress}% (${totalSent}/${data.length} bytes)`);
+      
+      // Delay between chunks to prevent buffer overflow
+      await new Promise((resolve) => setTimeout(resolve, 20));
     }
 
-    console.log("Receipt printed successfully!");
+    console.log("✅ Receipt printed successfully!");
     return true;
   } catch (error) {
     console.error("Print error:", error);

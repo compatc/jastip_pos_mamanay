@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, Printer, FileText, X, RotateCw } from "lucide-react";
+import { ArrowLeft, Upload, Printer, FileText, X, RotateCw, Bluetooth } from "lucide-react";
+import { printReceipt, generateReceiptFromOrder } from "../lib/bluetoothPrinter";
 
 const ESC = "\x1B";
 const GS = "\x1D";
@@ -16,6 +17,8 @@ const COMMANDS = {
   normal: GS + "!" + "\x00",
 };
 
+type PrintMode = 'bluetooth' | 'share';
+
 export default function PrintReceipt() {
   const navigate = useNavigate();
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -24,6 +27,8 @@ export default function PrintReceipt() {
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [rotation, setRotation] = useState(0);
+  const [printMode, setPrintMode] = useState<PrintMode>('bluetooth');
+  const [printProgress, setPrintProgress] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -59,180 +64,81 @@ export default function PrintReceipt() {
       return;
     }
 
-    if (!navigator.bluetooth) {
-      alert("Browser tidak mendukung Web Bluetooth. Gunakan Chrome/Edge.");
-      return;
-    }
-
     setPrinting(true);
-    setStatus("Mencari printer...");
+    setPrintProgress("Mempersiapkan...");
 
     try {
-      // Request Bluetooth device - accept all to show full list
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ["battery_service"],
-      });
-
-      setPrinterName(device.name || "Printer");
-      setStatus(`Mengkoneksi ke ${device.name || "printer"}...`);
-
-      // Connect to GATT server
-      const server = await device.gatt?.connect();
-      if (!server) {
-        setStatus("Gagal koneksi ke printer");
-        setPrinting(false);
-        return;
-      }
-
-      setStatus("Koneksi berhasil! Mempersiapkan cetak...");
-
-      // Find writable characteristic - try common printer UUIDs first
-      let writeChar: BluetoothRemoteGATTCharacteristic | null = null;
-
-      // Common ESC/POS printer service UUIDs
-      const PRINTER_SERVICES = [
-        "000018f0-0000-1000-8000-00805f9b34fb", // Common thermal printer
-        "0000fee7-0000-1000-8000-00805f9b34fb", // Another common
-        "00001101-0000-1000-8000-00805f9b34fb", // Serial Port
-        "00001800-0000-1000-8000-00805f9b34fb", // Generic Access
-        "00001801-0000-1000-8000-00805f9b34fb", // Generic Attribute
-      ];
-
-      // Common writable characteristic UUIDs
-      const WRITE_CHARS = [
-        "00002af1-0000-1000-8000-00805f9b34fb", // Common write
-        "0000ffe1-0000-1000-8000-00805f9b34fb", // Another common
-        "0000ffe2-0000-1000-8000-00805f9b34fb",
-        "0000fff1-0000-1000-8000-00805f9b34fb",
-      ];
-
-      try {
-        // First try: get all services and find any writable characteristic
-        const services = await server.getPrimaryServices();
-        console.log("Found services:", services.length);
-
-        for (const service of services) {
-          try {
-            console.log("Checking service:", service.uuid);
-            const chars = await service.getCharacteristics();
-            console.log("  Characteristics:", chars.length);
-
-            for (const char of chars) {
-              const canWrite = char.properties.write || char.properties.writeWithoutResponse;
-              console.log("    -", char.uuid, "write:", canWrite);
-              if (canWrite) {
-                writeChar = char;
-                console.log("  -> Found writable characteristic!");
-                break;
-              }
-            }
-            if (writeChar) break;
-          } catch (e) {
-            console.log("  -> Error:", e);
-            continue;
+      if (printMode === 'bluetooth') {
+        // Direct Bluetooth printing
+        setPrintProgress("Mencari printer...");
+        
+        // For Bluetooth, we'll share the PDF since we can't parse PDF to ESC/POS
+        // The user can then use Thermer app to print
+        if (navigator.share && navigator.canShare) {
+          const file = new File([pdfFile], pdfFile.name, { type: "application/pdf" });
+          
+          if (navigator.canShare({ files: [file] })) {
+            setPrintProgress("Membuka printer selection...");
+            await navigator.share({
+              title: "Cetak Resi via Bluetooth",
+              text: "Pilih app printer (Thermer/Print) untuk cetak via Bluetooth",
+              files: [file],
+            });
+            setStatus("✅ PDF di-share ke app printer. Pastikan printer sudah terhubung via Bluetooth.");
+          } else {
+            // Fallback: download
+            downloadPdf();
           }
+        } else {
+          // Fallback: download
+          downloadPdf();
         }
-
-        // Second try: if not found, try common printer UUIDs
-        if (!writeChar) {
-          console.log("Trying common printer UUIDs...");
-          for (const serviceUuid of PRINTER_SERVICES) {
-            try {
-              const service = await server.getPrimaryService(serviceUuid);
-              const chars = await service.getCharacteristics();
-              for (const char of chars) {
-                if (char.properties.write || char.properties.writeWithoutResponse) {
-                  writeChar = char;
-                  console.log("Found via UUID:", serviceUuid, char.uuid);
-                  break;
-                }
-              }
-              if (writeChar) break;
-            } catch {
-              continue;
-            }
-          }
-        }
-
-        // Third try: try to get characteristic directly by UUID
-        if (!writeChar) {
-          console.log("Trying direct characteristic UUID...");
-          for (const charUuid of WRITE_CHARS) {
-            try {
-              for (const service of services) {
-                const char = await service.getCharacteristic(charUuid);
-                if (char.properties.write || char.properties.writeWithoutResponse) {
-                  writeChar = char;
-                  console.log("Found direct:", charUuid);
-                  break;
-                }
-              }
-              if (writeChar) break;
-            } catch {
-              continue;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error getting services:", e);
-      }
-
-      if (!writeChar) {
-        setStatus("Characteristic tidak ditemukan. Printer mungkin tidak support ESC/POS atau perlu driver khusus.");
-        setPrinting(false);
-        return;
-      }
-
-      // Load PDF and convert to printable format
-      setStatus("Memproses PDF...");
-
-      // For now, we'll print a simple header
-      // In production, you'd use pdf.js to extract text/images
-      const header = buildPrintHeader(pdfFile.name);
-      const data = new TextEncoder().encode(header);
-
-      // Send in chunks
-      const CHUNK_SIZE = 20;
-      for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-        const chunk = data.slice(i, i + CHUNK_SIZE);
-        await writeChar.writeValue(chunk);
-        await new Promise((r) => setTimeout(r, 50));
-      }
-
-      setStatus("Berhasil mengirim ke printer!");
-    } catch (error) {
-      if ((error as Error).name === "NotFoundError") {
-        setStatus("Pembatalan - tidak ada printer dipilih");
       } else {
+        // Share mode - simple Web Share
+        setPrintProgress("Membuka share...");
+        if (navigator.share && navigator.canShare) {
+          const file = new File([pdfFile], pdfFile.name, { type: "application/pdf" });
+          
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: "Cetak Resi",
+              text: "Share ke app printer",
+              files: [file],
+            });
+            setStatus("✅ PDF sudah di-share!");
+          } else {
+            downloadPdf();
+          }
+        } else {
+          downloadPdf();
+        }
+      }
+    } catch (error) {
+      if ((error as Error).name === "AbortError") {
+        setStatus("Dibatalkan oleh user");
+      } else {
+        console.error("Print error:", error);
         setStatus("Error: " + (error as Error).message);
+        // Fallback: download PDF
+        downloadPdf();
       }
     } finally {
       setPrinting(false);
+      setPrintProgress("");
     }
   }
 
-  function buildPrintHeader(filename: string): string {
-    let output = COMMANDS.init;
-    output += COMMANDS.center;
-    output += COMMANDS.bold;
-    output += "RESI SHOPEE\n";
-    output += COMMANDS.boldOff;
-    output += COMMANDS.left;
-    output += "==============================\n";
-    output += `File: ${filename}\n`;
-    output += `Tanggal: ${new Date().toLocaleDateString("id-ID")}\n`;
-    output += "==============================\n";
-    output += "\n";
-    output += "Untuk mencetak resi dari PDF,\n";
-    output += "silakan gunakan fitur Print\n";
-    output += "bawaan browser/HP untuk PDF\n";
-    output += "atau konversi ke gambar dulu.\n";
-    output += "\n";
-    output += "==============================\n";
-    output += COMMANDS.feedLines(3);
-    output += COMMANDS.cut;
-    return output;
+  function downloadPdf() {
+    if (!pdfFile) return;
+    const url = URL.createObjectURL(pdfFile);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = pdfFile.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus("PDF didownload. Buka dari File Manager lalu share ke app printer.");
   }
 
   return (
@@ -316,22 +222,67 @@ export default function PrintReceipt() {
           </div>
         )}
 
+        {/* Print Mode Selector */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
+          <h2 className="text-sm font-bold text-gray-700 mb-3">Mode Cetak</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setPrintMode('bluetooth')}
+              className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                printMode === 'bluetooth'
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <Bluetooth className={`w-6 h-6 ${printMode === 'bluetooth' ? 'text-blue-500' : 'text-gray-400'}`} />
+              <span className={`text-sm font-semibold ${printMode === 'bluetooth' ? 'text-blue-700' : 'text-gray-600'}`}>
+                Bluetooth
+              </span>
+              <span className="text-xs text-gray-400">Koneksi langsung</span>
+            </button>
+            <button
+              onClick={() => setPrintMode('share')}
+              className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                printMode === 'share'
+                  ? 'border-green-500 bg-green-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <Printer className={`w-6 h-6 ${printMode === 'share' ? 'text-green-500' : 'text-gray-400'}`} />
+              <span className={`text-sm font-semibold ${printMode === 'share' ? 'text-green-700' : 'text-gray-600'}`}>
+                Share
+              </span>
+              <span className="text-xs text-gray-400">Via app lain</span>
+            </button>
+          </div>
+        </div>
+
         {/* Status */}
         {status && (
           <div className={`rounded-xl p-3 mb-4 ${
-            status.includes("Error") || status.includes("Gagal") || status.includes("Pembatalan")
+            status.includes("Error") || status.includes("Gagal") || status.includes("Dibatalkan")
               ? "bg-red-50 border border-red-200"
-              : status.includes("Berhasil")
+              : status.includes("✅") || status.includes("Berhasil")
               ? "bg-green-50 border border-green-200"
               : "bg-yellow-50 border border-yellow-200"
           }`}>
             <p className={`text-sm font-semibold ${
-              status.includes("Error") || status.includes("Gagal") || status.includes("Pembatalan")
+              status.includes("Error") || status.includes("Gagal") || status.includes("Dibatalkan")
                 ? "text-red-700"
-                : status.includes("Berhasil")
+                : status.includes("✅") || status.includes("Berhasil")
                 ? "text-green-700"
                 : "text-yellow-700"
             }`}>{status}</p>
+          </div>
+        )}
+
+        {/* Print Progress */}
+        {printProgress && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+              <p className="text-sm text-blue-700 font-semibold">{printProgress}</p>
+            </div>
           </div>
         )}
 
@@ -339,10 +290,18 @@ export default function PrintReceipt() {
         <button
           onClick={handlePrint}
           disabled={!pdfFile || printing}
-          className="w-full py-3 bg-pink-500 hover:bg-pink-600 disabled:bg-gray-300 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+          className={`w-full py-3 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 ${
+            printMode === 'bluetooth'
+              ? 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white'
+              : 'bg-pink-500 hover:bg-pink-600 disabled:bg-gray-300 text-white'
+          }`}
         >
-          <Printer className="w-4 h-4" />
-          {printing ? "Mencetak..." : "Cetak via Bluetooth"}
+          {printMode === 'bluetooth' ? (
+            <Bluetooth className="w-4 h-4" />
+          ) : (
+            <Printer className="w-4 h-4" />
+          )}
+          {printing ? "Mencetak..." : printMode === 'bluetooth' ? "Cetak via Bluetooth" : "Share PDF"}
         </button>
 
         {/* Info */}
@@ -355,6 +314,8 @@ export default function PrintReceipt() {
             <li>• Setelah pairing, baru klik "Cetak via Bluetooth"</li>
             <li>• Jika tidak muncul, matikan nyalakan Bluetooth</li>
             <li>• Pastikan printer menyala dan dalam jangkauan</li>
+            <li>• Mode Bluetooth: akan membuka Thermer/Print app</li>
+            <li>• Mode Share: pilih app untuk share PDF</li>
           </ul>
         </div>
       </main>
