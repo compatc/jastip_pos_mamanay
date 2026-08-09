@@ -7,8 +7,14 @@ import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 
 async function getBotApiUrl(): Promise<string> {
-  const { data } = await supabase.from("settings").select("value").eq("key", "bot_api_url").maybeSingle();
-  return data?.value || "http://localhost:3001";
+  try {
+    const { data, error } = await supabase.from("settings").select("value").eq("key", "bot_api_url").maybeSingle();
+    if (error) console.error("getBotApiUrl error:", error.message);
+    if (data?.value) return data.value;
+  } catch (e) {
+    console.error("getBotApiUrl fetch error:", e);
+  }
+  return "http://localhost:3001";
 }
 import {
   Search,
@@ -1223,7 +1229,6 @@ export default function Orders() {
             </div>
             <p className="text-xs text-gray-400 leading-relaxed shrink-0">
               Pilih pelanggan, lalu klik "Kirim" untuk mengirim invoice via bot WhatsApp.
-              {BOT_API_URL && ` Bot: ${BOT_API_URL}`}
             </p>
             <div className="overflow-y-auto flex-1 min-h-0 space-y-2 -mx-5 px-5">
               {groupedCustomers.length === 0 && (
