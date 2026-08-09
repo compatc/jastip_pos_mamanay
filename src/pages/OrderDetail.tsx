@@ -195,7 +195,7 @@ export default function OrderDetail() {
     const pcsShopee = items.reduce((sum, i) => {
       const product = products.find((p) => p.id === i.product_id);
       const shopeePcs = product?.shopee_pcs || 1;
-      return sum + (i.quantity * shopeePcs) / 1000;
+      return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
     }, 0);
     if (pcsShopee > 0) {
       msg += `🛒 *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
@@ -221,7 +221,7 @@ export default function OrderDetail() {
     items.forEach((item) => {
       const product = products.find((p) => p.id === item.product_id);
       const shopeePcs = product?.shopee_pcs || 1;
-      const qtyPcs = (item.quantity * shopeePcs) / 1000;
+      const qtyPcs = Math.ceil((item.quantity * shopeePcs) / 1000);
       totalPcs += qtyPcs;
       msg += `• ${item.product_name} x${item.quantity} → ${qtyPcs} pcs\n`;
     });

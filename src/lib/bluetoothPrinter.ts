@@ -326,7 +326,7 @@ export function generateReceiptFromOrder(order: any, items: any[], products: any
   });
 
   const totalPcs = orderItems.reduce((sum, item) => {
-    return sum + (item.qty * shopeePcs) / 1000;
+    return sum + Math.ceil((item.qty * item.shopeePcs) / 1000);
   }, 0);
 
   return {

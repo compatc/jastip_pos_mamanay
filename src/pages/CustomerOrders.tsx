@@ -259,7 +259,7 @@ export default function CustomerOrders() {
       return sum + items.reduce((s, i) => {
         const product = products.find((p) => p.id === i.product_id);
         const shopeePcs = product?.shopee_pcs || 1;
-        return s + (i.quantity * shopeePcs) / 1000;
+        return s + Math.ceil((i.quantity * shopeePcs) / 1000);
       }, 0);
     }, 0);
     if (pcsShopee > 0) {
