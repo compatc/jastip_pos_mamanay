@@ -492,9 +492,10 @@ export default function Orders() {
 
     let grandTotal = 0;
     let grandPaid = 0;
+    const unpaidOrders = group.orders.filter((o) => !isOrderLunas(o));
     const grouped: Record<string, Order[]> = {};
     const statusOrder = ["new", "belum-ready", "ready", "paid", "shipped", "delivered", "completed"];
-    group.orders.forEach((order) => {
+    unpaidOrders.forEach((order) => {
       if (!grouped[order.status]) grouped[order.status] = [];
       grouped[order.status].push(order);
     });
@@ -522,7 +523,7 @@ export default function Orders() {
       });
     });
 
-    if (group.orders.length > 1) {
+    if (unpaidOrders.length > 1) {
       msg += `\u{1F4CA} *Grand Total: Rp ${grandTotal.toLocaleString("id-ID")}*\n`;
       msg += `Total dibayar: Rp ${grandPaid.toLocaleString("id-ID")}\n`;
       msg += `*Sisa: Rp ${(grandTotal - grandPaid).toLocaleString("id-ID")}*\n\n`;
@@ -553,11 +554,11 @@ export default function Orders() {
       });
     }
 
-    msg += `\u{1F4B3} Metode Pembayaran: ${PAYMENT_LABELS_FULL[group.orders[0]?.payment_type] || "Transfer Bank"}\n`;
+    msg += `\u{1F4B3} Metode Pembayaran: ${PAYMENT_LABELS_FULL[unpaidOrders[0]?.payment_type] || "Transfer Bank"}\n`;
     msg += BANK_INFO + "\n";
     msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
 
-    const pcsShopee = group.orders.reduce((sum, order) => {
+    const pcsShopee = unpaidOrders.reduce((sum, order) => {
       const items = itemsByOrder[order.id] || [];
       return sum + items.reduce((s, i) => {
         const product = products.find((p) => p.id === i.product_id);
@@ -660,7 +661,7 @@ export default function Orders() {
       }
     }
 
-    const sentIds = targets.flatMap((g) => g.orders.map((o) => o.id));
+    const sentIds = targets.flatMap((g) => g.orders.filter((o) => !isOrderLunas(o)).map((o) => o.id));
     await markInvoiceSent(sentIds);
     setSendProgress(`Selesai: ${sent} terkirim${failed > 0 ? `, ${failed} gagal` : ""}`);
     setTimeout(() => {
