@@ -198,7 +198,10 @@ export default function OrderDetail() {
       return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
     }, 0);
     if (pcsShopee > 0) {
-      msg += `🛒 *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+      msg += `🛒 *Checkout di Shopee:* ${pcsShopee} pcs\n`;
+      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
+      msg += `📝 Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
+      msg += `⚠️ Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";

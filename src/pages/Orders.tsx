@@ -292,7 +292,10 @@ export default function Orders() {
       return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
     }, 0);
     if (pcsShopee > 0) {
-      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n`;
+      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
+      msg += `\u{1F4DD} Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
+      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
     if (sisa > 0) {
@@ -343,7 +346,10 @@ export default function Orders() {
       return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
     }, 0);
     if (pcsShopee > 0) {
-      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n`;
+      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
+      msg += `\u{1F4DD} Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
+      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
     msg += `Silakan mampir kapan saja ya Kak, atau kalau mau di-kirim juga bisa \u{1F60A}\n\n`;
@@ -568,7 +574,10 @@ export default function Orders() {
       }, 0);
     }, 0);
     if (pcsShopee > 0) {
-      msg += `\u{1F6D2} *Untuk checkout di Shopee:* ${pcsShopee} pcs\n\n`;
+      msg += `\u{1F6D2} *Untuk checkout di Shopee:* ${pcsShopee} pcs\n`;
+      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
+      msg += `📝 Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
+      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
