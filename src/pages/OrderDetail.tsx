@@ -230,7 +230,8 @@ export default function OrderDetail() {
     msg += `Total checkout: ${totalPcs} pcs\n\n`;
     msg += "Berikut link Shopee untuk checkout:\n";
     msg += "https://s.shopee.co.id/8pjZ07JBJe\n\n";
-    msg += "Mohon cantumkan nama serta 4 digit terakhir nomor HP pada catatan pesanan (notes) saat checkout ya, kak.\n\n";
+    msg += "📝 Mohon cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan (notes) saat checkout ya, kak.\n\n";
+    msg += "⚠️ Mohon diperhatikan, apabila menggunakan Shopee, kami tidak menanggung resiko apapun apabila paket dinyatakan hilang oleh ekspedisi.\n\n";
     msg += "Terima kasih 🙏✨";
 
     return msg;
