@@ -2,11 +2,27 @@
 // Putian POS80-01 uses KT6368A BLE chip
 // Confirmed service/characteristic from nRF Connect scan
 
-// @ts-ignore
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+// No pdfjs-dist import - load dynamically to avoid Vite worker issues
 
-// Disable worker for legacy build
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+// Dynamically load pdf.js from CDN at runtime
+async function loadPdfJs(): Promise<any> {
+  // Already loaded
+  if ((window as any).pdfjsLib) {
+    return (window as any).pdfjsLib;
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      const lib = (window as any).pdfjsLib;
+      lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      resolve(lib);
+    };
+    script.onerror = () => reject(new Error("Gagal memuat pdf.js dari CDN"));
+    document.head.appendChild(script);
+  });
+}
 
 const ESC = "\x1B";
 const GS = "\x1D";
@@ -582,8 +598,9 @@ export async function printPdfDirect(
   try {
     onProgress?.("Memuat PDF...");
     
+    const pdfjsLib = await loadPdfJs();
     const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
     // Get Bluetooth writer
     const writer = await getBluetoothWriter(onProgress);
@@ -714,8 +731,9 @@ export async function printPdfBatch(
     
     try {
       // Each file: fresh PDF load + fresh Bluetooth connection
+      const pdfjsLib = await loadPdfJs();
       const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       
       // Get fresh Bluetooth writer for this file
       const writer = await getBluetoothWriter(onProgress);

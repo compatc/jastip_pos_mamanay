@@ -5,6 +5,11 @@ import { supabase } from "../lib/supabase";
 import { payOrderLink, payGroupLink } from "../lib/payLinks";
 import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
+
+async function getBotApiUrl(): Promise<string> {
+  const { data } = await supabase.from("settings").select("value").eq("key", "bot_api_url").maybeSingle();
+  return data?.value || "http://localhost:3001";
+}
 import {
   Search,
   ClipboardList,
@@ -58,6 +63,8 @@ const PAYMENT_LABELS_FULL: Record<string, string> = {
 
 const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
 
+const BOT_API_TOKEN = import.meta.env.VITE_BOT_API_TOKEN || "mamanay2026";
+
 type CustomerGroup = {
   customerId: string;
   name: string;
@@ -88,6 +95,8 @@ export default function Orders() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState("Hapus");
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [sendingInvoice, setSendingInvoice] = useState(false);
+  const [sendProgress, setSendProgress] = useState("");
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingStatus(orderId);
@@ -574,20 +583,84 @@ export default function Orders() {
 
   async function sendBulkInvoice() {
     const targets = groupedCustomers.filter((g) => selectedCustomerIds.includes(g.customerId));
-    let delay = 0;
-    const sentIds: string[] = [];
-    for (const g of targets) {
-      const wa = toWaNumber(g.phone);
-      if (!wa) continue;
-      const qrisLinks = await buildQrisLinks(g);
-      const msg = buildInvoiceMsg(g, qrisLinks);
-      const url = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
-      setTimeout(() => window.open(url, "_blank"), delay);
-      delay += 400;
-      sentIds.push(...g.orders.map((o) => o.id));
-    }
     setWaModalOpen(false);
+    setSendingInvoice(true);
+    setSendProgress(`Mengirim ke ${targets.length} pelanggan...`);
+
+    let sent = 0;
+    let failed = 0;
+    const failedNames: string[] = [];
+
+    try {
+      // Build invoices array
+      const invoices = [];
+      for (const g of targets) {
+        const wa = toWaNumber(g.phone);
+        if (!wa) {
+          failed++;
+          failedNames.push(g.name);
+          continue;
+        }
+        const qrisLinks = await buildQrisLinks(g);
+        const msg = buildInvoiceMsg(g, qrisLinks);
+        invoices.push({ phone: wa, message: msg });
+      }
+
+      // Get bot API URL from Supabase
+      const botUrl = await getBotApiUrl();
+
+      // Send via bot API
+      const res = await fetch(`${botUrl}/api/send-batch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${BOT_API_TOKEN}`,
+        },
+        body: JSON.stringify({ invoices }),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        sent = result.sent || 0;
+        failed = result.failed || 0;
+      } else {
+        // Fallback: open WA tabs if bot API unavailable
+        setSendProgress("Bot tidak aktif, membuka WhatsApp...");
+        let delay = 0;
+        for (const g of targets) {
+          const wa = toWaNumber(g.phone);
+          if (!wa) continue;
+          const qrisLinks = await buildQrisLinks(g);
+          const msg = buildInvoiceMsg(g, qrisLinks);
+          const url = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
+          setTimeout(() => window.open(url, "_blank"), delay);
+          delay += 400;
+          sent++;
+        }
+      }
+    } catch {
+      // Fallback: open WA tabs
+      setSendProgress("Bot tidak aktif, membuka WhatsApp...");
+      let delay = 0;
+      for (const g of targets) {
+        const wa = toWaNumber(g.phone);
+        if (!wa) continue;
+        const qrisLinks = await buildQrisLinks(g);
+        const msg = buildInvoiceMsg(g, qrisLinks);
+        const url = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
+        setTimeout(() => window.open(url, "_blank"), delay);
+        delay += 400;
+        sent++;
+      }
+    }
+
+    const sentIds = targets.flatMap((g) => g.orders.map((o) => o.id));
     await markInvoiceSent(sentIds);
+    setSendProgress(`Selesai: ${sent} terkirim${failed > 0 ? `, ${failed} gagal` : ""}`);
+    setTimeout(() => {
+      setSendingInvoice(false);
+      setSendProgress("");
+    }, 2000);
   }
 
   async function openOneChat(group: CustomerGroup) {
@@ -1149,8 +1222,8 @@ export default function Orders() {
               </button>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed shrink-0">
-              Pilih pelanggan, lalu buka chat satu per satu (paling aman) atau salin teks invoice
-              untuk ditempel. Pelanggan yang sudah lunas otomatis dilewati.
+              Pilih pelanggan, lalu klik "Kirim" untuk mengirim invoice via bot WhatsApp.
+              {BOT_API_URL && ` Bot: ${BOT_API_URL}`}
             </p>
             <div className="overflow-y-auto flex-1 min-h-0 space-y-2 -mx-5 px-5">
               {groupedCustomers.length === 0 && (
@@ -1273,10 +1346,10 @@ export default function Orders() {
                 </button>
                 <button
                   onClick={sendBulkInvoice}
-                  disabled={selectedCustomerIds.length === 0}
+                  disabled={selectedCustomerIds.length === 0 || sendingInvoice}
                   className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-all"
                 >
-                  Buka Semua
+                  {sendingInvoice ? sendProgress || "Mengirim..." : `Kirim ke ${selectedCustomerIds.length} Pelanggan`}
                 </button>
               </div>
             </div>

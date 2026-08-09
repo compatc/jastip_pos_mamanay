@@ -51,10 +51,78 @@ sock.ev.on("connection.update", (update) => {
 async function onIncomingMessage(remoteJid, text) {
   try {
     const reply = await handleBotMessage(api, remoteJid, text);
+
+    // Handle JSON actions (invoice sending)
+    if (reply.startsWith("{")) {
+      const action = JSON.parse(reply);
+
+      if (action.action === "send_invoice") {
+        // Send invoice to single customer
+        if (action.phone) {
+          const waJid = normalizeWaJid(action.phone);
+          if (waJid) {
+            await sock.sendMessage(waJid, { text: action.msg });
+            await sock.sendMessage(remoteJid, { text: `✅ Invoice dikirim ke ${action.customerName}` });
+          } else {
+            await sock.sendMessage(remoteJid, { text: `❌ Nomor WA tidak valid untuk ${action.customerName}` });
+          }
+        } else {
+          await sock.sendMessage(remoteJid, { text: `⚠️ ${action.customerName} tidak punya nomor WA.` });
+        }
+        return;
+      }
+
+      if (action.action === "send_batch") {
+        // Send batch invoices
+        let sent = 0;
+        let failed = 0;
+        const failedNames = [];
+
+        for (const inv of action.invoices) {
+          if (inv.phone) {
+            const waJid = normalizeWaJid(inv.phone);
+            if (waJid) {
+              try {
+                await sock.sendMessage(waJid, { text: inv.msg });
+                sent++;
+                // Delay between messages to avoid rate limit
+                await new Promise((r) => setTimeout(r, 2000));
+              } catch {
+                failed++;
+                failedNames.push(inv.name);
+              }
+            } else {
+              failed++;
+              failedNames.push(inv.name);
+            }
+          } else {
+            failed++;
+            failedNames.push(inv.name);
+          }
+        }
+
+        let summary = `✅ Invoice terkirim: ${sent}/${action.count}`;
+        if (failed > 0) {
+          summary += `\n❌ Gagal: ${failed} (${failedNames.join(", ")})`;
+        }
+        await sock.sendMessage(remoteJid, { text: summary });
+        return;
+      }
+    }
+
+    // Default: send text reply
     await sock.sendMessage(remoteJid, { text: reply });
   } catch (e) {
     await sock.sendMessage(remoteJid, { text: "Error: " + e.message });
   }
+}
+
+function normalizeWaJid(phone) {
+  if (!phone) return null;
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = "62" + digits.slice(1);
+  if (!digits.startsWith("62")) digits = "62" + digits;
+  return digits + "@s.whatsapp.net";
 }
 
 sock.ev.on("messages.upsert", async ({ messages, type }) => {
@@ -70,4 +138,4 @@ sock.ev.on("messages.upsert", async ({ messages, type }) => {
   await onIncomingMessage(m.key.remoteJid, text);
 });
 
-console.log("Bot berjalan. Ketik perintah dari WA: stok, cari, order, tambahpelanggan, bantuan");
+console.log("Bot berjalan. Ketik perintah dari WA: stok, cari, order, tambahpelanggan, kiriminvoice, kirimsemua, bantuan");

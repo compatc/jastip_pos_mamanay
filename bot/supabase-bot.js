@@ -1,11 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY =
-  process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
 
-export const STATUS_LABELS = {
+const STATUS_LABELS = {
   new: "Baru",
   "belum-ready": "Belum Ready",
   ready: "Ready",
@@ -14,6 +12,10 @@ export const STATUS_LABELS = {
   delivered: "Diterima",
   completed: "Selesai",
 };
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 export const PAYMENT_LABELS = {
   tf: "Transfer Bank",
@@ -410,6 +412,120 @@ export class BotApi {
       sisa > 0 ? `Sisa: ${rupiah(sisa)}` : "Status: LUNAS",
     ].join("\n");
   }
+
+  // ————— Invoice —————
+
+  async getOrdersWithItems(customerId) {
+    const { data: orders, error } = await this.sb
+      .from("orders")
+      .select("*")
+      .eq("customer_id", customerId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    if (!orders || orders.length === 0) return [];
+
+    for (const order of orders) {
+      const { data: items } = await this.sb
+        .from("order_items")
+        .select("product_name, quantity, price, discount, product_id")
+        .eq("order_id", order.id);
+      order.items = items || [];
+    }
+    return orders;
+  }
+
+  buildInvoiceMsg(customerName, orders) {
+    const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const deadlineStr = deadline.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    let msg = `Halo Kak ${customerName} 🙏\n\n`;
+    msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
+    msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
+
+    let grandTotal = 0;
+    let grandPaid = 0;
+
+    for (const order of orders) {
+      const productNames = (order.items || [])
+        .map((i) => `${i.product_name} x${i.quantity}`)
+        .join(", ");
+      const statusLabel = STATUS_LABELS[order.status] || order.status;
+      msg += `📦 Pesanan: ${productNames}\n`;
+      msg += `Status barang: ${statusLabel}\n`;
+      if (order.notes) msg += `📝 Catatan: ${order.notes}\n`;
+      msg += `💰 Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
+      const paid = order.paid_total || 0;
+      if (paid > 0) {
+        msg += `Sudah dibayar: Rp ${paid.toLocaleString("id-ID")}\n`;
+        msg += `Sisa: Rp ${(order.total - paid).toLocaleString("id-ID")}\n`;
+      }
+      msg += "\n";
+      grandTotal += order.total;
+      grandPaid += paid;
+    }
+
+    if (orders.length > 1) {
+      msg += `📊 *Grand Total: Rp ${grandTotal.toLocaleString("id-ID")}*\n`;
+      msg += `Total dibayar: Rp ${grandPaid.toLocaleString("id-ID")}\n`;
+      msg += `*Sisa: Rp ${(grandTotal - grandPaid).toLocaleString("id-ID")}*\n\n`;
+    }
+
+    msg += `🏦 Metode Pembayaran: Transfer Bank\n`;
+    msg += `${BANK_INFO}\n`;
+    msg += `⏰ Batas Pembayaran: ${deadlineStr}\n\n`;
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
+    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
+    msg += "Terima kasih atas kepercayaannya. 🙏";
+    return msg;
+  }
+
+  async buildInvoiceForCustomer(customerId) {
+    const { data: customer, error: cErr } = await this.sb
+      .from("customers")
+      .select("id, name, phone")
+      .eq("id", customerId)
+      .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (!customer) return null;
+
+    const orders = await this.getOrdersWithItems(customerId);
+    if (orders.length === 0) return null;
+
+    const activeOrders = orders.filter((o) => !["shipped", "delivered", "completed"].includes(o.status));
+    if (activeOrders.length === 0) return null;
+
+    return {
+      customer,
+      orders: activeOrders,
+      msg: this.buildInvoiceMsg(customer.name, activeOrders),
+    };
+  }
+
+  async getAllInvoiceTargets() {
+    const { data: orders, error } = await this.sb
+      .from("orders")
+      .select("customer_id")
+      .not("status", "in", "(shipped,delivered,completed)");
+    if (error) throw new Error(error.message);
+
+    const customerIds = [...new Set((orders || []).map((o) => o.customer_id).filter(Boolean))];
+    if (customerIds.length === 0) return [];
+
+    const { data: customers, error: cErr } = await this.sb
+      .from("customers")
+      .select("id, name, phone")
+      .in("id", customerIds);
+    if (cErr) throw new Error(cErr.message);
+
+    return customers || [];
+  }
 }
 
 // ————— Perintah teks untuk bot WhatsApp (handler sederhana) —————
@@ -439,6 +555,30 @@ export async function handleBotMessage(api, senderNumber, text) {
     return api.formatOrderStatus(full);
   }
 
+  if (cmd === "kiriminvoice") {
+    if (!arg) return "Format: kiriminvoice <nama pelanggan>";
+    const customers = await api.searchCustomers(arg);
+    if (customers.length === 0) return "Pelanggan tidak ditemukan.";
+    const target = await api.buildInvoiceForCustomer(customers[0].id);
+    if (!target) return "Tidak ada invoice aktif untuk pelanggan ini (semua order sudah dikirim/selesai).";
+    // Return JSON for wa-bot.js to handle sending
+    return JSON.stringify({ action: "send_invoice", phone: target.customer.phone, msg: target.msg, customerName: target.customer.name });
+  }
+
+  if (cmd === "kirimsemua") {
+    const targets = await api.getAllInvoiceTargets();
+    if (targets.length === 0) return "Tidak ada pelanggan yang perlu dikirim invoice.";
+    const results = [];
+    for (const c of targets) {
+      const invoice = await api.buildInvoiceForCustomer(c.id);
+      if (invoice) {
+        results.push({ phone: c.phone, name: c.name, msg: invoice.msg });
+      }
+    }
+    if (results.length === 0) return "Tidak ada invoice yang perlu dikirim.";
+    return JSON.stringify({ action: "send_batch", count: results.length, invoices: results });
+  }
+
   if (cmd === "bantuan" || cmd === "help") {
     return [
       "Perintah yang tersedia:",
@@ -446,6 +586,8 @@ export async function handleBotMessage(api, senderNumber, text) {
       "• cari <nama/telepon> — cari pelanggan",
       "• order <nama/telepon> — cek order terbaru pelanggan",
       "• tambahpelanggan <nama>|<telepon> — tambah pelanggan",
+      "• kiriminvoice <nama> — kirim invoice ke pelanggan",
+      "• kirimsemua — kirim invoice ke semua pelanggan aktif",
     ].join("\n");
   }
 
