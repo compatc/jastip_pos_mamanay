@@ -151,7 +151,7 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
   const FETCH_TIMEOUT_MS = 5000;
-  const code = Math.floor(Math.random() * 50) + 1;
+  const code = Math.floor(Math.random() * 10) + 1;
   const qrAmount = amount - code;
 
   const payload = { ...basePayload, amount: qrAmount };
@@ -208,6 +208,18 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
     return { status: "paid", confirmed: true, already: true };
   }
 
+  // Re-read current paid_total to prevent race condition (webhook + polling)
+  const { data: freshOrder } = await sb
+    .from("orders")
+    .select("paid_total, total")
+    .eq("id", orderId)
+    .single();
+  const currentPaidTotal = freshOrder?.paid_total ?? order.paid_total;
+  const currentTotal = freshOrder?.total ?? order.total;
+  if ((currentPaidTotal || 0) >= (currentTotal || 0)) {
+    return { status: "paid", confirmed: true, already: true };
+  }
+
   // Nominal yang benar-benar dibayar (setelah kode unik/deduksi).
   // Kode unik = selisih kecil (<= BOQRIS_UNIQUE_MAX) antara tagihan dan yang
   // dibayar; dicatat sebagai DISKON order (total dikurangi kode unik) sehingga
@@ -215,7 +227,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   const shareOfPayment = Number(
     amountOverride != null && amountOverride > 0
       ? amountOverride
-      : bo.amount || bo.base_amount || ((order.total || 0) - (order.paid_total || 0))
+      : bo.amount || bo.base_amount || ((currentTotal || 0) - (currentPaidTotal || 0))
   );
   if (!(shareOfPayment > 0)) {
     return { status: "paid", confirmed: true, already: true };
@@ -235,12 +247,12 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   }
 
   const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
-  const sisaInvoice = (order.total || 0) - (order.paid_total || 0);
+  const sisaInvoice = (currentTotal || 0) - (currentPaidTotal || 0);
   const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
   const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= BOQRIS_UNIQUE_MAX;
-  const finalTotal = isKodeUnik ? (order.total || 0) - kodeUnik : (order.total || 0);
+  const finalTotal = isKodeUnik ? (currentTotal || 0) - kodeUnik : (currentTotal || 0);
   const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
-  const finalPaid = (order.paid_total || 0) + shareOfPayment;
+  const finalPaid = (currentPaidTotal || 0) + shareOfPayment;
   const paidNote = isKodeUnik
     ? `QRIS ${shareOfPayment} (kode unik ${kodeUnik}) (${transactionId.slice(0, 8)})`
     : Number(sisaInvoice) !== Number(shareOfPayment)
@@ -260,10 +272,10 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
       : paidNote,
     updated_at: now,
   }).eq("id", orderId);
-  if (order.paid_total == null) {
+  if (currentPaidTotal == null) {
     lockQuery = lockQuery.is("paid_total", null);
   } else {
-    lockQuery = lockQuery.eq("paid_total", order.paid_total);
+    lockQuery = lockQuery.eq("paid_total", currentPaidTotal);
   }
   const { data: updatedRows, error: updErr } = await lockQuery.select("id");
   if (updErr) {
