@@ -439,6 +439,9 @@ export async function printImage(
     ctx!.fillStyle = 'white';
     ctx!.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Disable smoothing for sharper print
+    ctx!.imageSmoothingEnabled = false;
+    
     // Draw image
     ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
     URL.revokeObjectURL(imageUrl);
@@ -468,7 +471,7 @@ export async function printImage(
     
     // Convert to ESC/POS
     onProgress?.("Konversi gambar...");
-    const escPosData = imageDataToEscPos(croppedData);
+    const escPosData = imageDataToEscPos(croppedData, 170);
     
     console.log(`Image size: ${canvas.width}x${cropHeight} (cropped from ${canvas.height}), ESC/POS bytes: ${escPosData.length}`);
     
