@@ -446,11 +446,31 @@ export async function printImage(
     // Get image data
     const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
     
+    // Crop bottom whitespace
+    let cropHeight = canvas.height;
+    for (let y = canvas.height - 1; y >= 0; y--) {
+      let allWhite = true;
+      for (let x = 0; x < canvas.width; x++) {
+        const i = (y * canvas.width + x) * 4;
+        if (imageData.data[i] < 250 || imageData.data[i+1] < 250 || imageData.data[i+2] < 250) {
+          allWhite = false;
+          break;
+        }
+      }
+      if (!allWhite) break;
+      cropHeight = y;
+    }
+    
+    // Tambah margin bawah 20px
+    cropHeight = Math.min(cropHeight + 20, canvas.height);
+    
+    const croppedData = ctx!.getImageData(0, 0, canvas.width, cropHeight);
+    
     // Convert to ESC/POS
     onProgress?.("Konversi gambar...");
-    const escPosData = imageDataToEscPos(imageData);
+    const escPosData = imageDataToEscPos(croppedData);
     
-    console.log(`Image size: ${canvas.width}x${canvas.height}, ESC/POS bytes: ${escPosData.length}`);
+    console.log(`Image size: ${canvas.width}x${cropHeight} (cropped from ${canvas.height}), ESC/POS bytes: ${escPosData.length}`);
     
     // Request Bluetooth device
     onProgress?.("Mencari printer...");
