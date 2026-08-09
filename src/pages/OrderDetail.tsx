@@ -197,6 +197,11 @@ export default function OrderDetail() {
       const shopeePcs = product?.shopee_pcs || 1;
       return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
     }, 0);
+
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
+    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
+
     if (pcsShopee > 0) {
       msg += `🛒 *Checkout di Shopee:* ${pcsShopee} pcs\n`;
       msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
@@ -204,9 +209,6 @@ export default function OrderDetail() {
       msg += `⚠️ Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
-    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
-    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
-    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
     msg += "Terima kasih atas kepercayaannya. 🙏";
     return msg;
   }

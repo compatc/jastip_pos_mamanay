@@ -262,6 +262,10 @@ export default function CustomerOrders() {
         return s + Math.ceil((i.quantity * shopeePcs) / 1000);
       }, 0);
     }, 0);
+
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n\n";
+
     if (pcsShopee > 0) {
       msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n`;
       msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
@@ -269,8 +273,6 @@ export default function CustomerOrders() {
       msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
-    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
-    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n\n";
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
 
     const cleaned = phone.replace(/\D/g, "");

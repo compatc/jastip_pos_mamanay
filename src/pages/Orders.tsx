@@ -291,12 +291,6 @@ export default function Orders() {
       const shopeePcs = product?.shopee_pcs || 1;
       return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
     }, 0);
-    if (pcsShopee > 0) {
-      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n`;
-      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
-      msg += `\u{1F4DD} Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
-      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
-    }
 
     if (sisa > 0) {
       msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
@@ -307,6 +301,14 @@ export default function Orders() {
 
     msg += "Mohon segera konfirmasi pembayaran agar pesanan dapat kami proses. ";
     msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
+
+    if (pcsShopee > 0) {
+      msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n`;
+      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
+      msg += `\u{1F4DD} Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
+      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
+    }
+
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
 
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
@@ -345,6 +347,9 @@ export default function Orders() {
       const shopeePcs = product?.shopee_pcs || 1;
       return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
     }, 0);
+
+    msg += `Silakan mampir kapan saja ya Kak, atau kalau mau di-kirim juga bisa \u{1F60A}\n\n`;
+
     if (pcsShopee > 0) {
       msg += `\u{1F6D2} *Checkout di Shopee:* ${pcsShopee} pcs\n`;
       msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
@@ -352,7 +357,6 @@ export default function Orders() {
       msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
-    msg += `Silakan mampir kapan saja ya Kak, atau kalau mau di-kirim juga bisa \u{1F60A}\n\n`;
     msg += `Terima kasih! \u{1F64F}`;
 
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
@@ -565,6 +569,10 @@ export default function Orders() {
     msg += BANK_INFO + "\n";
     msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
 
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
+    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
+
     const pcsShopee = unpaidOrders.reduce((sum, order) => {
       const items = itemsByOrder[order.id] || [];
       return sum + items.reduce((s, i) => {
@@ -580,9 +588,6 @@ export default function Orders() {
       msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
     }
 
-    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
-    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
-    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
     return msg;
   }
