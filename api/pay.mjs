@@ -250,7 +250,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   const sisaInvoice = (currentTotal || 0) - (currentPaidTotal || 0);
   const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
   const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= BOQRIS_UNIQUE_MAX;
-  const finalTotal = isKodeUnik ? (currentTotal || 0) - kodeUnik : (currentTotal || 0);
+  const finalTotal = currentTotal || 0;
   const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
   const finalPaid = (currentPaidTotal || 0) + shareOfPayment;
   const paidNote = isKodeUnik
