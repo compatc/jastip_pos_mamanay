@@ -103,6 +103,7 @@ export default function Orders() {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [sendingInvoice, setSendingInvoice] = useState(false);
   const [sendProgress, setSendProgress] = useState("");
+  const [sendingReminder, setSendingReminder] = useState(false);
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingStatus(orderId);
@@ -685,6 +686,114 @@ export default function Orders() {
     }, 2000);
   }
 
+  async function sendReadyReminders() {
+    const readyOrders = filtered.filter((o) => o.status === "ready");
+    if (readyOrders.length === 0) return;
+
+    setSendingReminder(true);
+    setSendProgress(`Mengirim pengingat ke ${readyOrders.length} order...`);
+
+    // Group by customer
+    const custMap = new Map<string, { customerId: string; name: string; phone: string; orders: typeof readyOrders }>();
+    for (const order of readyOrders) {
+      const key = order.customer_id || "none";
+      const existing = custMap.get(key);
+      if (existing) {
+        existing.orders.push(order);
+      } else {
+        const cust = customers.find((c) => c.id === key);
+        custMap.set(key, {
+          customerId: key,
+          name: order.customer_name || "Tanpa kontak",
+          phone: cust?.phone || "",
+          orders: [order],
+        });
+      }
+    }
+
+    const targets = [...custMap.values()];
+    let sent = 0;
+    let failed = 0;
+
+    const invoices: { phone: string; message: string }[] = [];
+    for (const g of targets) {
+      const wa = toWaNumber(g.phone);
+      if (!wa) { failed++; continue; }
+
+      const lunas = g.orders.every((o) => isOrderLunas(o));
+      const items = g.orders.flatMap((o) => itemsByOrder[o.id] || []);
+      const productNames = items.map((i) => i.product_name).join(", ");
+      const total = g.orders.reduce((s, o) => s + o.total, 0);
+      const paid = g.orders.reduce((s, o) => s + (o.paid_total || 0), 0);
+      const oldestReady = g.orders.reduce((earliest, o) => {
+        const d = new Date(o.updated_at || o.created_at);
+        return d < earliest ? d : earliest;
+      }, new Date("2099-01-01"));
+      const readyDate = oldestReady.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+
+      let msg = "";
+      if (lunas) {
+        // Ready + sudah lunas → pengingat ambil/kirim
+        msg = `Halo Kak ${g.name} 🙏\n\n`;
+        msg += `Pesanan *${productNames}* sudah ready dari ${readyDate}.\n\n`;
+        msg += `Bisa diambil kapan saja ya Kak, atau kalau mau dikirim juga bisa 😊\n\n`;
+        msg += `Terima kasih 🙏`;
+      } else {
+        // Ready + belum lunas → pengingat bayar
+        const sisa = total - paid;
+        msg = `Halo Kak ${g.name} 🙏\n\n`;
+        msg += `Pesanan *${productNames}* sudah ready dari ${readyDate}.\n\n`;
+        msg += `💰 Total: *Rp ${total.toLocaleString("id-ID")}*\n`;
+        if (paid > 0) {
+          msg += `Sudah dibayar: Rp ${paid.toLocaleString("id-ID")}\n`;
+          msg += `Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
+        }
+        msg += `\nMohon segera dilakukan pembayaran agar pesanan bisa segera diproses ya Kak.\n\n`;
+        msg += `🏦 ${BANK_INFO}\n\n`;
+        msg += `Terima kasih 🙏`;
+      }
+      invoices.push({ phone: wa, message: msg });
+    }
+
+    try {
+      const botUrl = await getBotApiUrl();
+      const res = await fetch(`${botUrl}/api/send-batch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${BOT_API_TOKEN}`,
+        },
+        body: JSON.stringify({ invoices }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        sent = result.sent || 0;
+        failed = result.failed || 0;
+      } else {
+        // Fallback WA tabs
+        let delay = 0;
+        for (const inv of invoices) {
+          setTimeout(() => window.open(`https://wa.me/${inv.phone}?text=${encodeURIComponent(inv.message)}`, "_blank"), delay);
+          delay += 400;
+          sent++;
+        }
+      }
+    } catch {
+      let delay = 0;
+      for (const inv of invoices) {
+        setTimeout(() => window.open(`https://wa.me/${inv.phone}?text=${encodeURIComponent(inv.message)}`, "_blank"), delay);
+        delay += 400;
+        sent++;
+      }
+    }
+
+    setSendProgress(`Selesai: ${sent} terkirim${failed > 0 ? `, ${failed} gagal` : ""}`);
+    setTimeout(() => {
+      setSendingReminder(false);
+      setSendProgress("");
+    }, 2000);
+  }
+
   async function openOneChat(group: CustomerGroup) {
     const wa = toWaNumber(group.phone);
     if (!wa) return;
@@ -1035,6 +1144,21 @@ export default function Orders() {
               <p className="text-xs text-teal-600 font-semibold uppercase tracking-widest">Menunggu Diambil</p>
               <p className="text-lg font-bold text-teal-700">{filtered.length} order</p>
             </div>
+          </div>
+        )}
+        {tab === "ready" && filtered.length > 0 && (
+          <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-xs text-sky-600 font-semibold uppercase tracking-widest">Ready</p>
+              <p className="text-lg font-bold text-sky-700">{filtered.length} order siap</p>
+            </div>
+            <button
+              onClick={sendReadyReminders}
+              disabled={sendingReminder}
+              className="px-4 py-2 bg-sky-500 text-white text-sm font-bold rounded-xl hover:bg-sky-600 transition-all disabled:opacity-50"
+            >
+              {sendingReminder ? sendProgress || "Mengirim..." : "Kirim Pengingat"}
+            </button>
           </div>
         )}
         {filtered.length === 0 ? (
