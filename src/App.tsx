@@ -25,7 +25,6 @@ import AccountDetail from "./pages/AccountDetail";
 import Maintenance from "./pages/Maintenance";
 import Shipments from "./pages/Shipments";
 import Expenses from "./pages/Expenses";
-import PrintReceipt from "./pages/PrintReceipt";
 import AppLayout from "./components/AppLayout";
 import { Component, useEffect } from "react";
 import type { ErrorInfo, ReactNode } from "react";
@@ -280,16 +279,6 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Expenses />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/print-receipt"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PrintReceipt />
                 </AppLayout>
               </ProtectedRoute>
             }
