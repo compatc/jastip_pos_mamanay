@@ -374,13 +374,13 @@ export default function SalesDashboard() {
         ) : (
           <>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-xl font-extrabold text-slate-800">Laporan</h1>
+            <div className="mb-4">
+              <h1 className="text-xl font-extrabold text-slate-800 mb-2">Laporan</h1>
               <div className="flex items-center gap-2">
                 <select
                   value={selectedProduct}
                   onChange={(e) => setSelectedProduct(e.target.value)}
-                  className="px-3 py-2 rounded-xl text-xs font-bold border border-pink-200 bg-pink-50 text-pink-600 max-w-[140px]"
+                  className="flex-1 px-3 py-2 rounded-xl text-xs font-bold border border-pink-200 bg-pink-50 text-pink-600"
                 >
                   <option value="">Pilih Produk</option>
                   {products.map((p) => (
@@ -389,14 +389,14 @@ export default function SalesDashboard() {
                 </select>
                 <button
                   onClick={handleExportDetail}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-pink-200 bg-pink-50 text-pink-600 hover:bg-pink-100 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-pink-200 bg-pink-50 text-pink-600 hover:bg-pink-100 transition-all shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Export
                 </button>
                 <button
                   onClick={handleExport}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Excel
