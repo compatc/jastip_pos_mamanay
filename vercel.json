@@ -3,9 +3,6 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "npm install",
-  "crons": [
-    { "path": "/api/qris-reconcile", "schedule": "0 0 * * *" }
-  ],
   "rewrites": [
     { "source": "/((?!assets/|api/).*)", "destination": "/index.html" }
   ]
