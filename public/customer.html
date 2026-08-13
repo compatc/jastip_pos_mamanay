@@ -223,6 +223,56 @@
       btnLogin.disabled = true;
     }
 
+    var selectedOrders = {};
+    var unpaidOrders = [];
+
+    function toggleOrder(orderId, sisa) {
+      if (selectedOrders[orderId]) {
+        delete selectedOrders[orderId];
+      } else {
+        selectedOrders[orderId] = sisa;
+      }
+      updateGrandTotal();
+    }
+
+    function selectAll() {
+      var allSelected = unpaidOrders.every(function(o) { return selectedOrders[o.id]; });
+      unpaidOrders.forEach(function(o) {
+        var sisa = o.total - (o.paid_total || 0);
+        if (allSelected) {
+          delete selectedOrders[o.id];
+        } else {
+          selectedOrders[o.id] = sisa;
+        }
+      });
+      updateGrandTotal();
+      document.querySelectorAll('.order-checkbox').forEach(function(cb) {
+        cb.checked = !allSelected;
+      });
+    }
+
+    function updateGrandTotal() {
+      var total = 0;
+      var count = 0;
+      for (var k in selectedOrders) {
+        total += selectedOrders[k];
+        count++;
+      }
+      var el = document.getElementById('grandTotalAmount');
+      if (el) el.textContent = fmt(total);
+      var el2 = document.getElementById('grandTotalCount');
+      if (el2) el2.textContent = count + ' invoice dipilih';
+      var btn = document.getElementById('btnPaySelected');
+      if (btn) btn.style.display = count > 0 ? '' : 'none';
+    }
+
+    function paySelected() {
+      var ids = Object.keys(selectedOrders);
+      if (ids.length === 0) return;
+      var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
+      showQris(ids.join(','), total, ids);
+    }
+
     async function showDashboard() {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('dashboardScreen').style.display = '';
@@ -244,15 +294,22 @@
       }
       var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && o.status !== 'dibatalkan'; });
       var ready = orders.filter(function(o) { return o.status === 'ready' && (o.total - (o.paid_total || 0)) <= 0; });
+      unpaidOrders = unpaid;
+      selectedOrders = {};
       var html = '';
       if (unpaid.length > 0) {
         var grandTotal = unpaid.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
         html += '<div class="card" style="background:linear-gradient(135deg,#ec4899,#f43f5e);color:white;text-align:center;">';
         html += '<div style="font-size:11px;font-weight:600;opacity:0.8;text-transform:uppercase;letter-spacing:1px;">Total yang harus dibayar</div>';
-        html += '<div style="font-size:24px;font-weight:800;margin:4px 0;">' + fmt(grandTotal) + '</div>';
-        html += '<div style="font-size:11px;opacity:0.7;">' + unpaid.length + ' invoice belum lunas</div>';
+        html += '<div id="grandTotalAmount" style="font-size:24px;font-weight:800;margin:4px 0;">' + fmt(grandTotal) + '</div>';
+        html += '<div id="grandTotalCount" style="font-size:11px;opacity:0.7;">' + unpaid.length + ' invoice belum lunas</div>';
+        html += '<button id="btnPaySelected" onclick="paySelected()" style="display:none;margin-top:10px;background:white;color:#ec4899;border:none;border-radius:20px;padding:8px 24px;font-weight:700;cursor:pointer;">Bayar yang Dipilih</button>';
         html += '</div>';
-        html += '<div class="section-title">Belum Dibayar</div>';
+        html += '<div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">';
+        html += '<span>Belum Dibayar</span>';
+        html += '<label style="font-size:12px;font-weight:400;cursor:pointer;display:flex;align-items:center;gap:4px;">';
+        html += '<input type="checkbox" id="selectAllCb" onchange="selectAll()" style="accent-color:#ec4899;"> Pilih Semua';
+        html += '</label></div>';
         unpaid.forEach(function(o) {
           html += renderCard(o, itemsByOrder[o.id] || [], true);
         });
@@ -275,6 +332,13 @@
         }
       }
       document.getElementById('content').innerHTML = html;
+      document.querySelectorAll('.order-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+          var orderId = cb.getAttribute('data-order-id');
+          var sisa = parseFloat(cb.getAttribute('data-sisa'));
+          toggleOrder(orderId, sisa);
+        });
+      });
       document.querySelectorAll('[data-pay-btn]').forEach(function(btn) {
         btn.addEventListener('click', function() {
           var orderId = btn.getAttribute('data-pay-btn');
@@ -293,7 +357,14 @@
       else if (order.status === 'lunas' || sisa <= 0) { statusLabel = 'Lunas'; statusClass = 'status-paid'; }
       else { statusLabel = 'Belum Lunas'; statusClass = 'status-unpaid'; }
       var h = '<div class="card">';
-      h += '<div class="card-header"><span class="card-id">#' + shortId(order.id) + '</span>';
+      h += '<div class="card-header">';
+      if (showPay && sisa > 0) {
+        h += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">';
+        h += '<input type="checkbox" class="order-checkbox" data-order-id="' + order.id + '" data-sisa="' + sisa + '" style="accent-color:#ec4899;width:18px;height:18px;">';
+        h += '<span class="card-id">#' + shortId(order.id) + '</span></label>';
+      } else {
+        h += '<span class="card-id">#' + shortId(order.id) + '</span>';
+      }
       h += '<span class="card-date">' + fmtDate(order.created_at) + '</span></div>';
       h += '<div class="card-items">';
       items.forEach(function(item) {
@@ -317,15 +388,19 @@
       return h;
     }
 
-    function showQris(orderId, amount) {
+    function showQris(orderIds, amount, multiOrderIds) {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('dashboardScreen').style.display = 'none';
       document.getElementById('qrisScreen').style.display = '';
       document.getElementById('qrisContent').innerHTML = '<div class="loading"><div class="spinner"></div>Memuat QRIS...</div>';
+      var ids = orderIds.split(',');
+      var label = ids.length > 1 ? ids.length + ' invoice' : '#' + shortId(ids[0]);
+      var payload = { amount: Math.round(Number(amount)), invoice_no: orderIds, unique_amount: 1 };
+      if (multiOrderIds && multiOrderIds.length > 1) payload.order_ids = multiOrderIds;
       fetch('/api/boqris', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Math.round(Number(amount)), invoice_no: orderId, unique_amount: 1 })
+        body: JSON.stringify(payload)
       }).then(function(r) { return r.json(); }).then(function(data) {
         if (data.error) {
           document.getElementById('qrisContent').innerHTML = '<div class="empty-state"><p>Gagal membuat QR: ' + data.error + '</p></div>';
@@ -341,16 +416,17 @@
           h += '<div class="qris-qr"><img src="' + qrUrl + '" alt="QRIS"></div>';
         }
         h += '<div class="qris-timer">QR berlaku 15 menit</div>';
-        h += '<div class="qris-info">Bayar ke QRIS / QR Code<br>Cantumkan kode unik</div>';
+        h += '<div class="qris-info">Bayar ke QRIS / QR Code<br>Invoice: ' + label + '</div>';
         h += '</div>';
         document.getElementById('qrisContent').innerHTML = h;
-        if (txId) pollQrisStatus(txId, orderId);
+        if (txId) pollQrisStatus(txId, orderIds);
       }).catch(function(e) {
         document.getElementById('qrisContent').innerHTML = '<div class="empty-state"><p>Error: ' + e.message + '</p></div>';
       });
     }
 
-    function pollQrisStatus(txId, orderId) {
+    function pollQrisStatus(txId, orderIds) {
+      var ids = orderIds.split(',');
       var attempts = 0;
       var interval = setInterval(function() {
         attempts++;
@@ -358,7 +434,8 @@
         fetch('/api/boqris?transaction_id=' + txId).then(function(r) { return r.json(); }).then(function(data) {
           if (data.status === 'paid') {
             clearInterval(interval);
-            document.getElementById('qrisContent').innerHTML = '<div class="qris-card"><h2 style="font-size:20px;color:#059669;">Pembayaran Berhasil!</h2><p style="margin-top:8px;color:#64748b;">Invoice #' + shortId(orderId) + ' sudah lunas.</p></div>';
+            var label = ids.length > 1 ? ids.length + ' invoice' : '#' + shortId(ids[0]);
+            document.getElementById('qrisContent').innerHTML = '<div class="qris-card"><h2 style="font-size:20px;color:#059669;">Pembayaran Berhasil!</h2><p style="margin-top:8px;color:#64748b;">Invoice ' + label + ' sudah lunas.</p></div>';
             setTimeout(function() { showDashboard(); }, 3000);
           } else if (data.status === 'expired') {
             clearInterval(interval);

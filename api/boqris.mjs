@@ -1,6 +1,12 @@
 const BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
 const EXPIRES_IN = Math.min(Math.max(Number(process.env.BOQRIS_EXPIRES_IN || 3600) || 3600, 60), 3600);
+import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
+
+function getSb() {
+  return createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_ANON_KEY || "");
+}
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -51,8 +57,25 @@ export default async function handler(req, res) {
         return;
       }
 
+      const orderIds = Array.isArray(body.order_ids) ? body.order_ids : null;
+      let invoiceNo = body.invoice_no ? String(body.invoice_no).slice(0, 25) : "";
+
+      if (orderIds && orderIds.length > 1) {
+        const groupId = "qg-" + randomUUID().replace(/-/g, "").slice(0, 22);
+        invoiceNo = groupId.slice(0, 25);
+        const sb = getSb();
+        await sb.from("qris_payments").insert({
+          id: invoiceNo,
+          order_ids: orderIds,
+          amount: amount,
+          status: "pending",
+          transaction_id: "",
+          requested_amount: amount,
+        });
+      }
+
       const basePayload = { merchant_id: merchantId, expires_in: Math.min(Math.max(Number(body.expires_in) || EXPIRES_IN, 60), 3600) };
-      if (body.invoice_no) basePayload.invoice_no = String(body.invoice_no).slice(0, 25);
+      if (invoiceNo) basePayload.invoice_no = invoiceNo;
       if (body.expires_in) basePayload.expires_in = Math.min(Math.max(Number(body.expires_in) || 900, 60), 3600);
 
       const useUniqueAmount = Number(body.unique_amount ?? 0) === 1;
@@ -90,6 +113,10 @@ export default async function handler(req, res) {
           if (bo.status === 201) {
             data.requested_amount = amount;
             data.custom_unique_code = useUniqueAmount ? (data.unique_code ?? 0) : code;
+            if (orderIds && orderIds.length > 1 && invoiceNo) {
+              const sb = getSb();
+              await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);
+            }
             json(res, 201, data);
             return;
           }
