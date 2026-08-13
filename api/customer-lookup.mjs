@@ -30,21 +30,29 @@ export default async function handler(req, res) {
 
   try {
     const sb = await getAdmin();
+    // Ambil semua customer, strip non-digit, cari match
     const { data: customers, error } = await sb
       .from("customers")
       .select("id, name, phone")
-      .ilike("phone", `%${last5}`)
-      .limit(5);
+      .not("phone", "eq", "")
+      .limit(500);
 
     if (error) {
       json(res, 500, { error: error.message });
       return;
     }
-    if (!customers || customers.length === 0) {
+
+    // Filter: strip semua non-digit dari phone, lalu cari yang berakhir dengan last5
+    const matches = (customers || []).filter(c => {
+      const digits = (c.phone || "").replace(/\D/g, "");
+      return digits.endsWith(last5);
+    });
+
+    if (matches.length === 0) {
       json(res, 404, { error: "Nomor tidak ditemukan" });
       return;
     }
-    json(res, 200, { customers });
+    json(res, 200, { customers: matches });
   } catch (e) {
     json(res, 500, { error: e.message });
   }
