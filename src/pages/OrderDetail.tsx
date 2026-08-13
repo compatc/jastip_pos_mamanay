@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { payOrderLink } from "../lib/payLinks";
+import { supabase } from "../lib/supabase";
 import {
   ArrowLeft,
   Edit2,
@@ -12,6 +13,7 @@ import {
   MessageCircle,
   Copy,
   ExternalLink,
+  RotateCcw,
 } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -99,6 +101,12 @@ export default function OrderDetail() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [qrisLink, setQrisLink] = useState<string | null>(null);
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundItems, setRefundItems] = useState<{ order_item_id: string; product_name: string; quantity: number; price: number; refund_amount: number; max_qty: number }[]>([]);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundError, setRefundError] = useState("");
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refunds, setRefunds] = useState<any[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -120,6 +128,15 @@ export default function OrderDetail() {
       setQrisLink(payOrderLink(order.id));
     }
   }, [order?.id]);
+
+  useEffect(() => {
+    async function loadRefunds() {
+      if (!orderId) return;
+      const { data } = await supabase.from("refunds").select("*").eq("order_id", orderId);
+      setRefunds(data || []);
+    }
+    loadRefunds();
+  }, [orderId]);
 
   if (loading) {
     return (
@@ -149,6 +166,50 @@ export default function OrderDetail() {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 1500);
     });
+  }
+
+  const totalRefunded = (order.refund_total || 0) + refunds.reduce((s: number, r: any) => s + (r.amount || 0), 0);
+  const refundable = order.paid_total - (order.refund_total || 0);
+
+  function openRefundModal() {
+    setRefundItems(
+      items.map((i) => ({
+        order_item_id: i.id,
+        product_name: i.product_name,
+        quantity: 0,
+        price: i.price,
+        refund_amount: 0,
+        max_qty: i.quantity,
+      }))
+    );
+    setRefundReason("");
+    setRefundError("");
+    setShowRefund(true);
+  }
+
+  function updateRefundQty(idx: number, qty: number) {
+    setRefundItems((prev) => {
+      const next = [...prev];
+      const clamped = Math.max(0, Math.min(qty, next[idx].max_qty));
+      next[idx].quantity = clamped;
+      next[idx].refund_amount = clamped * next[idx].price;
+      return next;
+    });
+  }
+
+  async function handleRefund() {
+    const selected = refundItems.filter((i) => i.quantity > 0);
+    if (selected.length === 0) { setRefundError("Pilih minimal 1 produk"); return; }
+    const total = selected.reduce((s, i) => s + i.refund_amount, 0);
+    if (total > refundable) { setRefundError("Total refund melebihi sisa yang bisa direfund (" + rupiah(refundable) + ")"); return; }
+    setRefundLoading(true);
+    setRefundError("");
+    const { createRefund } = useStore.getState();
+    const result = await createRefund(order.id, selected, refundReason);
+    setRefundLoading(false);
+    if (result.error) { setRefundError(result.error); return; }
+    setShowRefund(false);
+    await loadAllOrders();
   }
 
   function buildInvoiceMsg(): string {
@@ -388,6 +449,12 @@ export default function OrderDetail() {
                 <span className="text-amber-500 font-bold">{rupiah(sisa)}</span>
               </div>
             )}
+            {(order.refund_total || 0) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-red-400 font-bold">Direfund</span>
+                <span className="text-red-400 font-bold">-{rupiah(order.refund_total || 0)}</span>
+              </div>
+            )}
           </div>
 
           {order.payment_type && (
@@ -471,6 +538,14 @@ export default function OrderDetail() {
                 🛒 Kirim Pesan Shopee
               </button>
               )}
+              {refundable > 0 && (
+              <button
+                onClick={openRefundModal}
+                className="py-3 px-4 bg-amber-50 hover:bg-amber-100 text-amber-600 font-bold rounded-xl text-sm transition-all border border-amber-200 flex items-center gap-1"
+              >
+                <RotateCcw className="w-4 h-4" /> Refund
+              </button>
+              )}
               <button
                 onClick={() => setDeleteConfirm(true)}
                 className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl text-sm transition-all border border-red-100"
@@ -500,6 +575,49 @@ export default function OrderDetail() {
                 className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-all text-sm"
               >
                 Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRefund && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[80vh] flex flex-col">
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Refund Order</h3>
+            <p className="text-xs text-gray-400 mb-3">Sisa refundable: <span className="font-bold text-amber-500">{rupiah(refundable)}</span></p>
+            <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+              {refundItems.map((ri, idx) => (
+                <div key={ri.order_item_id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{ri.product_name}</p>
+                    <p className="text-[10px] text-gray-400">{rupiah(ri.price)} / pcs (max {ri.max_qty})</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => updateRefundQty(idx, ri.quantity - 1)} className="w-7 h-7 rounded bg-gray-200 text-gray-600 font-bold text-sm">-</button>
+                    <span className="w-8 text-center text-sm font-bold">{ri.quantity}</span>
+                    <button onClick={() => updateRefundQty(idx, ri.quantity + 1)} className="w-7 h-7 rounded bg-gray-200 text-gray-600 font-bold text-sm">+</button>
+                  </div>
+                  {ri.quantity > 0 && (
+                    <span className="text-xs font-bold text-red-400 w-20 text-right">-{rupiah(ri.refund_amount)}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mb-3">
+              <input
+                type="text"
+                placeholder="Alasan refund..."
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              />
+            </div>
+            {refundError && <p className="text-xs text-red-500 font-semibold mb-2">{refundError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setShowRefund(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl text-sm">Batal</button>
+              <button onClick={handleRefund} disabled={refundLoading} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                {refundLoading ? "Proses..." : "Refund"}
               </button>
             </div>
           </div>

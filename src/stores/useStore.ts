@@ -140,6 +140,7 @@ interface PosStore {
   accountTransactions: AccountTransaction[];
   loadAccountTransactions: (accountId: string) => Promise<void>;
   createAccountTransaction: (accountId: string, orderId: string | null, orderType: string | null, contactName: string, amount: number, description: string, date: string) => Promise<void>;
+  createRefund: (orderId: string, items: { order_item_id: string; product_name: string; quantity: number; price: number; refund_amount: number }[], reason: string) => Promise<{ error?: string }>;
 
   isOnline: boolean;
   setOnline: (val: boolean) => void;
@@ -1220,6 +1221,95 @@ export const useStore = create<PosStore>((set, get) => ({
         .eq("id", accountId);
     }
     await get().loadAccounts();
+  },
+
+  createRefund: async (orderId, items, reason) => {
+    const refundId = "rf-" + uuid().replace(/-/g, "").slice(0, 22);
+    const totalRefund = items.reduce((s, i) => s + i.refund_amount, 0);
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, total, paid_total, refund_total, customer_id, user_id, status")
+      .eq("id", orderId)
+      .single();
+    if (!order) return { error: "Order tidak ditemukan" };
+
+    const currentRefund = order.refund_total || 0;
+    const currentPaid = order.paid_total || 0;
+    if (currentRefund + totalRefund > currentPaid) {
+      return { error: "Total refund melebihi jumlah yang dibayar" };
+    }
+
+    let customerName = "";
+    if (order.customer_id) {
+      const { data: cust } = await supabase
+        .from("customers").select("name").eq("id", order.customer_id).single();
+      customerName = cust?.name || "";
+    }
+
+    const { error: refundErr } = await supabase.from("refunds").insert({
+      id: refundId,
+      order_id: orderId,
+      user_id: order.user_id,
+      amount: totalRefund,
+      reason,
+      status: "completed",
+      created_at: new Date().toISOString(),
+    });
+    if (refundErr) return { error: "Gagal membuat refund: " + refundErr.message };
+
+    for (const item of items) {
+      await supabase.from("refund_items").insert({
+        id: "ri-" + uuid().replace(/-/g, "").slice(0, 22),
+        refund_id: refundId,
+        order_item_id: item.order_item_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        price: item.price,
+        refund_amount: item.refund_amount,
+      });
+    }
+
+    const newPaidTotal = Math.max(0, currentPaid - totalRefund);
+    const newRefundTotal = currentRefund + totalRefund;
+    let newStatus = order.status;
+    if (newPaidTotal <= 0 && ["paid", "ready"].includes(order.status)) {
+      newStatus = "dibatalkan";
+    }
+
+    await supabase.from("orders").update({
+      paid_total: newPaidTotal,
+      refund_total: newRefundTotal,
+      status: newStatus,
+    }).eq("id", orderId);
+
+    for (const item of items) {
+      const { data: orderItem } = await supabase
+        .from("order_items").select("product_id").eq("id", item.order_item_id).single();
+      if (orderItem) {
+        const { data: prod } = await supabase
+          .from("products").select("id, stock, unit").eq("id", orderItem.product_id).single();
+        if (prod) {
+          const newStock = (prod.stock || 0) + item.quantity;
+          await supabase.from("products").update({ stock: newStock }).eq("id", prod.id);
+          await supabase.from("stock_movements").insert({
+            id: uuid(),
+            product_id: prod.id,
+            order_id: orderId,
+            date: new Date().toISOString(),
+            transaction_type: "Retur",
+            invoice_no: 0,
+            party_name: customerName,
+            qty: item.quantity,
+            qty_after: newStock,
+            unit: prod.unit || "pcs",
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    await get().loadOrders();
+    return {};
   },
 
   isOnline: navigator.onLine,

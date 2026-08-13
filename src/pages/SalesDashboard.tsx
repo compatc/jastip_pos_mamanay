@@ -83,6 +83,8 @@ export default function SalesDashboard() {
   const [products, setProducts] = useState<{ name: string; stock: number; cost_price: number; sell_price: number }[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundList, setRefundList] = useState<{ id: string; order_id: string; amount: number; reason: string; created_at: string; customer_name: string }[]>([]);
 
   useEffect(() => {
     loadData();
@@ -91,7 +93,7 @@ export default function SalesDashboard() {
   async function loadData() {
     setLoading(true);
 
-    const [ordersRes, productsRes, expensesRes] = await Promise.all([
+    const [ordersRes, productsRes, expensesRes, refundsRes] = await Promise.all([
       supabase
         .from("orders")
         .select("id, status, total, paid_total, order_type, payment_type, ongkir, notes, created_at, customer_id")
@@ -103,6 +105,10 @@ export default function SalesDashboard() {
       supabase
         .from("expenses")
         .select("id, category, description, amount, expense_date"),
+      supabase
+        .from("refunds")
+        .select("id, order_id, amount, reason, created_at")
+        .order("created_at", { ascending: false }),
     ]);
 
     const orders = ordersRes.data;
@@ -173,6 +179,23 @@ export default function SalesDashboard() {
     }));
 
     setAllOrders(rows);
+
+    if (refundsRes.data && refundsRes.data.length > 0) {
+      const refundOrderIds = [...new Set(refundsRes.data.map((r) => r.order_id))];
+      const { data: refundOrders } = await supabase
+        .from("orders").select("id, customer_id").in("id", refundOrderIds);
+      const refundCustomerMap: Record<string, string> = {};
+      if (refundOrders) {
+        for (const ro of refundOrders) {
+          refundCustomerMap[ro.id] = customerMap[ro.customer_id] || "-";
+        }
+      }
+      setRefundList(refundsRes.data.map((r) => ({
+        ...r,
+        customer_name: refundCustomerMap[r.order_id] || "-",
+      })));
+    }
+
     setLoading(false);
   }
 
@@ -183,7 +206,7 @@ export default function SalesDashboard() {
 
   const totalPenjualan = allOrders
     .filter((o) => o.order_type === "penjualan")
-    .reduce((s, o) => s + o.total, 0);
+    .reduce((s, o) => s + o.total, 0) - refundList.reduce((s, r) => s + r.amount, 0);
 
   const totalPembelian = allOrders
     .filter((o) => o.order_type === "pembelian")
@@ -464,6 +487,42 @@ export default function SalesDashboard() {
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-sm font-extrabold text-amber-600">{rupiahFull(p.sisa)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {refundList.length > 0 && (
+              <div className="bg-white border border-slate-100 rounded-xl p-4 mb-4">
+                <button onClick={() => setShowRefund(!showRefund)} className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800">Refund</h3>
+                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">{refundList.length} refund</span>
+                  </div>
+                  {showRefund ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+                {showRefund && (
+                  <div className="mt-3">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 flex justify-between items-center">
+                      <span className="text-xs font-semibold text-red-700">Total Refund</span>
+                      <span className="text-base font-extrabold text-red-600">-{rupiahFull(refundList.reduce((s, r) => s + r.amount, 0))}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {refundList.map((r) => (
+                        <div key={r.id} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                          <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-sm font-bold text-red-500 flex-shrink-0">
+                            {r.customer_name.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 truncate">{r.customer_name}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{r.reason || "Tanpa alasan"} &middot; {new Date(r.created_at).toLocaleDateString("id-ID")}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-extrabold text-red-600">-{rupiahFull(r.amount)}</p>
                           </div>
                         </div>
                       ))}

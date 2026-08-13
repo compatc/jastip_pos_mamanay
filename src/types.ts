@@ -22,6 +22,7 @@ export interface Order {
   status: OrderStatus;
   total: number;
   paid_total: number;
+  refund_total: number;
   diskon: number;
   order_type: OrderType;
   payment_type: PaymentType;
@@ -113,4 +114,24 @@ export interface AccountTransaction {
   description: string;
   date: string;
   created_at: string;
+}
+
+export interface Refund {
+  id: string;
+  order_id: string;
+  user_id: string;
+  amount: number;
+  reason: string;
+  status: "pending" | "completed" | "cancelled";
+  created_at: string;
+}
+
+export interface RefundItem {
+  id: string;
+  refund_id: string;
+  order_item_id: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+  refund_amount: number;
 }
