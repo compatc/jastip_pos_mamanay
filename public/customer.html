@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mama Nay - Invoice Saya</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -147,9 +146,7 @@
     </div>
   </div>
   <script>
-    var SUPABASE_URL = 'https://tmnykmpdqdavspmirspw.supabase.co';
-    var SUPABASE_ANON_KEY = 'sb_publishable_9WsIm6VwCi3ZtKPpQW4dqA_L9BA7vpF';
-    var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    var API_BASE = window.location.origin;
     var currentCustomer = null;
 
     var phoneInput = document.getElementById('phoneInput');
@@ -188,25 +185,32 @@
       errEl.style.display = 'none';
       btnLogin.disabled = true;
       btnLogin.textContent = 'Mencari...';
-      var res = await sb.from('customers').select('id, name, phone').ilike('phone', '%' + last5).limit(5);
-      var customers = res.data;
-      if (!customers || customers.length === 0) {
-        errEl.textContent = 'Nomor tidak ditemukan. Pastikan nomor HP sudah terdaftar.';
+      try {
+        var res = await fetch(API_BASE + '/api/customer-lookup?phone=' + last5);
+        var data = await res.json();
+        if (!res.ok || !data.customers || data.customers.length === 0) {
+          errEl.textContent = data.error || 'Nomor tidak ditemukan.';
+          errEl.style.display = 'block';
+          btnLogin.disabled = false;
+          btnLogin.textContent = 'Lihat Invoice';
+          return;
+        }
+        if (data.customers.length > 1) {
+          errEl.textContent = 'Ada beberapa akun. Hubungi penjual.';
+          errEl.style.display = 'block';
+          btnLogin.disabled = false;
+          btnLogin.textContent = 'Lihat Invoice';
+          return;
+        }
+        currentCustomer = data.customers[0];
+        localStorage.setItem('mn_customer', JSON.stringify(currentCustomer));
+        showDashboard();
+      } catch(e) {
+        errEl.textContent = 'Error: ' + e.message;
         errEl.style.display = 'block';
         btnLogin.disabled = false;
         btnLogin.textContent = 'Lihat Invoice';
-        return;
       }
-      if (customers.length > 1) {
-        errEl.textContent = 'Ada beberapa akun dengan nomor ini. Hubungi penjual.';
-        errEl.style.display = 'block';
-        btnLogin.disabled = false;
-        btnLogin.textContent = 'Lihat Invoice';
-        return;
-      }
-      currentCustomer = customers[0];
-      localStorage.setItem('mn_customer', JSON.stringify(currentCustomer));
-      showDashboard();
     }
 
     function doLogout() {
@@ -225,20 +229,19 @@
       document.getElementById('qrisScreen').style.display = 'none';
       document.getElementById('customerName').textContent = 'Halo, ' + currentCustomer.name + '!';
       document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Memuat data...</div>';
-      var res = await sb.from('orders').select('id, created_at, total, paid_total, status, notes').eq('customer_id', currentCustomer.id).order('created_at', { ascending: false });
-      var orders = res.data;
-      if (!orders || orders.length === 0) {
+      try {
+        var res = await fetch(API_BASE + '/api/customer-orders?customer_id=' + currentCustomer.id);
+        var data = await res.json();
+        var orders = data.orders || [];
+        var itemsByOrder = data.itemsByOrder || {};
+      } catch(e) {
+        document.getElementById('content').innerHTML = '<div class="empty-state"><p>Error: ' + e.message + '</p></div>';
+        return;
+      }
+      if (orders.length === 0) {
         document.getElementById('content').innerHTML = '<div class="empty-state"><p>Belum ada invoice</p></div>';
         return;
       }
-      var orderIds = orders.map(function(o) { return o.id; });
-      var itemsRes = await sb.from('order_items').select('order_id, product_name, quantity, price, discount').in('order_id', orderIds);
-      var allItems = itemsRes.data || [];
-      var itemsByOrder = {};
-      allItems.forEach(function(item) {
-        if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
-        itemsByOrder[item.order_id].push(item);
-      });
       var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && o.status !== 'dibatalkan'; });
       var ready = orders.filter(function(o) { return o.status === 'ready'; });
       var html = '';
