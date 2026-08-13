@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mama Nay - Invoice Saya</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fafafa;
+      color: #1e293b;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container { width: 100%; max-width: 420px; padding: 16px; }
+    .header { text-align: center; padding: 40px 0 30px; }
+    .header h1 { font-size: 24px; font-weight: 800; color: #1e293b; }
+    .header p { font-size: 14px; color: #94a3b8; margin-top: 4px; }
+    .login-box {
+      background: white; border-radius: 16px; padding: 32px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f1f5f9;
+    }
+    .login-box label { font-size: 13px; font-weight: 600; color: #64748b; display: block; margin-bottom: 8px; }
+    .phone-input { display: flex; gap: 6px; margin-bottom: 8px; }
+    .phone-prefix {
+      background: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 12px;
+      padding: 14px 12px; font-size: 16px; font-weight: 600; color: #64748b;
+      width: 70px; text-align: center;
+    }
+    .phone-input input {
+      flex: 1; border: 2px solid #e2e8f0; border-radius: 12px;
+      padding: 14px 16px; font-size: 20px; font-weight: 700;
+      letter-spacing: 8px; text-align: center; outline: none; transition: border-color 0.2s;
+    }
+    .phone-input input:focus { border-color: #ec4899; }
+    .phone-hint { font-size: 12px; color: #94a3b8; margin-bottom: 20px; }
+    .btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #ec4899, #f43f5e); color: white; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+    .section-title {
+      font-size: 13px; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px;
+    }
+    .card {
+      background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f1f5f9;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .card-id { font-size: 13px; font-weight: 700; color: #ec4899; }
+    .card-date { font-size: 12px; color: #94a3b8; }
+    .card-items { font-size: 13px; color: #475569; line-height: 1.6; }
+    .card-divider { height: 1px; background: #f1f5f9; margin: 10px 0; }
+    .card-totals { display: flex; flex-direction: column; gap: 4px; }
+    .card-row { display: flex; justify-content: space-between; font-size: 13px; }
+    .card-row.total { font-weight: 700; font-size: 15px; color: #1e293b; }
+    .card-row.sisa { font-weight: 700; color: #f43f5e; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    }
+    .status-ready { background: #ecfdf5; color: #059669; }
+    .status-paid { background: #eff6ff; color: #2563eb; }
+    .status-pending { background: #fef3c7; color: #d97706; }
+    .status-unpaid { background: #fef2f2; color: #dc2626; }
+    .btn-pay {
+      width: 100%; padding: 12px; border: none; border-radius: 12px;
+      font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 12px;
+      background: linear-gradient(135deg, #ec4899, #f43f5e); color: white; transition: all 0.2s;
+    }
+    .btn-pay:hover { opacity: 0.9; }
+    .empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+    .empty-state p { font-size: 14px; }
+    .error-msg {
+      background: #fef2f2; color: #dc2626; padding: 12px 16px; border-radius: 12px;
+      font-size: 13px; font-weight: 600; margin-bottom: 16px; display: none;
+    }
+    .user-info {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; margin-bottom: 8px;
+    }
+    .user-info h2 { font-size: 18px; font-weight: 800; }
+    .btn-logout {
+      background: none; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 6px 12px; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer;
+    }
+    .loading { text-align: center; padding: 40px; color: #94a3b8; }
+    .loading .spinner {
+      width: 32px; height: 32px; border: 3px solid #f1f5f9;
+      border-top-color: #ec4899; border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .qris-card {
+      background: white; border-radius: 16px; padding: 24px; text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f1f5f9;
+    }
+    .qris-amount { font-size: 28px; font-weight: 800; color: #1e293b; margin: 12px 0; }
+    .qris-timer { font-size: 13px; color: #94a3b8; margin-top: 12px; }
+    .qris-qr { margin: 16px auto; }
+    .qris-qr img { max-width: 220px; border-radius: 12px; border: 2px solid #f1f5f9; }
+    .qris-info { font-size: 12px; color: #64748b; margin-top: 12px; line-height: 1.8; }
+    .back-btn {
+      background: none; border: none; font-size: 16px; font-weight: 700;
+      color: #1e293b; cursor: pointer; padding: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loginScreen">
+      <div class="header">
+        <h1>Mama Nay</h1>
+        <p>Lihat invoice &amp; status pesanan kamu</p>
+      </div>
+      <div class="login-box">
+        <div class="error-msg" id="loginError"></div>
+        <label>Masukkan 5 digit terakhir nomor HP</label>
+        <div class="phone-input">
+          <div class="phone-prefix">08</div>
+          <input type="tel" id="phoneInput" maxlength="5" placeholder="_ _ _ _ _" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <p class="phone-hint">Contoh: 081234<strong>56789</strong> &rarr; ketik 56789</p>
+        <button class="btn btn-primary" id="btnLogin" disabled>Lihat Invoice</button>
+      </div>
+    </div>
+    <div id="dashboardScreen" style="display:none;">
+      <div class="user-info">
+        <h2 id="customerName">Halo!</h2>
+        <button class="btn-logout" id="btnLogout">Ganti Akun</button>
+      </div>
+      <div id="content">
+        <div class="loading"><div class="spinner"></div>Memuat data...</div>
+      </div>
+    </div>
+    <div id="qrisScreen" style="display:none;">
+      <button class="back-btn" id="btnBack">&larr; Kembali</button>
+      <div id="qrisContent"></div>
+    </div>
+  </div>
+  <script>
+    var SUPABASE_URL = 'https://tmnykmpdqdavspmirspw.supabase.co';
+    var SUPABASE_ANON_KEY = 'sb_publishable_9WsIm6VwCi3ZtKPpQW4dqA_L9BA7vpF';
+    var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    var currentCustomer = null;
+
+    var phoneInput = document.getElementById('phoneInput');
+    var btnLogin = document.getElementById('btnLogin');
+    var btnLogout = document.getElementById('btnLogout');
+    var btnBack = document.getElementById('btnBack');
+
+    phoneInput.addEventListener('input', function(e) {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5);
+      btnLogin.disabled = e.target.value.length < 5;
+    });
+    phoneInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && phoneInput.value.length === 5) doLogin();
+    });
+    btnLogin.addEventListener('click', doLogin);
+    btnLogout.addEventListener('click', doLogout);
+    btnBack.addEventListener('click', showDashboard);
+
+    function fmt(n) {
+      return 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+    }
+    function shortId(id) {
+      return (id || '').slice(0, 8);
+    }
+    function fmtDate(d) {
+      var dt = new Date(d);
+      var days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+      var months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+      return days[dt.getDay()] + ', ' + dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+    }
+
+    async function doLogin() {
+      var last5 = phoneInput.value.trim();
+      if (last5.length < 5) return;
+      var errEl = document.getElementById('loginError');
+      errEl.style.display = 'none';
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Mencari...';
+      var res = await sb.from('customers').select('id, name, phone').ilike('phone', '%' + last5).limit(5);
+      var customers = res.data;
+      if (!customers || customers.length === 0) {
+        errEl.textContent = 'Nomor tidak ditemukan. Pastikan nomor HP sudah terdaftar.';
+        errEl.style.display = 'block';
+        btnLogin.disabled = false;
+        btnLogin.textContent = 'Lihat Invoice';
+        return;
+      }
+      if (customers.length > 1) {
+        errEl.textContent = 'Ada beberapa akun dengan nomor ini. Hubungi penjual.';
+        errEl.style.display = 'block';
+        btnLogin.disabled = false;
+        btnLogin.textContent = 'Lihat Invoice';
+        return;
+      }
+      currentCustomer = customers[0];
+      localStorage.setItem('mn_customer', JSON.stringify(currentCustomer));
+      showDashboard();
+    }
+
+    function doLogout() {
+      localStorage.removeItem('mn_customer');
+      currentCustomer = null;
+      document.getElementById('loginScreen').style.display = '';
+      document.getElementById('dashboardScreen').style.display = 'none';
+      document.getElementById('qrisScreen').style.display = 'none';
+      phoneInput.value = '';
+      btnLogin.disabled = true;
+    }
+
+    async function showDashboard() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboardScreen').style.display = '';
+      document.getElementById('qrisScreen').style.display = 'none';
+      document.getElementById('customerName').textContent = 'Halo, ' + currentCustomer.name + '!';
+      document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Memuat data...</div>';
+      var res = await sb.from('orders').select('id, created_at, total, paid_total, status, notes').eq('customer_id', currentCustomer.id).order('created_at', { ascending: false });
+      var orders = res.data;
+      if (!orders || orders.length === 0) {
+        document.getElementById('content').innerHTML = '<div class="empty-state"><p>Belum ada invoice</p></div>';
+        return;
+      }
+      var orderIds = orders.map(function(o) { return o.id; });
+      var itemsRes = await sb.from('order_items').select('order_id, product_name, quantity, price, discount').in('order_id', orderIds);
+      var allItems = itemsRes.data || [];
+      var itemsByOrder = {};
+      allItems.forEach(function(item) {
+        if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+        itemsByOrder[item.order_id].push(item);
+      });
+      var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && o.status !== 'dibatalkan'; });
+      var ready = orders.filter(function(o) { return o.status === 'ready'; });
+      var html = '';
+      if (unpaid.length > 0) {
+        html += '<div class="section-title">Belum Dibayar</div>';
+        unpaid.forEach(function(o) {
+          html += renderCard(o, itemsByOrder[o.id] || [], true);
+        });
+      }
+      if (ready.length > 0) {
+        html += '<div class="section-title">Siap Diambil</div>';
+        ready.forEach(function(o) {
+          html += renderCard(o, itemsByOrder[o.id] || [], false);
+        });
+      }
+      if (unpaid.length === 0 && ready.length === 0) {
+        var allPaid = orders.filter(function(o) { return o.status !== 'dibatalkan'; });
+        if (allPaid.length > 0) {
+          html += '<div class="section-title">Semua Lunas</div>';
+          allPaid.slice(0, 5).forEach(function(o) {
+            html += renderCard(o, itemsByOrder[o.id] || [], false);
+          });
+        } else {
+          html += '<div class="empty-state"><p>Belum ada invoice</p></div>';
+        }
+      }
+      document.getElementById('content').innerHTML = html;
+      document.querySelectorAll('[data-pay-btn]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var orderId = btn.getAttribute('data-pay-btn');
+          var amount = btn.getAttribute('data-pay-amount');
+          showQris(orderId, amount);
+        });
+      });
+    }
+
+    function renderCard(order, items, showPay) {
+      var sisa = order.total - (order.paid_total || 0);
+      var statusLabel = '';
+      var statusClass = '';
+      if (order.status === 'ready') { statusLabel = 'Ready'; statusClass = 'status-ready'; }
+      else if (order.status === 'dikirim') { statusLabel = 'Dikirim'; statusClass = 'status-paid'; }
+      else if (order.status === 'lunas' || sisa <= 0) { statusLabel = 'Lunas'; statusClass = 'status-paid'; }
+      else { statusLabel = 'Belum Lunas'; statusClass = 'status-unpaid'; }
+      var h = '<div class="card">';
+      h += '<div class="card-header"><span class="card-id">#' + shortId(order.id) + '</span>';
+      h += '<span class="card-date">' + fmtDate(order.created_at) + '</span></div>';
+      h += '<div class="card-items">';
+      items.forEach(function(item) {
+        var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
+        h += item.product_name + ' x' + item.quantity + ' &mdash; ' + fmt(itemTotal) + '<br>';
+      });
+      h += '</div><div class="card-divider"></div>';
+      h += '<div class="card-totals">';
+      h += '<div class="card-row total"><span>Total</span><span>' + fmt(order.total) + '</span></div>';
+      h += '<div class="card-row"><span>Dibayar</span><span>' + fmt(order.paid_total || 0) + '</span></div>';
+      if (sisa > 0) {
+        h += '<div class="card-row sisa"><span>Sisa</span><span>' + fmt(sisa) + '</span></div>';
+      }
+      h += '</div>';
+      h += '<div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">';
+      h += '<span class="status-badge ' + statusClass + '">' + statusLabel + '</span>';
+      if (showPay && sisa > 0) {
+        h += '<button class="btn-pay" style="width:auto;margin:0;padding:8px 20px;" data-pay-btn="' + order.id + '" data-pay-amount="' + sisa + '">Bayar Sekarang</button>';
+      }
+      h += '</div></div>';
+      return h;
+    }
+
+    function showQris(orderId, amount) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboardScreen').style.display = 'none';
+      document.getElementById('qrisScreen').style.display = '';
+      document.getElementById('qrisContent').innerHTML = '<div class="loading"><div class="spinner"></div>Memuat QRIS...</div>';
+      fetch('/api/boqris', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Math.round(Number(amount)), invoice_no: orderId, unique_amount: 1 })
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) {
+          document.getElementById('qrisContent').innerHTML = '<div class="empty-state"><p>Gagal membuat QR: ' + data.error + '</p></div>';
+          return;
+        }
+        var txId = data.transaction_id || '';
+        var qrUrl = data.qr_url || data.qr_string || '';
+        var finalAmount = data.amount || amount;
+        var h = '<div class="qris-card">';
+        h += '<h2 style="font-size:16px;color:#64748b;">Total Pembayaran</h2>';
+        h += '<div class="qris-amount">' + fmt(finalAmount) + '</div>';
+        if (qrUrl) {
+          h += '<div class="qris-qr"><img src="' + qrUrl + '" alt="QRIS"></div>';
+        }
+        h += '<div class="qris-timer">QR berlaku 15 menit</div>';
+        h += '<div class="qris-info">Bayar ke QRIS / QR Code<br>Cantumkan kode unik</div>';
+        h += '</div>';
+        document.getElementById('qrisContent').innerHTML = h;
+        if (txId) pollQrisStatus(txId, orderId);
+      }).catch(function(e) {
+        document.getElementById('qrisContent').innerHTML = '<div class="empty-state"><p>Error: ' + e.message + '</p></div>';
+      });
+    }
+
+    function pollQrisStatus(txId, orderId) {
+      var attempts = 0;
+      var interval = setInterval(function() {
+        attempts++;
+        if (attempts > 180) { clearInterval(interval); return; }
+        fetch('/api/boqris?transaction_id=' + txId).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.status === 'paid') {
+            clearInterval(interval);
+            document.getElementById('qrisContent').innerHTML = '<div class="qris-card"><h2 style="font-size:20px;color:#059669;">Pembayaran Berhasil!</h2><p style="margin-top:8px;color:#64748b;">Invoice #' + shortId(orderId) + ' sudah lunas.</p></div>';
+            setTimeout(function() { showDashboard(); }, 3000);
+          } else if (data.status === 'expired') {
+            clearInterval(interval);
+            document.getElementById('qrisContent').innerHTML = '<div class="qris-card"><h2 style="font-size:20px;color:#dc2626;">QR Expired</h2><p style="margin-top:8px;color:#64748b;">Silakan buat QR baru.</p></div>';
+          }
+        });
+      }, 5000);
+    }
+
+    (function init() {
+      var saved = localStorage.getItem('mn_customer');
+      if (saved) {
+        try {
+          currentCustomer = JSON.parse(saved);
+          if (currentCustomer && currentCustomer.id) {
+            showDashboard();
+            return;
+          }
+        } catch(e) {}
+      }
+    })();
+  </script>
+</body>
+</html>
