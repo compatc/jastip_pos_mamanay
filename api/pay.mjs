@@ -249,14 +249,16 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
   const sisaInvoice = (currentTotal || 0) - (currentPaidTotal || 0);
 
-  // Handle overpayment: if customer pays more than sisa, cap at sisa
-  const effectivePayment = Math.min(shareOfPayment, sisaInvoice);
+  // Kode unik = selisih antara yang dibayar dan sisa invoice
+  const rawDiff = Number(shareOfPayment) - Number(sisaInvoice);
+  const kodeUnik = Math.abs(rawDiff);
+  const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= BOQRIS_UNIQUE_MAX;
 
-  const kodeUnik = Number(sisaInvoice) - Number(effectivePayment);
-  const isKodeUnik = Number(effectivePayment) > 0 && kodeUnik > 0 && kodeUnik <= BOQRIS_UNIQUE_MAX;
   const finalTotal = isKodeUnik ? (currentTotal || 0) - kodeUnik : (currentTotal || 0);
   const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
-  const finalPaid = (currentPaidTotal || 0) + effectivePayment;
+  // Paid = sisaInvoice (atau sisaInvoice - kodeUnik kalau isKodeUnik)
+  const effectivePayment = isKodeUnik ? Math.min(sisaInvoice - kodeUnik, shareOfPayment) : Math.min(shareOfPayment, sisaInvoice);
+  const finalPaid = (currentPaidTotal || 0) + Math.max(0, effectivePayment);
   const paidNote = isKodeUnik
     ? `QRIS ${effectivePayment} (kode unik ${kodeUnik}) (${transactionId.slice(0, 8)})`
     : Number(sisaInvoice) !== Number(effectivePayment)
