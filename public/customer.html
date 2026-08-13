@@ -321,7 +321,7 @@
         });
       }
       if (unpaid.length === 0 && ready.length === 0) {
-        var allPaid = orders.filter(function(o) { return o.status !== 'dibatalkan'; });
+        var allPaid = orders.filter(function(o) { return o.status !== 'dibatalkan' && !['dikirim', 'selesai', 'completed'].includes(o.status); });
         if (allPaid.length > 0) {
           html += '<div class="section-title">Semua Lunas</div>';
           allPaid.slice(0, 5).forEach(function(o) {
