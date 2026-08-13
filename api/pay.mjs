@@ -248,16 +248,24 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
 
   const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
   const sisaInvoice = (currentTotal || 0) - (currentPaidTotal || 0);
-  const kodeUnik = Number(sisaInvoice) - Number(shareOfPayment);
-  const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0 && kodeUnik <= BOQRIS_UNIQUE_MAX;
-  const finalTotal = currentTotal || 0;
+
+  // Handle overpayment: if customer pays more than sisa, cap at sisa
+  const effectivePayment = Math.min(shareOfPayment, sisaInvoice);
+
+  const kodeUnik = Number(sisaInvoice) - Number(effectivePayment);
+  const isKodeUnik = Number(effectivePayment) > 0 && kodeUnik > 0 && kodeUnik <= BOQRIS_UNIQUE_MAX;
+  const finalTotal = isKodeUnik ? (currentTotal || 0) - kodeUnik : (currentTotal || 0);
   const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
-  const finalPaid = (currentPaidTotal || 0) + shareOfPayment;
+  const finalPaid = (currentPaidTotal || 0) + effectivePayment;
   const paidNote = isKodeUnik
-    ? `QRIS ${shareOfPayment} (kode unik ${kodeUnik}) (${transactionId.slice(0, 8)})`
-    : Number(sisaInvoice) !== Number(shareOfPayment)
-      ? `QRIS ${shareOfPayment} (sisa ${sisaInvoice}) (${transactionId.slice(0, 8)})`
+    ? `QRIS ${effectivePayment} (kode unik ${kodeUnik}) (${transactionId.slice(0, 8)})`
+    : Number(sisaInvoice) !== Number(effectivePayment)
+      ? `QRIS ${effectivePayment} (sisa ${sisaInvoice}) (${transactionId.slice(0, 8)})`
       : `QRIS ${noteAmount} (${transactionId.slice(0, 8)})`;
+
+  if (shareOfPayment > sisaInvoice) {
+    console.log(`[OVERPAY] Order ${orderId}: paid ${shareOfPayment} > sisa ${sisaInvoice}, capped to ${effectivePayment}`);
+  }
 
   // Optimistic lock: hanya 1 yang berhasil update per order, sehingga
   // konfirmasi ganda (polling app + webhook) tidak mengkredit 2x.
