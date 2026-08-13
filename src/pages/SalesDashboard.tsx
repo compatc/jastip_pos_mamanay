@@ -332,6 +332,40 @@ export default function SalesDashboard() {
     URL.revokeObjectURL(url);
   }
 
+  function handleExportDetail() {
+    const rows: string[][] = [
+      ["Order ID", "Tanggal", "Customer", "Produk", "Qty", "Harga Satuan", "Total", "Status", "Pembayaran"],
+    ];
+    for (const o of filtered) {
+      if (o.items.length === 0) {
+        rows.push([o.id.slice(0, 8), o.date, o.contact_name, "-", "0", rupiahFull(0), rupiahFull(o.total), o.status, o.payment_type]);
+      } else {
+        for (const item of o.items) {
+          const itemTotal = (item.price - item.discount) * item.quantity;
+          rows.push([
+            o.id.slice(0, 8),
+            o.date,
+            o.contact_name,
+            item.product_name,
+            String(item.quantity),
+            rupiahFull(item.price - item.discount),
+            rupiahFull(itemTotal),
+            o.status,
+            o.payment_type,
+          ]);
+        }
+      }
+    }
+    const csv = "\uFEFF" + rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `order-per-produk-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <main className="px-4 py-4 relative z-10 flex-1 overflow-y-auto pb-6">
@@ -344,13 +378,22 @@ export default function SalesDashboard() {
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-xl font-extrabold text-slate-800">Laporan</h1>
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Export Excel
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportDetail}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-pink-200 bg-pink-50 text-pink-600 hover:bg-pink-100 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Order/Produk
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export Excel
+                </button>
+              </div>
             </div>
 
             {/* Metrics */}
