@@ -197,6 +197,14 @@ export default function OrderDetail() {
     });
   }
 
+  function updateRefundAmount(idx: number, amount: number) {
+    setRefundItems((prev) => {
+      const next = [...prev];
+      next[idx].refund_amount = Math.max(0, amount);
+      return next;
+    });
+  }
+
   async function handleRefund() {
     const selected = refundItems.filter((i) => i.quantity > 0);
     if (selected.length === 0) { setRefundError("Pilih minimal 1 produk"); return; }
@@ -588,18 +596,29 @@ export default function OrderDetail() {
             <p className="text-xs text-gray-400 mb-3">Sisa refundable: <span className="font-bold text-amber-500">{rupiah(refundable)}</span></p>
             <div className="flex-1 overflow-y-auto space-y-2 mb-3">
               {refundItems.map((ri, idx) => (
-                <div key={ri.order_item_id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{ri.product_name}</p>
-                    <p className="text-[10px] text-gray-400">{rupiah(ri.price)} / pcs (max {ri.max_qty})</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => updateRefundQty(idx, ri.quantity - 1)} className="w-7 h-7 rounded bg-gray-200 text-gray-600 font-bold text-sm">-</button>
-                    <span className="w-8 text-center text-sm font-bold">{ri.quantity}</span>
-                    <button onClick={() => updateRefundQty(idx, ri.quantity + 1)} className="w-7 h-7 rounded bg-gray-200 text-gray-600 font-bold text-sm">+</button>
+                <div key={ri.order_item_id} className="p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{ri.product_name}</p>
+                      <p className="text-[10px] text-gray-400">{rupiah(ri.price)} / pcs (max {ri.max_qty})</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => updateRefundQty(idx, ri.quantity - 1)} className="w-7 h-7 rounded bg-gray-200 text-gray-600 font-bold text-sm">-</button>
+                      <span className="w-8 text-center text-sm font-bold">{ri.quantity}</span>
+                      <button onClick={() => updateRefundQty(idx, ri.quantity + 1)} className="w-7 h-7 rounded bg-gray-200 text-gray-600 font-bold text-sm">+</button>
+                    </div>
                   </div>
                   {ri.quantity > 0 && (
-                    <span className="text-xs font-bold text-red-400 w-20 text-right">-{rupiah(ri.refund_amount)}</span>
+                    <div className="flex items-center gap-1 mt-1.5 pl-0.5">
+                      <span className="text-[10px] text-gray-400">Refund:</span>
+                      <input
+                        type="number"
+                        value={ri.refund_amount}
+                        onChange={(e) => updateRefundAmount(idx, Number(e.target.value))}
+                        className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs font-bold text-red-500 text-right"
+                      />
+                      <span className="text-[10px] text-gray-400">Rp</span>
+                    </div>
                   )}
                 </div>
               ))}
@@ -614,6 +633,12 @@ export default function OrderDetail() {
               />
             </div>
             {refundError && <p className="text-xs text-red-500 font-semibold mb-2">{refundError}</p>}
+            {refundItems.filter(i => i.quantity > 0).length > 0 && (
+              <div className="flex justify-between items-center mb-2 px-1">
+                <span className="text-xs text-gray-400">Total Refund</span>
+                <span className="text-sm font-extrabold text-red-500">-{rupiah(refundItems.reduce((s, i) => s + i.refund_amount, 0))}</span>
+              </div>
+            )}
             <div className="flex gap-3">
               <button onClick={() => setShowRefund(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl text-sm">Batal</button>
               <button onClick={handleRefund} disabled={refundLoading} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm disabled:opacity-50">
