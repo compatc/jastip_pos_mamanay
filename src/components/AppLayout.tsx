@@ -180,7 +180,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       <div className="absolute -bottom-1.5 w-4 h-[3px] rounded-full bg-pink-500" />
                     )}
                   </div>
-                  <span className={`text-[10px] leading-tight ${active ? "font-bold" : "font-medium"}`}>
+                  <span className={`text-[10px] md:text-xs leading-tight ${active ? "font-bold" : "font-medium"}`}>
                     {label}
                   </span>
                 </button>
