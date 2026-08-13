@@ -243,7 +243,7 @@
         return;
       }
       var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && o.status !== 'dibatalkan'; });
-      var ready = orders.filter(function(o) { return o.status === 'ready'; });
+      var ready = orders.filter(function(o) { return o.status === 'ready' && (o.total - (o.paid_total || 0)) <= 0; });
       var html = '';
       if (unpaid.length > 0) {
         html += '<div class="section-title">Belum Dibayar</div>';
