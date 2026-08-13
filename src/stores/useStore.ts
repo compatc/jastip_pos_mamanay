@@ -1235,8 +1235,8 @@ export const useStore = create<PosStore>((set, get) => ({
 
     const currentRefund = order.refund_total || 0;
     const currentPaid = order.paid_total || 0;
-    if (currentRefund + totalRefund > currentPaid) {
-      return { error: "Total refund melebihi jumlah yang dibayar" };
+    if (currentRefund + totalRefund > order.total) {
+      return { error: "Total refund melebihi total order" };
     }
 
     let customerName = "";
@@ -1269,17 +1269,15 @@ export const useStore = create<PosStore>((set, get) => ({
       });
     }
 
-    const newPaidTotal = Math.max(0, currentPaid - totalRefund);
     const newTotal = Math.max(0, order.total - totalRefund);
     const newRefundTotal = currentRefund + totalRefund;
     let newStatus = order.status;
-    if (newPaidTotal <= 0 && ["paid", "ready"].includes(order.status)) {
+    if (newTotal <= 0 && ["paid", "ready"].includes(order.status)) {
       newStatus = "dibatalkan";
     }
 
     await supabase.from("orders").update({
       total: newTotal,
-      paid_total: newPaidTotal,
       refund_total: newRefundTotal,
       status: newStatus,
     }).eq("id", orderId);
