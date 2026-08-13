@@ -294,45 +294,6 @@ export default function SalesDashboard() {
     })
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
-  function handleExport() {
-    const rows: string[][] = [
-      ["LAPORAN POS NAY"],
-      [""],
-      ["Ringkasan"],
-      ["Penjualan", rupiahFull(totalPenjualan)],
-      ["Pembelian", rupiahFull(totalPembelian)],
-      ["Laba Bersih", rupiahFull(laba)],
-      ["Item Terjual", totalItemTerjual.toString()],
-      [""],
-      ["Rincian Laba per Item"],
-      ["Produk", "Qty", "Penjualan", "Modal", "Laba"],
-    ];
-    for (const ip of itemProfits) {
-      rows.push([ip.product_name, String(ip.total_qty), rupiahFull(ip.total_jual), rupiahFull(ip.total_modal), rupiahFull(ip.total_laba)]);
-    }
-    rows.push([""]);
-    rows.push(["Piutang"]);
-    rows.push(["Pelanggan", "Order ID", "Total", "Dibayar", "Sisa"]);
-    for (const p of piutangList) {
-      rows.push([p.customer_name, p.order_id.slice(0, 8), rupiahFull(p.total), rupiahFull(p.paid), rupiahFull(p.sisa)]);
-    }
-    rows.push([""]);
-    rows.push(["Produk Terlaris"]);
-    rows.push(["Produk", "Qty Terjual", "Revenue"]);
-    for (const tp of topProduks) {
-      rows.push([tp.name, String(tp.qty), rupiahFull(tp.revenue)]);
-    }
-
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `laporan-pos-nay-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function handleExportDetail() {
     if (!selectedProduct) {
       alert("Pilih produk dulu!");
@@ -393,13 +354,6 @@ export default function SalesDashboard() {
                 >
                   <Download className="w-3.5 h-3.5" />
                   Export
-                </button>
-                <button
-                  onClick={handleExport}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Excel
                 </button>
               </div>
             </div>
