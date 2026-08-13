@@ -14,7 +14,7 @@ async function getBotApiUrl(): Promise<string> {
   } catch (e) {
     console.error("getBotApiUrl fetch error:", e);
   }
-  return "http://localhost:3001";
+  return "http://localhost:3002";
 }
 import {
   Search,

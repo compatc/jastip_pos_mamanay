@@ -25,8 +25,13 @@ export default async function handler(req, res) {
   try {
     const sb = await getAdmin();
     const results = await reconcilePending(sb);
+    const paid = results.filter(r => r.status === "paid").length;
+    const expired = results.filter(r => r.status === "expired").length;
+    const pending = results.filter(r => r.status === "pending").length;
+    console.log(`[RECONCILE] Processed: ${results.length} | paid: ${paid} | expired: ${expired} | pending: ${pending}`);
     json(res, 200, { ok: true, processed: results.length, results });
   } catch (err) {
+    console.error("[RECONCILE] Error:", err.message);
     json(res, 500, { error: err.message || "Terjadi kesalahan" });
   }
 }

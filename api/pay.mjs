@@ -356,6 +356,10 @@ export async function reconcilePending(sb, limit = 30) {
     try {
       const bo = await checkBoqrisTransaction(g.transaction_id);
       if (bo.status !== "paid") {
+        if (bo.status === "expired") {
+          await sb.from("qris_payments").update({ status: "expired" }).eq("id", g.id);
+          console.log("[RECONCILE] Marked expired:", g.id, "txId:", g.transaction_id);
+        }
         results.push({ id: g.id, status: bo.status || "pending" });
         continue;
       }
@@ -472,11 +476,15 @@ export default async function handler(req, res) {
 
     if (body.event || body.type === "payment.success" || body.type === "payment.expired") {
       const event = body.event || body.type;
+      console.log("[WEBHOOK] Received:", event, "txId:", body.data?.transaction_id || body.transaction_id, "invoice:", body.data?.invoice_no || body.invoice_no);
       if (!verifyWebhook(rawBody, req.headers["x-boqris-signature"])) {
+        console.log("[WEBHOOK] Signature FAILED. Header:", req.headers["x-boqris-signature"]?.slice(0, 20) + "...", "rawBody length:", rawBody.length);
         json(res, 401, { error: "Signature tidak valid" });
         return;
       }
+      console.log("[WEBHOOK] Signature OK");
       if (event !== "payment.success") {
+        console.log("[WEBHOOK] Ignoring event:", event);
         json(res, 200, { received: true });
         return;
       }
