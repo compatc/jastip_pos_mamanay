@@ -506,6 +506,7 @@ export default async function handler(req, res) {
           json(res, 200, { status: bo.status || "pending", confirmed: false });
           return;
         }
+        await sb.from("qris_payments").update({ status: "paid" }).eq("id", group.id);
         const { data: grpOrders } = await sb
           .from("orders")
           .select("id, total, paid_total")
@@ -527,7 +528,6 @@ export default async function handler(req, res) {
           }
           results.push({ orderId: group.order_ids[gi], ...r });
         }
-        await sb.from("qris_payments").update({ status: "paid" }).eq("id", group.id);
         const fresh = results.filter((r) => r.confirmed && !r.already);
         if (fresh.length > 0) {
           const paidAmount = Number(bo.amount || bo.base_amount || 0);
