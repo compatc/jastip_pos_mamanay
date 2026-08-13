@@ -1,5 +1,4 @@
 const BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
-const UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
 const EXPIRES_IN = Math.min(Math.max(Number(process.env.BOQRIS_EXPIRES_IN || 3600) || 3600, 60), 3600);
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
@@ -79,62 +78,54 @@ export default async function handler(req, res) {
       if (body.expires_in) basePayload.expires_in = Math.min(Math.max(Number(body.expires_in) || 900, 60), 3600);
 
       const useUniqueAmount = Number(body.unique_amount ?? 0) === 1;
-      let lastStatus = 0;
-      let lastData = null;
-      const MAX_RETRIES = useUniqueAmount ? 1 : Math.min(UNIQUE_MAX, 10);
       const FETCH_TIMEOUT_MS = 5000;
 
-      const attempts = useUniqueAmount ? [0] : Array.from({ length: MAX_RETRIES }, (_, i) => i + 1);
-      for (const code of attempts) {
-        const qrAmount = amount - code;
-        if (qrAmount <= 0) break;
-        const payload = {
-          ...basePayload,
-          amount: qrAmount,
-          unique_amount: useUniqueAmount,
-        };
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-        try {
-          const bo = await fetch(`${BASE}/api/v1/transactions`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-          });
-          clearTimeout(timer);
-          const data = await bo.json();
-          lastStatus = bo.status;
-          lastData = data;
-
-          if (bo.status === 201) {
-            data.requested_amount = amount;
-            data.custom_unique_code = useUniqueAmount ? (data.unique_code ?? 0) : code;
-            if (orderIds && orderIds.length > 1 && invoiceNo) {
-              const sb = getSb();
-              await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);
-            }
-            json(res, 201, data);
-            return;
-          }
-          if (bo.status !== 409) {
-            json(res, bo.status, data);
-            return;
-          }
-        } catch (err) {
-          clearTimeout(timer);
-          if (err.name === "AbortError") {
-            json(res, 504, { error: "BOQris API timeout, coba lagi nanti" });
-            return;
-          }
-          throw err;
-        }
+      const code = useUniqueAmount ? Math.floor(Math.random() * 100) + 1 : 0;
+      const qrAmount = amount - code;
+      if (qrAmount <= 0) {
+        json(res, 400, { error: "Amount terlalu kecil untuk kode unik" });
+        return;
       }
+      const payload = {
+        ...basePayload,
+        amount: qrAmount,
+        unique_amount: useUniqueAmount,
+      };
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      try {
+        const bo = await fetch(`${BASE}/api/v1/transactions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        const data = await bo.json();
 
-      json(res, lastStatus, lastData || { error: "Semua kode unik terpakai, coba lagi nanti" });
+        if (bo.status === 201) {
+          data.requested_amount = amount;
+          data.custom_unique_code = code;
+          data.amount = qrAmount;
+          if (orderIds && orderIds.length > 1 && invoiceNo) {
+            const sb = getSb();
+            await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);
+          }
+          json(res, 201, data);
+          return;
+        }
+        json(res, bo.status, data);
+      } catch (err) {
+        clearTimeout(timer);
+        if (err.name === "AbortError") {
+          json(res, 504, { error: "BOQris API timeout, coba lagi nanti" });
+          return;
+        }
+        throw err;
+      }
       return;
     }
 

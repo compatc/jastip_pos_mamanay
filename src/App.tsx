@@ -120,7 +120,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          {/* <Route path="/register" element={<Register />} /> */}
           <Route path="/pay/:orderId" element={<PayOrder />} />
           <Route path="/pay" element={<PayOrder />} />
           <Route

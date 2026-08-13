@@ -1308,7 +1308,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    await get().loadOrders();
+    await get().loadAllOrders();
     return {};
   },
 

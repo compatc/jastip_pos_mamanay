@@ -151,7 +151,7 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
   const FETCH_TIMEOUT_MS = 5000;
-  const code = Math.floor(Math.random() * 10) + 1;
+  const code = Math.floor(Math.random() * 100) + 1;
   const qrAmount = amount - code;
 
   const payload = { ...basePayload, amount: qrAmount };

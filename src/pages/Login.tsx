@@ -153,12 +153,12 @@ export default function Login() {
             </div>
           )}
 
-          <p className="text-center text-gray-400 text-sm mt-6">
+          {/* <p className="text-center text-gray-400 text-sm mt-6">
             Belum punya akun?{" "}
             <Link to="/register" className="text-pink-500 font-semibold hover:text-pink-600">
               Daftar
             </Link>
-          </p>
+          </p> */}
         </div>
       </div>
     </div>
