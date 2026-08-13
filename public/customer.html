@@ -292,7 +292,7 @@
         document.getElementById('content').innerHTML = '<div class="empty-state"><p>Belum ada invoice</p></div>';
         return;
       }
-      var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && o.status !== 'dibatalkan'; });
+      var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && !['dibatalkan', 'deleted'].includes(o.status); });
       var ready = orders.filter(function(o) { return o.status === 'ready' && (o.total - (o.paid_total || 0)) <= 0; });
       unpaidOrders = unpaid;
       selectedOrders = {};
@@ -321,7 +321,7 @@
         });
       }
       if (unpaid.length === 0 && ready.length === 0) {
-        var allPaid = orders.filter(function(o) { return o.status !== 'dibatalkan' && !['dikirim', 'selesai', 'completed'].includes(o.status); });
+        var allPaid = orders.filter(function(o) { return !['dibatalkan', 'deleted', 'dikirim', 'selesai', 'completed'].includes(o.status); });
         if (allPaid.length > 0) {
           html += '<div class="section-title">Semua Lunas</div>';
           allPaid.slice(0, 5).forEach(function(o) {
