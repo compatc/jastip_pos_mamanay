@@ -82,6 +82,7 @@ export default function SalesDashboard() {
   const [chartMode, setChartMode] = useState<"daily" | "monthly">("daily");
   const [products, setProducts] = useState<{ name: string; stock: number; cost_price: number; sell_price: number }[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
 
   useEffect(() => {
     loadData();
@@ -333,25 +334,22 @@ export default function SalesDashboard() {
   }
 
   function handleExportDetail() {
+    if (!selectedProduct) {
+      alert("Pilih produk dulu!");
+      return;
+    }
     const rows: string[][] = [
-      ["Order ID", "Tanggal", "Customer", "Produk", "Qty", "Harga Satuan", "Total", "Status", "Pembayaran"],
+      ["Nama Pelanggan", "Harga", "Qty", "Total Harga"],
     ];
     for (const o of filtered) {
-      if (o.items.length === 0) {
-        rows.push([o.id.slice(0, 8), o.date, o.contact_name, "-", "0", rupiahFull(0), rupiahFull(o.total), o.status, o.payment_type]);
-      } else {
-        for (const item of o.items) {
+      for (const item of o.items) {
+        if (item.product_name === selectedProduct) {
           const itemTotal = (item.price - item.discount) * item.quantity;
           rows.push([
-            o.id.slice(0, 8),
-            o.date,
             o.contact_name,
-            item.product_name,
-            String(item.quantity),
             rupiahFull(item.price - item.discount),
+            String(item.quantity),
             rupiahFull(itemTotal),
-            o.status,
-            o.payment_type,
           ]);
         }
       }
@@ -361,7 +359,7 @@ export default function SalesDashboard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `order-per-produk-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `${selectedProduct.replace(/\s+/g, "_")}-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -378,20 +376,30 @@ export default function SalesDashboard() {
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-xl font-extrabold text-slate-800">Laporan</h1>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedProduct}
+                  onChange={(e) => setSelectedProduct(e.target.value)}
+                  className="px-3 py-2 rounded-xl text-xs font-bold border border-pink-200 bg-pink-50 text-pink-600 max-w-[140px]"
+                >
+                  <option value="">Pilih Produk</option>
+                  {products.map((p) => (
+                    <option key={p.name} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
                 <button
                   onClick={handleExportDetail}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-pink-200 bg-pink-50 text-pink-600 hover:bg-pink-100 transition-all"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Order/Produk
+                  Export
                 </button>
                 <button
                   onClick={handleExport}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Export Excel
+                  Excel
                 </button>
               </div>
             </div>
