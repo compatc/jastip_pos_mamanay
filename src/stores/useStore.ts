@@ -1270,6 +1270,7 @@ export const useStore = create<PosStore>((set, get) => ({
     }
 
     const newPaidTotal = Math.max(0, currentPaid - totalRefund);
+    const newTotal = Math.max(0, order.total - totalRefund);
     const newRefundTotal = currentRefund + totalRefund;
     let newStatus = order.status;
     if (newPaidTotal <= 0 && ["paid", "ready"].includes(order.status)) {
@@ -1277,6 +1278,7 @@ export const useStore = create<PosStore>((set, get) => ({
     }
 
     await supabase.from("orders").update({
+      total: newTotal,
       paid_total: newPaidTotal,
       refund_total: newRefundTotal,
       status: newStatus,
