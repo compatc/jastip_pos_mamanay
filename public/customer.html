@@ -246,6 +246,12 @@
       var ready = orders.filter(function(o) { return o.status === 'ready' && (o.total - (o.paid_total || 0)) <= 0; });
       var html = '';
       if (unpaid.length > 0) {
+        var grandTotal = unpaid.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
+        html += '<div class="card" style="background:linear-gradient(135deg,#ec4899,#f43f5e);color:white;text-align:center;">';
+        html += '<div style="font-size:11px;font-weight:600;opacity:0.8;text-transform:uppercase;letter-spacing:1px;">Total yang harus dibayar</div>';
+        html += '<div style="font-size:24px;font-weight:800;margin:4px 0;">' + fmt(grandTotal) + '</div>';
+        html += '<div style="font-size:11px;opacity:0.7;">' + unpaid.length + ' invoice belum lunas</div>';
+        html += '</div>';
         html += '<div class="section-title">Belum Dibayar</div>';
         unpaid.forEach(function(o) {
           html += renderCard(o, itemsByOrder[o.id] || [], true);
