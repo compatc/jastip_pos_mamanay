@@ -105,11 +105,13 @@ export default async function handler(req, res) {
         });
         clearTimeout(timer);
         const data = await bo.json();
+        console.log("[BOQRIS] Response:", JSON.stringify({ status: bo.status, amount: data.amount, base_amount: data.base_amount, requested_amount: data.requested_amount }));
 
         if (bo.status === 201) {
           data.requested_amount = amount;
           data.custom_unique_code = code;
           data.amount = qrAmount;
+          console.log("[BOQRIS] Final amount sent to client:", qrAmount, "(code:", code, ")");
           if (orderIds && orderIds.length > 1 && invoiceNo) {
             const sb = getSb();
             await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);

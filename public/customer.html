@@ -779,7 +779,7 @@
         }
         var txId = data.transaction_id || '';
         var qrUrl = data.qr_url || data.qr_string || '';
-        var finalAmount = data.amount || amount;
+        var finalAmount = data.amount != null ? data.amount : amount;
         var h = '<div class="qris-card">';
         h += '<div class="qris-label">Total Pembayaran</div>';
         h += '<div class="qris-invoice">' + label + '</div>';
