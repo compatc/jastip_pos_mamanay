@@ -94,8 +94,12 @@ export default function Dashboard() {
 
   async function handleEditSave() {
     if (!editId || !editName.trim() || !editPhone.trim()) return;
-    await updateCustomer(editId, editName.trim(), editPhone.trim(), editAddress.trim(), editCategory);
-    setEditId(null);
+    try {
+      await updateCustomer(editId, editName.trim(), editPhone.trim(), editAddress.trim(), editCategory);
+      setEditId(null);
+    } catch (e: any) {
+      alert("Gagal simpan: " + (e.message || e));
+    }
   }
 
   async function handleBackup() {
