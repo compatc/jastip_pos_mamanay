@@ -653,7 +653,7 @@
       }
       var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && !['dibatalkan', 'deleted'].includes(o.status); });
       var ready = orders.filter(function(o) { return o.status === 'ready' && (o.total - (o.paid_total || 0)) <= 0; });
-      var processing = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) <= 0 && ['new', 'belum-ready'].includes(o.status); });
+      var processing = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) <= 0 && !['ready', 'dikirim', 'selesai', 'completed', 'dibatalkan', 'deleted'].includes(o.status); });
       unpaidOrders = unpaid;
       selectedOrders = {};
       document.getElementById('customerSubtitle').textContent = unpaid.length > 0 ? unpaid.length + ' invoice belum lunas' : processing.length > 0 ? processing.length + ' pesanan sedang diproses' : 'Semua sudah lunas';
