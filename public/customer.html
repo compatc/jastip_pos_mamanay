@@ -653,9 +653,10 @@
       }
       var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && !['dibatalkan', 'deleted'].includes(o.status); });
       var ready = orders.filter(function(o) { return o.status === 'ready' && (o.total - (o.paid_total || 0)) <= 0; });
+      var processing = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) <= 0 && ['new', 'belum-ready'].includes(o.status); });
       unpaidOrders = unpaid;
       selectedOrders = {};
-      document.getElementById('customerSubtitle').textContent = unpaid.length > 0 ? unpaid.length + ' invoice belum lunas' : 'Semua sudah lunas';
+      document.getElementById('customerSubtitle').textContent = unpaid.length > 0 ? unpaid.length + ' invoice belum lunas' : processing.length > 0 ? processing.length + ' pesanan sedang diproses' : 'Semua sudah lunas';
       var html = '';
       if (unpaid.length > 0) {
         var grandTotal = unpaid.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
@@ -686,7 +687,16 @@
           html += renderCard(o, itemsByOrder[o.id] || [], false);
         });
       }
-      if (unpaid.length === 0 && ready.length === 0) {
+      if (processing.length > 0) {
+        html += '<div class="ready-banner" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-color:#93c5fd;">';
+        html += '<div class="ready-banner-icon" style="background:#2563eb;">&#9203;</div>';
+        html += '<div class="ready-banner-text"><h3 style="color:#1e40af;">Sedang Diproses</h3><p style="color:#2563eb;">' + processing.length + ' pesanan sudah dibayar, menunggu ready</p></div>';
+        html += '</div>';
+        processing.forEach(function(o) {
+          html += renderCard(o, itemsByOrder[o.id] || [], false);
+        });
+      }
+      if (unpaid.length === 0 && ready.length === 0 && processing.length === 0) {
         var allPaid = orders.filter(function(o) { return !['dibatalkan', 'deleted', 'dikirim', 'selesai', 'completed'].includes(o.status); });
         if (allPaid.length > 0) {
           html += '<div class="section-title" style="margin-top:0;">Semua Lunas</div>';
