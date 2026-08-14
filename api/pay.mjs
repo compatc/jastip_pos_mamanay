@@ -234,7 +234,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   }
 
   const now = new Date().toISOString();
-  const newStatus = order.status === "ready" ? "paid" : order.status;
+  const newStatus = order.status;
 
   let contactName = "";
   if (order.customer_id) {
