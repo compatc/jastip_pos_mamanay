@@ -811,6 +811,11 @@
             clearInterval(interval);
             var label = ids.length > 1 ? ids.length + ' invoice' : '#' + shortId(ids[0]);
             document.getElementById('qrisContent').innerHTML = '<div class="qris-card"><div class="qris-success"><div class="success-icon">&#10003;</div><h2>Pembayaran Berhasil!</h2><p>Invoice ' + label + ' sudah lunas.</p></div></div>';
+            fetch('/api/pay', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'confirm', transaction_id: txId, invoice_no: orderIds })
+            }).catch(function() {});
             setTimeout(function() { showDashboard(); }, 3000);
           } else if (data.status === 'expired') {
             clearInterval(interval);
