@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       const payload = {
         ...basePayload,
         amount: qrAmount,
-        unique_amount: useUniqueAmount,
+        unique_amount: false,
       };
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
