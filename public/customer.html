@@ -1482,7 +1482,7 @@
           alert('Berhasil! Diskon Rp' + data.discount.toLocaleString('id-ID') + ' telah ditambahkan. Poin tersisa: ' + data.newPoints.toLocaleString('id-ID'));
           closeRedeemModal();
           loadLoyaltyPoints(currentCustomer.id);
-          loadOrders();
+          showDashboard();
         } else {
           alert(data.error || 'Gagal menukar poin');
           btn.disabled = false;
