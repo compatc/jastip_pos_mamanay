@@ -653,6 +653,7 @@ export default function Orders() {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${BOT_API_TOKEN}`,
+          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({ invoices }),
       });
@@ -775,6 +776,7 @@ export default function Orders() {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${BOT_API_TOKEN}`,
+          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({ invoices }),
       });
