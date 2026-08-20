@@ -1363,43 +1363,31 @@
       document.getElementById('tfSubmitBtn').disabled = true;
       document.getElementById('tfSubmitBtn').textContent = 'Mengirim...';
 
-        var orderIds = tfOrderId.split(',');
-        var perOrder = Math.floor(tfSisa / orderIds.length);
-        var remainder = tfSisa - (perOrder * orderIds.length);
-
-        function sendOne(oid, amount) {
-          var fd = new FormData();
-          fd.append('order_id', oid.trim());
-          fd.append('customer_id', currentCustomer.id);
-          fd.append('amount', amount);
-          fd.append('transfer_date', tanggal);
-          fd.append('bukti', file);
-          return fetch('/api/payment-confirm', {
-            method: 'POST',
-            body: fd
-          }).then(function(r) { return r.json(); });
-        }
-
-        var chain = Promise.resolve();
-        orderIds.forEach(function(oid, idx) {
-          var amount = perOrder + (idx === 0 ? remainder : 0);
-          chain = chain.then(function() { return sendOne(oid, amount); });
-        });
-
-        chain.then(function(data) {
-          if (data && data.error) {
-            alert('Error: ' + data.error);
-            document.getElementById('tfSubmitBtn').disabled = false;
-            document.getElementById('tfSubmitBtn').textContent = 'Kirim Bukti Transfer';
-            return;
-          }
-          document.getElementById('tfForm').style.display = 'none';
-          document.getElementById('tfSuccess').style.display = '';
-        }).catch(function(e) {
-          alert('Gagal mengirim: ' + e.message);
+      var orderIds = tfOrderId.split(',');
+      var fd = new FormData();
+      fd.append('order_id', orderIds[0].trim());
+      fd.append('order_ids', tfOrderId);
+      fd.append('customer_id', currentCustomer.id);
+      fd.append('amount', tfSisa);
+      fd.append('transfer_date', tanggal);
+      fd.append('bukti', file);
+      fetch('/api/payment-confirm', {
+        method: 'POST',
+        body: fd
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data && data.error) {
+          alert('Error: ' + data.error);
           document.getElementById('tfSubmitBtn').disabled = false;
           document.getElementById('tfSubmitBtn').textContent = 'Kirim Bukti Transfer';
-        });
+          return;
+        }
+        document.getElementById('tfForm').style.display = 'none';
+        document.getElementById('tfSuccess').style.display = '';
+      }).catch(function(e) {
+        alert('Gagal mengirim: ' + e.message);
+        document.getElementById('tfSubmitBtn').disabled = false;
+        document.getElementById('tfSubmitBtn').textContent = 'Kirim Bukti Transfer';
+      });
     }
 
     async function loadLoyaltyPoints(customerId) {

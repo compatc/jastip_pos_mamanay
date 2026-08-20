@@ -104,31 +104,44 @@ export default async function handler(req, res) {
       if (action === "approve") {
         const { data: conf } = await sb
           .from("payment_confirmations")
-          .select("order_id, amount")
+          .select("order_id, order_ids, amount")
           .eq("id", id)
           .single();
 
-        if (conf?.order_id) {
+        const allOrderIds = conf?.order_ids
+          ? conf.order_ids.split(",").map((s) => s.trim()).filter(Boolean)
+          : conf?.order_id
+          ? [conf.order_id]
+          : [];
+        const totalAmount = conf?.amount || 0;
+        const perOrder = allOrderIds.length > 0 ? Math.floor(totalAmount / allOrderIds.length) : 0;
+        const remainder = allOrderIds.length > 0 ? totalAmount - perOrder * allOrderIds.length : 0;
+
+        for (let i = 0; i < allOrderIds.length; i++) {
+          const oid = allOrderIds[i];
+          const share = perOrder + (i === 0 ? remainder : 0);
+
           const { data: order } = await sb
             .from("orders")
             .select("paid_total, total")
-            .eq("id", conf.order_id)
+            .eq("id", oid)
             .single();
 
-          const newPaidTotal = (order?.paid_total || 0) + (conf?.amount || 0);
-          const clamped = Math.min(newPaidTotal, order?.total || 0);
-          const newPaymentStatus = clamped >= (order?.total || 0) ? "paid" : clamped > 0 ? "dp" : "unpaid";
+          if (!order) continue;
+          const newPaidTotal = (order.paid_total || 0) + share;
+          const clamped = Math.min(newPaidTotal, order.total || 0);
+          const newPaymentStatus = clamped >= (order.total || 0) ? "paid" : clamped > 0 ? "dp" : "unpaid";
 
           await sb
             .from("orders")
             .update({ paid_total: clamped, payment_status: newPaymentStatus })
-            .eq("id", conf.order_id);
+            .eq("id", oid);
 
           // Award loyalty points when order becomes fully paid via transfer
-          if (newPaymentStatus === "paid" && conf.order_id) {
-            const { data: ord } = await sb.from("orders").select("customer_id, order_type").eq("id", conf.order_id).single();
+          if (newPaymentStatus === "paid") {
+            const { data: ord } = await sb.from("orders").select("customer_id, order_type").eq("id", oid).single();
             if (ord && ord.order_type === "penjualan" && ord.customer_id) {
-              await awardLoyaltyPoints(sb, ord.customer_id, conf.order_id, conf.amount || 0);
+              await awardLoyaltyPoints(sb, ord.customer_id, oid, share);
             }
           }
         }
