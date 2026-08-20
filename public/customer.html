@@ -894,7 +894,7 @@
     function selectAll() {
       var allSelected = unpaidOrders.every(function(o) { return selectedOrders[o.id]; });
       unpaidOrders.forEach(function(o) {
-        var sisa = o.total - (o.paid_total || 0);
+        var sisa = o.total - (o.paid_total || 0) - (o.diskon || 0);
         if (allSelected) {
           delete selectedOrders[o.id];
         } else {
@@ -935,7 +935,7 @@
         showQris(ids.join(','), total, ids);
       } else if (unpaidOrders.length > 0) {
         var allIds = unpaidOrders.map(function(o) { return o.id; });
-        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
+        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0) - (o.diskon || 0)); }, 0);
         showQris(allIds.join(','), allTotal, allIds);
       }
     }
@@ -947,7 +947,7 @@
         openTfModal(ids.join(','), total);
       } else if (unpaidOrders.length > 0) {
         var allIds = unpaidOrders.map(function(o) { return o.id; });
-        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
+        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0) - (o.diskon || 0)); }, 0);
         openTfModal(allIds.join(','), allTotal);
       }
     }
@@ -985,7 +985,7 @@
       document.getElementById('customerSubtitle').textContent = unpaid.length > 0 ? unpaid.length + ' invoice belum lunas' : processing.length > 0 ? processing.length + ' pesanan sedang diproses' : 'Semua sudah lunas';
       var html = '';
       if (unpaid.length > 0) {
-        var grandTotal = unpaid.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
+        var grandTotal = unpaid.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0) - (o.diskon || 0)); }, 0);
         html += '<div class="grand-total-card">';
         html += '<div class="grand-total-label">Total yang harus dibayar</div>';
         html += '<div class="grand-total-amount" id="grandTotalAmount">' + fmt(grandTotal) + '</div>';
@@ -1145,7 +1145,7 @@
     }
 
     function renderCard(order, items, showPay) {
-      var sisa = order.total - (order.paid_total || 0);
+      var sisa = order.total - (order.paid_total || 0) - (order.diskon || 0);
       var ps = order.payment_status || 'unpaid';
       var fs = order.fulfillment_status || 'belum_ready';
       // Status Bayar
@@ -1423,7 +1423,7 @@
 
       var html = '<div class="redeem-label">Pilih invoice</div>';
       unpaid.forEach(function(o, i) {
-        var sisa = o.total - (o.paid_total || 0);
+        var sisa = o.total - (o.paid_total || 0) - (o.diskon || 0);
         html += '<label class="redeem-order-option" onclick="selectRedeemOrder(this, \'' + o.id + '\')">';
         html += '<input type="radio" name="redeemOrder" value="' + o.id + '">';
         html += '<div><div class="redeem-order-id">#' + shortId(o.id) + '</div>';
