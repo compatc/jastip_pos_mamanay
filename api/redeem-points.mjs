@@ -45,31 +45,46 @@ export default async function handler(req, res) {
     return;
   }
 
-  const discount = Math.floor(points / REDEEM_RATE) * 1000;
+  const maxDiscount = Math.floor((order.total || 0) * 0.15);
+  let discount = Math.floor(points / REDEEM_RATE) * 1000;
+  let usedPoints = points;
+
+  if (discount > maxDiscount) {
+    discount = maxDiscount;
+    usedPoints = Math.ceil(maxDiscount / 1000) * REDEEM_RATE;
+  }
+
+  const maxDiskonLeft = maxDiscount - (order.diskon || 0);
+  if (maxDiskonLeft <= 0) {
+    res.status(400).json({ error: "Diskon poin sudah mencapai batas maksimal 15%" });
+    return;
+  }
+  if (discount > maxDiskonLeft) {
+    discount = maxDiskonLeft;
+    usedPoints = Math.ceil(maxDiskonLeft / 1000) * REDEEM_RATE;
+  }
+
   const now = new Date().toISOString();
+  const actualPoints = Math.min(usedPoints, customer.points || 0);
 
-  const newPoints = (customer.points || 0) - points;
-  const existingDiskon = order.diskon || 0;
-  const newDiskon = existingDiskon + discount;
+  await sb.from("customers").update({ points: (customer.points || 0) - actualPoints }).eq("id", customer_id);
 
-  await sb.from("customers").update({ points: newPoints }).eq("id", customer_id);
-
-  await sb.from("orders").update({ diskon: newDiskon, updated_at: now }).eq("id", order_id);
+  await sb.from("orders").update({ diskon: (order.diskon || 0) + discount, updated_at: now }).eq("id", order_id);
 
   await sb.from("points_history").insert({
     customer_id,
     order_id,
-    points: -points,
+    points: -actualPoints,
     type: "redeem",
-    description: `Tukar ${points} poin → diskon Rp${discount.toLocaleString("id-ID")} (Order #${order_id.slice(0, 8)})`,
+    description: `Tukar ${actualPoints} poin → diskon Rp${discount.toLocaleString("id-ID")} (Order #${order_id.slice(0, 8)})`,
     created_at: now,
   });
 
   res.json({
     success: true,
-    pointsUsed: points,
+    pointsUsed: actualPoints,
     discount,
-    newPoints,
-    newDiskon,
+    newPoints: (customer.points || 0) - actualPoints,
+    newDiskon: (order.diskon || 0) + discount,
   });
 }
