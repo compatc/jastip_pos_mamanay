@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { getAdmin } from "./pay.mjs";
 
 const REDEEM_RATE = 50;
 
@@ -15,13 +15,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseKey) {
-    res.status(500).json({ error: "Supabase not configured" });
-    return;
-  }
-  const sb = createClient(supabaseUrl, supabaseKey);
+  const sb = await getAdmin();
 
   const { data: customer } = await sb
     .from("customers")

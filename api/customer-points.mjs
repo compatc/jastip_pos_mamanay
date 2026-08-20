@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { getAdmin } from "./pay.mjs";
 
 const REDEEM_RATE = 50;
 
@@ -18,14 +18,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseKey) {
-    res.status(500).json({ error: "Supabase not configured" });
-    return;
-  }
-
-  const sb = createClient(supabaseUrl, supabaseKey);
+  const sb = await getAdmin();
 
   if (req.method === "GET") {
     const { customer_id } = req.query;
