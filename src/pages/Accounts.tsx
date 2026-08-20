@@ -70,7 +70,7 @@ export default function Accounts() {
             </div>
             <div className="flex-1">
               <p className="text-lg font-extrabold text-white">{user?.name || "NAY"}</p>
-              <p className="text-xs text-pink-100">{user?.email || "nurulazizahy@gmail.com"}</p>
+              <p className="text-xs text-pink-100">{user?.email || "Admin"}</p>
               <span className="inline-block px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold text-white mt-1">
                 👑 Owner
               </span>

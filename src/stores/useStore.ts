@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import { uuid } from "../lib/uuid";
+import { awardPoints } from "../lib/loyalty";
 import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductDiscount, StockMovement } from "../types";
 
 interface PosStore {
@@ -239,6 +240,8 @@ export const useStore = create<PosStore>((set, get) => ({
         customer_id: customerId,
         user_id: user?.id || "",
         status: "belum-ready",
+        payment_status: "unpaid",
+        fulfillment_status: "belum_ready",
         total,
         paid_total: 0,
         order_type: "penjualan",
@@ -376,6 +379,8 @@ export const useStore = create<PosStore>((set, get) => ({
         customer_id: customerId,
         user_id: user?.id || "",
         status: initialStatus,
+        payment_status: initialStatus === "paid" ? "paid" : "unpaid",
+        fulfillment_status: "belum_ready",
         total: orderTotal,
         paid_total: paidTotal,
         diskon: diskon || 0,
@@ -466,6 +471,15 @@ export const useStore = create<PosStore>((set, get) => ({
         amount: paidTotal,
         created_at: now,
       });
+
+      // Award loyalty points for paid orders
+      if (customerId) {
+        try {
+          await awardPoints(customerId, orderId, paidTotal);
+        } catch (e) {
+          console.error("Failed to award points:", e);
+        }
+      }
     }
 
     await get().loadAllOrders();
@@ -573,6 +587,8 @@ export const useStore = create<PosStore>((set, get) => ({
       .update({
         customer_id: customerId,
         status,
+        payment_status: paidTotal >= orderTotal ? "paid" : paidTotal > 0 ? "dp" : "unpaid",
+        fulfillment_status: status === "completed" || status === "paid" ? "completed" : status === "shipped" ? "shipped" : status === "delivered" ? "diterima" : status === "ready" ? "ready" : status === "dibatalkan" ? "cancelled" : "belum_ready",
         total: orderTotal,
         paid_total: paidTotal,
         diskon: diskon || 0,
@@ -673,8 +689,17 @@ export const useStore = create<PosStore>((set, get) => ({
       const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
       await supabase
         .from("orders")
-        .update({ paid_total: order.total, status: newStatus, updated_at: now })
+        .update({ paid_total: order.total, status: newStatus, payment_status: "paid", updated_at: now })
         .eq("id", orderId);
+
+      // Award loyalty points for penjualan orders
+      if (order.order_type === "penjualan" && order.customer_id && payDelta > 0) {
+        try {
+          await awardPoints(order.customer_id, orderId, payDelta);
+        } catch (e) {
+          console.error("Failed to award points:", e);
+        }
+      }
 
       let customerName = "";
       if (order.customer_id) {
@@ -850,10 +875,11 @@ export const useStore = create<PosStore>((set, get) => ({
     const oldPaid = existing?.paid_total || 0;
     const newPaid = paidTotal;
     const delta = newPaid - oldPaid;
+    const newPaymentStatus = newPaid >= (existing?.total || 0) ? "paid" : newPaid > 0 ? "dp" : "unpaid";
 
     await supabase
       .from("orders")
-      .update({ paid_total: paidTotal, updated_at: new Date().toISOString() })
+      .update({ paid_total: paidTotal, payment_status: newPaymentStatus, updated_at: new Date().toISOString() })
       .eq("id", orderId);
 
     if (existing?.account_id && delta !== 0) {
@@ -890,6 +916,15 @@ export const useStore = create<PosStore>((set, get) => ({
           .eq("id", existing.account_id);
       }
       await get().loadAccounts();
+    }
+
+    // Award loyalty points when order becomes fully paid
+    if (newPaymentStatus === "paid" && delta > 0 && existing?.order_type === "penjualan" && existing?.customer_id) {
+      try {
+        await awardPoints(existing.customer_id, orderId, delta);
+      } catch (e) {
+        console.error("Failed to award points:", e);
+      }
     }
   },
 
@@ -943,7 +978,7 @@ export const useStore = create<PosStore>((set, get) => ({
     const now = new Date().toISOString();
     await supabase
       .from("orders")
-      .update({ status: "deleted", updated_at: now })
+      .update({ status: "deleted", fulfillment_status: "cancelled", updated_at: now })
       .eq("id", orderId);
     await supabase
       .from("order_items")
@@ -1280,6 +1315,8 @@ export const useStore = create<PosStore>((set, get) => ({
       total: newTotal,
       refund_total: newRefundTotal,
       status: newStatus,
+      payment_status: newStatus === "dibatalkan" ? "unpaid" : undefined,
+      fulfillment_status: newStatus === "dibatalkan" ? "cancelled" : undefined,
     }).eq("id", orderId);
 
     for (const item of items) {

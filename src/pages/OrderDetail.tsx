@@ -14,6 +14,10 @@ import {
   Copy,
   ExternalLink,
   RotateCcw,
+  CheckCircle2,
+  Send,
+  PackageCheck,
+  CircleDot,
 } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -38,14 +42,19 @@ function toWaNumber(phone: string): string {
       : "62" + cleaned;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  new: "Baru",
-  "belum-ready": "Belum Ready",
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  unpaid: "Belum Dibayar",
+  dp: "DP",
+  paid: "Lunas",
+};
+
+const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
+  belum_ready: "Belum Ready",
   ready: "Ready",
-  paid: "Dibayar",
   shipped: "Dikirim",
-  delivered: "Diterima",
+  diterima: "Diterima",
   completed: "Selesai",
+  cancelled: "Dibatalkan",
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -64,21 +73,20 @@ const COURIER_LABELS: Record<string, string> = {
 
 const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
 
-function getStatusColor(status: string): string {
+function getStatusColor(fulfillmentStatus: string): string {
   const colors: Record<string, string> = {
-    new: "bg-blue-100 text-blue-600",
-    "belum-ready": "bg-orange-100 text-orange-600",
+    belum_ready: "bg-orange-100 text-orange-600",
     ready: "bg-teal-100 text-teal-600",
-    paid: "bg-emerald-100 text-emerald-600",
     shipped: "bg-amber-100 text-amber-600",
-    delivered: "bg-violet-100 text-violet-600",
+    diterima: "bg-blue-100 text-blue-600",
     completed: "bg-gray-100 text-gray-500",
+    cancelled: "bg-red-100 text-red-600",
   };
-  return colors[status] || "bg-yellow-100 text-yellow-600";
+  return colors[fulfillmentStatus] || "bg-blue-100 text-blue-600";
 }
 
-function isOrderLunas(o: { status: string; paid_total: number; total: number }) {
-  return o.status === "completed" || o.status === "paid" || o.paid_total >= o.total;
+function isOrderLunas(o: { payment_status: string; paid_total: number; total: number }) {
+  return o.payment_status === "paid" || o.paid_total >= o.total;
 }
 
 export default function OrderDetail() {
@@ -236,11 +244,12 @@ export default function OrderDetail() {
 
     const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
     const payMethod = PAYMENT_LABELS[order.payment_type] || order.payment_type;
-    const statusLabel = STATUS_LABELS[order.status] || order.status;
+    const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
 
     msg += `📦 Pesanan: ${productNames}\n`;
     msg += `Status barang: ${statusLabel}\n`;
     if (order.notes) msg += `📝 Catatan: ${order.notes}\n`;
+    if (order.qris_notes) msg += `📝 Catatan QRIS: ${order.qris_notes}\n`;
     msg += `Metode: ${payMethod}\n`;
     msg += `💰 Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
     if (order.paid_total > 0) {
@@ -283,7 +292,7 @@ export default function OrderDetail() {
   }
 
   function buildShopeeMsg(): string {
-    if (order.status !== "ready" || items.length === 0) return "";
+    if (order.fulfillment_status !== "ready" || items.length === 0) return "";
 
     let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
     msg += "Pembayaran sudah masuk ya. Terima kasih banyak 😊\n\n";
@@ -365,10 +374,53 @@ export default function OrderDetail() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 mb-4">
-          <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${getStatusColor(order.status)}`}>
-            {STATUS_LABELS[order.status] || order.status}
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${getStatusColor(order.fulfillment_status)}`}>
+            {FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status}
           </span>
+          {order.payment_status && (
+            <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${
+              order.payment_status === "paid" ? "bg-emerald-100 text-emerald-600" :
+              order.payment_status === "dp" ? "bg-amber-100 text-amber-600" :
+              "bg-red-100 text-red-600"
+            }`}>
+              {PAYMENT_STATUS_LABELS[order.payment_status] || order.payment_status}
+            </span>
+          )}
+        </div>
+
+        {/* Quick Fulfillment Status Change */}
+        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+          {[
+            { value: "belum_ready", label: "Belum Ready", icon: CircleDot, color: "bg-orange-500" },
+            { value: "ready", label: "Ready", icon: CheckCircle2, color: "bg-teal-500" },
+            { value: "shipped", label: "Dikirim", icon: Send, color: "bg-violet-500" },
+            { value: "diterima", label: "Diterima", icon: PackageCheck, color: "bg-blue-500" },
+            { value: "completed", label: "Selesai", icon: CheckCircle2, color: "bg-emerald-500" },
+          ].map((opt) => {
+            const Icon = opt.icon;
+            const isActive = order.fulfillment_status === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={async () => {
+                  await supabase
+                    .from("orders")
+                    .update({ fulfillment_status: opt.value, updated_at: new Date().toISOString() })
+                    .eq("id", order.id);
+                  await loadAllOrders();
+                }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all ${
+                  isActive
+                    ? `${opt.color} text-white shadow-md`
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                <Icon className="w-3 h-3" />
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 mb-4">
@@ -383,6 +435,12 @@ export default function OrderDetail() {
               </button>
             ) : (
               <p className="text-sm font-bold text-gray-800 truncate">{order.customer_name || "Tanpa kontak"}</p>
+            )}
+            {customer?.address && (
+              <p className="text-[11px] text-gray-400 mt-0.5 truncate">📍 {customer.address}</p>
+            )}
+            {customer?.phone && (
+              <p className="text-[11px] text-gray-400 mt-0.5 truncate">📱 {customer.phone}</p>
             )}
           </div>
           <div className="bg-white border border-gray-100 rounded-xl p-3">
@@ -492,6 +550,13 @@ export default function OrderDetail() {
             </div>
           )}
 
+          {order.qris_notes && (
+            <div className="bg-white border border-gray-100 rounded-xl p-3">
+              <p className="text-xs text-gray-400 uppercase font-bold mb-1">Catatan QRIS</p>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">{order.qris_notes}</p>
+            </div>
+          )}
+
           {!isOrderLunas(order) && order.total > 0 && qrisLink && (
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-400 uppercase font-bold mb-2">Link Pembayaran</p>
@@ -538,7 +603,7 @@ export default function OrderDetail() {
 
           {(isOrderLunas(order) || order.total === 0) && (
             <div className="flex gap-2.5 pt-1">
-              {order.status === "ready" && (
+              {order.fulfillment_status === "ready" && (
               <button
                 onClick={sendShopeeMsg}
                 className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"

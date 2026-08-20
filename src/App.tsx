@@ -25,6 +25,9 @@ import AccountDetail from "./pages/AccountDetail";
 import Maintenance from "./pages/Maintenance";
 import Shipments from "./pages/Shipments";
 import Expenses from "./pages/Expenses";
+import PaymentConfirmations from "./pages/PaymentConfirmations";
+import Catalog from "./pages/Catalog";
+import Piutang from "./pages/Piutang";
 import AppLayout from "./components/AppLayout";
 import { Component, useEffect } from "react";
 import type { ErrorInfo, ReactNode } from "react";
@@ -123,6 +126,18 @@ export default function App() {
           {/* <Route path="/register" element={<Register />} /> */}
           <Route path="/pay/:orderId" element={<PayOrder />} />
           <Route path="/pay" element={<PayOrder />} />
+          <Route path="/catalog" element={<Catalog />} />
+          <Route path="/catalog/:id" element={<Catalog />} />
+          <Route
+            path="/piutang"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Piutang />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/profile"
             element={
@@ -279,6 +294,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Expenses />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment-confirmations"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PaymentConfirmations />
                 </AppLayout>
               </ProtectedRoute>
             }

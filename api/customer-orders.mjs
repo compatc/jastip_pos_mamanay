@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     const sb = await getAdmin();
     const { data: orders, error: ordersErr } = await sb
       .from("orders")
-      .select("id, created_at, total, paid_total, status, notes")
+      .select("id, created_at, total, paid_total, status, payment_status, fulfillment_status, notes, qris_notes")
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false });
 

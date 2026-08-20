@@ -14,6 +14,7 @@ import {
   Upload,
   MessageCircle,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 
 type TabFilter = "all" | "pelanggan" | "supplier";
@@ -201,17 +202,17 @@ export default function Dashboard() {
             <span className="text-xs font-bold text-slate-700 sm:hidden">Backup</span>
           </button>
           <button
-            onClick={() => navigate("/orders")}
-            className="flex items-center justify-center gap-2 p-3 bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-700 rounded-2xl transition-all shadow-sm group"
+            onClick={() => navigate("/piutang")}
+            className="flex items-center justify-center gap-2 p-3 bg-amber-50/80 hover:bg-amber-100/80 border border-amber-200/80 text-amber-700 rounded-2xl transition-all shadow-sm group"
           >
-            <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm shadow-emerald-500/20">
-              <ShoppingBag className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-amber-500 text-white font-bold flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm shadow-amber-500/20">
+              <AlertTriangle className="w-4 h-4" />
             </div>
             <div className="text-left hidden sm:block">
-              <p className="text-xs font-bold text-emerald-900 leading-none">Riwayat</p>
-              <p className="text-[10px] text-emerald-600 mt-1">Lihat order</p>
+              <p className="text-xs font-bold text-amber-900 leading-none">Piutang</p>
+              <p className="text-[10px] text-amber-600 mt-1">Tagihan</p>
             </div>
-            <span className="text-xs font-bold text-emerald-800 sm:hidden">Riwayat</span>
+            <span className="text-xs font-bold text-amber-800 sm:hidden">Piutang</span>
           </button>
         </div>
 

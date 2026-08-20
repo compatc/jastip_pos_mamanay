@@ -1,4 +1,6 @@
 export type OrderStatus = "new" | "belum-ready" | "ready" | "paid" | "shipped" | "delivered" | "completed" | "deleted";
+export type PaymentStatus = "unpaid" | "dp" | "paid";
+export type FulfillmentStatus = "belum_ready" | "ready" | "shipped" | "diterima" | "completed" | "cancelled";
 
 export type CustomerCategory = "pelanggan" | "supplier";
 
@@ -12,6 +14,9 @@ export interface Customer {
   phone: string;
   address: string;
   category: CustomerCategory;
+  points: number;
+  total_spent: number;
+  member_level: string;
   created_at: string;
 }
 
@@ -20,6 +25,8 @@ export interface Order {
   customer_id: string;
   user_id: string;
   status: OrderStatus;
+  payment_status: PaymentStatus;
+  fulfillment_status: FulfillmentStatus;
   total: number;
   paid_total: number;
   refund_total: number;
@@ -28,6 +35,7 @@ export interface Order {
   payment_type: PaymentType;
   ongkir: number;
   notes: string;
+  qris_notes: string;
   account_id: string | null;
   courier?: string;
   resi?: string;

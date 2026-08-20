@@ -17,29 +17,36 @@ function rupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  new: "Baru",
-  "belum-ready": "Belum Ready",
-  ready: "Ready",
-  paid: "Dibayar",
-  shipped: "Dikirim",
-  delivered: "Diterima",
-  completed: "Selesai",
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  unpaid: "Belum Dibayar",
+  dp: "DP",
+  paid: "Lunas",
 };
 
+const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
+  belum_ready: "Belum Ready",
+  ready: "Ready",
+  shipped: "Dikirim",
+  diterima: "Diterima",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+};
+
+const FULFILLMENT_STATUS_ORDER = ["belum_ready", "ready", "shipped", "diterima", "completed", "cancelled"];
+
 function getOrderStatusBadge(order: any): { label: string; cls: string; accent: string } {
-  const paid = order.paid_total >= order.total && order.total > 0;
+  const paid = order.payment_status === "paid" || (order.paid_total >= order.total && order.total > 0);
+  if (paid && order.fulfillment_status === "completed") return { label: "Selesai", cls: "bg-gray-100 text-gray-500", accent: "bg-gray-300" };
   if (paid) return { label: "Lunas", cls: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-400" };
   const map: Record<string, { label: string; cls: string; accent: string }> = {
-    new: { label: "Baru", cls: "bg-blue-50 text-blue-600", accent: "bg-blue-400" },
-    "belum-ready": { label: "Belum Ready", cls: "bg-orange-50 text-orange-600", accent: "bg-orange-400" },
+    belum_ready: { label: "Belum Ready", cls: "bg-orange-50 text-orange-600", accent: "bg-orange-400" },
     ready: { label: "Ready", cls: "bg-amber-50 text-amber-600", accent: "bg-amber-400" },
-    paid: { label: "Dibayar", cls: "bg-teal-50 text-teal-600", accent: "bg-teal-400" },
     shipped: { label: "Dikirim", cls: "bg-violet-50 text-violet-600", accent: "bg-violet-400" },
-    delivered: { label: "Diterima", cls: "bg-blue-50 text-blue-600", accent: "bg-blue-400" },
+    diterima: { label: "Diterima", cls: "bg-blue-50 text-blue-600", accent: "bg-blue-400" },
     completed: { label: "Selesai", cls: "bg-gray-100 text-gray-500", accent: "bg-gray-300" },
+    cancelled: { label: "Dibatalkan", cls: "bg-red-50 text-red-600", accent: "bg-red-400" },
   };
-  return map[order.status] || { label: STATUS_LABELS[order.status] || order.status, cls: "bg-yellow-50 text-yellow-600", accent: "bg-yellow-400" };
+  return map[order.fulfillment_status] || { label: FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status, cls: "bg-yellow-50 text-yellow-600", accent: "bg-yellow-400" };
 }
 
 interface OrderItemData {
@@ -149,16 +156,16 @@ export default function CustomerOrders() {
   const filteredOrders = orders.filter((o) => {
     if (filter === "all") return true;
     if (filter === "unpaid") return o.paid_total < o.total && o.total > 0;
-    if (filter === "ready") return o.status === "ready";
-    if (filter === "completed") return o.status === "completed" || (o.paid_total >= o.total && o.total > 0);
+    if (filter === "ready") return o.fulfillment_status === "ready";
+    if (filter === "completed") return o.fulfillment_status === "completed" || (o.paid_total >= o.total && o.total > 0);
     return true;
   });
 
   const filterCounts = {
     all: orders.length,
     unpaid: unpaidOrders.length,
-    ready: orders.filter((o) => o.status === "ready").length,
-    completed: orders.filter((o) => o.status === "completed" || (o.paid_total >= o.total && o.total > 0)).length,
+    ready: orders.filter((o) => o.fulfillment_status === "ready").length,
+    completed: orders.filter((o) => o.fulfillment_status === "completed" || (o.paid_total >= o.total && o.total > 0)).length,
   };
 
   function sendWhatsApp(selected: typeof orders) {
@@ -189,22 +196,22 @@ export default function CustomerOrders() {
     let grandTotal = 0;
     let grandPaid = 0;
     const grouped: Record<string, typeof selected> = {};
-    const statusOrder = ["new", "belum-ready", "ready", "paid", "shipped", "delivered", "completed"];
     selected.forEach((order) => {
-      const key = order.status;
+      const key = order.fulfillment_status;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(order);
     });
-    statusOrder.forEach((status) => {
+    FULFILLMENT_STATUS_ORDER.forEach((status) => {
       const list = grouped[status];
       if (!list) return;
       list.forEach((order) => {
         const items = itemsByOrder[order.id] || [];
         const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
-        const statusLabel = STATUS_LABELS[order.status] || order.status;
+        const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
         msg += `Status barang: ${statusLabel}\n`;
         if (order.notes) msg += `\u{1F4DD} Catatan: ${order.notes}\n`;
+        if (order.qris_notes) msg += `\u{1F4DD} Catatan QRIS: ${order.qris_notes}\n`;
         msg += `\u{1F4B0} Total Tagihan: *${rupiah(order.total)}*\n`;
         const paid = order.paid_total || 0;
         if (paid > 0) {
@@ -342,6 +349,36 @@ export default function CustomerOrders() {
           </div>
         </div>
 
+        {/* Loyalty Card */}
+        {customer && (
+          <div className={`rounded-xl p-4 mb-4 border ${
+            customer.member_level === 'platinum' ? 'bg-gradient-to-r from-violet-500 to-purple-600 border-violet-300' :
+            customer.member_level === 'gold' ? 'bg-gradient-to-r from-amber-400 to-orange-500 border-amber-300' :
+            'bg-gradient-to-r from-slate-500 to-slate-600 border-slate-300'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-white/80 text-xs font-medium uppercase tracking-wide">Poin Loyalitas</div>
+                <div className="text-white text-2xl font-extrabold">{(customer.points || 0).toLocaleString("id-ID")}</div>
+              </div>
+              <div className="text-right">
+                <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                  customer.member_level === 'platinum' ? 'bg-white/20 text-white' :
+                  customer.member_level === 'gold' ? 'bg-white/20 text-white' :
+                  'bg-white/20 text-white'
+                }`}>
+                  {customer.member_level === 'platinum' ? '💎 Platinum' :
+                   customer.member_level === 'gold' ? '🥇 Gold' :
+                   '🥈 Silver'}
+                </div>
+                <div className="text-white/70 text-xs mt-1">
+                  Diskon: Rp{Math.floor((customer.points || 0) / 50 * 1000).toLocaleString("id-ID")}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Piutang Banner */}
         {unpaidOrders.length > 0 && (
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-xl p-4 mb-4">
@@ -433,9 +470,16 @@ export default function CustomerOrders() {
                         {dateStr} · {timeStr}
                       </div>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${badge.cls}`}>
-                      {paid ? "Lunas" : badge.label}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${badge.cls}`}>
+                        {badge.label}
+                      </span>
+                      {paid && (
+                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-600">
+                          Lunas ✓
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Items */}
@@ -527,7 +571,7 @@ export default function CustomerOrders() {
                           {shortId(order.id)}
                         </span>
                         <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${getOrderStatusBadge(order).cls}`}>
-                          {STATUS_LABELS[order.status] || order.status}
+                          {FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status}
                         </span>
                         {!isUnpaid && (
                           <span className="text-[10px] text-emerald-500 font-semibold">LUNAS</span>
@@ -605,7 +649,7 @@ export default function CustomerOrders() {
                           {shortId(order.id)}
                         </span>
                         <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${getOrderStatusBadge(order).cls}`}>
-                          {STATUS_LABELS[order.status] || order.status}
+                          {FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status}
                         </span>
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">

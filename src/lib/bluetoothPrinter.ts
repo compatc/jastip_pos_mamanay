@@ -120,6 +120,7 @@ export async function printReceipt(receiptData: {
   change: number;
   paymentMethod: string;
   notes?: string;
+  qrisNotes?: string;
   shopeePcs?: number;
   shopeeLink?: string;
 }): Promise<boolean> {
@@ -267,6 +268,9 @@ export async function printReceipt(receiptData: {
     if (receiptData.notes) {
       receiptLines.push({ text: `Catatan: ${receiptData.notes}` });
     }
+    if (receiptData.qrisNotes) {
+      receiptLines.push({ text: `Catatan QRIS: ${receiptData.qrisNotes}` });
+    }
 
     if (receiptData.shopeePcs && receiptData.shopeeLink) {
       receiptLines.push({ text: "------------------------------" });
@@ -343,6 +347,7 @@ export function generateReceiptFromOrder(order: any, items: any[], products: any
     change: (order.paid_total || 0) - order.total,
     paymentMethod: order.payment_type === "tf" ? "Transfer Bank" : order.payment_type === "qris" ? "QRIS" : "Tunai",
     notes: order.notes || undefined,
+    qrisNotes: order.qris_notes || undefined,
     shopeePcs: totalPcs > 0 ? totalPcs : undefined,
     shopeeLink: totalPcs > 0 ? "https://s.shopee.co.id/8pjZ07JBJe" : undefined,
   };

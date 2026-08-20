@@ -3,6 +3,50 @@ import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import webpush from "web-push";
 import QRCode from "qrcode";
 
+const REDEEM_RATE = 50;
+
+function calcMemberLevel(totalSpent) {
+  if (totalSpent >= 10000000) return "platinum";
+  if (totalSpent >= 5000000) return "gold";
+  return "silver";
+}
+
+async function awardLoyaltyPoints(sb, customerId, orderId, amount) {
+  try {
+    const { data: customer } = await sb
+      .from("customers")
+      .select("points, total_spent, member_level")
+      .eq("id", customerId)
+      .single();
+    if (!customer) return;
+
+    const base = Math.floor(amount / 1000);
+    const multiplier = customer.member_level === "platinum" ? 1.5 : customer.member_level === "gold" ? 1.2 : 1.0;
+    const points = Math.floor(base * multiplier);
+    if (points <= 0) return;
+
+    const newTotalSpent = (customer.total_spent || 0) + amount;
+    const newLevel = calcMemberLevel(newTotalSpent);
+    const newPoints = (customer.points || 0) + points;
+
+    await sb.from("customers").update({
+      points: newPoints,
+      total_spent: newTotalSpent,
+      member_level: newLevel,
+    }).eq("id", customerId);
+
+    await sb.from("points_history").insert({
+      customer_id: customerId,
+      order_id: orderId,
+      points,
+      type: "earn",
+      description: `Bayar QRIS Rp${amount.toLocaleString("id-ID")}`,
+    });
+  } catch (e) {
+    console.error("[LOYALTY] Failed to award points:", e);
+  }
+}
+
 const BOQRIS_BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const BOQRIS_UNIQUE_MAX = Math.max(1, Number(process.env.BOQRIS_UNIQUE_MAX || 200) || 200);
 const BOQRIS_EXPIRES_IN = Math.min(Math.max(Number(process.env.BOQRIS_EXPIRES_IN || 3600) || 3600, 60), 3600);
@@ -197,7 +241,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
 
   const { data: order, error } = await sb
     .from("orders")
-    .select("id, customer_id, total, paid_total, diskon, order_type, account_id, status, notes")
+    .select("id, customer_id, total, paid_total, diskon, order_type, account_id, status, notes, qris_notes")
     .eq("id", orderId)
     .single();
   if (error || !order) {
@@ -278,8 +322,10 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
     paid_total: finalPaid,
     payment_type: "qris",
     status: newStatus,
-    notes: order.notes
-      ? `${order.notes}\n${paidNote}`
+    payment_status: finalPaid >= finalTotal ? "paid" : finalPaid > 0 ? "dp" : "unpaid",
+    notes: order.notes || "",
+    qris_notes: order.qris_notes
+      ? `${order.qris_notes}\n${paidNote}`
       : paidNote,
     updated_at: now,
   }).eq("id", orderId);
@@ -295,6 +341,14 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   if (!updatedRows || updatedRows.length === 0) {
     // Ada request lain yang sudah konfirmasi lebih dulu
     return { status: "paid", confirmed: true, already: true };
+  }
+
+  // Award loyalty points for penjualan orders
+  if (order.order_type === "penjualan" && order.customer_id && shareOfPayment > 0) {
+    const newPaidTotal = (currentPaidTotal || 0) + shareOfPayment;
+    if (newPaidTotal >= (order.total || 0)) {
+      await awardLoyaltyPoints(sb, order.customer_id, orderId, order.total || shareOfPayment);
+    }
   }
 
   if (order.account_id) {
@@ -603,7 +657,7 @@ export default async function handler(req, res) {
 
       const { data: orders, error: ordersErr } = await sb
         .from("orders")
-        .select("id, customer_id, total, paid_total, order_type, account_id, notes, status")
+        .select("id, customer_id, total, paid_total, order_type, account_id, notes, qris_notes, status")
         .in("id", orderIdsRaw);
       if (ordersErr || !orders || orders.length === 0) {
         json(res, 404, { error: "Order tidak ditemukan" });

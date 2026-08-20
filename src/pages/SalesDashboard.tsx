@@ -276,7 +276,7 @@ export default function SalesDashboard() {
 
   // Piutang
   const piutangList: PiutangRow[] = allOrders
-    .filter((o) => o.order_type === "penjualan" && o.paid_total < o.total && o.status !== "deleted")
+    .filter((o) => o.order_type === "penjualan" && o.paid_total < o.total && o.fulfillment_status !== "cancelled")
     .map((o) => ({
       customer_name: o.contact_name,
       order_id: o.id,
@@ -348,6 +348,54 @@ export default function SalesDashboard() {
     URL.revokeObjectURL(url);
   }
 
+  function handleExportAll() {
+    const rows: string[][] = [
+      ["Tanggal", "Tipe", "Pelanggan", "Produk", "Qty", "Harga", "Total", "Bayar", "Sisa", "Metode", "Status"],
+    ];
+    for (const o of filtered) {
+      if (o.items.length === 0) {
+        rows.push([
+          o.date,
+          o.order_type === "penjualan" ? "Penjualan" : "Pembelian",
+          o.contact_name,
+          "-",
+          "0",
+          "0",
+          rupiahFull(o.total),
+          rupiahFull(o.paid_total),
+          rupiahFull(o.total - o.paid_total),
+          o.payment_type.toUpperCase(),
+          o.status,
+        ]);
+      } else {
+        for (const item of o.items) {
+          const itemTotal = (item.price - item.discount) * item.quantity;
+          rows.push([
+            o.date,
+            o.order_type === "penjualan" ? "Penjualan" : "Pembelian",
+            o.contact_name,
+            item.product_name,
+            String(item.quantity),
+            rupiahFull(item.price - item.discount),
+            rupiahFull(itemTotal),
+            "",
+            "",
+            o.payment_type.toUpperCase(),
+            o.status,
+          ]);
+        }
+      }
+    }
+    const csv = "\uFEFF" + rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `laporan-semua-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <main className="px-4 py-4 relative z-10 flex-1 overflow-y-auto pb-6">
@@ -359,7 +407,16 @@ export default function SalesDashboard() {
           <>
             {/* Header */}
             <div className="mb-4">
-              <h1 className="text-xl font-extrabold text-slate-800 mb-2">Laporan</h1>
+              <div className="flex items-center justify-between mb-2">
+                <h1 className="text-xl font-extrabold text-slate-800">Laporan</h1>
+                <button
+                  onClick={handleExportAll}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export Excel
+                </button>
+              </div>
               <div className="flex items-center gap-2">
                 <select
                   value={selectedProduct}

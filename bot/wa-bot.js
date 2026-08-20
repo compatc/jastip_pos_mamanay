@@ -52,12 +52,10 @@ async function onIncomingMessage(remoteJid, text) {
   try {
     const reply = await handleBotMessage(api, remoteJid, text);
 
-    // Handle JSON actions (invoice sending)
     if (reply.startsWith("{")) {
       const action = JSON.parse(reply);
 
       if (action.action === "send_invoice") {
-        // Send invoice to single customer
         if (action.phone) {
           const waJid = normalizeWaJid(action.phone);
           if (waJid) {
@@ -73,7 +71,6 @@ async function onIncomingMessage(remoteJid, text) {
       }
 
       if (action.action === "send_batch") {
-        // Send batch invoices
         let sent = 0;
         let failed = 0;
         const failedNames = [];
@@ -85,7 +82,6 @@ async function onIncomingMessage(remoteJid, text) {
               try {
                 await sock.sendMessage(waJid, { text: inv.msg });
                 sent++;
-                // Delay between messages to avoid rate limit
                 await new Promise((r) => setTimeout(r, 2000));
               } catch {
                 failed++;
@@ -110,7 +106,6 @@ async function onIncomingMessage(remoteJid, text) {
       }
     }
 
-    // Default: send text reply
     await sock.sendMessage(remoteJid, { text: reply });
   } catch (e) {
     await sock.sendMessage(remoteJid, { text: "Error: " + e.message });
@@ -125,17 +120,117 @@ function normalizeWaJid(phone) {
   return digits + "@s.whatsapp.net";
 }
 
+// Track produk dari pesan admin di group: { chatJid: [{ msgId, name, price }] }
+const productMessages = {};
+
 sock.ev.on("messages.upsert", async ({ messages, type }) => {
   if (type !== "notify") return;
   const m = messages[0];
   if (!m?.message) return;
   if (m.key.fromMe) return;
-  if (m.key.remoteJid?.endsWith("@g.us")) return;
+  const isGroup = m.key.remoteJid?.endsWith("@g.us");
+  const chatJid = m.key.remoteJid;
+  const msgId = m.key.id;
   const text = m.message.conversation
     || m.message.extendedTextMessage?.text
     || "";
-  if (!text.trim()) return;
-  await onIncomingMessage(m.key.remoteJid, text);
+  const caption = m.message.imageMessage?.caption
+    || m.message.videoMessage?.caption
+    || "";
+
+  // === GROUP ===
+  if (isGroup) {
+    console.log(`[GROUP] JID: ${chatJid} | From: ${m.key.participant} | Text: ${text || caption}`);
+    const msgText = text || caption;
+
+    // 1) Admin kirim foto dengan caption "🏷️ NamaProduk 25000"
+    const tagMatch = caption.match(/🏷️\s*(.+)/);
+    if (tagMatch) {
+      const line = tagMatch[1].trim();
+      const parts = line.split(/\s+/);
+      const priceStr = parts.pop();
+      const price = parseInt(priceStr, 10);
+      const name = parts.join(" ").trim();
+      if (name && price > 0) {
+        if (!productMessages[chatJid]) productMessages[chatJid] = [];
+        productMessages[chatJid].unshift({ msgId, name, price });
+        if (productMessages[chatJid].length > 50) productMessages[chatJid].pop();
+        const senderJid = m.key.participant || m.key.remoteJid;
+        await sock.sendMessage(senderJid, { text: `✅ Produk ditandai: *${name}* — Rp ${price.toLocaleString("id-ID")}` });
+      } else {
+        const senderJid = m.key.participant || m.key.remoteJid;
+        await sock.sendMessage(senderJid, { text: "Format: 🏷️ NamaProduk Harga\nContoh: 🏷️ Blindbox Stitch 25000" });
+      }
+      return;
+    }
+
+    // 2) Cek apakah ini reply ke foto produk
+    const quotedId = m.message.extendedTextMessage?.contextInfo?.stanzaId;
+
+    if (quotedId && productMessages[chatJid]) {
+      const product = productMessages[chatJid].find((p) => p.msgId === quotedId);
+      if (product) {
+        const qtyMatch = (text || "").match(/^(\d+)/);
+        if (qtyMatch) {
+          const qty = parseInt(qtyMatch[1], 10);
+          if (qty > 0) {
+            try {
+              const senderJid = m.key.participant || m.key.remoteJid || "";
+              const senderPhone = senderJid.replace(/@.*/, "").replace(/^62/, "0");
+              const senderName = m.pushName || "Group Customer";
+
+              const existingCustomers = await api.searchCustomers(senderPhone);
+              const existing = existingCustomers.find((c) => c.phone && senderPhone && c.phone.replace(/\D/g, "").endsWith(senderPhone.replace(/\D/g, "")));
+
+              const result = await api.createOrder({
+                orderType: "penjualan",
+                paymentType: "cash",
+                contactName: existing ? existing.name : senderName,
+                contactPhone: existing ? existing.phone : senderPhone,
+                items: [{ product_name: product.name, quantity: qty, price: product.price }],
+                notes: "Order dari WhatsApp group",
+              });
+              const total = product.price * qty;
+              const adminPhone = "6285894652806";
+              let adminMsg = "🛒 *Order dari Group*\n\n";
+              adminMsg += "👤 " + (existing ? existing.name : senderName) + "\n";
+              adminMsg += "📦 " + qty + "× " + product.name + "\n";
+              adminMsg += "💰 Total: Rp " + total.toLocaleString("id-ID") + "\n";
+              adminMsg += "Link: https://mamanay.vercel.app/orders/" + result.orderId;
+              try {
+                const { data: settings } = await api.sb.from("settings").select("value").eq("key", "bot_api_url").maybeSingle();
+                const botApiUrl = settings?.value || "https://hardship-broadly-mammogram.ngrok-free.dev";
+                await fetch(botApiUrl + "/send-message", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ phone: adminPhone, message: adminMsg }),
+                });
+              } catch (_) {}
+              return;
+            } catch (e) {
+              return;
+            }
+          }
+        }
+        return;
+      }
+    }
+
+    // 3) Command: pesan
+    const lower = msgText.trim().toLowerCase();
+    if (lower.startsWith("pesan") || lower.startsWith("/pesan")) {
+      await onIncomingMessage(chatJid, text);
+      return;
+    }
+
+    return;
+  }
+
+  // === PRIVATE CHAT ===
+  await onIncomingMessage(chatJid, text);
 });
 
-console.log("Bot berjalan. Ketik perintah dari WA: stok, cari, order, tambahpelanggan, kiriminvoice, kirimsemua, bantuan");
+console.log("Bot berjalan.");
+console.log("  Private: stok, cari, order, kiriminvoice, kirimsemua, bantuan");
+console.log("  Group:   kirim foto + caption 🏷️ Nama Harga — tandai produk");
+console.log("           reply foto dengan angka — buat order");

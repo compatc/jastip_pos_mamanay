@@ -15,6 +15,10 @@ export default defineConfig({
         target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
         changeOrigin: true,
       },
+      "/api": {
+        target: "https://mamanay.vercel.app",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [

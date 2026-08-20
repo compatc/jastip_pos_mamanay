@@ -44,6 +44,7 @@ interface ShipmentOrder {
   total: number;
   paid_total: number;
   notes: string;
+  qris_notes: string;
   created_at: string;
   shipped_at: string | null;
   packing_photo: string | null;
@@ -81,6 +82,7 @@ export default function Shipments() {
   const [photoPreview, setPhotoPreview] = useState<Record<string, string | null>>({});
   const [photoFile, setPhotoFile] = useState<Record<string, File | null>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function compressPhoto(file: File): Promise<Blob> {
@@ -132,6 +134,7 @@ export default function Shipments() {
       return data.publicUrl;
     } catch (e) {
       console.error("Upload error:", e);
+      alert("Gagal upload foto: " + (e as Error).message);
       setUploadingPhoto(null);
       return null;
     }
@@ -194,7 +197,7 @@ export default function Shipments() {
         .from("orders")
         .select("id, customer_id, status, total, paid_total, notes, created_at, shipped_at, packing_photo, order_type")
         .eq("order_type", "penjualan")
-        .eq("status", "shipped")
+        .eq("fulfillment_status", "shipped")
         .order("shipped_at", { ascending: false, nullsFirst: false });
 
       if (!shipped) return;
@@ -239,6 +242,7 @@ export default function Shipments() {
           total: o.total,
           paid_total: o.paid_total,
           notes: o.notes,
+          qris_notes: o.qris_notes || "",
           created_at: o.created_at,
           shipped_at: o.shipped_at,
           packing_photo: o.packing_photo,
@@ -255,7 +259,7 @@ export default function Shipments() {
     (o) =>
       o.order_type === "penjualan" &&
       isOrderLunas(o) &&
-      !["shipped", "delivered", "completed", "deleted"].includes(o.status)
+      !["shipped", "diterima", "completed", "cancelled"].includes(o.fulfillment_status)
   );
 
   const customerMap: Record<string, { name: string; phone: string }> = {};
@@ -378,7 +382,7 @@ export default function Shipments() {
 
   async function markShipped(orderIds: string[], photoUrl?: string) {
     const now = new Date().toISOString();
-    const update: Record<string, unknown> = { status: "shipped", shipped_at: now, updated_at: now };
+    const update: Record<string, unknown> = { status: "shipped", fulfillment_status: "shipped", shipped_at: now, updated_at: now };
     if (photoUrl) update.packing_photo = photoUrl;
     await supabase
       .from("orders")
@@ -590,12 +594,12 @@ export default function Shipments() {
                       </div>
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-bold ${
-                          order.status === "ready"
+                          order.fulfillment_status === "ready"
                             ? "bg-blue-50 text-blue-600"
                             : "bg-emerald-50 text-emerald-600"
                         }`}
                       >
-                        {order.status === "ready" ? "Ready" : "Dibayar"}
+                        {order.fulfillment_status === "ready" ? "Ready" : "Dibayar"}
                       </span>
                     </div>
 
@@ -659,6 +663,11 @@ export default function Shipments() {
                         <p className="text-xs text-slate-500 whitespace-pre-wrap">{order.notes.replace(/\[DITUNDA\]\s*.*/, "").trim()}</p>
                       </div>
                     )}
+                    {order.qris_notes && (
+                      <div className="mt-2 px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                        <p className="text-xs text-slate-500 whitespace-pre-wrap">{order.qris_notes}</p>
+                      </div>
+                    )}
 
                     {/* Photo Upload - only for non-shipped */}
                     {filter !== "shipped" && !order.isHold && (() => {
@@ -683,7 +692,8 @@ export default function Shipments() {
                           />
                           {preview ? (
                             <div className="relative">
-                              <img src={preview} alt="Foto packing" className="w-full h-32 object-cover rounded-lg" />
+                              <img src={preview} alt="Foto packing" className="w-full h-40 object-contain rounded-lg cursor-pointer" onClick={() => setLightboxUrl(preview)} />
+                              <p className="text-[10px] text-slate-400 text-center mt-1">Klik foto untuk perbesar</p>
                               <button
                                 onClick={() => removePhoto(order.id)}
                                 className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
@@ -773,7 +783,7 @@ export default function Shipments() {
                         </div>
                         {order.packing_photo && (
                           <div className="relative">
-                            <img src={order.packing_photo} alt="Foto packing" className="w-full h-32 object-cover rounded-lg border border-slate-200" />
+                            <img src={order.packing_photo} alt="Foto packing" className="w-full h-40 object-contain rounded-lg border border-slate-200 cursor-pointer" onClick={() => setLightboxUrl(order.packing_photo)} />
                           </div>
                         )}
                       </div>
@@ -809,6 +819,11 @@ export default function Shipments() {
           </div>
         )}
       </main>
+      {lightboxUrl && (
+        <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center cursor-pointer" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="Preview" className="max-w-[95%] max-h-[95%] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }

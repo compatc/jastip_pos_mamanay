@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import QrisNotifier from "./QrisNotifier";
+import CatalogOrderNotifier from "./CatalogOrderNotifier";
+import TransferConfirmNotifier from "./TransferConfirmNotifier";
 import QrisHistoryModal from "./QrisHistoryModal";
 import {
   ShoppingBag,
@@ -15,6 +17,7 @@ import {
   BellRing,
   Truck,
   Wrench,
+  CreditCard,
 } from "lucide-react";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, setUser, isOnline, setOnline, fontSize } = useStore();
   const [showQrisHistory, setShowQrisHistory] = useState(false);
+  const [pendingConfCount, setPendingConfCount] = useState(0);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-fs", fontSize);
@@ -58,6 +62,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => {
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  useEffect(() => {
+    async function checkPending() {
+      try {
+        const res = await fetch("/api/payment-confirmations?status=pending");
+        const json = await res.json();
+        setPendingConfCount(json.data?.length || 0);
+      } catch {}
+    }
+    checkPending();
+    const interval = setInterval(checkPending, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   async function handleLogout() {
@@ -102,43 +119,52 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-[11px] text-slate-400 font-semibold">{user?.name} · Admin</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1">
               {!isOnline && (
-                <span className="px-2.5 py-1 bg-amber-50 text-amber-500 text-xs font-semibold rounded-xl border border-amber-200">
+                <span className="px-2 py-1 bg-amber-50 text-amber-500 text-[10px] font-semibold rounded-lg border border-amber-200">
                   OFFLINE
                 </span>
               )}
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-bold rounded-xl">
-                <span className={`w-2 h-2 rounded-full bg-emerald-500 ${isOnline ? "animate-pulse" : ""}`} /> ONLINE
-              </span>
               <button
                 onClick={() => navigate("/maintenance")}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-all"
-                title="Perawatan Data"
+                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all"
+                title="Perawatan"
               >
-                <Wrench className="w-4 h-4 stroke-[2]" />
+                <Wrench className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowQrisHistory(true)}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-all relative"
-                title="Notifikasi QRIS"
+                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
+                title="QRIS"
               >
-                <BellRing className="w-4 h-4 stroke-[2]" />
+                <BellRing className="w-4 h-4" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
               </button>
               <button
+                onClick={() => navigate("/payment-confirmations")}
+                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
+                title="Konfirmasi Bayar"
+              >
+                <CreditCard className="w-4 h-4" />
+                {pendingConfCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center bg-amber-500 text-white text-[9px] font-bold rounded-full px-1">
+                    {pendingConfCount}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => navigate("/profile")}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-all"
+                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all"
                 title="Profil"
               >
-                <User className="w-4 h-4 stroke-[2]" />
+                <User className="w-4 h-4" />
               </button>
               <button
                 onClick={handleLogout}
-                className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 transition-all"
+                className="w-9 h-9 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center transition-all"
                 title="Keluar"
               >
-                <LogOut className="w-4 h-4 stroke-[2]" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -150,6 +176,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <QrisNotifier />
+      <CatalogOrderNotifier />
+      <TransferConfirmNotifier />
       <QrisHistoryModal open={showQrisHistory} onClose={() => setShowQrisHistory(false)} />
 
       {!isSubPage && (

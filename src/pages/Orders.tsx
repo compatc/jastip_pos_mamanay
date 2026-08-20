@@ -14,8 +14,9 @@ async function getBotApiUrl(): Promise<string> {
   } catch (e) {
     console.error("getBotApiUrl fetch error:", e);
   }
-  return "http://localhost:3002";
+  return import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
 }
+
 import {
   Search,
   ClipboardList,
@@ -43,7 +44,24 @@ const PAYMENT_LABELS: Record<PaymentType, string> = {
   cash: "Cash",
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  unpaid: "Belum Dibayar",
+  dp: "DP",
+  paid: "Lunas",
+};
+
+const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
+  belum_ready: "Belum Ready",
+  ready: "Ready",
+  shipped: "Dikirim",
+  diterima: "Diterima",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+};
+
+const FULFILLMENT_STATUS_ORDER = ["belum_ready", "ready", "shipped", "diterima", "completed", "cancelled"];
+
+const OLD_STATUS_LABELS: Record<string, string> = {
   new: "Baru",
   "belum-ready": "Belum Ready",
   ready: "Ready",
@@ -69,7 +87,7 @@ const PAYMENT_LABELS_FULL: Record<string, string> = {
 
 const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
 
-const BOT_API_TOKEN = import.meta.env.VITE_BOT_API_TOKEN || "mamanay2026";
+const BOT_API_TOKEN = import.meta.env.VITE_BOT_API_TOKEN || "";
 
 type CustomerGroup = {
   customerId: string;
@@ -79,7 +97,7 @@ type CustomerGroup = {
 };
 
 export default function Orders() {
-  const { allOrders, loadAllOrders, deleteOrder, customers, loadCustomers, products, loadProducts } = useStore();
+  const { allOrders, loadAllOrders, deleteOrder, customers, loadCustomers, products, loadProducts, markOrdersPaid } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -163,7 +181,7 @@ export default function Orders() {
     if (!productFilter) return [];
     return allOrders.filter(
       (o) =>
-        ["new", "belum-ready"].includes(o.status) &&
+        o.fulfillment_status === "belum_ready" &&
         (itemsByOrder[o.id] || []).some((i) => i.product_name === productFilter)
     );
   }, [allOrders, productFilter, itemsByOrder]);
@@ -173,16 +191,17 @@ export default function Orders() {
       tabFilter === "all" ||
       o.order_type === tabFilter ||
       (tabFilter === "lunas" && isOrderLunas(o)) ||
-      (tabFilter === "ready" && o.status === "ready") ||
+      (tabFilter === "ready" && o.fulfillment_status === "ready") ||
       (tabFilter === "belum-dikirim" &&
-        o.status !== "shipped" &&
-        o.status !== "delivered" &&
-        o.status !== "completed") ||
+        o.fulfillment_status !== "shipped" &&
+        o.fulfillment_status !== "diterima" &&
+        o.fulfillment_status !== "completed" &&
+        o.fulfillment_status !== "cancelled") ||
       (tabFilter === "belum-lunas" && !isOrderLunas(o) && o.total > 0) ||
       (tabFilter === "belum-diambil" &&
         o.order_type === "penjualan" &&
         isOrderLunas(o) &&
-        ["new", "belum-ready", "ready", "paid"].includes(o.status))
+        ["belum_ready", "ready"].includes(o.fulfillment_status))
     );
   }
 
@@ -212,16 +231,15 @@ export default function Orders() {
   const countBelumDiambil = countTab("belum-diambil");
 
   function getOrderStatusColor(order: typeof allOrders[0]): string {
-    const colors: Record<string, string> = {
-      new: "bg-blue-50 text-blue-600 border-blue-200",
-      "belum-ready": "bg-orange-50 text-orange-600 border-orange-200",
+    const fulfillmentColors: Record<string, string> = {
+      belum_ready: "bg-orange-50 text-orange-600 border-orange-200",
       ready: "bg-teal-50 text-teal-600 border-teal-200",
-      paid: "bg-emerald-50 text-emerald-600 border-emerald-200",
       shipped: "bg-amber-50 text-amber-600 border-amber-200",
-      delivered: "bg-violet-50 text-violet-600 border-violet-200",
+      diterima: "bg-blue-50 text-blue-600 border-blue-200",
       completed: "bg-gray-100 text-gray-500 border-gray-200",
+      cancelled: "bg-red-50 text-red-600 border-red-200",
     };
-    return colors[order.status] || "bg-yellow-50 text-yellow-600 border-yellow-200";
+    return fulfillmentColors[order.fulfillment_status] || "bg-blue-50 text-blue-600 border-blue-200";
   }
 
   function isOrderLunas(order: typeof allOrders[0]): boolean {
@@ -264,7 +282,7 @@ export default function Orders() {
     const items = itemsByOrder[order.id] || [];
     const productText = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
     const sisa = order.total - order.paid_total;
-    const statusLabel = STATUS_LABELS[order.status] || order.status;
+    const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
 
     const deadlineBase = order.invoice_sent_at || order.created_at;
     const deadline = new Date(new Date(deadlineBase).getTime() + 2 * 24 * 60 * 60 * 1000);
@@ -374,7 +392,7 @@ export default function Orders() {
     const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
 
     const items = itemsByOrder[order.id] || [];
-    const isReady = order.status === "ready";
+    const isReady = order.fulfillment_status === "ready";
 
     if (!isReady || items.length === 0) {
       alert("Belum ada barang yang statusnya ready.");
@@ -506,22 +524,23 @@ export default function Orders() {
     let grandPaid = 0;
     const unpaidOrders = group.orders.filter((o) => !isOrderLunas(o));
     const grouped: Record<string, Order[]> = {};
-    const statusOrder = ["new", "belum-ready", "ready", "paid", "shipped", "delivered", "completed"];
     unpaidOrders.forEach((order) => {
-      if (!grouped[order.status]) grouped[order.status] = [];
-      grouped[order.status].push(order);
+      const key = order.fulfillment_status;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(order);
     });
-    statusOrder.forEach((status) => {
+    FULFILLMENT_STATUS_ORDER.forEach((status) => {
       const list = grouped[status];
       if (!list) return;
       list.forEach((order) => {
         const items = itemsByOrder[order.id] || [];
         const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
         const payMethod = PAYMENT_LABELS_FULL[order.payment_type] || order.payment_type;
-        const statusLabel = STATUS_LABELS[order.status] || order.status;
+        const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
         msg += `Status barang: ${statusLabel}\n`;
         if (order.notes) msg += `\u{1F4DD} Catatan: ${order.notes}\n`;
+        if (order.qris_notes) msg += `\u{1F4DD} Catatan QRIS: ${order.qris_notes}\n`;
         msg += `Metode: ${payMethod}\n`;
         msg += `\u{1F4B0} Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
         const paid = order.paid_total || 0;
@@ -615,7 +634,6 @@ export default function Orders() {
     const failedNames: string[] = [];
 
     try {
-      // Build invoices array
       const invoices = [];
       for (const g of targets) {
         const wa = toWaNumber(g.phone);
@@ -629,10 +647,7 @@ export default function Orders() {
         invoices.push({ phone: wa, message: msg });
       }
 
-      // Get bot API URL from Supabase
       const botUrl = await getBotApiUrl();
-
-      // Send via bot API
       const res = await fetch(`${botUrl}/api/send-batch`, {
         method: "POST",
         headers: {
@@ -647,7 +662,6 @@ export default function Orders() {
         sent = result.sent || 0;
         failed = result.failed || 0;
       } else {
-        // Fallback: open WA tabs if bot API unavailable
         setSendProgress("Bot tidak aktif, membuka WhatsApp...");
         let delay = 0;
         for (const g of targets) {
@@ -662,7 +676,6 @@ export default function Orders() {
         }
       }
     } catch {
-      // Fallback: open WA tabs
       setSendProgress("Bot tidak aktif, membuka WhatsApp...");
       let delay = 0;
       for (const g of targets) {
@@ -687,7 +700,7 @@ export default function Orders() {
   }
 
   async function sendReadyReminders() {
-    const readyOrders = filtered.filter((o) => o.status === "ready");
+    const readyOrders = filtered.filter((o) => o.fulfillment_status === "ready");
     if (readyOrders.length === 0) return;
 
     setSendingReminder(true);
@@ -770,7 +783,6 @@ export default function Orders() {
         sent = result.sent || 0;
         failed = result.failed || 0;
       } else {
-        // Fallback WA tabs
         let delay = 0;
         for (const inv of invoices) {
           setTimeout(() => window.open(`https://wa.me/${inv.phone}?text=${encodeURIComponent(inv.message)}`, "_blank"), delay);
@@ -833,28 +845,27 @@ export default function Orders() {
 
   function getOrderAccentColor(order: Order): string {
     if (!isOrderLunas(order) && order.total > 0) return "border-rose-500";
-    if (order.status === "ready") return "border-sky-500";
-    if (order.status === "paid" || order.status === "shipped" || order.status === "delivered" || order.status === "completed") return "border-emerald-500";
+    if (order.fulfillment_status === "ready") return "border-sky-500";
+    if (order.fulfillment_status === "shipped" || order.fulfillment_status === "diterima" || order.fulfillment_status === "completed") return "border-emerald-500";
     return "border-slate-200/80";
   }
 
   function getOrderAvatarBg(order: Order): string {
     if (!isOrderLunas(order) && order.total > 0) return "bg-rose-100 text-rose-600";
-    if (order.status === "ready") return "bg-sky-100 text-sky-600";
-    if (order.status === "paid" || order.status === "shipped" || order.status === "delivered" || order.status === "completed") return "bg-emerald-100 text-emerald-600";
+    if (order.fulfillment_status === "ready") return "bg-sky-100 text-sky-600";
+    if (order.fulfillment_status === "shipped" || order.fulfillment_status === "diterima" || order.fulfillment_status === "completed") return "bg-emerald-100 text-emerald-600";
     return "bg-slate-100 text-slate-600";
   }
 
   function getOrderStatusBadge(order: Order): { text: string; className: string } {
     if (!isOrderLunas(order) && order.total > 0) return { text: "Belum Bayar", className: "bg-rose-50 border-rose-200 text-rose-600" };
-    if (order.status === "new") return { text: "Baru", className: "bg-blue-50 border-blue-200 text-blue-600" };
-    if (order.status === "belum-ready") return { text: "Belum Ready", className: "bg-orange-50 border-orange-200 text-orange-600" };
-    if (order.status === "ready") return { text: "READY SIAP AMBIL", className: "bg-sky-50 border-sky-200 text-sky-600" };
-    if (order.status === "paid") return { text: "Dibayar", className: "bg-emerald-50 border-emerald-200 text-emerald-600" };
-    if (order.status === "shipped") return { text: "Dikirim", className: "bg-amber-50 border-amber-200 text-amber-600" };
-    if (order.status === "delivered") return { text: "Diterima", className: "bg-violet-50 border-violet-200 text-violet-600" };
-    if (order.status === "completed") return { text: "Selesai", className: "bg-gray-50 border-gray-200 text-gray-500" };
-    return { text: order.status, className: "bg-gray-50 border-gray-200 text-gray-500" };
+    if (order.fulfillment_status === "belum_ready") return { text: "Belum Ready", className: "bg-orange-50 border-orange-200 text-orange-600" };
+    if (order.fulfillment_status === "ready") return { text: "READY SIAP AMBIL", className: "bg-sky-50 border-sky-200 text-sky-600" };
+    if (order.fulfillment_status === "shipped") return { text: "Dikirim", className: "bg-amber-50 border-amber-200 text-amber-600" };
+    if (order.fulfillment_status === "diterima") return { text: "Diterima", className: "bg-blue-50 border-blue-200 text-blue-600" };
+    if (order.fulfillment_status === "completed") return { text: "Selesai", className: "bg-gray-50 border-gray-200 text-gray-500" };
+    if (order.fulfillment_status === "cancelled") return { text: "Dibatalkan", className: "bg-red-50 border-red-200 text-red-600" };
+    return { text: order.fulfillment_status, className: "bg-gray-50 border-gray-200 text-gray-500" };
   }
 
   function getTimeAgo(dateStr: string): string {
@@ -874,7 +885,7 @@ export default function Orders() {
 
   const countBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).length;
   const totalBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + (o.total - o.paid_total), 0);
-  const countReady = baseFiltered.filter((o) => o.status === "ready").length;
+  const countReady = baseFiltered.filter((o) => o.fulfillment_status === "ready").length;
   const countLunas = baseFiltered.filter((o) => isOrderLunas(o)).length;
   const today = new Date().toISOString().slice(0, 10);
   const todayPaidOrders = baseFiltered.filter((o) => isOrderLunas(o) && o.created_at?.slice(0, 10) === today);
@@ -1036,7 +1047,7 @@ export default function Orders() {
                   if (ids.length === 0) return;
                   await supabase
                     .from("orders")
-                    .update({ status: "ready", updated_at: new Date().toISOString() })
+                    .update({ status: "ready", fulfillment_status: "ready", updated_at: new Date().toISOString() })
                     .in("id", ids);
                   await loadAllOrders();
                 },
@@ -1211,7 +1222,7 @@ export default function Orders() {
                               className={`text-[10px] px-1.5 py-0.5 font-bold rounded-full border appearance-none cursor-pointer pr-4 bg-no-repeat bg-[length:10px] bg-[right_4px_center] ${badge.className} disabled:opacity-50`}
                               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
                             >
-                              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                              {Object.entries(OLD_STATUS_LABELS).map(([value, label]) => (
                                 <option key={value} value={value}>{label}</option>
                               ))}
                             </select>
@@ -1220,6 +1231,13 @@ export default function Orders() {
                         <p className="text-[10px] text-slate-400">
                           #{order.id.slice(0, 8).toUpperCase()} · {getTimeAgo(order.created_at)}
                         </p>
+                        {(() => {
+                          const cust = customers.find((c) => c.id === order.customer_id);
+                          if (cust?.address) {
+                            return <p className="text-[10px] text-slate-400 mt-0.5 truncate">📍 {cust.address}</p>;
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -1256,9 +1274,18 @@ export default function Orders() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              sendReminder(order);
+                              const sisa = order.total - (order.paid_total || 0);
+                              showConfirm(
+                                "Tandai Lunas",
+                                `Tandai order ${order.customer_name || ""} sebagai lunas (TF BCA)?\nSisa tagihan: Rp ${sisa.toLocaleString("id-ID")}`,
+                                async () => {
+                                  await markOrdersPaid([order.id]);
+                                  await loadAllOrders();
+                                },
+                                "Ya, Lunas"
+                              );
                             }}
-                            className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-rose-500/20"
+                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-emerald-500/20"
                           >
                             Lunas
                           </button>
@@ -1266,7 +1293,7 @@ export default function Orders() {
                       )}
                       {(isOrderLunas(order) || order.total === 0) && (
                         <>
-                          {order.status === "ready" && (
+                          {order.fulfillment_status === "ready" && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -1300,7 +1327,7 @@ export default function Orders() {
                                   async () => {
                                     await supabase
                                       .from("orders")
-                                      .update({ status: "completed", updated_at: new Date().toISOString() })
+                                      .update({ status: "completed", fulfillment_status: "completed", updated_at: new Date().toISOString() })
                                       .eq("id", order.id);
                                     await loadAllOrders();
                                   },

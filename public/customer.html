@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mama Nay - Invoice Saya</title>
+  <title>jastip_mamanay - Invoice Saya</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -74,6 +74,169 @@
       transition: all 0.2s;
     }
     .btn-logout:hover { background: rgba(255,255,255,0.25); }
+    /* ===== LOYALTY CARD ===== */
+    .loyalty-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    .loyalty-points {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .loyalty-icon { font-size: 18px; }
+    .loyalty-value { font-size: 20px; font-weight: 700; color: #fff; }
+    .loyalty-label { font-size: 12px; color: rgba(255,255,255,0.8); }
+    .loyalty-divider {
+      width: 1px;
+      height: 30px;
+      background: rgba(255,255,255,0.3);
+    }
+    .loyalty-level {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .loyalty-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    .loyalty-badge.gold { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .loyalty-badge.platinum { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .loyalty-discount { font-size: 11px; color: rgba(255,255,255,0.8); }
+    .btn-redeem-points {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1.5px dashed rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-redeem-points:active { background: rgba(255,255,255,0.25); }
+
+    .redeem-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      justify-content: center;
+      align-items: flex-end;
+    }
+    .redeem-overlay.show { display: flex; }
+    .redeem-sheet {
+      background: #fff;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .redeem-handle { width: 40px; height: 4px; background: #e2e8f0; border-radius: 2px; margin: 0 auto 16px; }
+    .redeem-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+    .redeem-info { font-size: 13px; color: #64748b; margin-bottom: 16px; line-height: 1.5; }
+    .redeem-info strong { color: #e11d48; }
+    .redeem-input-group { margin-bottom: 16px; }
+    .redeem-label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    .redeem-input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .redeem-input:focus { border-color: #e11d48; }
+    .redeem-preview { background: #fef2f2; border-radius: 10px; padding: 12px; margin-bottom: 16px; text-align: center; }
+    .redeem-preview-text { font-size: 13px; color: #64748b; }
+    .redeem-preview-amount { font-size: 24px; font-weight: 700; color: #e11d48; margin-top: 4px; }
+    .redeem-order-select { margin-bottom: 16px; }
+    .redeem-order-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .redeem-order-option.selected { border-color: #e11d48; background: #fef2f2; }
+    .redeem-order-option input[type="radio"] { accent-color: #e11d48; }
+    .redeem-order-id { font-size: 13px; font-weight: 600; color: #1e293b; }
+    .redeem-order-sisa { font-size: 12px; color: #64748b; }
+    .btn-redeem-confirm {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-redeem-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-redeem-cancel {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .tab-bar { display: flex; gap: 6px; margin-top: 14px; position: relative; z-index: 1; }
+    .tab { flex: 1; padding: 8px 0; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .tab.active { background: white; color: #e11d48; border-color: white; }
+    .history-card { background: white; border-radius: 14px; padding: 14px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
+    .history-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .history-card-id { font-size: 13px; font-weight: 700; color: #0f172a; }
+    .history-card-date { font-size: 11px; color: #94a3b8; }
+    .history-card-items { font-size: 12px; color: #475569; margin-bottom: 8px; line-height: 1.5; }
+    .history-card-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #f1f5f9; }
+    .history-card-total { font-size: 14px; font-weight: 800; color: #0f172a; }
+    .history-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+    .history-status.s-new { background: #dbeafe; color: #1d4ed8; }
+    .history-status.s-paid { background: #dcfce7; color: #15803d; }
+    .history-status.s-belum-ready { background: #fff7ed; color: #c2410c; }
+    .history-status.s-ready { background: #dcfce7; color: #15803d; }
+    .history-status.s-sent { background: #f3e8ff; color: #7c3aed; }
+    .history-status.s-completed { background: #dcfce7; color: #15803d; }
+    .history-status.s-cancelled { background: #fee2e2; color: #dc2626; }
+    .history-status.s-unpaid { background: #fef2f2; color: #dc2626; }
+    .history-status.s-dp { background: #fefce8; color: #a16207; }
     .greeting {
       position: relative;
       z-index: 1;
@@ -92,6 +255,28 @@
       max-width: 420px;
       margin-left: auto;
       margin-right: auto;
+    }
+
+    @media (min-width: 640px) {
+      .app-header { padding: 24px 32px 56px; }
+      .content { max-width: 560px; padding: 0 24px; margin-top: -36px; }
+      .greeting h1 { font-size: 24px; }
+      .brand-text { font-size: 20px; }
+      .grand-total-amount { font-size: 32px; }
+    }
+    @media (min-width: 768px) {
+      .app-header { padding: 32px 40px 60px; }
+      .content { max-width: 680px; padding: 0 32px; }
+      .login-container { padding: 32px; }
+      .login-box { padding: 32px 28px; }
+      .modal-sheet { max-width: 480px; border-radius: 20px; margin: auto; }
+      .modal-overlay { align-items: center; }
+      .card { padding: 20px; }
+      .grand-total-card { padding: 24px; }
+    }
+    @media (min-width: 1024px) {
+      .content { max-width: 780px; }
+      .login-container { max-width: 480px; }
     }
 
     /* ===== GRAND TOTAL CARD ===== */
@@ -133,14 +318,13 @@
     }
     .meta-text { font-size: 12px; color: #94a3b8; }
     .btn-pay-all {
-      width: 100%;
+      flex: 1;
       padding: 12px;
       border: none;
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
       cursor: pointer;
-      margin-top: 14px;
       background: linear-gradient(135deg, #ec4899, #f43f5e);
       color: white;
       transition: all 0.2s;
@@ -250,24 +434,88 @@
     .status-dot { width: 6px; height: 6px; border-radius: 50%; }
     .status-unpaid { background: #fef2f2; color: #dc2626; }
     .status-unpaid .status-dot { background: #dc2626; }
+    .status-new { background: #eff6ff; color: #2563eb; }
+    .status-new .status-dot { background: #2563eb; }
+    .status-belum-ready { background: #fff7ed; color: #ea580c; }
+    .status-belum-ready .status-dot { background: #ea580c; }
     .status-ready { background: #ecfdf5; color: #059669; }
     .status-ready .status-dot { background: #059669; }
-    .status-paid { background: #eff6ff; color: #2563eb; }
-    .status-paid .status-dot { background: #2563eb; }
+    .status-paid { background: #ecfdf5; color: #059669; }
+    .status-paid .status-dot { background: #059669; }
     .status-sent { background: #f5f3ff; color: #7c3aed; }
     .status-sent .status-dot { background: #7c3aed; }
+    .status-dp { background: #fefce8; color: #a16207; }
+    .status-dp .status-dot { background: #a16207; }
+    .status-cancelled { background: #fee2e2; color: #dc2626; }
+    .status-cancelled .status-dot { background: #dc2626; }
+    .status-waiting { background: #fefce8; color: #ca8a04; }
+    .status-waiting .status-dot { background: #ca8a04; }
     .btn-pay-sm {
-      padding: 8px 20px;
+      padding: 8px 16px;
       border: none;
       border-radius: 10px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
       background: linear-gradient(135deg, #ec4899, #f43f5e);
       color: white;
       transition: all 0.2s;
+      white-space: nowrap;
     }
     .btn-pay-sm:hover { opacity: 0.9; }
+    .btn-confirm-tf {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #f59e0b;
+      color: white;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-confirm-tf:hover { opacity: 0.9; }
+
+    /* Modal Konfirmasi TF */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 200; align-items: flex-end; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal-sheet { background: white; border-radius: 20px 20px 0 0; width: 100%; max-width: 420px; padding: 20px 16px 28px; animation: modalSlideUp 0.25s ease; max-height: 90vh; overflow-y: auto; }
+    @keyframes modalSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-handle { width: 36px; height: 4px; background: #e2e8f0; border-radius: 2px; margin: 0 auto 16px; }
+    .modal-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
+    .modal-sub { font-size: 12px; color: #94a3b8; margin-bottom: 16px; }
+    .modal-bank { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+    .modal-bank-title { font-size: 11px; font-weight: 700; color: #0369a1; margin-bottom: 6px; }
+    .modal-bank-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+    .modal-bank-row .lbl { color: #64748b; }
+    .modal-bank-row .val { font-weight: 700; color: #0f172a; }
+    .modal-bank-copy { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 7px; background: white; border: 1px solid #bae6fd; border-radius: 8px; margin-top: 6px; font-size: 11px; font-weight: 700; color: #0369a1; cursor: pointer; }
+    .modal-bank-copy:hover { background: #e0f2fe; }
+    .modal-field { margin-bottom: 12px; }
+    .modal-label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+    .modal-input { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; font-weight: 600; color: #0f172a; outline: none; }
+    .modal-input:focus { border-color: #3b82f6; }
+    .modal-hint { font-size: 10px; color: #94a3b8; margin-top: 3px; }
+    .modal-upload { border: 1.5px dashed #d1d5db; border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; background: #fafafa; }
+    .modal-upload:hover { border-color: #3b82f6; background: #eff6ff; }
+    .modal-upload-icon { font-size: 24px; margin-bottom: 4px; }
+    .modal-upload-text { font-size: 12px; font-weight: 600; color: #64748b; }
+    .modal-upload-hint { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+    .modal-preview { position: relative; border-radius: 10px; overflow: hidden; border: 1.5px solid #10b981; cursor: pointer; }
+    .modal-preview img { width: 100%; max-height: 300px; object-fit: contain; display: block; background: #f8fafc; }
+    .modal-preview-rm { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; color: white; font-size: 12px; cursor: pointer; }
+    .lightbox-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; justify-content: center; align-items: center; cursor: pointer; }
+    .lightbox-overlay.show { display: flex; }
+    .lightbox-overlay img { max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 8px; }
+    .modal-submit { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; margin-top: 6px; }
+    .modal-submit:hover { opacity: 0.9; }
+    .modal-cancel { width: 100%; padding: 10px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; background: #f1f5f9; color: #64748b; margin-top: 6px; }
+    .modal-success { text-align: center; padding: 16px 0; }
+    .modal-success-icon { width: 56px; height: 56px; background: #ecfdf5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 12px; }
+    .modal-success h3 { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+    .modal-success p { font-size: 12px; color: #94a3b8; line-height: 1.5; }
 
     /* ===== READY BANNER ===== */
     .ready-banner {
@@ -291,6 +539,12 @@
     }
     .ready-banner-text h3 { font-size: 14px; font-weight: 800; color: #065f46; }
     .ready-banner-text p { font-size: 12px; color: #059669; margin-top: 1px; }
+
+    .card-notes { padding: 0 16px; margin-top: 10px; }
+    .card-note-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+    .card-note-box:last-child { margin-bottom: 0; }
+    .card-note-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 2px; }
+    .card-note-text { font-size: 12px; color: #475569; word-wrap: break-word; white-space: pre-wrap; }
 
     /* ===== QRIS ===== */
     .qris-card {
@@ -371,6 +625,7 @@
       align-items: center;
       min-height: 100dvh;
       background: #f8fafc;
+      margin: 0 auto;
     }
     .login-header { text-align: center; padding: 60px 0 24px; }
     .login-header h1 { font-size: 20px; font-weight: 800; color: #1e293b; }
@@ -438,7 +693,7 @@
   <!-- ===== LOGIN SCREEN ===== -->
   <div id="loginScreen" class="login-container">
     <div class="login-header">
-      <h1>Mama Nay</h1>
+      <h1>jastip_mamanay</h1>
       <p>Lihat invoice &amp; status pesanan kamu</p>
     </div>
     <div class="login-box">
@@ -459,7 +714,7 @@
       <div class="header-top">
         <div class="brand">
           <div class="brand-icon">&#128722;</div>
-          <div class="brand-text">Mama Nay</div>
+          <div class="brand-text">jastip_mamanay</div>
         </div>
         <button class="btn-logout" id="btnLogout">Ganti Akun</button>
       </div>
@@ -467,12 +722,53 @@
         <h1 id="customerName">Halo!</h1>
         <p id="customerSubtitle">Memuat data...</p>
       </div>
+      <div class="loyalty-card" id="loyaltyCard" style="display:none;">
+        <div class="loyalty-points">
+          <span class="loyalty-icon">&#11088;</span>
+          <span class="loyalty-value" id="loyaltyPoints">0</span>
+          <span class="loyalty-label">Poin</span>
+        </div>
+        <div class="loyalty-divider"></div>
+        <div class="loyalty-level">
+          <span class="loyalty-badge" id="loyaltyBadge">Silver</span>
+          <span class="loyalty-discount" id="loyaltyDiscount">Diskon: Rp0</span>
+        </div>
+        <button class="btn-redeem-points" id="btnRedeemPoints" onclick="openRedeemModal()" style="display:none;">Tukar Poin &#10140;</button>
+      </div>
+      <div class="tab-bar" id="tabBar">
+        <button class="tab active" data-tab="invoice" onclick="switchTab('invoice')">Invoice</button>
+        <button class="tab" data-tab="riwayat" onclick="switchTab('riwayat')">Riwayat</button>
+      </div>
     </div>
     <div class="content">
       <div id="content">
         <div class="loading"><div class="spinner"></div>Memuat data...</div>
       </div>
+      <div id="historyContent" style="display:none;"></div>
       <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- ===== TUKAR POIN MODAL ===== -->
+  <div class="redeem-overlay" id="redeemOverlay" onclick="if(event.target===this)closeRedeemModal()">
+    <div class="redeem-sheet">
+      <div class="redeem-handle"></div>
+      <div class="redeem-title">Tukar Poin</div>
+      <div class="redeem-info">
+        50 poin = Rp1.000 diskon.<br>
+        Poin kamu: <strong id="redeemMyPoints">0</strong>
+      </div>
+      <div class="redeem-input-group">
+        <div class="redeem-label">Masukkan jumlah poin</div>
+        <input type="number" class="redeem-input" id="redeemPointsInput" min="50" step="50" placeholder="50" oninput="previewRedeem()">
+      </div>
+      <div class="redeem-preview" id="redeemPreview" style="display:none;">
+        <div class="redeem-preview-text">Kamu dapat diskon</div>
+        <div class="redeem-preview-amount" id="redeemPreviewAmount">Rp0</div>
+      </div>
+      <div class="redeem-order-select" id="redeemOrderSelect"></div>
+      <button class="btn-redeem-confirm" id="btnRedeemConfirm" onclick="confirmRedeem()" disabled>Tukar Sekarang</button>
+      <button class="btn-redeem-cancel" onclick="closeRedeemModal()">Batal</button>
     </div>
   </div>
 
@@ -482,7 +778,7 @@
       <div class="header-top">
         <div class="brand">
           <div class="brand-icon">&#128722;</div>
-          <div class="brand-text">Mama Nay</div>
+          <div class="brand-text">jastip_mamanay</div>
         </div>
         <button class="back-btn" id="btnBack">&larr; Kembali</button>
       </div>
@@ -500,6 +796,12 @@
   <script>
     var API_BASE = window.location.origin;
     var currentCustomer = null;
+
+    function escHtml(s) {
+      var d = document.createElement('div');
+      d.appendChild(document.createTextNode(s));
+      return d.innerHTML;
+    }
 
     var phoneInput = document.getElementById('phoneInput');
     var btnLogin = document.getElementById('btnLogin');
@@ -622,13 +924,32 @@
       if (el2) el2.textContent = count + ' invoice dipilih';
       var btn = document.getElementById('btnPaySelected');
       if (btn) btn.style.display = count > 0 ? '' : 'none';
+      var btnTf = document.getElementById('btnTfSelected');
+      if (btnTf) btnTf.style.display = count > 0 ? '' : 'none';
     }
 
     function paySelected() {
       var ids = Object.keys(selectedOrders);
-      if (ids.length === 0) return;
-      var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
-      showQris(ids.join(','), total, ids);
+      if (ids.length > 0) {
+        var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
+        showQris(ids.join(','), total, ids);
+      } else if (unpaidOrders.length > 0) {
+        var allIds = unpaidOrders.map(function(o) { return o.id; });
+        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
+        showQris(allIds.join(','), allTotal, allIds);
+      }
+    }
+
+    function tfSelected() {
+      var ids = Object.keys(selectedOrders);
+      if (ids.length > 0) {
+        var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
+        openTfModal(ids.join(','), total);
+      } else if (unpaidOrders.length > 0) {
+        var allIds = unpaidOrders.map(function(o) { return o.id; });
+        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0)); }, 0);
+        openTfModal(allIds.join(','), allTotal);
+      }
     }
 
     async function showDashboard() {
@@ -637,6 +958,11 @@
       document.getElementById('qrisScreen').style.display = 'none';
       document.getElementById('customerName').textContent = 'Halo, ' + currentCustomer.name + '!';
       document.getElementById('customerSubtitle').textContent = 'Memuat data...';
+      loadLoyaltyPoints(currentCustomer.id);
+      if (window._loyaltyInterval) clearInterval(window._loyaltyInterval);
+      window._loyaltyInterval = setInterval(function() {
+        if (currentCustomer && currentCustomer.id) loadLoyaltyPoints(currentCustomer.id);
+      }, 30000);
       document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Memuat data...</div>';
       try {
         var res = await fetch(API_BASE + '/api/customer-orders?customer_id=' + currentCustomer.id);
@@ -651,9 +977,9 @@
         document.getElementById('content').innerHTML = '<div class="empty-state"><div class="empty-icon">&#128230;</div><h3>Belum ada invoice</h3><p>Pesanan kamu akan muncul di sini</p></div>';
         return;
       }
-      var unpaid = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) > 0 && !['dibatalkan', 'deleted'].includes(o.status); });
-      var ready = orders.filter(function(o) { return o.status === 'ready' && (o.total - (o.paid_total || 0)) <= 0; });
-      var processing = orders.filter(function(o) { return (o.total - (o.paid_total || 0)) <= 0 && !['ready', 'dikirim', 'selesai', 'completed', 'dibatalkan', 'deleted'].includes(o.status); });
+      var unpaid = orders.filter(function(o) { return o.payment_status !== 'paid' && o.fulfillment_status !== 'cancelled'; });
+      var ready = orders.filter(function(o) { return o.fulfillment_status === 'ready' && o.payment_status === 'paid'; });
+      var processing = orders.filter(function(o) { return o.payment_status === 'paid' && o.fulfillment_status === 'belum_ready'; });
       unpaidOrders = unpaid;
       selectedOrders = {};
       document.getElementById('customerSubtitle').textContent = unpaid.length > 0 ? unpaid.length + ' invoice belum lunas' : processing.length > 0 ? processing.length + ' pesanan sedang diproses' : 'Semua sudah lunas';
@@ -667,7 +993,10 @@
         html += '<span class="meta-badge" id="grandTotalCount">' + unpaid.length + ' invoice</span>';
         html += '<span class="meta-text">belum lunas</span>';
         html += '</div>';
-        html += '<button class="btn-pay-all" id="btnPaySelected" onclick="paySelected()" style="display:none;">Bayar yang Dipilih</button>';
+        html += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">';
+        html += '<button class="btn-pay-all" id="btnPaySelected" onclick="paySelected()" style="width:100%;">Bayar via QRIS</button>';
+        html += '<button class="btn-confirm-tf" id="btnTfSelected" onclick="tfSelected()" style="width:100%;">Konfirmasi Transfer BCA</button>';
+        html += '</div>';
         html += '</div>';
         html += '<div class="section-bar">';
         html += '<span class="section-title">Belum Dibayar</span>';
@@ -697,7 +1026,7 @@
         });
       }
       if (unpaid.length === 0 && ready.length === 0 && processing.length === 0) {
-        var allPaid = orders.filter(function(o) { return !['dibatalkan', 'deleted', 'dikirim', 'selesai', 'completed'].includes(o.status); });
+        var allPaid = orders.filter(function(o) { return o.fulfillment_status !== 'cancelled'; });
         if (allPaid.length > 0) {
           html += '<div class="section-title" style="margin-top:0;">Semua Lunas</div>';
           allPaid.slice(0, 5).forEach(function(o) {
@@ -722,16 +1051,116 @@
           showQris(orderId, amount);
         });
       });
+      document.querySelectorAll('[data-tf-btn]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var orderId = btn.getAttribute('data-tf-btn');
+          var sisa = btn.getAttribute('data-tf-sisa');
+          openTfModal(orderId, sisa);
+        });
+      });
+    }
+
+    var allOrdersCache = [];
+    var allItemsCache = {};
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tab); });
+      if (tab === 'invoice') {
+        document.getElementById('content').style.display = '';
+        document.getElementById('historyContent').style.display = 'none';
+      } else {
+        document.getElementById('content').style.display = 'none';
+        document.getElementById('historyContent').style.display = '';
+        loadHistory();
+      }
+    }
+
+    async function loadHistory() {
+      var el = document.getElementById('historyContent');
+      if (allOrdersCache.length > 0) {
+        renderHistory(allOrdersCache, allItemsCache);
+        return;
+      }
+      el.innerHTML = '<div class="loading"><div class="spinner"></div>Memuat riwayat...</div>';
+      try {
+        var res = await fetch(API_BASE + '/api/customer-orders?customer_id=' + currentCustomer.id);
+        var data = await res.json();
+        allOrdersCache = data.orders || [];
+        allItemsCache = data.itemsByOrder || {};
+        renderHistory(allOrdersCache, allItemsCache);
+      } catch(e) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9888;</div><h3>Error</h3><p>' + e.message + '</p></div>';
+      }
+    }
+
+    function renderHistory(orders, itemsByOrder) {
+      var el = document.getElementById('historyContent');
+      if (orders.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128230;</div><h3>Belum ada riwayat</h3></div>';
+        return;
+      }
+      var sorted = orders.slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+      var html = '<div style="margin-bottom:10px;font-size:13px;color:#64748b;font-weight:600;">' + sorted.length + ' order</div>';
+      sorted.forEach(function(o) {
+        var items = itemsByOrder[o.id] || [];
+        var ps = o.payment_status || 'unpaid';
+        var fs = o.fulfillment_status || 'belum_ready';
+
+        // Status Bayar
+        var bayarLabel = '', bayarCls = '';
+        if (fs === 'cancelled') { bayarLabel = 'Dibatalkan'; bayarCls = 's-cancelled'; }
+        else if (ps === 'paid') { bayarLabel = 'Lunas'; bayarCls = 's-paid'; }
+        else if (ps === 'dp') { bayarLabel = 'DP'; bayarCls = 's-dp'; }
+        else { bayarLabel = 'Belum Bayar'; bayarCls = 's-unpaid'; }
+
+        // Status Kirim
+        var kirimLabel = '', kirimCls = '';
+        if (fs === 'cancelled') { kirimLabel = ''; }
+        else if (fs === 'shipped') { kirimLabel = 'Dikirim'; kirimCls = 's-sent'; }
+        else if (fs === 'completed') { kirimLabel = 'Selesai'; kirimCls = 's-completed'; }
+        else if (fs === 'ready') { kirimLabel = 'Stok Ready'; kirimCls = 's-ready'; }
+        else { kirimLabel = 'Belum Ready'; kirimCls = 's-belum-ready'; }
+
+        html += '<div class="history-card">';
+        html += '<div class="history-card-top">';
+        html += '<span class="history-card-id">#' + shortId(o.id) + '</span>';
+        html += '<span class="history-card-date">' + fmtDate(o.created_at) + '</span>';
+        html += '</div>';
+        html += '<div class="history-card-items">';
+        items.forEach(function(item) {
+          html += item.quantity + '× ' + item.product_name + '<br>';
+        });
+        if (items.length === 0) html += '<em style="color:#94a3b8;">Detail tidak tersedia</em>';
+        html += '</div>';
+        html += '<div class="history-card-bottom">';
+        html += '<span class="history-card-total">' + fmt(o.total) + '</span>';
+        html += '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">';
+        html += '<span class="history-status ' + bayarCls + '">' + bayarLabel + '</span>';
+        if (kirimLabel) html += '<span class="history-status ' + kirimCls + '">' + kirimLabel + '</span>';
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+      });
+      el.innerHTML = html;
     }
 
     function renderCard(order, items, showPay) {
       var sisa = order.total - (order.paid_total || 0);
-      var statusLabel = '';
-      var statusClass = '';
-      if (order.status === 'ready') { statusLabel = 'Ready'; statusClass = 'status-ready'; }
-      else if (order.status === 'dikirim') { statusLabel = 'Dikirim'; statusClass = 'status-sent'; }
-      else if (order.status === 'lunas' || sisa <= 0) { statusLabel = 'Lunas'; statusClass = 'status-paid'; }
-      else { statusLabel = 'Belum Lunas'; statusClass = 'status-unpaid'; }
+      var ps = order.payment_status || 'unpaid';
+      var fs = order.fulfillment_status || 'belum_ready';
+      // Status Bayar
+      var bayarLabel = '', bayarCls = '';
+      if (fs === 'cancelled') { bayarLabel = 'Dibatalkan'; bayarCls = 'status-cancelled'; }
+      else if (ps === 'paid') { bayarLabel = 'Lunas'; bayarCls = 'status-paid'; }
+      else if (ps === 'dp') { bayarLabel = 'DP'; bayarCls = 'status-dp'; }
+      else { bayarLabel = 'Belum Bayar'; bayarCls = 'status-unpaid'; }
+      // Status Kirim
+      var kirimLabel = '', kirimCls = '';
+      if (fs === 'cancelled') { kirimLabel = ''; }
+      else if (fs === 'shipped') { kirimLabel = 'Dikirim'; kirimCls = 'status-sent'; }
+      else if (fs === 'completed') { kirimLabel = 'Selesai'; kirimCls = 'status-paid'; }
+      else if (fs === 'ready') { kirimLabel = 'Stok Ready'; kirimCls = 'status-ready'; }
+      else { kirimLabel = 'Belum Ready'; kirimCls = 'status-belum-ready'; }
       var h = '<div class="card" data-card-id="' + order.id + '">';
       h += '<div class="card-top">';
       if (showPay && sisa > 0) {
@@ -760,11 +1189,14 @@
         h += '<div class="card-row sisa"><span>Sisa</span><span>' + fmt(sisa) + '</span></div>';
       }
       h += '</div>';
-      h += '<div class="card-footer">';
-      h += '<span class="status-badge ' + statusClass + '"><span class="status-dot"></span>' + statusLabel + '</span>';
-      if (showPay && sisa > 0) {
-        h += '<button class="btn-pay-sm" data-pay-btn="' + order.id + '" data-pay-amount="' + sisa + '">Bayar</button>';
+      if (order.notes) {
+        h += '<div class="card-notes">';
+        h += '<div class="card-note-box"><div class="card-note-label">Catatan</div><div class="card-note-text">' + escHtml(order.notes) + '</div></div>';
+        h += '</div>';
       }
+      h += '<div class="card-footer">';
+      h += '<span class="status-badge ' + bayarCls + '"><span class="status-dot"></span>' + bayarLabel + '</span>';
+      if (kirimLabel) h += ' <span class="status-badge ' + kirimCls + '"><span class="status-dot"></span>' + kirimLabel + '</span>';
       h += '</div></div>';
       return h;
     }
@@ -795,7 +1227,7 @@
         h += '<div class="qris-invoice">' + label + '</div>';
         h += '<div class="qris-amount">' + fmt(finalAmount) + '</div>';
         if (data.custom_unique_code > 0) {
-          h += '<div class="qris-unique-note">Sudah termasuk kode unik (Rp ' + data.custom_unique_code + ')</div>';
+          h += '<div class="qris-unique-note">Termasuk kode unik Rp' + data.custom_unique_code.toLocaleString('id-ID') + '</div>';
         }
         if (qrUrl) {
           h += '<div class="qris-qr"><img src="' + qrUrl + '" alt="QRIS"></div>';
@@ -847,6 +1279,296 @@
         } catch(e) {}
       }
     })();
+
+    /* ===== KONFIRMASI TF ===== */
+    var tfOrderId = '';
+    var tfSisa = 0;
+
+    function openTfModal(orderId, sisa) {
+      tfOrderId = orderId;
+      tfSisa = parseFloat(sisa);
+      var fmtSisa = 'Rp ' + tfSisa.toLocaleString('id-ID');
+      document.getElementById('tfSisaLabel').textContent = 'Total tagihan: ' + fmtSisa;
+      document.getElementById('tfSisaVal').textContent = fmtSisa;
+      document.getElementById('tfNominal').value = fmtSisa;
+      document.getElementById('tfTanggal').value = new Date().toLocaleString('id-ID', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      document.getElementById('tfFileInput').value = '';
+      document.getElementById('tfUploadArea').style.display = '';
+      document.getElementById('tfPreview').style.display = 'none';
+      document.getElementById('tfSuccess').style.display = 'none';
+      document.getElementById('tfForm').style.display = '';
+      document.getElementById('tfModal').classList.add('show');
+    }
+
+    function openTfSelectedModal() {
+      var ids = Object.keys(selectedOrders);
+      if (ids.length === 0) return;
+      var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
+      tfOrderId = ids.join(',');
+      tfSisa = total;
+      var fmtSisa = 'Rp ' + total.toLocaleString('id-ID');
+      document.getElementById('tfSisaLabel').textContent = ids.length + ' invoice · Total: ' + fmtSisa;
+      document.getElementById('tfSisaVal').textContent = fmtSisa;
+      document.getElementById('tfNominal').value = fmtSisa;
+      document.getElementById('tfTanggal').value = new Date().toLocaleString('id-ID', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      document.getElementById('tfFileInput').value = '';
+      document.getElementById('tfUploadArea').style.display = '';
+      document.getElementById('tfPreview').style.display = 'none';
+      document.getElementById('tfSuccess').style.display = 'none';
+      document.getElementById('tfForm').style.display = '';
+      document.getElementById('tfModal').classList.add('show');
+    }
+
+    function closeTfModal() {
+      document.getElementById('tfModal').classList.remove('show');
+    }
+
+    function tfPickFile() {
+      document.getElementById('tfFileInput').click();
+    }
+
+    function tfFileChanged() {
+      var file = document.getElementById('tfFileInput').files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('tfPreviewImg').src = e.target.result;
+        document.getElementById('tfUploadArea').style.display = 'none';
+        document.getElementById('tfPreview').style.display = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function tfRemovePreview() {
+      document.getElementById('tfFileInput').value = '';
+      document.getElementById('tfUploadArea').style.display = '';
+      document.getElementById('tfPreview').style.display = 'none';
+    }
+
+    function tfCopyRek() {
+      navigator.clipboard.writeText('5271330651').then(function() {
+        var el = document.getElementById('tfCopyBtn');
+        el.innerHTML = '&#10003; Tersalin!';
+        setTimeout(function() { el.innerHTML = '&#128203; Salin No. Rekening'; }, 2000);
+      });
+    }
+
+    function tfSubmit() {
+      var nominal = document.getElementById('tfNominal').value.trim();
+      var tanggal = document.getElementById('tfTanggal').value.trim();
+      var file = document.getElementById('tfFileInput').files[0];
+      if (!nominal) { alert('Isi nominal transfer'); return; }
+      if (!file) { alert('Upload bukti transfer wajib'); return; }
+
+      document.getElementById('tfSubmitBtn').disabled = true;
+      document.getElementById('tfSubmitBtn').textContent = 'Mengirim...';
+
+        var orderIds = tfOrderId.split(',');
+        var perOrder = Math.floor(tfSisa / orderIds.length);
+        var remainder = tfSisa - (perOrder * orderIds.length);
+
+        function sendOne(oid, amount) {
+          var fd = new FormData();
+          fd.append('order_id', oid.trim());
+          fd.append('customer_id', currentCustomer.id);
+          fd.append('amount', amount);
+          fd.append('transfer_date', tanggal);
+          fd.append('bukti', file);
+          return fetch('/api/payment-confirm', {
+            method: 'POST',
+            body: fd
+          }).then(function(r) { return r.json(); });
+        }
+
+        var chain = Promise.resolve();
+        orderIds.forEach(function(oid, idx) {
+          var amount = perOrder + (idx === 0 ? remainder : 0);
+          chain = chain.then(function() { return sendOne(oid, amount); });
+        });
+
+        chain.then(function(data) {
+          if (data && data.error) {
+            alert('Error: ' + data.error);
+            document.getElementById('tfSubmitBtn').disabled = false;
+            document.getElementById('tfSubmitBtn').textContent = 'Kirim Bukti Transfer';
+            return;
+          }
+          document.getElementById('tfForm').style.display = 'none';
+          document.getElementById('tfSuccess').style.display = '';
+        }).catch(function(e) {
+          alert('Gagal mengirim: ' + e.message);
+          document.getElementById('tfSubmitBtn').disabled = false;
+          document.getElementById('tfSubmitBtn').textContent = 'Kirim Bukti Transfer';
+        });
+    }
+
+    async function loadLoyaltyPoints(customerId) {
+      try {
+        var res = await fetch(API_BASE + '/api/customer-points?customer_id=' + customerId);
+        var data = await res.json();
+        if (data.points !== undefined) {
+          document.getElementById('loyaltyCard').style.display = '';
+          document.getElementById('loyaltyPoints').textContent = data.points.toLocaleString('id-ID');
+          var badge = document.getElementById('loyaltyBadge');
+          badge.textContent = data.memberLevel.charAt(0).toUpperCase() + data.memberLevel.slice(1);
+          badge.className = 'loyalty-badge ' + data.memberLevel;
+          document.getElementById('loyaltyDiscount').textContent = 'Diskon: Rp' + data.discountAvailable.toLocaleString('id-ID');
+          window._myPoints = data.points;
+          document.getElementById('btnRedeemPoints').style.display = '';
+        }
+      } catch(e) {}
+    }
+
+    var _redeemSelectedOrder = null;
+
+    function openRedeemModal() {
+      var pts = window._myPoints || 0;
+      if (pts < 50) { alert('Poin minimal 50 untuk ditukar'); return; }
+      var unpaid = unpaidOrders || [];
+      if (unpaid.length === 0) { alert('Tidak ada invoice yang belum lunas'); return; }
+
+      document.getElementById('redeemMyPoints').textContent = pts.toLocaleString('id-ID');
+      document.getElementById('redeemPointsInput').value = '';
+      document.getElementById('redeemPointsInput').max = pts;
+      document.getElementById('redeemPreview').style.display = 'none';
+      _redeemSelectedOrder = null;
+
+      var html = '<div class="redeem-label">Pilih invoice</div>';
+      unpaid.forEach(function(o, i) {
+        var sisa = o.total - (o.paid_total || 0);
+        html += '<label class="redeem-order-option" onclick="selectRedeemOrder(this, \'' + o.id + '\')">';
+        html += '<input type="radio" name="redeemOrder" value="' + o.id + '">';
+        html += '<div><div class="redeem-order-id">#' + shortId(o.id) + '</div>';
+        html += '<div class="redeem-order-sisa">Sisa: ' + fmt(sisa) + '</div></div></label>';
+      });
+      document.getElementById('redeemOrderSelect').innerHTML = html;
+      document.getElementById('btnRedeemConfirm').disabled = true;
+      document.getElementById('redeemOverlay').classList.add('show');
+    }
+
+    function closeRedeemModal() {
+      document.getElementById('redeemOverlay').classList.remove('show');
+    }
+
+    function selectRedeemOrder(el, orderId) {
+      document.querySelectorAll('.redeem-order-option').forEach(function(e) { e.classList.remove('selected'); });
+      el.classList.add('selected');
+      _redeemSelectedOrder = orderId;
+      previewRedeem();
+    }
+
+    function previewRedeem() {
+      var pts = parseInt(document.getElementById('redeemPointsInput').value) || 0;
+      var discount = Math.floor(pts / 50) * 1000;
+      var preview = document.getElementById('redeemPreview');
+      if (pts >= 50) {
+        preview.style.display = '';
+        document.getElementById('redeemPreviewAmount').textContent = 'Rp' + discount.toLocaleString('id-ID');
+      } else {
+        preview.style.display = 'none';
+      }
+      document.getElementById('btnRedeemConfirm').disabled = !(pts >= 50 && _redeemSelectedOrder);
+    }
+
+    async function confirmRedeem() {
+      var pts = parseInt(document.getElementById('redeemPointsInput').value) || 0;
+      if (pts < 50 || !_redeemSelectedOrder) return;
+      if (!confirm('Tukar ' + pts + ' poin untuk invoice #' + shortId(_redeemSelectedOrder) + '?')) return;
+
+      var btn = document.getElementById('btnRedeemConfirm');
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+
+      try {
+        var res = await fetch(API_BASE + '/api/redeem-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_id: currentCustomer.id,
+            order_id: _redeemSelectedOrder,
+            points: pts,
+          })
+        });
+        var data = await res.json();
+        if (data.success) {
+          alert('Berhasil! Diskon Rp' + data.discount.toLocaleString('id-ID') + ' telah ditambahkan. Poin tersisa: ' + data.newPoints.toLocaleString('id-ID'));
+          closeRedeemModal();
+          loadLoyaltyPoints(currentCustomer.id);
+          loadOrders();
+        } else {
+          alert(data.error || 'Gagal menukar poin');
+          btn.disabled = false;
+          btn.textContent = 'Tukar Sekarang';
+        }
+      } catch(e) {
+        alert('Error: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'Tukar Sekarang';
+      }
+    }
   </script>
+
+  <!-- Modal Konfirmasi TF -->
+  <div class="modal-overlay" id="tfModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+
+      <!-- Form -->
+      <div id="tfForm">
+        <div class="modal-title">Transfer via BCA</div>
+        <div class="modal-sub">Kirim bukti transfer BCA kamu</div>
+
+        <div class="modal-bank">
+          <div class="modal-bank-title">&#127974; Transfer ke:</div>
+          <div class="modal-bank-row"><span class="lbl">Bank</span><span class="val">BCA</span></div>
+          <div class="modal-bank-row"><span class="lbl">No. Rekening</span><span class="val">5271 3306 51</span></div>
+          <div class="modal-bank-row"><span class="lbl">Atas Nama</span><span class="val">Nurul Azizah</span></div>
+          <div class="modal-bank-row"><span class="lbl">Total Tagihan</span><span class="val" id="tfSisaVal" style="color:#e11d48;">Rp 45.000</span></div>
+          <div class="modal-bank-copy" id="tfCopyBtn" onclick="tfCopyRek()">&#128203; Salin No. Rekening</div>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label">Nominal yang Dibayar</label>
+          <input class="modal-input" type="text" id="tfNominal" placeholder="Masukkan nominal">
+          <p class="modal-hint" id="tfSisaLabel">Total tagihan: Rp 45.000</p>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label">Tanggal & Jam Transfer</label>
+          <input class="modal-input" type="text" id="tfTanggal" placeholder="Tanggal transfer">
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label">Bukti Transfer <span style="font-weight:400;color:#94a3b8;">(opsional)</span></label>
+          <div class="modal-upload" id="tfUploadArea" onclick="tfPickFile()">
+            <div class="modal-upload-icon">&#128247;</div>
+            <div class="modal-upload-text">Klik untuk upload foto</div>
+            <div class="modal-upload-hint">Screenshot / foto struk, JPG/PNG</div>
+          </div>
+          <input type="file" id="tfFileInput" accept="image/*" style="display:none" onchange="tfFileChanged()">
+          <div class="modal-preview" id="tfPreview" style="display:none;">
+            <img id="tfPreviewImg" src="" alt="bukti" onclick="document.getElementById('lightboxImg').src=this.src; document.getElementById('lightbox').classList.add('show')">
+            <div style="text-align:center; font-size:11px; color:#64748b; padding:4px 0;">Ketuk foto untuk perbesar</div>
+            <button class="modal-preview-rm" onclick="tfRemovePreview()">&#10005;</button>
+          </div>
+        </div>
+
+        <button class="modal-submit" id="tfSubmitBtn" onclick="tfSubmit()">Kirim Bukti Transfer</button>
+        <button class="modal-cancel" onclick="closeTfModal()">Batal</button>
+      </div>
+
+      <!-- Success -->
+      <div id="tfSuccess" class="modal-success" style="display:none;">
+        <div class="modal-success-icon">&#10003;</div>
+        <h3>Terkirim!</h3>
+        <p>Bukti transfer kamu sudah dikirim.<br>Menunggu verifikasi admin.</p>
+        <button class="modal-submit" onclick="closeTfModal(); showDashboard();" style="margin-top:16px;">Kembali</button>
+      </div>
+    </div>
+  </div>
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox-overlay" onclick="this.classList.remove('show')">
+    <img id="lightboxImg" src="" alt="preview" onclick="event.stopPropagation()">
+  </div>
 </body>
 </html>
