@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
   try {
     const contentType = req.headers['content-type'] || '';
-    let orderId = '', customerId = '', amount = '', transferDate = '', buktiBase64 = '', buktiMime = '';
+    let orderId = '', orderIds = '', customerId = '', amount = '', transferDate = '', buktiBase64 = '', buktiMime = '';
 
     if (contentType.includes('multipart/form-data')) {
       const boundaryMatch = contentType.match(/boundary=(.+)/);
@@ -92,6 +92,7 @@ export default async function handler(req, res) {
         } else {
           const val = body.trim();
           if (name === 'order_id') orderId = val;
+          else if (name === 'order_ids') orderIds = val;
           else if (name === 'customer_id') customerId = val;
           else if (name === 'amount') amount = val;
           else if (name === 'transfer_date') transferDate = val;
@@ -102,6 +103,7 @@ export default async function handler(req, res) {
       for await (const chunk of req) chunks.push(chunk);
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       orderId = body.order_id || '';
+      orderIds = body.order_ids || '';
       customerId = body.customer_id || '';
       amount = body.amount || '';
       transferDate = body.transfer_date || '';
@@ -162,6 +164,7 @@ export default async function handler(req, res) {
       const { error: insertErr } = await sb.from('payment_confirmations').insert({
         id: orderId + '_' + Date.now(),
         order_id: orderId,
+        order_ids: orderIds || orderId,
         customer_id: customerId,
         customer_name: customerName,
         amount: parseFloat(amount) || sisa,
