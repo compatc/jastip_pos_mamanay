@@ -372,7 +372,7 @@ export default function CustomerOrders() {
                    '🥈 Silver'}
                 </div>
                 <div className="text-white/70 text-xs mt-1">
-                  Diskon: Rp{Math.floor((customer.points || 0) / 50 * 1000).toLocaleString("id-ID")}
+                  Diskon: Rp{Math.floor((customer.points || 0) / 100 * 1000).toLocaleString("id-ID")}
                 </div>
               </div>
             </div>
