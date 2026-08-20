@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   }
 
   let botUrl = process.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
-  const botToken = process.env.VITE_BOT_API_TOKEN || "";
+  const botToken = process.env.VITE_BOT_API_TOKEN || process.env.BOT_API_TOKEN || "mamanay2026";
 
   try {
     const sbRes = await fetch(
