@@ -755,7 +755,7 @@
       <div class="redeem-handle"></div>
       <div class="redeem-title">Tukar Poin</div>
       <div class="redeem-info">
-        100 poin = Rp1.000 diskon (maks 15% dari total).<br>
+        100 poin = Rp1.000 diskon (maks 5% dari total).<br>
         Poin kamu: <strong id="redeemMyPoints">0</strong>
       </div>
       <div class="redeem-input-group">
@@ -1454,7 +1454,7 @@
       if (_redeemSelectedOrder) {
         var o = unpaidOrders.find(function(x) { return x.id === _redeemSelectedOrder; });
         if (o) {
-          var maxDiskon = Math.floor(((o.total || 0) - (o.paid_total || 0) - (o.diskon || 0)) * 0.15);
+          var maxDiskon = Math.floor(((o.total || 0) - (o.paid_total || 0) - (o.diskon || 0)) * 0.05);
           discount = Math.min(discount, Math.max(maxDiskon, 0));
         }
       }
