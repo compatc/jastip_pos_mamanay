@@ -647,12 +647,15 @@ export default function Orders() {
         invoices.push({ phone: wa, message: msg });
       }
 
+      const botUrl = await getBotApiUrl();
       let botOk = false;
       try {
-        const res = await fetch("/api/send-batch", {
+        const res = await fetch(`${botUrl}/api/send-batch`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${BOT_API_TOKEN}`,
+            "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify({ invoices }),
         });
@@ -773,10 +776,13 @@ export default function Orders() {
     }
 
     try {
-      const res = await fetch("/api/send-batch", {
+      const botUrl = await getBotApiUrl();
+      const res = await fetch(`${botUrl}/api/send-batch`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${BOT_API_TOKEN}`,
+          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({ invoices }),
       });
