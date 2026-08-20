@@ -216,9 +216,9 @@ export default async function handler(req, res) {
       waMsg += "───────────\n";
       waMsg += "Link: https://mamanay.vercel.app/orders/" + orderId;
 
-      await fetch(botApiUrl + "/send-message", {
+      await fetch(botApiUrl + "/api/send-invoice", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (process.env.BOT_API_TOKEN || "mamanay2026") },
         body: JSON.stringify({ phone: adminPhone, message: waMsg }),
       });
 
@@ -235,9 +235,9 @@ export default async function handler(req, res) {
       custMsg += "📦 Status: *Baru* (menunggu konfirmasi)\n\n";
       custMsg += "Jika ada pertanyaan, balas pesan ini ya 😊";
 
-      await fetch(botApiUrl + "/send-message", {
+      await fetch(botApiUrl + "/api/send-invoice", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (process.env.BOT_API_TOKEN || "mamanay2026") },
         body: JSON.stringify({ phone: custWa, message: custMsg }),
       });
     } catch (e) {

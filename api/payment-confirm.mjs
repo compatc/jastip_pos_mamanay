@@ -197,9 +197,9 @@ export default async function handler(req, res) {
 
     if (botApiUrl && adminPhone) {
       try {
-        await fetch(botApiUrl + '/send-message', {
+        await fetch(botApiUrl + '/api/send-invoice', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (process.env.BOT_API_TOKEN || 'mamanay2026') },
           body: JSON.stringify({ phone: adminPhone, message: waMsg }),
         });
       } catch (e) {

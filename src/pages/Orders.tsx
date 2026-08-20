@@ -647,22 +647,25 @@ export default function Orders() {
         invoices.push({ phone: wa, message: msg });
       }
 
-      const botUrl = await getBotApiUrl();
-      const res = await fetch(`${botUrl}/api/send-batch`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${BOT_API_TOKEN}`,
-          "ngrok-skip-browser-warning": "true",
-        },
-        body: JSON.stringify({ invoices }),
-      });
+      let botOk = false;
+      try {
+        const res = await fetch("/api/send-batch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ invoices }),
+        });
+        const ct = res.headers.get("content-type") || "";
+        if (res.ok && ct.includes("application/json")) {
+          const result = await res.json();
+          sent = result.sent || 0;
+          failed = result.failed || 0;
+          botOk = true;
+        }
+      } catch (_) {}
 
-      if (res.ok) {
-        const result = await res.json();
-        sent = result.sent || 0;
-        failed = result.failed || 0;
-      } else {
+      if (!botOk) {
         setSendProgress("Bot tidak aktif, membuka WhatsApp...");
         let delay = 0;
         for (const g of targets) {
@@ -770,17 +773,15 @@ export default function Orders() {
     }
 
     try {
-      const botUrl = await getBotApiUrl();
-      const res = await fetch(`${botUrl}/api/send-batch`, {
+      const res = await fetch("/api/send-batch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${BOT_API_TOKEN}`,
-          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({ invoices }),
       });
-      if (res.ok) {
+      const ct = res.headers.get("content-type") || "";
+      if (res.ok && ct.includes("application/json")) {
         const result = await res.json();
         sent = result.sent || 0;
         failed = result.failed || 0;
