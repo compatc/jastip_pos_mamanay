@@ -12,8 +12,8 @@ const LEVEL_THRESHOLDS = {
 
 const MULTIPLIER: Record<string, number> = {
   silver: 1.0,
-  gold: 1.2,
-  platinum: 1.5,
+  gold: 1.1,
+  platinum: 1.2,
 };
 
 export function calculatePoints(amount: number, memberLevel: string): number {

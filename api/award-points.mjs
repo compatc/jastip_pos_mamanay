@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     if (!customer) { json(res, 404, { error: "Customer not found" }); return; }
 
     const base = Math.floor(amount / 1000);
-    const multiplier = customer.member_level === "platinum" ? 1.5 : customer.member_level === "gold" ? 1.2 : 1.0;
+    const multiplier = customer.member_level === "platinum" ? 1.2 : customer.member_level === "gold" ? 1.1 : 1.0;
     const points = Math.floor(base * multiplier);
     if (points <= 0) { json(res, 200, { success: true, points: 0 }); return; }
 

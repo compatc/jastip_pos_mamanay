@@ -21,7 +21,7 @@ async function awardLoyaltyPoints(sb, customerId, orderId, amount) {
     if (!customer) return;
 
     const base = Math.floor(amount / 1000);
-    const multiplier = customer.member_level === "platinum" ? 1.5 : customer.member_level === "gold" ? 1.2 : 1.0;
+    const multiplier = customer.member_level === "platinum" ? 1.2 : customer.member_level === "gold" ? 1.1 : 1.0;
     const points = Math.floor(base * multiplier);
     if (points <= 0) return;
 
