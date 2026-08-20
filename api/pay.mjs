@@ -290,6 +290,42 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
     contactName = cust?.name || "";
   }
 
+  // Kondisi 2: Order tanpa customer_id — coba auto-link dari qris_payments atau notes
+  if (!order.customer_id) {
+    try {
+      const { data: qrisPay } = await sb
+        .from("qris_payments")
+        .select("id, order_ids")
+        .contains("order_ids", [orderId])
+        .limit(1)
+        .maybeSingle();
+      if (qrisPay?.order_ids?.length > 1) {
+        const otherOrderId = qrisPay.order_ids.find((id) => id !== orderId);
+        if (otherOrderId) {
+          const { data: otherOrder } = await sb
+            .from("orders")
+            .select("customer_id")
+            .eq("id", otherOrderId)
+            .maybeSingle();
+          if (otherOrder?.customer_id) {
+            await sb.from("orders").update({ customer_id: otherOrder.customer_id }).eq("id", orderId);
+            order.customer_id = otherOrder.customer_id;
+            console.log(`[PAY] Auto-linked order ${orderId} → customer ${otherOrder.customer_id} from sibling order`);
+          }
+        }
+      }
+      // Jika masih belum ada customer_id, coba cari dari notes
+      if (!order.customer_id) {
+        const noteMatch = (order.notes || "").match(/Auto-create dari QRIS/i);
+        if (noteMatch) {
+          console.log(`[PAY] Order ${orderId} has no customer_id, admin should assign manually`);
+        }
+      }
+    } catch (e) {
+      console.error("[PAY] Auto-link error:", e.message);
+    }
+  }
+
   const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
   const sisaInvoice = (currentTotal || 0) - (currentPaidTotal || 0);
 
@@ -618,7 +654,49 @@ export default async function handler(req, res) {
         ? await findOrderByInvoiceNo(sb, invoiceNo)
         : null;
       if (!order) {
-        json(res, 404, { error: "Order tidak ditemukan" });
+        // Kondisi 1: Order tidak ditemukan — auto-create dari data QRIS
+        const bo = await checkBoqrisTransaction(txId);
+        if (bo.status !== "paid") {
+          json(res, 200, { status: bo.status || "pending", confirmed: false });
+          return;
+        }
+        const paidAmount = Number(bo.amount || bo.base_amount || 0);
+        if (!(paidAmount > 0)) {
+          json(res, 400, { error: "Nominal pembayaran tidak valid" });
+          return;
+        }
+        const now = new Date().toISOString();
+        const newOrderId = randomUUID();
+        const { error: createErr } = await sb.from("orders").insert({
+          id: newOrderId,
+          customer_id: null,
+          status: "new",
+          total: paidAmount,
+          paid_total: paidAmount,
+          diskon: 0,
+          order_type: "penjualan",
+          payment_type: "qris",
+          ongkir: 0,
+          notes: `Auto-create dari QRIS (tx: ${txId.slice(0, 8)})`,
+          qris_notes: `QRIS ${paidAmount} (${txId.slice(0, 8)})`,
+          payment_status: "paid",
+          created_at: now,
+          updated_at: now,
+        });
+        if (createErr) {
+          json(res, 500, { error: "Gagal auto-create order: " + createErr.message });
+          return;
+        }
+        console.log(`[PAY] Auto-created order ${newOrderId} from QRIS tx ${txId}, amount ${paidAmount}`);
+        await sendPushNotification(sb, {
+          title: "QRIS Lunas (Auto-Create)",
+          body: `${rupiah(paidAmount)} diterima — order baru dibuat otomatis`,
+          url: "/orders",
+          type: "qris",
+          orderIds: [newOrderId],
+          amount: paidAmount,
+        });
+        json(res, 200, { status: "paid", confirmed: true, autoCreated: true, orderId: newOrderId });
         return;
       }
       const bo = await checkBoqrisTransaction(txId);
