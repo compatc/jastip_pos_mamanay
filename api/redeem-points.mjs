@@ -1,6 +1,6 @@
 import { getAdmin } from "./pay.mjs";
 
-const REDEEM_RATE = 50;
+const REDEEM_RATE = 100;
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");

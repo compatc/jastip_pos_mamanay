@@ -1,6 +1,6 @@
 import { getAdmin } from "./pay.mjs";
 
-const REDEEM_RATE = 50;
+const REDEEM_RATE = 100;
 
 function calcMemberLevel(totalSpent) {
   if (totalSpent >= 10000000) return "platinum";

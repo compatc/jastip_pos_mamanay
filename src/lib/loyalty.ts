@@ -2,7 +2,7 @@ import { supabase } from "./supabase";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
-const REDEEM_RATE = 50;
+const REDEEM_RATE = 100;
 
 const LEVEL_THRESHOLDS = {
   silver: 0,

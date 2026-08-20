@@ -755,12 +755,12 @@
       <div class="redeem-handle"></div>
       <div class="redeem-title">Tukar Poin</div>
       <div class="redeem-info">
-        50 poin = Rp1.000 diskon.<br>
+        100 poin = Rp1.000 diskon.<br>
         Poin kamu: <strong id="redeemMyPoints">0</strong>
       </div>
       <div class="redeem-input-group">
         <div class="redeem-label">Masukkan jumlah poin</div>
-        <input type="number" class="redeem-input" id="redeemPointsInput" min="50" step="50" placeholder="50" oninput="previewRedeem()">
+        <input type="number" class="redeem-input" id="redeemPointsInput" min="100" step="100" placeholder="100" oninput="previewRedeem()">
       </div>
       <div class="redeem-preview" id="redeemPreview" style="display:none;">
         <div class="redeem-preview-text">Kamu dapat diskon</div>
@@ -1414,7 +1414,7 @@
 
     function openRedeemModal() {
       var pts = window._myPoints || 0;
-      if (pts < 50) { alert('Poin minimal 50 untuk ditukar'); return; }
+      if (pts < 100) { alert('Poin minimal 100 untuk ditukar'); return; }
       var unpaid = unpaidOrders || [];
       if (unpaid.length === 0) { alert('Tidak ada invoice yang belum lunas'); return; }
 
@@ -1450,9 +1450,9 @@
 
     function previewRedeem() {
       var pts = parseInt(document.getElementById('redeemPointsInput').value) || 0;
-      var discount = Math.floor(pts / 50) * 1000;
+      var discount = Math.floor(pts / 100) * 1000;
       var preview = document.getElementById('redeemPreview');
-      if (pts >= 50) {
+      if (pts >= 100) {
         preview.style.display = '';
         document.getElementById('redeemPreviewAmount').textContent = 'Rp' + discount.toLocaleString('id-ID');
       } else {
@@ -1463,7 +1463,7 @@
 
     async function confirmRedeem() {
       var pts = parseInt(document.getElementById('redeemPointsInput').value) || 0;
-      if (pts < 50 || !_redeemSelectedOrder) return;
+      if (pts < 100 || !_redeemSelectedOrder) return;
       if (!confirm('Tukar ' + pts + ' poin untuk invoice #' + shortId(_redeemSelectedOrder) + '?')) return;
 
       var btn = document.getElementById('btnRedeemConfirm');
