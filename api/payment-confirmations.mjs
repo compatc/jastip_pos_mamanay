@@ -100,7 +100,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      // If approved, mark order as paid
+      // If approved, mark orders as paid
       if (action === "approve") {
         const { data: conf } = await sb
           .from("payment_confirmations")
@@ -113,13 +113,11 @@ export default async function handler(req, res) {
           : conf?.order_id
           ? [conf.order_id]
           : [];
-        const totalAmount = conf?.amount || 0;
-        const perOrder = allOrderIds.length > 0 ? Math.floor(totalAmount / allOrderIds.length) : 0;
-        const remainder = allOrderIds.length > 0 ? totalAmount - perOrder * allOrderIds.length : 0;
 
-        for (let i = 0; i < allOrderIds.length; i++) {
-          const oid = allOrderIds[i];
-          const share = perOrder + (i === 0 ? remainder : 0);
+        let remaining = conf?.amount || 0;
+
+        for (const oid of allOrderIds) {
+          if (remaining <= 0) break;
 
           const { data: order } = await sb
             .from("orders")
@@ -128,20 +126,24 @@ export default async function handler(req, res) {
             .single();
 
           if (!order) continue;
-          const newPaidTotal = (order.paid_total || 0) + share;
-          const clamped = Math.min(newPaidTotal, order.total || 0);
-          const newPaymentStatus = clamped >= (order.total || 0) ? "paid" : clamped > 0 ? "dp" : "unpaid";
+          const sisa = (order.total || 0) - (order.paid_total || 0);
+          if (sisa <= 0) continue;
+          const payAmount = Math.min(remaining, sisa);
+          const newPaidTotal = (order.paid_total || 0) + payAmount;
+          const newPaymentStatus = newPaidTotal >= (order.total || 0) ? "paid" : "dp";
 
           await sb
             .from("orders")
-            .update({ paid_total: clamped, payment_status: newPaymentStatus })
+            .update({ paid_total: newPaidTotal, payment_status: newPaymentStatus })
             .eq("id", oid);
+
+          remaining -= payAmount;
 
           // Award loyalty points when order becomes fully paid via transfer
           if (newPaymentStatus === "paid") {
             const { data: ord } = await sb.from("orders").select("customer_id, order_type").eq("id", oid).single();
             if (ord && ord.order_type === "penjualan" && ord.customer_id) {
-              await awardLoyaltyPoints(sb, ord.customer_id, oid, share);
+              await awardLoyaltyPoints(sb, ord.customer_id, oid, payAmount);
             }
           }
         }
