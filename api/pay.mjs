@@ -44,6 +44,7 @@ async function awardLoyaltyPoints(sb, customerId, orderId, amount) {
     });
   } catch (e) {
     console.error("[LOYALTY] Failed to award points:", e);
+    throw e;
   }
 }
 
@@ -380,11 +381,8 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   }
 
   // Award loyalty points for penjualan orders
-  if (order.order_type === "penjualan" && order.customer_id && shareOfPayment > 0) {
-    const newPaidTotal = (currentPaidTotal || 0) + shareOfPayment;
-    if (newPaidTotal >= (order.total || 0)) {
-      await awardLoyaltyPoints(sb, order.customer_id, orderId, order.total || shareOfPayment);
-    }
+  if (order.order_type === "penjualan" && order.customer_id && finalPaid >= finalTotal) {
+    await awardLoyaltyPoints(sb, order.customer_id, orderId, order.total || shareOfPayment);
   }
 
   if (order.account_id) {
