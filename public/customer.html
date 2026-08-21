@@ -357,6 +357,10 @@
       user-select: none;
     }
     .select-all-toggle input { accent-color: #ec4899; width: 16px; height: 16px; }
+    .unpaid-list { max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
+    .unpaid-list::-webkit-scrollbar { width: 4px; }
+    .unpaid-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .unpaid-list::-webkit-scrollbar-track { background: transparent; }
 
     /* ===== ORDER CARD ===== */
     .card {
@@ -1004,9 +1008,11 @@
         html += '<label class="select-all-toggle">';
         html += '<input type="checkbox" id="selectAllCb" onchange="selectAll()"> Pilih Semua';
         html += '</label></div>';
+        html += '<div class="unpaid-list">';
         unpaid.forEach(function(o) {
           html += renderCard(o, itemsByOrder[o.id] || [], true);
         });
+        html += '</div>';
       }
       if (ready.length > 0) {
         html += '<div class="ready-banner">';
