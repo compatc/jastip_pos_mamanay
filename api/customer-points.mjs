@@ -42,5 +42,28 @@ export default async function handler(req, res) {
     return;
   }
 
+  if (req.method === "POST") {
+    const auth = req.headers.authorization;
+    if (auth !== `Bearer ${process.env.BOT_API_TOKEN || "mamanay2026"}`) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { customer_id, points } = req.body;
+    if (!customer_id || points == null) {
+      res.status(400).json({ error: "customer_id and points required" });
+      return;
+    }
+
+    const { error } = await sb.from("customers").update({ points }).eq("id", customer_id);
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ ok: true, customer_id, points });
+    return;
+  }
+
   res.status(405).json({ error: "Method not allowed" });
 }

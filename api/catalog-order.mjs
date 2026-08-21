@@ -159,24 +159,6 @@ export default async function handler(req, res) {
       body: JSON.stringify({ phone: adminPhone, message: waMsg }),
     });
 
-    const custDigits = phone.trim().replace(/\D/g, "");
-    const custWa = custDigits.startsWith("0") ? "62" + custDigits.slice(1) : custDigits.startsWith("62") ? custDigits : "62" + custDigits;
-    let custMsg = "Halo *" + customer_name.trim() + "* 👋\n\n";
-    custMsg += "Terima kasih sudah order di *jastip_mamanay*!\n\n";
-    custMsg += "📋 *Ringkasan Pesanan:*\n";
-    custMsg += "───────────\n";
-    custMsg += itemList + "\n";
-    custMsg += "───────────\n";
-    custMsg += "💰 *Grand Total: Rp " + subtotal.toLocaleString("id-ID") + "*\n\n";
-    custMsg += "📦 Status: *Baru* (menunggu konfirmasi)\n\n";
-    custMsg += "Jika ada pertanyaan, balas pesan ini ya 😊";
-
-    await fetch(botUrl + "/api/send-invoice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (process.env.BOT_API_TOKEN || "mamanay2026") },
-      body: JSON.stringify({ phone: custWa, message: custMsg }),
-    });
-
     json(res, 200, { ok: true, orderId, total: subtotal, customerName: customerDbName });
   } catch (e) {
     console.error("catalog-order error:", e.message);

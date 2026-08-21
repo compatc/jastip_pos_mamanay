@@ -214,18 +214,22 @@ export default function NewOrderForm() {
 
     if (validItems.length === 0) return;
 
-    await addStandaloneOrder({
-      orderType,
-      paymentType,
-      contactName: contactName.trim(),
-      items: validItems,
-      paidTotal: paid,
-      ongkir: ongkirVal,
-      diskon: diskonVal,
-      notes: notes.trim(),
-      accountId: accountId || undefined,
-    });
-    navigate(returnTo || "/orders");
+    try {
+      await addStandaloneOrder({
+        orderType,
+        paymentType,
+        contactName: contactName.trim(),
+        items: validItems,
+        paidTotal: paid,
+        ongkir: ongkirVal,
+        diskon: diskonVal,
+        notes: notes.trim(),
+        accountId: accountId || undefined,
+      });
+      navigate(returnTo || "/orders");
+    } catch (err: any) {
+      alert("Gagal membuat order: " + (err?.message || err));
+    }
   }
 
   return (
