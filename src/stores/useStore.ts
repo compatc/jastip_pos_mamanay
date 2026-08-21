@@ -349,17 +349,18 @@ export const useStore = create<PosStore>((set, get) => ({
 
     let customerId = "";
     if (contactName.trim()) {
-      const { data: existing } = await supabase
+      const { data: existing, error: findErr } = await supabase
         .from("customers")
         .select("id")
         .ilike("name", contactName.trim())
         .limit(1)
         .single();
+      if (findErr && findErr.code !== "PGRST116") throw new Error("Gagal mencari pelanggan: " + findErr.message);
       if (existing) {
         customerId = existing.id;
       } else {
         customerId = uuid();
-        await supabase
+        const { error: custErr } = await supabase
           .from("customers")
           .insert({
             id: customerId,
@@ -369,6 +370,7 @@ export const useStore = create<PosStore>((set, get) => ({
             category: "pelanggan",
             created_at: now,
           });
+        if (custErr) throw new Error("Gagal membuat pelanggan: " + custErr.message);
       }
     }
 
@@ -392,11 +394,12 @@ export const useStore = create<PosStore>((set, get) => ({
         created_at: now,
         updated_at: now,
       });
-    if (orderError) throw orderError;
+    if (orderError) throw new Error("Gagal membuat order: " + orderError.message);
 
+    const itemErrors: string[] = [];
     for (const item of items) {
       const itemId = uuid();
-      await supabase
+      const { error: itemErr } = await supabase
         .from("order_items")
         .insert({
           id: itemId,
@@ -408,6 +411,10 @@ export const useStore = create<PosStore>((set, get) => ({
           paid_value: 0,
           status: "new",
         });
+      if (itemErr) {
+        itemErrors.push(`${item.product_name}: ${itemErr.message}`);
+        continue;
+      }
 
       const { data: product } = await supabase
         .from("products")
@@ -417,10 +424,11 @@ export const useStore = create<PosStore>((set, get) => ({
       if (product) {
         const stockDelta = orderType === "penjualan" ? -item.quantity : item.quantity;
         const newStock = product.stock + stockDelta;
-        await supabase
+        const { error: stockErr } = await supabase
           .from("products")
           .update({ stock: newStock })
           .eq("id", product.id);
+        if (stockErr) itemErrors.push(`Update stok ${item.product_name}: ${stockErr.message}`);
 
         const txType = orderType === "penjualan" ? "Penjualan" : "Pembelian";
         const maxInvoice = await supabase
@@ -446,8 +454,13 @@ export const useStore = create<PosStore>((set, get) => ({
             unit: product.unit || "SET",
             created_at: now,
           });
-        if (smErr) console.error("stock_movements insert error:", smErr);
+        if (smErr) itemErrors.push(`Stock movement ${item.product_name}: ${smErr.message}`);
+      } else {
+        itemErrors.push(`${item.product_name}: produk tidak ditemukan di database`);
       }
+    }
+    if (itemErrors.length > 0) {
+      throw new Error("Order tersimpan tapi ada error:\n" + itemErrors.join("\n"));
     }
 
     if (accountId && paidTotal > 0) {
@@ -611,6 +624,14 @@ export const useStore = create<PosStore>((set, get) => ({
       const txAmount = orderType === "penjualan" ? payDelta : -payDelta;
       const txDesc = `${orderType === "penjualan" ? "Penjualan" : "Pembelian"} - ${contactName}`;
       await get().createAccountTransaction(txAccountId, orderId, orderType, contactName, txAmount, txDesc, now.split("T")[0]);
+    }
+
+    if (orderType === "penjualan" && customerId && payDelta > 0) {
+      try {
+        await awardPoints(customerId, orderId, payDelta);
+      } catch (e) {
+        console.error("Failed to award points from updateOrder:", e);
+      }
     }
 
     for (const item of items) {
