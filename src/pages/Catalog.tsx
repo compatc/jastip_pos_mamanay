@@ -74,7 +74,7 @@ export default function Catalog() {
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/catalog")
+        fetch("/api/catalog-order")
       .then((r) => r.json())
       .then((d) => {
         const prods = d.data || [];
@@ -174,7 +174,7 @@ export default function Catalog() {
         setCustAddress("");
         setCustNotes("");
         // Reload products to update stock
-        fetch("/api/catalog")
+    fetch("/api/catalog-order")
           .then((r) => r.json())
           .then((d) => setProducts(d.data || []));
       } else {

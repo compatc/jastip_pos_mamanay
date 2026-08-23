@@ -30,7 +30,36 @@ export default async function handler(req, res) {
         json(res, 500, { error: error.message });
         return;
       }
-      json(res, 200, { ok: true, data: data || [] });
+
+      const { data: variants } = await sb
+        .from("product_variants")
+        .select("product_id, name, stock");
+      const { data: movements } = await sb
+        .from("stock_movements")
+        .select("product_id, variant, qty");
+
+      const variantStockMap = {};
+      for (const v of variants || []) {
+        if (!variantStockMap[v.product_id]) variantStockMap[v.product_id] = {};
+        variantStockMap[v.product_id][v.name] = v.stock || 0;
+      }
+      for (const m of movements || []) {
+        const pid = m.product_id;
+        const v = m.variant || "(tanpa varian)";
+        if (!variantStockMap[pid]) variantStockMap[pid] = {};
+        variantStockMap[pid][v] = (variantStockMap[pid][v] || 0) + m.qty;
+      }
+
+      const result = (data || []).map((p) => {
+        const vs = variantStockMap[p.id];
+        const hasVariants = vs && Object.keys(vs).length > 0;
+        const realStock = hasVariants
+          ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0)
+          : p.stock;
+        return { ...p, stock: realStock };
+      });
+
+      json(res, 200, { ok: true, data: result });
       return;
     }
 
