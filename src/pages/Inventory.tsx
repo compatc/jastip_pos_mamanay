@@ -482,7 +482,7 @@ export default function Inventory() {
                           <Trash2 className="w-3 h-3 text-gray-300 hover:text-red-400" />
                         </button>
                         <button
-                          onClick={() => { setShareProductId(product.id); setShareDesc(""); setShareVariantId(null); loadProductVariants(product.id); }}
+                          onClick={() => { setShareProductId(product.id); setShareDesc((product as any).description || ""); setShareVariantId(null); loadProductVariants(product.id); }}
                           className="p-1 rounded hover:bg-green-50 transition-all"
                           title="Share ke Grup"
                         >
@@ -542,18 +542,6 @@ export default function Inventory() {
               <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
-                    Deskripsi
-                  </label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Deskripsi produk (opsional)"
-                    rows={2}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
                     Nama Produk
                   </label>
                   <input
@@ -563,6 +551,18 @@ export default function Inventory() {
                     placeholder="Nama produk"
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Deskripsi
+                  </label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="Deskripsi produk (opsional)"
+                    rows={2}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all resize-none"
                   />
                 </div>
                 <div className="flex gap-3">
