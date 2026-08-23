@@ -22,6 +22,7 @@ interface OrderItemInput {
   price: string;
   quantity: string;
   discount: string;
+  variant?: string;
 }
 
 const emptyItem: OrderItemInput = {
@@ -166,6 +167,7 @@ export default function EditOrderForm() {
         price: oi.price.toString(),
         quantity: oi.quantity.toString(),
         discount: oi.discount > 0 ? oi.discount.toString() : "",
+        variant: oi.variant || "",
       };
     });
     setItems(mappedItems.length > 0 ? mappedItems : [{ ...emptyItem }]);
@@ -290,6 +292,7 @@ export default function EditOrderForm() {
         price: parseFloat(i.price),
         quantity: parseInt(i.quantity) || 1,
         discount: parseFloat(i.discount) || 0,
+        variant: i.variant || "",
       }));
 
     if (validItems.length === 0) return;
