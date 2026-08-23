@@ -14,6 +14,7 @@ import {
   TrendingUp,
   TrendingDown,
   Tag,
+  Share2,
 } from "lucide-react";
 
 interface ProductForm {
@@ -70,6 +71,9 @@ export default function Inventory() {
   const [discountProductId, setDiscountProductId] = useState<string | null>(null);
   const [discountMinQty, setDiscountMinQty] = useState("");
   const [discountPrice, setDiscountPrice] = useState("");
+  const [shareProductId, setShareProductId] = useState<string | null>(null);
+  const [shareDesc, setShareDesc] = useState("");
+  const [shareSending, setShareSending] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -333,6 +337,13 @@ export default function Inventory() {
                           title="Hapus"
                         >
                           <Trash2 className="w-3 h-3 text-gray-300 hover:text-red-400" />
+                        </button>
+                        <button
+                          onClick={() => { setShareProductId(product.id); setShareDesc(""); }}
+                          className="p-1 rounded hover:bg-green-50 transition-all"
+                          title="Share ke Grup"
+                        >
+                          <Share2 className="w-3 h-3 text-gray-400 hover:text-green-500" />
                         </button>
                       </div>
                     </div>
@@ -733,6 +744,74 @@ export default function Inventory() {
           </div>
         </div>
       )}
+
+      {shareProductId && (() => {
+        const product = products.find((p) => p.id === shareProductId);
+        if (!product) return null;
+        const previewMsg = `🏷️ ${product.name} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}[stok:${product.stock}]`;
+        return (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+            <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-800">Share ke Grup</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{product.name}</p>
+                </div>
+                <button onClick={() => setShareProductId(null)} className="p-2 hover:bg-pink-50 rounded-xl transition-all">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">Deskripsi (opsional)</label>
+                <textarea
+                  value={shareDesc}
+                  onChange={(e) => setShareDesc(e.target.value)}
+                  placeholder="Sisir Catok Pelurus Rambut USB Rechargeable..."
+                  rows={3}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">Preview Pesan</label>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
+                  {previewMsg}
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setShareSending(true);
+                  try {
+                    const GROUP_ID = "120363404605912473@g.us";
+                    const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
+                    const res = await fetch(`${BOT_URL}/api/send-group`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+                      body: JSON.stringify({ group_jid: GROUP_ID, message: previewMsg }),
+                    });
+                    if (res.ok) {
+                      alert("Berhasil dikirim ke grup!");
+                      setShareProductId(null);
+                    } else {
+                      const data = await res.json();
+                      alert("Gagal: " + (data.error || "Unknown error"));
+                    }
+                  } catch (err) {
+                    alert("Gagal kirim: " + (err instanceof Error ? err.message : String(err)));
+                  }
+                  setShareSending(false);
+                }}
+                disabled={shareSending}
+                className="w-full py-2.5 bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-green-200/40 text-sm"
+              >
+                {shareSending ? "Mengirim..." : "Kirim ke Grup"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
