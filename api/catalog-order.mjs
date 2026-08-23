@@ -22,13 +22,46 @@ export default async function handler(req, res) {
 
     if (req.method === "GET") {
       res.setHeader("Cache-Control", "public, max-age=60");
-      const { data, error } = await sb
+
+      const url = new URL(req.url, "http://localhost");
+      const tagFilter = url.searchParams.get("tag");
+
+      let query = sb
         .from("products")
         .select("id, name, description, sell_price, stock, stock_type, unit, image")
         .order("name", { ascending: true });
+
+      if (tagFilter) {
+        const { data: tagRow } = await sb.from("tags").select("id").ilike("name", tagFilter).maybeSingle();
+        if (tagRow) {
+          const { data: tagged } = await sb.from("product_tags").select("product_id").eq("tag_id", tagRow.id);
+          const tagProductIds = (tagged || []).map((t) => t.product_id);
+          if (tagProductIds.length === 0) {
+            json(res, 200, { ok: true, data: [], tag: tagFilter });
+            return;
+          }
+          query = query.in("id", tagProductIds);
+        } else {
+          json(res, 200, { ok: true, data: [], tag: tagFilter });
+          return;
+        }
+      }
+
+      const { data, error } = await query;
       if (error) {
         json(res, 500, { error: error.message });
         return;
+      }
+
+      const { data: allTags } = await sb.from("tags").select("id, name");
+      const { data: allProductTags } = await sb.from("product_tags").select("product_id, tag_id");
+      const tagMap = {};
+      for (const t of allTags || []) tagMap[t.id] = t.name;
+      const productTagMap = {};
+      for (const pt of allProductTags || []) {
+        if (!productTagMap[pt.product_id]) productTagMap[pt.product_id] = [];
+        const tagName = tagMap[pt.tag_id];
+        if (tagName) productTagMap[pt.product_id].push(tagName);
       }
 
       const { data: variants } = await sb
@@ -65,15 +98,93 @@ export default async function handler(req, res) {
         const realStock = hasVariants
           ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0)
           : p.stock;
-        return { ...p, stock: realStock, variants: variantDetailsMap[p.id] || [] };
+        return { ...p, stock: realStock, variants: variantDetailsMap[p.id] || [], tags: productTagMap[p.id] || [] };
       });
 
-      json(res, 200, { ok: true, data: result });
+      json(res, 200, { ok: true, data: result, tag: tagFilter || null });
       return;
     }
 
     if (req.method !== "POST") {
       json(res, 405, { error: "Method not allowed" });
+      return;
+    }
+
+    const url = new URL(req.url, "http://localhost");
+    const isBotOrder = url.searchParams.get("type") === "bot";
+
+    if (isBotOrder) {
+      // Bot order: use service role, no auth check needed (already protected by Bearer)
+      const { items, customer_name, phone, notes, payment_type, paid_total, order_type } = req.body;
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        json(res, 400, { error: "items wajib diisi" });
+        return;
+      }
+
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += (item.price || 0) * (item.quantity || 1);
+      }
+
+      const orderId = randomUUID();
+      const now = new Date().toISOString();
+
+      let customerId = null;
+      if (customer_name && phone) {
+        const { data: existing } = await sb
+          .from("customers")
+          .select("id")
+          .or(`phone.ilike.%${phone}%`)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          customerId = existing[0].id;
+        } else {
+          customerId = randomUUID();
+          await sb.from("customers").insert({
+            id: customerId, name: customer_name, phone, address: "",
+            category: "pelanggan", points: 0, total_spent: 0,
+            member_level: "silver", created_at: now,
+          }).catch(() => {});
+        }
+      }
+
+      const { error: orderErr } = await sb.from("orders").insert({
+        id: orderId,
+        customer_id: customerId || "",
+        status: "new",
+        payment_status: paid_total >= subtotal ? "paid" : "unpaid",
+        fulfillment_status: "belum_ready",
+        total: subtotal,
+        paid_total: paid_total || 0,
+        refund_total: 0,
+        diskon: 0,
+        order_type: order_type || "penjualan",
+        payment_type: payment_type || "qris",
+        ongkir: 0,
+        notes: notes || "",
+        qris_notes: "",
+        account_id: null,
+        created_at: now,
+        updated_at: now,
+      });
+      if (orderErr) {
+        json(res, 500, { error: "Gagal buat order: " + orderErr.message });
+        return;
+      }
+
+      for (const item of items) {
+        await sb.from("order_items").insert({
+          id: randomUUID(), order_id: orderId,
+          product_id: item.product_id || null,
+          product_name: item.product_name || item.name || "Produk",
+          price: item.price || 0,
+          quantity: item.quantity || 1,
+          discount: 0, paid_value: 0, status: "new",
+          variant: item.variant || null,
+        }).catch((e) => console.error("bot-order item:", e.message));
+      }
+
+      json(res, 200, { ok: true, orderId, total: subtotal });
       return;
     }
 
