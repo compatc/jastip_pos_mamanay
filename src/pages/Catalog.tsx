@@ -91,8 +91,7 @@ export default function Catalog() {
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-        const url = tagFilter ? `/api/catalog-order?tag=${encodeURIComponent(tagFilter)}` : "/api/catalog-order";
-        fetch(url)
+        fetch("/api/catalog-order")
       .then((r) => r.json())
       .then((d) => {
         const prods = d.data || [];
@@ -104,7 +103,7 @@ export default function Catalog() {
         }
       })
       .catch(() => setLoading(false));
-  }, [id, tagFilter]);
+  }, [id]);
 
   const categories = useMemo(() => {
     const cats = new Map<string, number>();
@@ -130,12 +129,13 @@ export default function Catalog() {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (p.stock <= 0) return false;
+      if (tagFilter && !(p.tags || []).some((t) => t.name === tagFilter)) return false;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       if (filter === "ready") return matchSearch && p.stock_type !== "po";
       if (filter === "po") return matchSearch && p.stock_type === "po";
       return matchSearch;
     });
-  }, [products, search, filter]);
+  }, [products, search, filter, tagFilter]);
 
   const readyCount = products.filter((p) => p.stock > 0).length;
   const totalStock = products.reduce((s, p) => s + Math.max(0, p.stock), 0);
