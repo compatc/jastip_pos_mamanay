@@ -117,9 +117,14 @@ export default function Inventory() {
 
   const filtered = baseFiltered.filter((p) => {
     if (categoryFilter === "all") return true;
-    if (categoryFilter === "habis") return p.stock === 0;
-    if (categoryFilter === "rendah") return p.stock > 0 && p.stock <= 5;
-    if (categoryFilter === "ada") return p.stock > 0;
+    const vs = variantStock[p.id];
+    const hasVariants = vs && Object.keys(vs).length > 0;
+    const realStock = hasVariants
+      ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0)
+      : p.stock;
+    if (categoryFilter === "habis") return realStock === 0;
+    if (categoryFilter === "rendah") return realStock > 0 && realStock <= 5;
+    if (categoryFilter === "ada") return realStock > 0;
     return true;
   });
 
@@ -298,8 +303,18 @@ export default function Inventory() {
     setVariantStockType((v.stock_type as "ready" | "po") || "ready");
   }
 
-  const totalModal = filtered.reduce((s, p) => s + p.cost_price * p.stock, 0);
-  const totalJual = filtered.reduce((s, p) => s + p.sell_price * p.stock, 0);
+  const totalModal = filtered.reduce((s, p) => {
+    const vs = variantStock[p.id];
+    const hasVariants = vs && Object.keys(vs).length > 0;
+    const realStock = hasVariants ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0) : p.stock;
+    return s + p.cost_price * realStock;
+  }, 0);
+  const totalJual = filtered.reduce((s, p) => {
+    const vs = variantStock[p.id];
+    const hasVariants = vs && Object.keys(vs).length > 0;
+    const realStock = hasVariants ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0) : p.stock;
+    return s + p.sell_price * realStock;
+  }, 0);
 
   const filters = [
     { key: "all", label: "Semua" },
@@ -403,7 +418,12 @@ export default function Inventory() {
             {filtered.map((product, i) => {
               const profit = product.sell_price - product.cost_price;
               const discounts = productDiscounts.filter((d) => d.product_id === product.id);
-              const stockStatus = getStockStatus(product.stock);
+              const vs = variantStock[product.id];
+              const hasVariants = vs && Object.keys(vs).length > 0;
+              const displayStock = hasVariants
+                ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0)
+                : product.stock;
+              const stockStatus = getStockStatus(displayStock);
               const colorClass = avatarColors[i % avatarColors.length];
 
               return (
@@ -1331,67 +1351,54 @@ export default function Inventory() {
                   placeholder="Nama varian (contoh: Pink, 500ml)"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 />
-                <div className="flex gap-2 items-center">
-                  <div className="flex-1">
+                <div className="space-y-1.5">
+                  <div className="flex gap-1.5 items-center">
                     <input
                       type="number"
                       value={variantStockInput}
                       onChange={(e) => setVariantStockInput(e.target.value)}
                       placeholder="Stok"
                       min="0"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="w-16 shrink-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
-                  </div>
-                  <div className="flex gap-1">
                     <button
                       type="button"
-                      onClick={() => setVariantStockType("ready")}
-                      className={`px-2 py-2 rounded-lg text-[10px] font-semibold border transition-all ${
-                        variantStockType === "ready"
-                          ? "bg-emerald-500 text-white border-emerald-500"
-                          : "bg-white text-gray-500 border-gray-200"
-                      }`}
-                    >
-                      Ready
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVariantStockType("po")}
-                      className={`px-2 py-2 rounded-lg text-[10px] font-semibold border transition-all ${
+                      onClick={() => setVariantStockType(variantStockType === "ready" ? "po" : "ready")}
+                      className={`shrink-0 px-2.5 py-2 rounded-lg text-[10px] font-bold border transition-all ${
                         variantStockType === "po"
                           ? "bg-amber-500 text-white border-amber-500"
-                          : "bg-white text-gray-500 border-gray-200"
+                          : "bg-emerald-500 text-white border-emerald-500"
                       }`}
                     >
-                      PO
+                      {variantStockType === "po" ? "PO" : "R"}
                     </button>
-                  </div>
-                  <input
-                    ref={variantFileRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleVariantImageUpload}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => variantFileRef.current?.click()}
-                    className="px-3 py-2 border-2 border-dashed border-gray-200 rounded-lg text-[10px] text-gray-400 hover:border-pink-300 hover:text-pink-400 transition-all flex items-center justify-center gap-1"
-                  >
-                    <Camera className="w-3 h-3" />
-                    {variantImage ? "Foto ✓" : "Foto"}
-                  </button>
-                </div>
-                {variantImage && (
-                  <div className="relative inline-block">
-                    <img src={variantImage} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                    <input
+                      ref={variantFileRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleVariantImageUpload}
+                      className="hidden"
+                    />
                     <button
-                      onClick={() => setVariantImage("")}
-                      className="absolute -top-1 -right-1 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500"
+                      onClick={() => variantFileRef.current?.click()}
+                      className="shrink-0 px-2.5 py-2 border border-gray-200 rounded-lg text-[10px] text-gray-400 hover:border-pink-300 hover:text-pink-400 transition-all flex items-center justify-center gap-1"
                     >
-                      <X className="w-2.5 h-2.5" />
+                      <Camera className="w-3 h-3" />
+                      {variantImage ? "✓" : ""}
                     </button>
                   </div>
-                )}
+                  {variantImage && (
+                    <div className="relative inline-block">
+                      <img src={variantImage} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                      <button
+                        onClick={() => setVariantImage("")}
+                        className="absolute -top-1 -right-1 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   {editingVariantId && (
                     <button
