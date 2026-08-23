@@ -21,6 +21,7 @@ interface OrderItemInput {
   price: string;
   quantity: string;
   discount: string;
+  variant?: string;
 }
 
 const emptyItem: OrderItemInput = {
@@ -210,6 +211,7 @@ export default function NewOrderForm() {
         price: parseFloat(i.price),
         quantity: parseInt(i.quantity) || 1,
         discount: parseFloat(i.discount) || 0,
+        variant: i.variant || "",
       }));
 
     if (validItems.length === 0) return;
