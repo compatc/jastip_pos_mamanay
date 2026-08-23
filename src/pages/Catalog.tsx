@@ -2,6 +2,14 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Search, Package, MessageCircle, ShoppingBag, ShoppingCart, X, Plus, Minus, Check, Loader2 } from "lucide-react";
 
+interface Variant {
+  id: string;
+  name: string;
+  image: string;
+  stock: number;
+  stock_type?: string | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -11,10 +19,12 @@ interface Product {
   stock_type?: string;
   unit: string;
   image: string;
+  variants?: Variant[];
 }
 
 interface CartItem {
   product: Product;
+  variant?: Variant;
   qty: number;
 }
 
@@ -61,6 +71,7 @@ export default function Catalog() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState<Product | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
 
   // Cart
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -121,37 +132,41 @@ export default function Catalog() {
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
   const cartTotal = cart.reduce((s, c) => s + c.product.sell_price * c.qty, 0);
 
-  function addToCart(product: Product) {
+  function addToCart(product: Product, variant?: Variant) {
+    const vId = variant?.id || "";
     setCart((prev) => {
-      const existing = prev.find((c) => c.product.id === product.id);
+      const existing = prev.find((c) => c.product.id === product.id && (c.variant?.id || "") === vId);
+      const maxStock = variant ? variant.stock : product.stock;
       if (existing) {
-        const newQty = Math.min(existing.qty + 1, product.stock);
-        return prev.map((c) => c.product.id === product.id ? { ...c, qty: newQty } : c);
+        const newQty = Math.min(existing.qty + 1, maxStock);
+        return prev.map((c) => c.product.id === product.id && (c.variant?.id || "") === vId ? { ...c, qty: newQty } : c);
       }
-      return [...prev, { product, qty: 1 }];
+      return [...prev, { product, variant, qty: 1 }];
     });
     setSelected(null);
+    setSelectedVariant(null);
     window.history.pushState({}, "", "/catalog");
   }
 
-  function updateCartQty(productId: string, delta: number) {
+  function updateCartQty(productId: string, variantId: string, delta: number) {
     setCart((prev) => {
       return prev
         .map((c) => {
-          if (c.product.id !== productId) return c;
+          if (c.product.id !== productId || (c.variant?.id || "") !== variantId) return c;
+          const maxStock = c.variant ? c.variant.stock : c.product.stock;
           const newQty = c.qty + delta;
-          return { ...c, qty: Math.min(newQty, c.product.stock) };
+          return { ...c, qty: Math.min(newQty, maxStock) };
         })
         .filter((c) => c.qty > 0);
     });
   }
 
-  function removeFromCart(productId: string) {
-    setCart((prev) => prev.filter((c) => c.product.id !== productId));
+  function removeFromCart(productId: string, variantId: string) {
+    setCart((prev) => prev.filter((c) => c.product.id !== productId || (c.variant?.id || "") !== variantId));
   }
 
-  function getCartQty(productId: number) {
-    return cart.find((c) => c.product.id === productId)?.qty || 0;
+  function getCartQty(productId: number, variantId?: string) {
+    return cart.find((c) => c.product.id === productId && (c.variant?.id || "") === (variantId || ""))?.qty || 0;
   }
 
   async function submitOrder() {
@@ -162,7 +177,13 @@ export default function Catalog() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: cart.map((c) => ({ product_id: c.product.id, quantity: c.qty })),
+          items: cart.map((c) => ({
+            product_id: c.product.id,
+            product_name: c.variant ? `${c.product.name} ${c.variant.name}` : c.product.name,
+            quantity: c.qty,
+            price: c.product.sell_price,
+            variant: c.variant?.name || null,
+          })),
           customer_name: custName.trim(),
           phone: custPhone.trim(),
           address: custAddress.trim(),
@@ -347,6 +368,20 @@ export default function Catalog() {
                     <h3 className="text-[13px] font-bold text-slate-800 leading-snug line-clamp-2 mb-1 min-h-[34px]">
                       {p.name}
                     </h3>
+                    {p.variants && p.variants.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-1.5">
+                        {p.variants.slice(0, 4).map((v) => (
+                          <span key={v.id} className="text-[8px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold">
+                            {v.name}
+                          </span>
+                        ))}
+                        {p.variants.length > 4 && (
+                          <span className="text-[8px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-semibold">
+                            +{p.variants.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <p className="text-[11px] text-slate-400 font-medium mb-2">
                       Stok: {p.stock} {p.unit}
                     </p>
@@ -458,7 +493,7 @@ export default function Catalog() {
                 <div className="h-10 w-px bg-slate-100" />
                 <div>
                   <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Stok</p>
-                  <p className="text-2xl font-extrabold text-slate-800">{selected.stock}</p>
+                  <p className="text-2xl font-extrabold text-slate-800">{selectedVariant ? selectedVariant.stock : selected.stock}</p>
                 </div>
                 <div className="h-10 w-px bg-slate-100" />
                 <div>
@@ -467,8 +502,43 @@ export default function Catalog() {
                 </div>
               </div>
 
+              {selected.variants && selected.variants.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mb-2">Pilih Varian</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selected.variants.map((v) => {
+                      const vStock = getStockInfo(v.stock);
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVariant(selectedVariant?.id === v.id ? null : v)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                            selectedVariant?.id === v.id
+                              ? "bg-slate-900 text-white border-slate-900"
+                              : v.stock <= 0
+                                ? "bg-slate-50 text-slate-400 border-slate-200 opacity-50"
+                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
+                          }`}
+                          disabled={v.stock <= 0}
+                        >
+                          {v.image && <img src={v.image} alt="" className="w-5 h-5 rounded object-cover" />}
+                          <span>{v.name}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${selectedVariant?.id === v.id ? "bg-white/20" : vStock.color}`}>{v.stock}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <button
-                onClick={() => addToCart(selected)}
+                onClick={() => {
+                  if (selected.variants && selected.variants.length > 0 && !selectedVariant) {
+                    alert("Pilih varian terlebih dahulu");
+                    return;
+                  }
+                  addToCart(selected, selectedVariant || undefined);
+                }}
                 className="flex items-center justify-center gap-2.5 w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all active:scale-[0.98]"
               >
                 <ShoppingCart className="w-5 h-5" />
@@ -509,35 +579,36 @@ export default function Catalog() {
               <>
                 <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
                   {cart.map((c) => (
-                    <div key={c.product.id} className="flex items-center gap-3 bg-slate-50 rounded-2xl p-3">
+                    <div key={`${c.product.id}-${c.variant?.id || ""}`} className="flex items-center gap-3 bg-slate-50 rounded-2xl p-3">
                       <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getGradient(c.product.name)} flex items-center justify-center shrink-0`}>
-                        {c.product.image ? (
-                          <img src={c.product.image} alt="" className="w-full h-full object-cover rounded-xl" />
+                        {c.variant?.image || c.product.image ? (
+                          <img src={c.variant?.image || c.product.image} alt="" className="w-full h-full object-cover rounded-xl" />
                         ) : (
                           <span className="text-2xl">{getEmoji(c.product.name)}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{c.product.name}</p>
+                        {c.variant && <p className="text-[10px] text-slate-500 font-medium">{c.variant.name}</p>}
                         <p className="text-xs text-rose-500 font-bold">{rupiah(c.product.sell_price)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => updateCartQty(c.product.id, -1)}
+                          onClick={() => updateCartQty(c.product.id, c.variant?.id || "", -1)}
                           className="w-8 h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center active:scale-95"
                         >
                           <Minus className="w-3.5 h-3.5 text-slate-600" />
                         </button>
                         <span className="w-8 text-center text-sm font-bold text-slate-800">{c.qty}</span>
                         <button
-                          onClick={() => updateCartQty(c.product.id, 1)}
+                          onClick={() => updateCartQty(c.product.id, c.variant?.id || "", 1)}
                           className="w-8 h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center active:scale-95"
                         >
                           <Plus className="w-3.5 h-3.5 text-slate-600" />
                         </button>
                       </div>
                       <button
-                        onClick={() => removeFromCart(c.product.id)}
+                        onClick={() => removeFromCart(c.product.id, c.variant?.id || "")}
                         className="p-1.5 hover:bg-red-50 rounded-lg"
                       >
                         <X className="w-4 h-4 text-red-400" />
@@ -593,8 +664,8 @@ export default function Catalog() {
               <div className="bg-slate-50 rounded-2xl p-4">
                 <p className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Ringkasan Pesanan</p>
                 {cart.map((c) => (
-                  <div key={c.product.id} className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-slate-700">{c.product.name} x{c.qty}</span>
+                  <div key={`${c.product.id}-${c.variant?.id || ""}`} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-slate-700">{c.product.name}{c.variant ? ` ${c.variant.name}` : ""} x{c.qty}</span>
                     <span className="text-sm font-bold text-slate-800">{rupiah(c.product.sell_price * c.qty)}</span>
                   </div>
                 ))}

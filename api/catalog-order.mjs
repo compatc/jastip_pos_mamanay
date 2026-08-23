@@ -33,21 +33,30 @@ export default async function handler(req, res) {
 
       const { data: variants } = await sb
         .from("product_variants")
-        .select("product_id, name, stock");
+        .select("id, product_id, name, image, stock, stock_type");
       const { data: movements } = await sb
         .from("stock_movements")
         .select("product_id, variant, qty");
 
       const variantStockMap = {};
+      const variantDetailsMap = {};
       for (const v of variants || []) {
         if (!variantStockMap[v.product_id]) variantStockMap[v.product_id] = {};
         variantStockMap[v.product_id][v.name] = v.stock || 0;
+        if (!variantDetailsMap[v.product_id]) variantDetailsMap[v.product_id] = [];
+        variantDetailsMap[v.product_id].push({ id: v.id, name: v.name, image: v.image || "", stock: v.stock || 0, stock_type: v.stock_type || null });
       }
       for (const m of movements || []) {
         const pid = m.product_id;
         const v = m.variant || "(tanpa varian)";
         if (!variantStockMap[pid]) variantStockMap[pid] = {};
         variantStockMap[pid][v] = (variantStockMap[pid][v] || 0) + m.qty;
+        // Update variant details stock too
+        const details = variantDetailsMap[pid];
+        if (details) {
+          const vd = details.find((d) => d.name === v);
+          if (vd) vd.stock = (vd.stock || 0) + m.qty;
+        }
       }
 
       const result = (data || []).map((p) => {
@@ -56,7 +65,7 @@ export default async function handler(req, res) {
         const realStock = hasVariants
           ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0)
           : p.stock;
-        return { ...p, stock: realStock };
+        return { ...p, stock: realStock, variants: variantDetailsMap[p.id] || [] };
       });
 
       json(res, 200, { ok: true, data: result });
