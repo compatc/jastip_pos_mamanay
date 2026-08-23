@@ -1443,7 +1443,7 @@ export default function Inventory() {
                         let sent = 0;
                         for (const v of sendable) {
                           const stType = (product as any).stock_type === "po" ? " [PO]" : "";
-                          const msg = `🏷️ ${product.name} ${v.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}[stok:${v.stock}]\n\n_Fix, reply difoto_`;
+                          const msg = `🏷️ ${product.name} ${v.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}• ${v.name} [stok:${v.stock}]\n\n_Fix, reply difoto_`;
                           const fd = new FormData();
                           fd.append("group_jid", GROUP_ID);
                           fd.append("message", msg);
