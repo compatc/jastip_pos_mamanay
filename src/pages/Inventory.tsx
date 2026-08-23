@@ -647,7 +647,7 @@ export default function Inventory() {
                           : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      Ready Stok
+                      Ready
                     </button>
                     <button
                       type="button"
@@ -658,7 +658,7 @@ export default function Inventory() {
                           : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      PO (Pre-Order)
+                      PO
                     </button>
                   </div>
                 </div>
@@ -753,68 +753,59 @@ export default function Inventory() {
                       ))}
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={formVariantName}
-                      onChange={(e) => setFormVariantName(e.target.value)}
-                      placeholder="Nama varian"
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                    <input
-                      type="number"
-                      value={formVariantStock}
-                      onChange={(e) => setFormVariantStock(e.target.value)}
-                      placeholder="Stok"
-                      min="0"
-                      className="w-16 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                    <div className="flex gap-0.5">
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={formVariantName}
+                        onChange={(e) => setFormVariantName(e.target.value)}
+                        placeholder="Nama varian"
+                        className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                      <input
+                        type="number"
+                        value={formVariantStock}
+                        onChange={(e) => setFormVariantStock(e.target.value)}
+                        placeholder="Stok"
+                        min="0"
+                        className="w-16 shrink-0 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                      <div className="flex shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setFormVariantStockType(formVariantStockType === "ready" ? "po" : "ready")}
+                          className={`px-2 py-2 rounded-lg text-[10px] font-bold border transition-all ${
+                            formVariantStockType === "po"
+                              ? "bg-amber-500 text-white border-amber-500"
+                              : "bg-emerald-500 text-white border-emerald-500"
+                          }`}
+                        >
+                          {formVariantStockType === "po" ? "PO" : "R"}
+                        </button>
+                      </div>
+                      <input
+                        ref={formVariantNameRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFormVariantImageUpload}
+                        className="hidden"
+                      />
                       <button
                         type="button"
-                        onClick={() => setFormVariantStockType("ready")}
-                        className={`px-1.5 py-2 rounded-l-lg text-[9px] font-semibold border transition-all ${
-                          formVariantStockType === "ready"
-                            ? "bg-emerald-500 text-white border-emerald-500"
-                            : "bg-white text-gray-400 border-gray-200"
-                        }`}
+                        onClick={() => formVariantNameRef.current?.click()}
+                        className="shrink-0 px-2 py-2 border border-gray-200 rounded-lg hover:bg-pink-50 transition-all"
                       >
-                        R
+                        <Camera className="w-3.5 h-3.5 text-gray-400" />
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFormVariantStockType("po")}
-                        className={`px-1.5 py-2 rounded-r-lg text-[9px] font-semibold border border-l-0 transition-all ${
-                          formVariantStockType === "po"
-                            ? "bg-amber-500 text-white border-amber-500"
-                            : "bg-white text-gray-400 border-gray-200"
-                        }`}
+                        onClick={addFormVariant}
+                        disabled={!formVariantName.trim()}
+                        className="shrink-0 px-3 py-2 bg-pink-100 hover:bg-pink-200 disabled:bg-gray-100 disabled:text-gray-300 text-pink-600 rounded-lg transition-all"
                       >
-                        PO
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <input
-                      ref={formVariantNameRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFormVariantImageUpload}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => formVariantNameRef.current?.click()}
-                      className="px-2 py-2 border border-gray-200 rounded-lg hover:bg-pink-50 transition-all"
-                    >
-                      <Camera className="w-3.5 h-3.5 text-gray-400" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={addFormVariant}
-                      disabled={!formVariantName.trim()}
-                      className="px-3 py-2 bg-pink-100 hover:bg-pink-200 disabled:bg-gray-100 disabled:text-gray-300 text-pink-600 rounded-lg transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                   {formVariantImage && (
                     <div className="relative inline-block mt-2">
