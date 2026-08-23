@@ -394,7 +394,13 @@ export default function Catalog() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        addToCart(p);
+                        if (p.variants && p.variants.length > 0) {
+                          setSelected(p);
+                          setSelectedVariant(null);
+                          window.history.pushState({}, "", "/catalog/" + p.id);
+                        } else {
+                          addToCart(p);
+                        }
                       }}
                       className="mt-2 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1"
                     >
