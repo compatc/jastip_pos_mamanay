@@ -105,6 +105,12 @@ export interface ProductDiscount {
   created_at: string;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface User {
   id: string;
   email: string;

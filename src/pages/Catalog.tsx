@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Search, Package, MessageCircle, ShoppingBag, ShoppingCart, X, Plus, Minus, Check, Loader2 } from "lucide-react";
 
 interface Variant {
@@ -20,6 +20,7 @@ interface Product {
   unit: string;
   image: string;
   variants?: Variant[];
+  tags?: { id: string; name: string }[];
 }
 
 interface CartItem {
@@ -66,6 +67,8 @@ function getGradient(name: string) {
 
 export default function Catalog() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const tagFilter = searchParams.get("tag") || "";
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -87,7 +90,8 @@ export default function Catalog() {
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-        fetch("/api/catalog-order")
+        const url = tagFilter ? `/api/catalog-order?tag=${encodeURIComponent(tagFilter)}` : "/api/catalog-order";
+        fetch(url)
       .then((r) => r.json())
       .then((d) => {
         const prods = d.data || [];
@@ -99,7 +103,7 @@ export default function Catalog() {
         }
       })
       .catch(() => setLoading(false));
-  }, [id]);
+  }, [id, tagFilter]);
 
   const categories = useMemo(() => {
     const cats = new Map<string, number>();
@@ -344,6 +348,15 @@ export default function Catalog() {
                             PO (Pre-Order)
                           </span>
                         )}
+                        {p.tags && p.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-0.5 mt-1">
+                            {p.tags.map((t) => (
+                              <span key={t.id} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -358,6 +371,15 @@ export default function Catalog() {
                           <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200 mt-1">
                             PO (Pre-Order)
                           </span>
+                        )}
+                        {p.tags && p.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-0.5 mt-1">
+                            {p.tags.map((t) => (
+                              <span key={t.id} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -478,6 +500,15 @@ export default function Catalog() {
                   <h2 className="text-lg font-extrabold text-slate-900 leading-snug">{selected.name}</h2>
                   {selected.description && (
                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">{selected.description}</p>
+                  )}
+                  {selected.tags && selected.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {selected.tags.map((t) => (
+                        <span key={t.id} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
+                          {t.name}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border shrink-0 ${getStockInfo(selected.stock).color}`}>

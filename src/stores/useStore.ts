@@ -147,6 +147,14 @@ interface PosStore {
   addProductDiscount: (productId: string, minQty: number, discountPrice: number) => Promise<void>;
   deleteProductDiscount: (id: string, productId: string) => Promise<void>;
 
+  tags: Tag[];
+  loadTags: () => Promise<void>;
+  addTag: (name: string) => Promise<string>;
+  deleteTag: (id: string) => Promise<void>;
+  productTags: Record<string, string[]>;
+  loadProductTags: (productId: string) => Promise<void>;
+  setProductTags: (productId: string, tagIds: string[]) => Promise<void>;
+
   accounts: Account[];
   loadAccounts: () => Promise<void>;
   addAccount: (name: string, type: string, icon: string, accountNumber?: string) => Promise<void>;
@@ -1481,5 +1489,36 @@ export const useStore = create<PosStore>((set, get) => ({
       // ignore storage errors
     }
     set({ fontSize: val });
+  },
+
+  tags: [],
+  loadTags: async () => {
+    const { data, error } = await supabase.from("tags").select("*").order("name");
+    if (error) { console.error("loadTags:", error); return; }
+    set({ tags: (data || []) as Tag[] });
+  },
+  addTag: async (name: string) => {
+    const id = crypto.randomUUID();
+    const { error } = await supabase.from("tags").insert({ id, name, created_at: new Date().toISOString() });
+    if (error) { console.error("addTag:", error); return ""; }
+    await get().loadTags();
+    return id;
+  },
+  deleteTag: async (id: string) => {
+    await supabase.from("product_tags").delete().eq("tag_id", id);
+    await supabase.from("tags").delete().eq("id", id);
+    await get().loadTags();
+  },
+  productTags: {},
+  loadProductTags: async (productId: string) => {
+    const { data } = await supabase.from("product_tags").select("tag_id").eq("product_id", productId);
+    set((s) => ({ productTags: { ...s.productTags, [productId]: (data || []).map((r: any) => r.tag_id) } }));
+  },
+  setProductTags: async (productId: string, tagIds: string[]) => {
+    await supabase.from("product_tags").delete().eq("product_id", productId);
+    if (tagIds.length > 0) {
+      await supabase.from("product_tags").insert(tagIds.map((tag_id) => ({ product_id: productId, tag_id })));
+    }
+    set((s) => ({ productTags: { ...s.productTags, [productId]: tagIds } }));
   },
 }));

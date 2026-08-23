@@ -70,6 +70,13 @@ export default function Inventory() {
     loadAllProductDiscounts,
     addProductDiscount,
     deleteProductDiscount,
+    tags,
+    loadTags,
+    addTag,
+    deleteTag,
+    productTags,
+    loadProductTags,
+    setProductTags,
   } = useStore();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -97,6 +104,8 @@ export default function Inventory() {
   const formVariantNameRef = useRef<HTMLInputElement>(null);
   const [formVariants, setFormVariants] = useState<{ name: string; image: string; stock: string; stock_type: "ready" | "po" }[]>([]);
   const [formVariantName, setFormVariantName] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [newTagName, setNewTagName] = useState("");
   const [formVariantImage, setFormVariantImage] = useState("");
   const [formVariantStock, setFormVariantStock] = useState("");
   const [formVariantStockType, setFormVariantStockType] = useState<"ready" | "po">("ready");
@@ -109,7 +118,14 @@ export default function Inventory() {
     loadProducts();
     loadAllProductDiscounts();
     loadVariantStock();
+    loadTags();
   }, []);
+
+  useEffect(() => {
+    for (const p of products) {
+      loadProductTags(p.id);
+    }
+  }, [products]);
 
   useEffect(() => {
     if (variantProductId) loadProductVariants(variantProductId);
@@ -160,6 +176,9 @@ export default function Inventory() {
     });
     setFormVariants([]);
     loadProductVariants(id);
+    loadProductTags(id).then(() => {
+      setSelectedTagIds(useStore.getState().productTags[id] || []);
+    });
     setShowForm(true);
   }
 
@@ -218,6 +237,11 @@ export default function Inventory() {
         loadVariantStock();
       }
 
+      // Save tags
+      if (productId) {
+        await setProductTags(productId, selectedTagIds);
+      }
+
       setShowForm(false);
       setForm(emptyForm);
       setEditId(null);
@@ -225,6 +249,8 @@ export default function Inventory() {
       setFormVariantName("");
       setFormVariantImage("");
       setFormVariantStock("");
+      setSelectedTagIds([]);
+      setNewTagName("");
     } catch (err) {
       console.error("Submit error:", err);
       alert("Gagal menyimpan produk: " + (err instanceof Error ? err.message : String(err)));
@@ -627,6 +653,18 @@ export default function Inventory() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${(product as any).stock_type === "po" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
                       {(product as any).stock_type === "po" ? "PO" : "Ready"}
                     </span>
+                    {(productTags[product.id] || []).length > 0 && (
+                      <div className="flex flex-wrap gap-0.5 mt-1">
+                        {(productTags[product.id] || []).map((tid) => {
+                          const t = tags.find((x) => x.id === tid);
+                          return t ? (
+                            <span key={tid} className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 font-medium">
+                              {t.name}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -686,6 +724,73 @@ export default function Inventory() {
                     rows={2}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all resize-none"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Tag
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {tags.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTagIds((prev) =>
+                            prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]
+                          );
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                          selectedTagIds.includes(t.id)
+                            ? "bg-pink-100 border-pink-400 text-pink-700"
+                            : "bg-gray-50 border-gray-200 text-gray-500 hover:border-pink-300"
+                        }`}
+                      >
+                        {t.name}
+                        {selectedTagIds.includes(t.id) && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteTag(t.id);
+                              setSelectedTagIds((prev) => prev.filter((id) => id !== t.id));
+                            }}
+                            className="ml-1 text-pink-400 hover:text-pink-600"
+                          >
+                            x
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && newTagName.trim()) {
+                          e.preventDefault();
+                          const id = await addTag(newTagName.trim());
+                          if (id) setSelectedTagIds((prev) => [...prev, id]);
+                          setNewTagName("");
+                        }
+                      }}
+                      placeholder="Tambah tag baru..."
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-pink-200"
+                    />
+                    {newTagName.trim() && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const id = await addTag(newTagName.trim());
+                          if (id) setSelectedTagIds((prev) => [...prev, id]);
+                          setNewTagName("");
+                        }}
+                        className="px-3 py-2 bg-pink-500 text-white rounded-lg text-xs font-medium hover:bg-pink-600"
+                      >
+                        +
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <div className="flex-1">
