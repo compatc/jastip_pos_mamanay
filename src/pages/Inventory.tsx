@@ -1299,8 +1299,8 @@ export default function Inventory() {
         const stockTypeBadge = (product as any).stock_type === "po" ? " [PO]" : "";
         const footer = "\n\n_Fix, reply difoto_";
         const previewMsg = isAllSelected
-          ? `🏷️ ${product.name}${stockTypeBadge} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${variants.map((v) => `• ${v.name} [stok:${v.stock}]`).join("\n")}${footer}`
-          : `🏷️ ${displayName}${stockTypeBadge} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}[stok:${displayStock}]${footer}`;
+          ? `🏷️ ${product.name}${stockTypeBadge} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${variants.map((v) => `• ${v.name}${v.stock > 0 ? ` [stok:${v.stock}]` : ""}`).join("\n")}${footer}`
+          : `🏷️ ${displayName}${stockTypeBadge} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${displayStock > 0 ? `[stok:${displayStock}]` : ""}${footer}`;
         return (
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
             <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50">
@@ -1443,7 +1443,8 @@ export default function Inventory() {
                         let sent = 0;
                         for (const v of sendable) {
                           const stType = (product as any).stock_type === "po" ? " [PO]" : "";
-                          const msg = `🏷️ ${product.name} ${v.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}• ${v.name} [stok:${v.stock}]\n\n_Fix, reply difoto_`;
+                          const stockLabel = v.stock > 0 ? ` [stok:${v.stock}]` : "";
+                          const msg = `🏷️ ${product.name} ${v.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}• ${v.name}${stockLabel}\n\n_Fix, reply difoto_`;
                           const fd = new FormData();
                           fd.append("group_jid", GROUP_ID);
                           fd.append("message", msg);
@@ -1461,7 +1462,7 @@ export default function Inventory() {
                         alert(`Terkirim ${sent}/${sendable.length} varian ke grup!`);
                       } else {
                         // Tidak ada foto varian → 1 bubble gabungan + foto produk
-                        const lines = variants.map((v) => `• ${v.name} [stok:${v.stock}]`).join("\n");
+                        const lines = variants.map((v) => `• ${v.name}${v.stock > 0 ? ` [stok:${v.stock}]` : ""}`).join("\n");
                         const stType2 = (product as any).stock_type === "po" ? " [PO]" : "";
                         const msg = `🏷️ ${product.name}${stType2} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${lines}\n\n_Fix, reply difoto_`;
                         if (product.image) {
