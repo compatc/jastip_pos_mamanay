@@ -128,7 +128,7 @@ export default function Catalog() {
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
-      if (p.stock <= 0) return false;
+      if (p.stock <= 0 && p.stock_type !== "po") return false;
       if (tagFilter && !(p.tags || []).some((t) => t.name === tagFilter)) return false;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       if (filter === "ready") return matchSearch && p.stock_type !== "po";
