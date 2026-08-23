@@ -118,6 +118,7 @@ export default function EditOrderForm() {
     loadCustomers();
     loadAllProductDiscounts();
     loadAccounts();
+    loadProductVariants();
     async function load() {
       if (!orderId) return;
       await loadOrderItems(orderId);
@@ -229,7 +230,6 @@ export default function EditOrderForm() {
       variant: "",
     };
     setItems(updated);
-    loadProductVariants(productId);
   }
 
   function handleOrderTypeChange(type: OrderType) {
@@ -606,7 +606,7 @@ export default function EditOrderForm() {
                       {product && (
                         <>
                           {(() => {
-                            const variants = productVariants[product.id] || [];
+                            const variants = productVariants.filter((v) => v.product_id === product.id);
                             if (variants.length === 0) return null;
                             return (
                               <div className="mb-2">

@@ -71,6 +71,7 @@ export default function NewOrderForm() {
     loadCustomers();
     loadAllProductDiscounts();
     loadAccounts();
+    loadProductVariants();
   }, []);
 
   useEffect(() => {
@@ -128,7 +129,6 @@ export default function NewOrderForm() {
       variant: "",
     };
     setItems(updated);
-    loadProductVariants(productId);
   }
 
   function updateItemQty(index: number, qty: string) {
@@ -452,7 +452,7 @@ export default function NewOrderForm() {
                       {product && (
                         <>
                           {(() => {
-                            const variants = productVariants[product.id] || [];
+                            const variants = productVariants.filter((v) => v.product_id === product.id);
                             if (variants.length === 0) return null;
                             return (
                               <div className="mb-2">

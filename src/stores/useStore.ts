@@ -1192,12 +1192,10 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   productVariants: [],
-  loadProductVariants: async (productId) => {
-    const { data, error } = await supabase
-      .from("product_variants")
-      .select("*")
-      .eq("product_id", productId)
-      .order("created_at", { ascending: true });
+  loadProductVariants: async (productId?: string) => {
+    let query = supabase.from("product_variants").select("*").order("created_at", { ascending: true });
+    if (productId) query = query.eq("product_id", productId);
+    const { data, error } = await query;
     if (error) { console.error("loadProductVariants:", error); return; }
     set({ productVariants: (data || []) as ProductVariant[] });
   },
