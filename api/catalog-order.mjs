@@ -131,20 +131,41 @@ export default async function handler(req, res) {
 
       let customerId = null;
       if (customer_name && phone) {
-        const { data: existing } = await sb
+        // Normalize phone: strip leading 0, ensure starts with 62
+        const norm = (s) => s.replace(/[^0-9]/g, "").replace(/^0+/, "").replace(/^62(\d{9,})/, "62$1");
+        const phoneNorm = norm(phone);
+        // Try exact match first, then ilike
+        let { data: existing } = await sb
           .from("customers")
           .select("id")
-          .or(`phone.ilike.%${phone}%`)
+          .eq("phone", phoneNorm)
           .limit(1);
+        if (!existing || existing.length === 0) {
+          ({ data: existing } = await sb
+            .from("customers")
+            .select("id")
+            .or(`phone.ilike.%${phoneNorm}%`)
+            .limit(1));
+        }
+        if (!existing || existing.length === 0) {
+          // Also try original phone
+          ({ data: existing } = await sb
+            .from("customers")
+            .select("id")
+            .eq("phone", phone)
+            .limit(1));
+        }
         if (existing && existing.length > 0) {
           customerId = existing[0].id;
+          console.log("bot-order: matched customer", customerId);
         } else {
           customerId = randomUUID();
           await sb.from("customers").insert({
-            id: customerId, name: customer_name, phone, address: "",
+            id: customerId, name: customer_name, phone: phone, address: "",
             category: "pelanggan", points: 0, total_spent: 0,
             member_level: "silver", created_at: now,
           }).catch(() => {});
+          console.log("bot-order: created new customer", customerId);
         }
       }
 
