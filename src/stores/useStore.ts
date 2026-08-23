@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import { uuid } from "../lib/uuid";
 import { awardPoints } from "../lib/loyalty";
-import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductDiscount, StockMovement } from "../types";
+import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductDiscount, ProductVariant, StockMovement } from "../types";
 
 interface PosStore {
   user: { id: string; email: string; name: string; auth_source?: "supabase" | "offline" } | null;
@@ -127,6 +127,12 @@ interface PosStore {
     unit: string,
     variant?: string
   ) => Promise<void>;
+
+  productVariants: ProductVariant[];
+  loadProductVariants: (productId: string) => Promise<void>;
+  addProductVariant: (productId: string, name: string, image?: string, stock?: number) => Promise<string>;
+  updateProductVariant: (id: string, name: string, image?: string, stock?: number) => Promise<void>;
+  deleteProductVariant: (id: string) => Promise<void>;
 
   variantStock: Record<string, Record<string, number>>;
   loadVariantStock: () => Promise<void>;
@@ -1162,19 +1168,76 @@ export const useStore = create<PosStore>((set, get) => ({
     await get().loadStockMovements(productId);
   },
 
+  productVariants: [],
+  loadProductVariants: async (productId) => {
+    const { data, error } = await supabase
+      .from("product_variants")
+      .select("*")
+      .eq("product_id", productId)
+      .order("created_at", { ascending: true });
+    if (error) { console.error("loadProductVariants:", error); return; }
+    set({ productVariants: (data || []) as ProductVariant[] });
+  },
+
+  addProductVariant: async (productId, name, image = "", stock = 0) => {
+    const id = uuid();
+    const { error } = await supabase
+      .from("product_variants")
+      .insert({
+        id,
+        product_id: productId,
+        name,
+        image,
+        stock,
+        created_at: new Date().toISOString(),
+      });
+    if (error) throw error;
+    return id;
+  },
+
+  updateProductVariant: async (id, name, image = "", stock = 0) => {
+    const { error } = await supabase
+      .from("product_variants")
+      .update({ name, image, stock })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  deleteProductVariant: async (id) => {
+    const { error } = await supabase
+      .from("product_variants")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+  },
+
   variantStock: {},
   loadVariantStock: async () => {
-    const { data, error } = await supabase
-      .from("stock_movements")
-      .select("product_id, variant, qty");
-    if (error) { console.error("loadVariantStock:", error); return; }
+    const [movementsRes, variantsRes] = await Promise.all([
+      supabase.from("stock_movements").select("product_id, variant, qty"),
+      supabase.from("product_variants").select("product_id, name, stock"),
+    ]);
+    if (movementsRes.error) console.error("loadVariantStock movements:", movementsRes.error);
+    if (variantsRes.error) console.error("loadVariantStock variants:", variantsRes.error);
+
     const result: Record<string, Record<string, number>> = {};
-    for (const row of data || []) {
+
+    // Start with product_variants.stock as base
+    for (const row of variantsRes.data || []) {
+      const pid = row.product_id;
+      const v = row.name;
+      if (!result[pid]) result[pid] = {};
+      result[pid][v] = row.stock || 0;
+    }
+
+    // Add stock_movements delta on top
+    for (const row of movementsRes.data || []) {
       const pid = row.product_id;
       const v = row.variant || "(tanpa varian)";
       if (!result[pid]) result[pid] = {};
       result[pid][v] = (result[pid][v] || 0) + row.qty;
     }
+
     set({ variantStock: result });
   },
 

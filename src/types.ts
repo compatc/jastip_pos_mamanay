@@ -85,6 +85,15 @@ export interface StockMovement {
   created_at: string;
 }
 
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  name: string;
+  image: string;
+  stock: number;
+  created_at: string;
+}
+
 export interface ProductDiscount {
   id: string;
   product_id: string;
