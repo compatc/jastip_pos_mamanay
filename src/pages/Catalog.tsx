@@ -67,9 +67,10 @@ function getGradient(name: string) {
 
 export default function Catalog() {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tagFilter = searchParams.get("tag") || "";
   const [products, setProducts] = useState<Product[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -118,6 +119,12 @@ export default function Catalog() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
       .map(([name]) => name);
+  }, [products]);
+
+  const allUniqueTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    products.forEach((p) => (p.tags || []).forEach((t) => tagSet.add(t)));
+    return Array.from(tagSet);
   }, [products]);
 
   const filtered = useMemo(() => {
@@ -300,6 +307,35 @@ export default function Catalog() {
             </button>
           ))}
         </div>
+
+        {/* Tag Filter */}
+        {allUniqueTags.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide">
+            <button
+              onClick={() => { const p = new URLSearchParams(searchParams); p.delete("tag"); setSearchParams(p); }}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shrink-0 ${
+                !tagFilter
+                  ? "bg-pink-500 text-white shadow-md shadow-pink-500/20"
+                  : "bg-pink-50 text-pink-600 border border-pink-200"
+              }`}
+            >
+              Semua
+            </button>
+            {allUniqueTags.map((t) => (
+              <button
+                key={t}
+                onClick={() => { const p = new URLSearchParams(searchParams); p.set("tag", t); setSearchParams(p); }}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shrink-0 ${
+                  tagFilter === t
+                    ? "bg-pink-500 text-white shadow-md shadow-pink-500/20"
+                    : "bg-pink-50 text-pink-600 border border-pink-200"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Grid */}
         {loading ? (
