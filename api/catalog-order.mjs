@@ -203,6 +203,25 @@ export default async function handler(req, res) {
           discount: 0, paid_value: 0, status: "new",
           variant: item.variant || null,
         }).catch((e) => console.error("bot-order item:", e.message));
+
+        // Create stock movement if product_id exists
+        if (item.product_id) {
+          const { data: prod } = await sb.from("products").select("id, stock, unit").eq("id", item.product_id).single();
+          if (prod) {
+            const qty = -(item.quantity || 1);
+            const newStock = (prod.stock || 0) + qty;
+            await sb.from("products").update({ stock: newStock }).eq("id", prod.id);
+            const { data: maxInv } = await sb.from("stock_movements").select("invoice_no").order("invoice_no", { ascending: false }).limit(1).maybeSingle();
+            const nextInv = ((maxInv?.invoice_no) || 0) + 1;
+            await sb.from("stock_movements").insert({
+              id: randomUUID(), product_id: prod.id, order_id: orderId,
+              date: now.split("T")[0], transaction_type: "Penjualan",
+              invoice_no: nextInv, party_name: customer_name || "",
+              qty, qty_after: newStock, unit: prod.unit || "PCS",
+              variant: item.variant || null, created_at: now,
+            });
+          }
+        }
       }
 
       json(res, 200, { ok: true, orderId, total: subtotal });

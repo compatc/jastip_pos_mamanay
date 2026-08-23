@@ -36,6 +36,7 @@ interface PosStore {
       product_name: string;
       price: number;
       quantity: number;
+      variant?: string;
     }[]
   ) => Promise<string>;
 
@@ -45,7 +46,7 @@ interface PosStore {
     orderType: OrderType;
     paymentType: PaymentType;
     contactName: string;
-    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number }[];
+    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number; variant?: string }[];
     paidTotal: number;
     ongkir: number;
     diskon: number;
@@ -59,7 +60,7 @@ interface PosStore {
     status: OrderStatus;
     paymentType: PaymentType;
     contactName: string;
-    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number }[];
+    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number; variant?: string }[];
     paidTotal: number;
     ongkir: number;
     diskon: number;
@@ -286,6 +287,7 @@ export const useStore = create<PosStore>((set, get) => ({
           quantity: item.quantity,
           paid_value: 0,
           status: "new",
+          variant: item.variant || null,
         });
 
       const { data: product } = await supabase
@@ -322,6 +324,7 @@ export const useStore = create<PosStore>((set, get) => ({
             qty_after: newStock,
             unit: product.unit || "SET",
             created_at: now,
+            variant: item.variant || null,
           });
       }
     }
@@ -432,6 +435,7 @@ export const useStore = create<PosStore>((set, get) => ({
           discount: item.discount || 0,
           paid_value: 0,
           status: "new",
+          variant: item.variant || null,
         });
       if (itemErr) {
         itemErrors.push(`${item.product_name}: ${itemErr.message}`);
@@ -475,6 +479,7 @@ export const useStore = create<PosStore>((set, get) => ({
             qty_after: newStock,
             unit: product.unit || "SET",
             created_at: now,
+            variant: item.variant || null,
           });
         if (smErr) itemErrors.push(`Stock movement ${item.product_name}: ${smErr.message}`);
       } else {
@@ -670,6 +675,7 @@ export const useStore = create<PosStore>((set, get) => ({
           discount: item.discount || 0,
           paid_value: 0,
           status,
+          variant: item.variant || null,
         });
 
       const { data: product } = await supabase
@@ -708,6 +714,7 @@ export const useStore = create<PosStore>((set, get) => ({
             qty_after: newStock,
             unit: product.unit || "SET",
             created_at: now,
+            variant: item.variant || null,
           });
       }
     }
