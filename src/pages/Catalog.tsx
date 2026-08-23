@@ -131,10 +131,9 @@ export default function Catalog() {
     return products.filter((p) => {
       if (p.stock <= 0) return false;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
-      if (filter === "all") return matchSearch;
       if (filter === "ready") return matchSearch && p.stock_type !== "po";
       if (filter === "po") return matchSearch && p.stock_type === "po";
-      return matchSearch && p.name.toLowerCase().startsWith(filter.toLowerCase());
+      return matchSearch;
     });
   }, [products, search, filter]);
 
@@ -281,42 +280,15 @@ export default function Catalog() {
 
       {/* Content */}
       <div className="px-4 sm:px-6 lg:px-8 -mt-12 relative z-10 max-w-5xl mx-auto pb-28">
-        {/* Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-              filter === "all"
-                ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
-                : "bg-white text-slate-600 border border-slate-200"
-            }`}
-          >
-            Semua ({products.length})
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                filter === cat
-                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
-                  : "bg-white text-slate-600 border border-slate-200"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
         {/* Tag Filter */}
         {allUniqueTags.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide">
             <button
               onClick={() => { const p = new URLSearchParams(searchParams); p.delete("tag"); setSearchParams(p); }}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shrink-0 ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 !tagFilter
-                  ? "bg-pink-500 text-white shadow-md shadow-pink-500/20"
-                  : "bg-pink-50 text-pink-600 border border-pink-200"
+                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
+                  : "bg-white text-slate-600 border border-slate-200"
               }`}
             >
               Semua
@@ -325,10 +297,10 @@ export default function Catalog() {
               <button
                 key={t}
                 onClick={() => { const p = new URLSearchParams(searchParams); p.set("tag", t); setSearchParams(p); }}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shrink-0 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                   tagFilter === t
-                    ? "bg-pink-500 text-white shadow-md shadow-pink-500/20"
-                    : "bg-pink-50 text-pink-600 border border-pink-200"
+                    ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
+                    : "bg-white text-slate-600 border border-slate-200"
                 }`}
               >
                 {t}
