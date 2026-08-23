@@ -124,8 +124,12 @@ interface PosStore {
     partyName: string,
     qty: number,
     qtyAfter: number,
-    unit: string
+    unit: string,
+    variant?: string
   ) => Promise<void>;
+
+  variantStock: Record<string, Record<string, number>>;
+  loadVariantStock: () => Promise<void>;
 
   productDiscounts: ProductDiscount[];
   loadProductDiscounts: (productId: string) => Promise<void>;
@@ -1136,7 +1140,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ stockMovements: mapped });
   },
 
-  addStockMovement: async (productId, date, transactionType, invoiceNo, partyName, qty, qtyAfter, unit) => {
+  addStockMovement: async (productId, date, transactionType, invoiceNo, partyName, qty, qtyAfter, unit, variant = "") => {
     const id = uuid();
     const created_at = new Date().toISOString();
     const { error } = await supabase
@@ -1151,10 +1155,27 @@ export const useStore = create<PosStore>((set, get) => ({
         qty,
         qty_after: qtyAfter,
         unit,
+        variant,
         created_at,
       });
     if (error) throw error;
     await get().loadStockMovements(productId);
+  },
+
+  variantStock: {},
+  loadVariantStock: async () => {
+    const { data, error } = await supabase
+      .from("stock_movements")
+      .select("product_id, variant, qty");
+    if (error) { console.error("loadVariantStock:", error); return; }
+    const result: Record<string, Record<string, number>> = {};
+    for (const row of data || []) {
+      const pid = row.product_id;
+      const v = row.variant || "(tanpa varian)";
+      if (!result[pid]) result[pid] = {};
+      result[pid][v] = (result[pid][v] || 0) + row.qty;
+    }
+    set({ variantStock: result });
   },
 
   productDiscounts: [],

@@ -81,6 +81,7 @@ export interface StockMovement {
   qty: number;
   qty_after: number;
   unit: string;
+  variant: string;
   created_at: string;
 }
 

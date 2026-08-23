@@ -54,6 +54,8 @@ export default function Inventory() {
     deleteProduct,
     stockMovements,
     loadStockMovements,
+    variantStock,
+    loadVariantStock,
     productDiscounts,
     loadAllProductDiscounts,
     addProductDiscount,
@@ -78,6 +80,7 @@ export default function Inventory() {
   useEffect(() => {
     loadProducts();
     loadAllProductDiscounts();
+    loadVariantStock();
   }, []);
 
   const baseFiltered = products.filter((p) => {
@@ -304,6 +307,21 @@ export default function Inventory() {
                       )}
                     </div>
                     <p className="text-[10px] text-gray-400 mt-0.5">{product.unit}</p>
+                    {(() => {
+                      const vs = variantStock[product.id];
+                      if (!vs || Object.keys(vs).length === 0) return null;
+                      const entries = Object.entries(vs).filter(([, qty]) => qty > 0);
+                      if (entries.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {entries.map(([v, qty]) => (
+                            <span key={v} className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-semibold">
+                              {v} <span className="text-gray-800">{qty}</span>
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-1">
                         <button
@@ -639,9 +657,16 @@ export default function Inventory() {
                       </p>
                     </div>
                     <div className="flex items-center justify-between ml-9">
-                      <span className={`text-sm font-bold ${m.qty > 0 ? "text-emerald-500" : "text-red-500"}`}>
-                        {m.qty > 0 ? "+" : ""}{m.qty} {m.unit}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-bold ${m.qty > 0 ? "text-emerald-500" : "text-red-500"}`}>
+                          {m.qty > 0 ? "+" : ""}{m.qty} {m.unit}
+                        </span>
+                        {m.variant ? (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-semibold">
+                            {m.variant}
+                          </span>
+                        ) : null}
+                      </div>
                       <span className="text-[10px] text-gray-500">
                         Sisa: <span className="font-semibold text-gray-700">{m.qty_after}</span> {m.unit}
                       </span>
