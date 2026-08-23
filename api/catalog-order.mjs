@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       res.setHeader("Cache-Control", "public, max-age=60");
       const { data, error } = await sb
         .from("products")
-        .select("id, name, sell_price, stock, unit, image")
+        .select("id, name, description, sell_price, stock, stock_type, unit, image")
         .order("name", { ascending: true });
       if (error) {
         json(res, 500, { error: error.message });

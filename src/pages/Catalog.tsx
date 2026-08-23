@@ -5,8 +5,10 @@ import { Search, Package, MessageCircle, ShoppingBag, ShoppingCart, X, Plus, Min
 interface Product {
   id: string;
   name: string;
+  description?: string;
   sell_price: number;
   stock: number;
+  stock_type?: string;
   unit: string;
   image: string;
 }
@@ -108,6 +110,8 @@ export default function Catalog() {
       if (p.stock <= 0) return false;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       if (filter === "all") return matchSearch;
+      if (filter === "ready") return matchSearch && p.stock_type !== "po";
+      if (filter === "po") return matchSearch && p.stock_type === "po";
       return matchSearch && p.name.toLowerCase().startsWith(filter.toLowerCase());
     });
   }, [products, search, filter]);
@@ -314,6 +318,11 @@ export default function Catalog() {
                           <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
                           {stock.label}
                         </span>
+                        {p.stock_type === "po" && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200 mt-1">
+                            PO (Pre-Order)
+                          </span>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -324,6 +333,11 @@ export default function Catalog() {
                           <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
                           {stock.label}
                         </span>
+                        {p.stock_type === "po" && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200 mt-1">
+                            PO (Pre-Order)
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -419,11 +433,21 @@ export default function Catalog() {
 
             <div className="p-5">
               <div className="flex items-start justify-between gap-3 mb-3">
-                <h2 className="text-lg font-extrabold text-slate-900 leading-snug">{selected.name}</h2>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900 leading-snug">{selected.name}</h2>
+                  {selected.description && (
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{selected.description}</p>
+                  )}
+                </div>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border shrink-0 ${getStockInfo(selected.stock).color}`}>
                   <span className={`w-2 h-2 rounded-full ${getStockInfo(selected.stock).dot}`} />
                   {getStockInfo(selected.stock).label}
                 </span>
+                {selected.stock_type === "po" && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 shrink-0">
+                    PO (Pre-Order)
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-100">

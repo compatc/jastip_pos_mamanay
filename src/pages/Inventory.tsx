@@ -20,9 +20,11 @@ import {
 
 interface ProductForm {
   name: string;
+  description: string;
   cost_price: string;
   sell_price: string;
   stock: string;
+  stock_type: "ready" | "po";
   unit: string;
   image: string;
   shopee_pcs: string;
@@ -30,9 +32,11 @@ interface ProductForm {
 
 const emptyForm: ProductForm = {
   name: "",
+  description: "",
   cost_price: "",
   sell_price: "",
   stock: "",
+  stock_type: "ready",
   unit: "PCS",
   image: "",
   shopee_pcs: "1",
@@ -88,12 +92,14 @@ export default function Inventory() {
   const [variantImage, setVariantImage] = useState("");
   const [variantStockInput, setVariantStockInput] = useState("");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [variantStockType, setVariantStockType] = useState<"ready" | "po">("ready");
   const variantFileRef = useRef<HTMLInputElement>(null);
   const formVariantNameRef = useRef<HTMLInputElement>(null);
-  const [formVariants, setFormVariants] = useState<{ name: string; image: string; stock: string }[]>([]);
+  const [formVariants, setFormVariants] = useState<{ name: string; image: string; stock: string; stock_type: "ready" | "po" }[]>([]);
   const [formVariantName, setFormVariantName] = useState("");
   const [formVariantImage, setFormVariantImage] = useState("");
   const [formVariantStock, setFormVariantStock] = useState("");
+  const [formVariantStockType, setFormVariantStockType] = useState<"ready" | "po">("ready");
 
   useEffect(() => {
     loadProducts();
@@ -135,9 +141,11 @@ export default function Inventory() {
     setEditId(id);
     setForm({
       name: product.name,
+      description: (product as any).description || "",
       cost_price: product.cost_price.toString(),
       sell_price: product.sell_price.toString(),
       stock: product.stock.toString(),
+      stock_type: (product as any).stock_type || "ready",
       unit: product.unit || "PCS",
       image: product.image || "",
     });
@@ -175,7 +183,9 @@ export default function Inventory() {
           parseInt(form.stock) || 0,
           form.unit.trim() || "PCS",
           form.image,
-          parseInt(form.shopee_pcs) || 1
+          parseInt(form.shopee_pcs) || 1,
+          form.stock_type,
+          form.description.trim()
         );
       } else {
         productId = await addProduct(
@@ -185,14 +195,16 @@ export default function Inventory() {
           parseInt(form.stock) || 0,
           form.unit.trim() || "PCS",
           form.image,
-          parseInt(form.shopee_pcs) || 1
+          parseInt(form.shopee_pcs) || 1,
+          form.stock_type,
+          form.description.trim()
         );
       }
 
       // Save new variants from form
       if (productId && formVariants.length > 0) {
         for (const v of formVariants) {
-          await addProductVariant(productId, v.name, v.image, parseInt(v.stock) || 0);
+          await addProductVariant(productId, v.name, v.image, parseInt(v.stock) || 0, v.stock_type);
         }
         loadVariantStock();
       }
@@ -241,10 +253,11 @@ export default function Inventory() {
 
   function addFormVariant() {
     if (!formVariantName.trim()) return;
-    setFormVariants([...formVariants, { name: formVariantName.trim(), image: formVariantImage, stock: formVariantStock || "0" }]);
+    setFormVariants([...formVariants, { name: formVariantName.trim(), image: formVariantImage, stock: formVariantStock || "0", stock_type: formVariantStockType }]);
     setFormVariantName("");
     setFormVariantImage("");
     setFormVariantStock("");
+    setFormVariantStockType("ready");
   }
 
   function removeFormVariant(idx: number) {
@@ -255,9 +268,9 @@ export default function Inventory() {
     if (!variantProductId || !variantName.trim()) return;
     try {
       if (editingVariantId) {
-        await updateProductVariant(editingVariantId, variantName.trim(), variantImage, parseInt(variantStockInput) || 0);
+        await updateProductVariant(editingVariantId, variantName.trim(), variantImage, parseInt(variantStockInput) || 0, variantStockType);
       } else {
-        await addProductVariant(variantProductId, variantName.trim(), variantImage, parseInt(variantStockInput) || 0);
+        await addProductVariant(variantProductId, variantName.trim(), variantImage, parseInt(variantStockInput) || 0, variantStockType);
       }
       setVariantName("");
       setVariantImage("");
@@ -277,11 +290,12 @@ export default function Inventory() {
     loadVariantStock();
   }
 
-  function startEditVariant(v: { id: string; name: string; image: string; stock: number }) {
+  function startEditVariant(v: { id: string; name: string; image: string; stock: number; stock_type?: string | null }) {
     setEditingVariantId(v.id);
     setVariantName(v.name);
     setVariantImage(v.image || "");
     setVariantStockInput(v.stock.toString());
+    setVariantStockType((v.stock_type as "ready" | "po") || "ready");
   }
 
   const totalModal = filtered.reduce((s, p) => s + p.cost_price * p.stock, 0);
@@ -488,6 +502,9 @@ export default function Inventory() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${stockStatus.cls}`}>
                       {stockStatus.label}
                     </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${(product as any).stock_type === "po" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
+                      {(product as any).stock_type === "po" ? "PO" : "Ready"}
+                    </span>
                   </div>
                 </div>
               );
@@ -523,6 +540,18 @@ export default function Inventory() {
               className="flex-1 min-h-0 flex flex-col"
             >
               <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Deskripsi
+                  </label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="Deskripsi produk (opsional)"
+                    rows={2}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all resize-none"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
                     Nama Produk
@@ -602,6 +631,35 @@ export default function Inventory() {
                       min="1"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
                     />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Tipe Stok
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, stock_type: "ready" })}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                        form.stock_type === "ready"
+                          ? "bg-emerald-500 text-white border-emerald-500"
+                          : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      Ready Stok
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, stock_type: "po" })}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                        form.stock_type === "po"
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      PO (Pre-Order)
+                    </button>
                   </div>
                 </div>
                 <div>
@@ -709,8 +767,32 @@ export default function Inventory() {
                       onChange={(e) => setFormVariantStock(e.target.value)}
                       placeholder="Stok"
                       min="0"
-                      className="w-20 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="w-16 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
+                    <div className="flex gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormVariantStockType("ready")}
+                        className={`px-1.5 py-2 rounded-l-lg text-[9px] font-semibold border transition-all ${
+                          formVariantStockType === "ready"
+                            ? "bg-emerald-500 text-white border-emerald-500"
+                            : "bg-white text-gray-400 border-gray-200"
+                        }`}
+                      >
+                        R
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormVariantStockType("po")}
+                        className={`px-1.5 py-2 rounded-r-lg text-[9px] font-semibold border border-l-0 transition-all ${
+                          formVariantStockType === "po"
+                            ? "bg-amber-500 text-white border-amber-500"
+                            : "bg-white text-gray-400 border-gray-200"
+                        }`}
+                      >
+                        PO
+                      </button>
+                    </div>
                     <input
                       ref={formVariantNameRef}
                       type="file"
@@ -996,9 +1078,10 @@ export default function Inventory() {
         const shareImage = isAllSelected
           ? (variants.some((v) => v.image) ? "" : product.image || "")
           : (selectedVariant?.image || product.image || "");
+        const stockTypeBadge = (product as any).stock_type === "po" ? " [PO]" : "";
         const previewMsg = isAllSelected
-          ? `🏷️ ${product.name} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${variants.map((v) => `• ${v.name} [stok:${v.stock}]`).join("\n")}`
-          : `🏷️ ${displayName} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}[stok:${displayStock}]`;
+          ? `🏷️ ${product.name}${stockTypeBadge} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${variants.map((v) => `• ${v.name} [stok:${v.stock}]`).join("\n")}`
+          : `🏷️ ${displayName}${stockTypeBadge} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}[stok:${displayStock}]`;
         return (
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center p-4">
             <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50">
@@ -1140,7 +1223,8 @@ export default function Inventory() {
                         const sendable = variants.filter((v) => v.image);
                         let sent = 0;
                         for (const v of sendable) {
-                          const msg = `🏷️ ${product.name} ${v.name} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}[stok:${v.stock}]`;
+                          const stType = (product as any).stock_type === "po" ? " [PO]" : "";
+                          const msg = `🏷️ ${product.name} ${v.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}[stok:${v.stock}]`;
                           const fd = new FormData();
                           fd.append("group_jid", GROUP_ID);
                           fd.append("message", msg);
@@ -1159,7 +1243,8 @@ export default function Inventory() {
                       } else {
                         // Tidak ada foto varian → 1 bubble gabungan + foto produk
                         const lines = variants.map((v) => `• ${v.name} [stok:${v.stock}]`).join("\n");
-                        const msg = `🏷️ ${product.name} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${lines}`;
+                        const stType2 = (product as any).stock_type === "po" ? " [PO]" : "";
+                        const msg = `🏷️ ${product.name}${stType2} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${lines}`;
                         if (product.image) {
                           const fd = new FormData();
                           fd.append("group_jid", GROUP_ID);
@@ -1210,7 +1295,7 @@ export default function Inventory() {
                   <h3 className="text-base font-bold text-gray-800">Kelola Varian</h3>
                   <p className="text-xs text-gray-400 mt-0.5">{product.name}</p>
                 </div>
-                <button onClick={() => { setVariantProductId(null); setEditingVariantId(null); setVariantName(""); setVariantImage(""); setVariantStockInput(""); }} className="p-2 hover:bg-pink-50 rounded-xl transition-all">
+                <button onClick={() => { setVariantProductId(null); setEditingVariantId(null); setVariantName(""); setVariantImage(""); setVariantStockInput(""); setVariantStockType("ready"); }} className="p-2 hover:bg-pink-50 rounded-xl transition-all">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
@@ -1255,7 +1340,7 @@ export default function Inventory() {
                   placeholder="Nama varian (contoh: Pink, 500ml)"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <div className="flex-1">
                     <input
                       type="number"
@@ -1266,22 +1351,44 @@ export default function Inventory() {
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
                   </div>
-                  <div className="flex-1">
-                    <input
-                      ref={variantFileRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleVariantImageUpload}
-                      className="hidden"
-                    />
+                  <div className="flex gap-1">
                     <button
-                      onClick={() => variantFileRef.current?.click()}
-                      className="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-[10px] text-gray-400 hover:border-pink-300 hover:text-pink-400 transition-all flex items-center justify-center gap-1"
+                      type="button"
+                      onClick={() => setVariantStockType("ready")}
+                      className={`px-2 py-2 rounded-lg text-[10px] font-semibold border transition-all ${
+                        variantStockType === "ready"
+                          ? "bg-emerald-500 text-white border-emerald-500"
+                          : "bg-white text-gray-500 border-gray-200"
+                      }`}
                     >
-                      <Camera className="w-3 h-3" />
-                      {variantImage ? "Ganti Foto" : "Tambah Foto"}
+                      Ready
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVariantStockType("po")}
+                      className={`px-2 py-2 rounded-lg text-[10px] font-semibold border transition-all ${
+                        variantStockType === "po"
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "bg-white text-gray-500 border-gray-200"
+                      }`}
+                    >
+                      PO
                     </button>
                   </div>
+                  <input
+                    ref={variantFileRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleVariantImageUpload}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => variantFileRef.current?.click()}
+                    className="px-3 py-2 border-2 border-dashed border-gray-200 rounded-lg text-[10px] text-gray-400 hover:border-pink-300 hover:text-pink-400 transition-all flex items-center justify-center gap-1"
+                  >
+                    <Camera className="w-3 h-3" />
+                    {variantImage ? "Foto ✓" : "Foto"}
+                  </button>
                 </div>
                 {variantImage && (
                   <div className="relative inline-block">
@@ -1297,7 +1404,7 @@ export default function Inventory() {
                 <div className="flex gap-2">
                   {editingVariantId && (
                     <button
-                      onClick={() => { setEditingVariantId(null); setVariantName(""); setVariantImage(""); setVariantStockInput(""); }}
+                      onClick={() => { setEditingVariantId(null); setVariantName(""); setVariantImage(""); setVariantStockInput(""); setVariantStockType("ready"); }}
                       className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-xs"
                     >
                       Batal

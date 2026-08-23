@@ -61,9 +61,11 @@ export interface OrderItem {
 export interface Product {
   id: string;
   name: string;
+  description: string;
   cost_price: number;
   sell_price: number;
   stock: number;
+  stock_type: "ready" | "po";
   unit: string;
   image: string;
   shopee_pcs: number;
@@ -91,6 +93,7 @@ export interface ProductVariant {
   name: string;
   image: string;
   stock: number;
+  stock_type: "ready" | "po" | null;
   created_at: string;
 }
 

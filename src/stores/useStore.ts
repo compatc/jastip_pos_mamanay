@@ -100,7 +100,9 @@ interface PosStore {
     stock: number,
     unit: string,
     image?: string,
-    shopeePcs?: number
+    shopeePcs?: number,
+    stockType?: string,
+    description?: string
   ) => Promise<string>;
   updateProduct: (
     id: string,
@@ -110,7 +112,9 @@ interface PosStore {
     stock: number,
     unit: string,
     image?: string,
-    shopeePcs?: number
+    shopeePcs?: number,
+    stockType?: string,
+    description?: string
   ) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
 
@@ -130,8 +134,8 @@ interface PosStore {
 
   productVariants: ProductVariant[];
   loadProductVariants: (productId: string) => Promise<void>;
-  addProductVariant: (productId: string, name: string, image?: string, stock?: number) => Promise<string>;
-  updateProductVariant: (id: string, name: string, image?: string, stock?: number) => Promise<void>;
+  addProductVariant: (productId: string, name: string, image?: string, stock?: number, stockType?: string) => Promise<string>;
+  updateProductVariant: (id: string, name: string, image?: string, stock?: number, stockType?: string) => Promise<void>;
   deleteProductVariant: (id: string) => Promise<void>;
 
   variantStock: Record<string, Record<string, number>>;
@@ -1053,7 +1057,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ products: (data || []) as Product[] });
   },
 
-  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1) => {
+  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "") => {
     const id = uuid();
     const created_at = new Date().toISOString();
     const { error } = await supabase
@@ -1061,9 +1065,11 @@ export const useStore = create<PosStore>((set, get) => ({
       .insert({
         id,
         name,
+        description,
         cost_price: costPrice,
         sell_price: sellPrice,
         stock,
+        stock_type: stockType,
         unit: unit || "PCS",
         image: image || "",
         shopee_pcs: shopeePcs,
@@ -1074,14 +1080,16 @@ export const useStore = create<PosStore>((set, get) => ({
     return id;
   },
 
-  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1) => {
+  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "") => {
     const { error } = await supabase
       .from("products")
       .update({
         name,
+        description,
         cost_price: costPrice,
         sell_price: sellPrice,
         stock,
+        stock_type: stockType,
         unit: unit || "PCS",
         image: image || "",
         shopee_pcs: shopeePcs,
@@ -1179,7 +1187,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ productVariants: (data || []) as ProductVariant[] });
   },
 
-  addProductVariant: async (productId, name, image = "", stock = 0) => {
+  addProductVariant: async (productId, name, image = "", stock = 0, stockType = null as string | null) => {
     const id = uuid();
     const { error } = await supabase
       .from("product_variants")
@@ -1189,16 +1197,17 @@ export const useStore = create<PosStore>((set, get) => ({
         name,
         image,
         stock,
+        stock_type: stockType,
         created_at: new Date().toISOString(),
       });
     if (error) throw error;
     return id;
   },
 
-  updateProductVariant: async (id, name, image = "", stock = 0) => {
+  updateProductVariant: async (id, name, image = "", stock = 0, stockType = null as string | null) => {
     const { error } = await supabase
       .from("product_variants")
-      .update({ name, image, stock })
+      .update({ name, image, stock, stock_type: stockType })
       .eq("id", id);
     if (error) throw error;
   },
