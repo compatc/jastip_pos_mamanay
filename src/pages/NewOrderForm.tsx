@@ -45,7 +45,7 @@ function formatRp(n: number): string {
 }
 
 export default function NewOrderForm() {
-  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, accounts, loadAccounts, addCustomer, addProduct } = useStore();
+  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, accounts, loadAccounts, addCustomer, addProduct, productVariants, loadProductVariants } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
@@ -125,8 +125,10 @@ export default function NewOrderForm() {
       price: price.toString(),
       quantity: qty.toString(),
       discount: "",
+      variant: "",
     };
     setItems(updated);
+    loadProductVariants(productId);
   }
 
   function updateItemQty(index: number, qty: string) {
@@ -448,16 +450,48 @@ export default function NewOrderForm() {
                       )}
 
                       {product && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex-1">
-                            <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
-                              Stok
-                            </label>
-                            <input
-                              type="text"
-                              value={`${product.stock} ${product.unit}`}
-                              readOnly
-                              className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
+                        <>
+                          {(() => {
+                            const variants = productVariants[product.id] || [];
+                            if (variants.length === 0) return null;
+                            return (
+                              <div className="mb-2">
+                                <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
+                                  Varian
+                                </label>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {variants.map((v) => (
+                                    <button
+                                      key={v.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = [...items];
+                                        updated[index] = { ...updated[index], variant: v.name };
+                                        setItems(updated);
+                                      }}
+                                      className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                                        item.variant === v.name
+                                          ? "bg-pink-100 border-pink-400 text-pink-700"
+                                          : "bg-white border-pink-100 text-gray-500 hover:border-pink-300"
+                                      }`}
+                                    >
+                                      {v.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex-1">
+                              <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
+                                Stok
+                              </label>
+                              <input
+                                type="text"
+                                value={`${product.stock} ${product.unit}`}
+                                readOnly
+                                className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
                             />
                           </div>
                           <div className="flex-1">
@@ -488,6 +522,7 @@ export default function NewOrderForm() {
                             })()}
                           </div>
                         </div>
+                        </>
                       )}
 
                       <div className="flex items-center gap-2">
