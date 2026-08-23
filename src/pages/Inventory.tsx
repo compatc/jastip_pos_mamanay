@@ -1159,7 +1159,7 @@ export default function Inventory() {
                       <img src={shareImage} alt={displayName} className="w-full h-32 object-cover" />
                     )}
                     <div className="px-2.5 py-1.5">
-                      <p className="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed">{previewMsg}</p>
+                      <p className="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: previewMsg.replace(/_([^_]+)_/g, '<em>$1</em>') }} />
                       <div className="flex items-center justify-end gap-1 mt-0.5">
                         <span className="text-[9px] text-gray-400">12:00</span>
                         <svg className="w-3 h-3 text-blue-400" viewBox="0 0 16 11" fill="currentColor"><path d="M11.071.653a.457.457 0 0 0-.304-.102-.493.493 0 0 0-.381.178l-6.19 7.636-2.011-2.095a.46.46 0 0 0-.353-.146.457.457 0 0 0-.331.136.448.448 0 0 0-.14.339c0 .136.046.255.14.351l2.365 2.44a.463.463 0 0 0 .353.146c.14 0 .27-.046.38-.14l6.545-8.091a.448.448 0 0 0 .1-.362.448.448 0 0 0-.155-.33l-.018-.012z"/><path d="M14.757.148a.493.493 0 0 0-.381-.178.457.457 0 0 0-.304.102l-.018.012a.448.448 0 0 0-.155.33c0 .142.034.27.1.362l6.545 8.091a.517.517 0 0 0 .38.14c.14 0 .27-.046.353-.14l2.365-2.44a.455.455 0 0 0 .14-.351.448.448 0 0 0-.14-.339.457.457 0 0 0-.331-.136.46.46 0 0 0-.353.146l-2.011 2.095-6.19-7.636z" opacity=".5"/></svg>
