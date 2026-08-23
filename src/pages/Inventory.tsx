@@ -100,6 +100,10 @@ export default function Inventory() {
   const [formVariantImage, setFormVariantImage] = useState("");
   const [formVariantStock, setFormVariantStock] = useState("");
   const [formVariantStockType, setFormVariantStockType] = useState<"ready" | "po">("ready");
+  const [bulkSelect, setBulkSelect] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ sent: 0, total: 0 });
 
   useEffect(() => {
     loadProducts();
@@ -329,6 +333,70 @@ export default function Inventory() {
     return { label: `${stock}`, cls: "bg-emerald-100 text-emerald-600" };
   }
 
+  async function bulkSendToGroup() {
+    if (selectedProducts.size === 0) return;
+    setBulkSending(true);
+    const GROUP_ID = "120363404605912473@g.us";
+    const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
+    const ids = Array.from(selectedProducts);
+    setBulkProgress({ sent: 0, total: ids.length });
+    let sent = 0;
+
+    for (const pid of ids) {
+      const product = products.find((p) => p.id === pid);
+      if (!product) continue;
+      const vs = variantStock[pid];
+      const hasVariants = vs && Object.keys(vs).length > 0;
+      const stType = (product as any).stock_type === "po" ? " [PO]" : "";
+      const desc = (product as any).description || "";
+      const footer = "\n\n_Fix, reply difoto_";
+
+      try {
+        if (hasVariants) {
+          const entries = Object.entries(vs).filter(([, qty]) => qty > 0);
+          const lines = entries.map(([v, qty]) => `• ${v} [stok:${qty}]`).join("\n");
+          const msg = `🏷️ ${product.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${desc ? "\n" + desc + "\n" : ""}${lines}${footer}`;
+          if (product.image) {
+            const fd = new FormData();
+            fd.append("group_jid", GROUP_ID);
+            fd.append("message", msg);
+            const res = await fetch(product.image);
+            const blob = await res.blob();
+            fd.append("image", blob, "product.jpg");
+            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { Authorization: "Bearer mamanay2026" }, body: fd });
+          } else {
+            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" }, body: JSON.stringify({ group_jid: GROUP_ID, message: msg }) });
+          }
+        } else {
+          const stockInfo = getStockStatus(product.stock);
+          const msg = `🏷️ ${product.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${desc ? "\n" + desc + "\n" : ""}[stok:${product.stock}]${footer}`;
+          if (product.image) {
+            const fd = new FormData();
+            fd.append("group_jid", GROUP_ID);
+            fd.append("message", msg);
+            const res = await fetch(product.image);
+            const blob = await res.blob();
+            fd.append("image", blob, "product.jpg");
+            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { Authorization: "Bearer mamanay2026" }, body: fd });
+          } else {
+            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" }, body: JSON.stringify({ group_jid: GROUP_ID, message: msg }) });
+          }
+        }
+        sent++;
+        setBulkProgress({ sent, total: ids.length });
+      } catch (err) {
+        console.error("Bulk send error:", product.name, err);
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
+    alert(`Selesai! ${sent}/${ids.length} produk terkirim ke grup.`);
+    setBulkSelect(false);
+    setSelectedProducts(new Set());
+    setBulkSending(false);
+    setBulkProgress({ sent: 0, total: 0 });
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
 
@@ -336,6 +404,17 @@ export default function Inventory() {
         <div className="flex items-center gap-2 mb-2">
           <h1 className="text-base font-bold text-gray-800">📦 Inventaris</h1>
           <div className="flex-1" />
+          <button
+            onClick={() => { setBulkSelect(!bulkSelect); setSelectedProducts(new Set()); }}
+            className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] ${
+              bulkSelect
+                ? "bg-green-500 text-white shadow-lg shadow-green-200/40"
+                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            {bulkSelect ? `Kirim (${selectedProducts.size})` : "Massal"}
+          </button>
           <button
             onClick={openAdd}
             className="shrink-0 px-3 py-2 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
@@ -429,8 +508,31 @@ export default function Inventory() {
               return (
                 <div
                   key={product.id}
-                  className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm"
+                  className={`flex items-center gap-3 bg-white border rounded-xl p-2.5 shadow-sm transition-all ${
+                    bulkSelect && selectedProducts.has(product.id)
+                      ? "border-green-400 bg-green-50"
+                      : "border-gray-100"
+                  }`}
+                  onClick={bulkSelect ? () => {
+                    setSelectedProducts((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(product.id)) next.delete(product.id);
+                      else next.add(product.id);
+                      return next;
+                    });
+                  } : undefined}
                 >
+                  {bulkSelect && (
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                      selectedProducts.has(product.id)
+                        ? "bg-green-500 border-green-500"
+                        : "border-gray-300"
+                    }`}>
+                      {selectedProducts.has(product.id) && (
+                        <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                      )}
+                    </div>
+                  )}
                   <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-2xl shrink-0`}>
                     {product.image ? (
                       <img src={product.image} alt={product.name} className="w-12 h-12 rounded-xl object-cover" />
@@ -1422,6 +1524,36 @@ export default function Inventory() {
           </div>
         );
       })()}
+
+      {bulkSelect && selectedProducts.size > 0 && !bulkSending && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
+          <button
+            onClick={bulkSendToGroup}
+            className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-bold rounded-2xl shadow-xl shadow-green-300/40 transition-all active:scale-95 flex items-center gap-2"
+          >
+            <Share2 className="w-4 h-4" />
+            Kirim {selectedProducts.size} Produk ke Grup
+          </button>
+        </div>
+      )}
+
+      {bulkSending && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+            <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Share2 className="w-6 h-6 text-green-500 animate-pulse" />
+            </div>
+            <p className="text-sm font-bold text-gray-800 mb-1">Mengirim ke Grup...</p>
+            <p className="text-xs text-gray-400 mb-3">{bulkProgress.sent}/{bulkProgress.total} produk</p>
+            <div className="w-full bg-gray-100 rounded-full h-2">
+              <div
+                className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${bulkProgress.total > 0 ? (bulkProgress.sent / bulkProgress.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
