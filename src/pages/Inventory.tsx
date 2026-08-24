@@ -185,11 +185,11 @@ export default function Inventory() {
       const customerMap = new Map((customers || []).map((c: any) => [c.id, { name: c.name, phone: c.phone || "" }]));
       const orderMap = new Map((orders || []).map((o: any) => {
         const c = customerMap.get(o.customer_id) || { name: "-", phone: "" };
-        return [o.id, { ...o, customer_name: c.name, customer_phone: c.phone }];
+        return [o.id, { ...o, customer_name: c.name, customer_phone: c.phone, customer_id: o.customer_id }];
       }));
       const merged = items.map((i: any) => {
         const o = orderMap.get(i.order_id) || {};
-        return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", order_type: (o as any).order_type };
+        return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
       });
       setRekapItems(merged);
     } catch {
@@ -1850,14 +1850,13 @@ export default function Inventory() {
                             });
                             const custMap = new Map<string, { name: string; phone: string; qty: number }>();
                             custItems.forEach((ci: any) => {
-                              const rawName = (ci.customer_name || "-").trim();
-                              const key = rawName.toLowerCase().replace(/\s+/g, " ");
+                              const key = ci.customer_id || (ci.customer_name || "-").trim().toLowerCase().replace(/\s+/g, " ");
                               const existing = custMap.get(key);
                               if (existing) {
                                 existing.qty += ci.quantity;
                                 if (!existing.phone && ci.customer_phone) existing.phone = ci.customer_phone;
                               } else {
-                                custMap.set(key, { name: rawName, phone: ci.customer_phone || "", qty: ci.quantity });
+                                custMap.set(key, { name: (ci.customer_name || "-").trim(), phone: ci.customer_phone || "", qty: ci.quantity });
                               }
                             });
                             let idx = 0;
