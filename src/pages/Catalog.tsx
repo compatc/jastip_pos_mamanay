@@ -325,6 +325,7 @@ export default function Catalog() {
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4">
             {filtered.map((p) => {
+              const stock = getStockInfo(p.stock);
               return (
                 <div
                   key={p.id}
