@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useStore } from "../stores/useStore";
+import { supabase } from "../lib/supabase";
 import type { ProductDiscount } from "../types";
 import {
   Plus,
@@ -16,6 +17,7 @@ import {
   Tag,
   Share2,
   Layers,
+  ClipboardList,
 } from "lucide-react";
 
 interface ProductForm {
@@ -113,6 +115,9 @@ export default function Inventory() {
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ sent: 0, total: 0 });
+  const [rekapProductId, setRekapProductId] = useState<string | null>(null);
+  const [rekapItems, setRekapItems] = useState<any[]>([]);
+  const [rekapLoading, setRekapLoading] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -151,6 +156,42 @@ export default function Inventory() {
   function openHistory(productId: string) {
     setHistoryProductId(productId);
     loadStockMovements(productId);
+  }
+
+  async function openRekap(productId: string) {
+    setRekapProductId(productId);
+    setRekapLoading(true);
+    try {
+      const { data: items, error } = await supabase
+        .from("order_items")
+        .select("product_name, variant, quantity, price, discount, order_id, product_id")
+        .eq("product_id", productId);
+      if (error) throw error;
+      if (!items || items.length === 0) {
+        setRekapItems([]);
+        return;
+      }
+      const orderIds = [...new Set(items.map((i: any) => i.order_id))];
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, created_at, customer_id, order_type")
+        .in("id", orderIds);
+      const customerIds = [...new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean))];
+      const { data: customers } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, name").in("id", customerIds)
+        : { data: [] };
+      const customerMap = new Map((customers || []).map((c: any) => [c.id, c.name]));
+      const orderMap = new Map((orders || []).map((o: any) => [o.id, { ...o, customer_name: customerMap.get(o.customer_id) || "-" }]));
+      const merged = items.map((i: any) => {
+        const o = orderMap.get(i.order_id) || {};
+        return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, order_type: (o as any).order_type };
+      });
+      setRekapItems(merged);
+    } catch {
+      setRekapItems([]);
+    } finally {
+      setRekapLoading(false);
+    }
   }
 
   function openAdd() {
@@ -614,6 +655,13 @@ export default function Inventory() {
                           title="Riwayat Stok"
                         >
                           <History className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                        </button>
+                        <button
+                          onClick={() => openRekap(product.id)}
+                          className="p-1 rounded hover:bg-purple-50 transition-all"
+                          title="Rekap Order"
+                        >
+                          <ClipboardList className="w-3 h-3 text-gray-400 hover:text-purple-500" />
                         </button>
                         <button
                           onClick={() => openEdit(product.id)}
@@ -1657,6 +1705,109 @@ export default function Inventory() {
                 style={{ width: `${bulkProgress.total > 0 ? (bulkProgress.sent / bulkProgress.total) * 100 : 0}%` }}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {rekapProductId && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-start justify-center px-4 pt-10">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-purple-100 max-h-[80vh] flex flex-col">
+            {(() => {
+              const product = products.find(p => p.id === rekapProductId);
+              const items = rekapItems;
+              const byVariant: Record<string, { qty: number; revenue: number; orders: number; customers: Set<string> }> = {};
+              const byCustomer: Record<string, { qty: number; revenue: number; orders: Set<string> }> = {};
+              let totalQty = 0;
+              let totalRevenue = 0;
+              for (const i of items) {
+                const vname = i.variant || "Umum";
+                if (!byVariant[vname]) byVariant[vname] = { qty: 0, revenue: 0, orders: new Set(), customers: new Set() };
+                byVariant[vname].qty += i.quantity;
+                byVariant[vname].revenue += (i.price * i.quantity) - (i.discount || 0);
+                byVariant[vname].orders.add(i.order_id);
+                byVariant[vname].customers.add(i.customer_name || "-");
+                const cname = i.customer_name || "-";
+                if (!byCustomer[cname]) byCustomer[cname] = { qty: 0, revenue: 0, orders: new Set() };
+                byCustomer[cname].qty += i.quantity;
+                byCustomer[cname].revenue += (i.price * i.quantity) - (i.discount || 0);
+                byCustomer[cname].orders.add(i.order_id);
+                totalQty += i.quantity;
+                totalRevenue += (i.price * i.quantity) - (i.discount || 0);
+              }
+              return (
+                <>
+                  <div className="px-5 pt-5 pb-3 border-b border-purple-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800">Rekap Order</h3>
+                        <p className="text-sm text-purple-500 font-medium">{product?.name || "-"}</p>
+                      </div>
+                      <button onClick={() => { setRekapProductId(null); setRekapItems([]); }} className="p-1.5 rounded-full hover:bg-gray-100">
+                        <X className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-5 py-3">
+                    {rekapLoading ? (
+                      <div className="text-center py-8 text-sm text-gray-400">Memuat data...</div>
+                    ) : items.length === 0 ? (
+                      <div className="text-center py-8 text-sm text-gray-400">Belum ada order</div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-3 gap-2 mb-4">
+                          <div className="bg-purple-50 rounded-xl p-3 text-center">
+                            <p className="text-lg font-bold text-purple-600">{totalQty}</p>
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">Total Qty</p>
+                          </div>
+                          <div className="bg-green-50 rounded-xl p-3 text-center">
+                            <p className="text-lg font-bold text-green-600">Rp {(totalRevenue).toLocaleString("id-ID")}</p>
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">Revenue</p>
+                          </div>
+                          <div className="bg-blue-50 rounded-xl p-3 text-center">
+                            <p className="text-lg font-bold text-blue-600">{Object.keys(byVariant).length}</p>
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">Varian</p>
+                          </div>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Per Varian</p>
+                          <div className="space-y-1.5">
+                            {Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty).map(([name, v]) => (
+                              <div key={name} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-700">{name}</p>
+                                  <p className="text-[10px] text-gray-400">{v.orders.size} order · {v.customers.size} pelanggan</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-bold text-gray-800">{v.qty} pcs</p>
+                                  <p className="text-[10px] text-green-500">Rp {v.revenue.toLocaleString("id-ID")}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Per Pelanggan</p>
+                          <div className="space-y-1.5">
+                            {Object.entries(byCustomer).sort((a, b) => b[1].qty - a[1].qty).map(([name, c]) => (
+                              <div key={name} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-700">{name}</p>
+                                  <p className="text-[10px] text-gray-400">{c.orders.size} order</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-bold text-gray-800">{c.qty} pcs</p>
+                                  <p className="text-[10px] text-green-500">Rp {c.revenue.toLocaleString("id-ID")}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
