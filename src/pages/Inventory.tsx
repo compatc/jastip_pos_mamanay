@@ -1721,6 +1721,7 @@ export default function Inventory() {
               const byCustomer: Record<string, { qty: number; revenue: number; orders: Set<string> }> = {};
               let totalQty = 0;
               let totalRevenue = 0;
+              let rekapPreviewMsg = "";
               for (const i of items) {
                 const vname = i.variant || "Umum";
                 if (!byVariant[vname]) byVariant[vname] = { qty: 0, revenue: 0, orders: new Set(), customers: new Set() };
@@ -1750,24 +1751,7 @@ export default function Inventory() {
                             onClick={async () => {
                               const GROUP_ID = "120363404605912473@g.us";
                               const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
-                              let msg = `📋 *REKAP ORDER*\n${product?.name || ""}\n`;
-                              msg += `list po *${product?.name || ""}*`;
-                              const unit = ((product as any).unit || "pcs").toLowerCase();
-                              if (totalQty > 0 && totalRevenue > 0) {
-                                const hargaPerUnit = Math.round(totalRevenue / totalQty);
-                                msg += ` harga Rp ${hargaPerUnit.toLocaleString("id-ID")}/ 1 ${unit}`;
-                              }
-                              msg += `\n`;
-                              for (const [vname, v] of Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty)) {
-                                msg += `\n*${vname}*\n`;
-                                const custItems = items.filter((i: any) => (i.variant || "TANPA VARIAN").toUpperCase() === vname);
-                                custItems.forEach((ci: any, idx: number) => {
-                                  const last4 = String(ci.customer_name || "").slice(-4);
-                                  msg += `${idx + 1}. ${ci.customer_name || "-"} -- ${last4} -- ${ci.quantity}\n`;
-                                });
-                                msg += `subtotal: ${v.qty}\n`;
-                              }
-                              msg += `\ntotal: ${totalQty} pcs`;
+                              const msg = rekapPreviewMsg;
                               try {
                                 await fetch(`${BOT_URL}/api/send-group`, {
                                   method: "POST",
@@ -1845,6 +1829,43 @@ export default function Inventory() {
                             ))}
                           </div>
                         </div>
+                        {(() => {
+                          const unit = ((product as any).unit || "pcs").toLowerCase();
+                          let msg = `📋 *REKAP ORDER*\n${product?.name || ""}\n`;
+                          msg += `list po *${product?.name || ""}*`;
+                          if (totalQty > 0 && totalRevenue > 0) {
+                            const hargaPerUnit = Math.round(totalRevenue / totalQty);
+                            msg += ` harga Rp ${hargaPerUnit.toLocaleString("id-ID")}/ 1 ${unit}`;
+                          }
+                          msg += `\n`;
+                          for (const [vname, v] of Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty)) {
+                            msg += `\n*${vname}*\n`;
+                            const custItems = items.filter((i: any) => (i.variant || "TANPA VARIAN").toUpperCase() === vname);
+                            custItems.forEach((ci: any, idx: number) => {
+                              const last4 = String(ci.customer_name || "").slice(-4);
+                              msg += `${idx + 1}. ${ci.customer_name || "-"} -- ${last4} -- ${ci.quantity}\n`;
+                            });
+                            msg += `subtotal: ${v.qty}\n`;
+                          }
+                          msg += `\ntotal: ${totalQty} ${unit}`;
+                          rekapPreviewMsg = msg;
+                          return (
+                            <div className="mt-4">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Preview di Grup</p>
+                              <div className="bg-[#e5ddd5] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9InAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMS41IiBmaWxsPSJyZ2JhKDAsMCwwLDAuMDMpIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI3ApIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiLz48L3N2Zz4=')] rounded-xl p-3 min-h-[80px] max-h-[200px] overflow-y-auto">
+                                <div className="bg-white rounded-xl shadow-sm max-w-[85%] ml-auto overflow-hidden">
+                                  <div className="px-2.5 py-1.5">
+                                    <p className="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: msg.replace(/\*([^*]+)\*/g, '<strong>$1</strong>').replace(/_([^_]+)_/g, '<em>$1</em>') }} />
+                                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                                      <span className="text-[9px] text-gray-400">12:00</span>
+                                      <svg className="w-3 h-3 text-blue-400" viewBox="0 0 16 11" fill="currentColor"><path d="M11.071.653a.457.457 0 0 0-.304-.102-.493.493 0 0 0-.381.178l-6.19 7.636-2.011-2.095a.46.46 0 0 0-.353-.146.457.457 0 0 0-.331.136.448.448 0 0 0-.14.339c0 .136.046.255.14.351l2.365 2.44a.463.463 0 0 0 .353.146c.14 0 .27-.046.38-.14l6.545-8.091a.448.448 0 0 0 .1-.362.448.448 0 0 0-.155-.33l-.018-.012z"/><path d="M14.757.148a.493.493 0 0 0-.381-.178.457.457 0 0 0-.304.102l-.018.012a.448.448 0 0 0-.155.33c0 .142.034.27.1.362l6.545 8.091a.517.517 0 0 0 .38.14c.14 0 .27-.046.353-.14l2.365-2.44a.455.455 0 0 0 .14-.351.448.448 0 0 0-.14-.339.457.457 0 0 0-.331-.136.46.46 0 0 0-.353.146l-2.011 2.095-6.19-7.636z" opacity=".5"/></svg>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
                   </div>
