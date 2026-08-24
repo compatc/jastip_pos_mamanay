@@ -164,7 +164,7 @@ export default async function handler(req, res) {
             id: customerId, name: customer_name, phone: phone, address: "",
             category: "pelanggan", points: 0, total_spent: 0,
             member_level: "silver", created_at: now,
-          }).catch(() => {});
+          });
           console.log("bot-order: created new customer", customerId);
         }
       }
@@ -194,7 +194,7 @@ export default async function handler(req, res) {
       }
 
       for (const item of items) {
-        await sb.from("order_items").insert({
+        const { error: itemErr } = await sb.from("order_items").insert({
           id: randomUUID(), order_id: orderId,
           product_id: item.product_id || null,
           product_name: item.product_name || item.name || "Produk",
@@ -202,7 +202,8 @@ export default async function handler(req, res) {
           quantity: item.quantity || 1,
           discount: 0, paid_value: 0, status: "new",
           variant: item.variant || null,
-        }).catch((e) => console.error("bot-order item:", e.message));
+        });
+        if (itemErr) console.error("bot-order item:", itemErr.message);
 
         // Create stock movement if product_id exists
         if (item.product_id) {
