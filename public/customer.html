@@ -220,14 +220,20 @@
     .tab-bar { display: flex; gap: 6px; margin-top: 14px; position: relative; z-index: 1; }
     .tab { flex: 1; padding: 8px 0; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .tab.active { background: white; color: #e11d48; border-color: white; }
-    .history-card { background: white; border-radius: 14px; padding: 14px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
-    .history-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .history-card { background: white; border-radius: 16px; padding: 0; margin-bottom: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .history-card-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 8px; }
     .history-card-id { font-size: 13px; font-weight: 700; color: #0f172a; }
-    .history-card-date { font-size: 11px; color: #94a3b8; }
-    .history-card-items { font-size: 12px; color: #475569; margin-bottom: 8px; line-height: 1.5; }
-    .history-card-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #f1f5f9; }
-    .history-card-total { font-size: 14px; font-weight: 800; color: #0f172a; }
-    .history-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+    .history-card-date { font-size: 11px; color: #94a3b8; font-weight: 500; }
+    .history-card-items { margin: 0 14px; background: #f8fafc; border-radius: 10px; padding: 8px 12px; }
+    .history-card-items .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+    .history-card-items .hist-item + .hist-item { border-top: 1px solid #e2e8f0; }
+    .history-card-items .hist-item-name { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; min-width: 0; }
+    .history-card-items .hist-item-price { font-size: 13px; font-weight: 600; color: #334155; white-space: nowrap; margin-left: 8px; }
+    .history-card-items .hist-variant { display: inline-block; background: #f3e8ff; color: #7c3aed; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 6px; margin-left: 4px; letter-spacing: 0.3px; }
+    .history-card-items .hist-qty { color: #64748b; font-weight: 500; }
+    .history-card-bottom { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 12px; }
+    .history-card-total { font-size: 15px; font-weight: 800; color: #0f172a; }
+    .history-status { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.3px; }
     .history-status.s-new { background: #dbeafe; color: #1d4ed8; }
     .history-status.s-paid { background: #dcfce7; color: #15803d; }
     .history-status.s-belum-ready { background: #fff7ed; color: #c2410c; }
@@ -237,6 +243,7 @@
     .history-status.s-cancelled { background: #fee2e2; color: #dc2626; }
     .history-status.s-unpaid { background: #fef2f2; color: #dc2626; }
     .history-status.s-dp { background: #fefce8; color: #a16207; }
+    .history-pack-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; margin: 0 14px 10px; cursor: pointer; }
     .greeting {
       position: relative;
       z-index: 1;
@@ -1136,25 +1143,24 @@
         html += '<div class="history-card-items">';
         items.forEach(function(item) {
           var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
-          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
-          html += '<div style="flex:1;min-width:0;">';
-          html += '<span style="font-size:13px;font-weight:600;color:#1e293b;">' + item.quantity + '× ' + item.product_name + '</span>';
-          if (item.variant) html += ' <span style="display:inline-block;background:#f3e8ff;color:#9333ea;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px;">' + item.variant + '</span>';
-          html += '</div>';
-          html += '<span style="font-size:13px;font-weight:600;color:#334155;white-space:nowrap;margin-left:8px;">' + fmt(itemTotal) + '</span>';
+          html += '<div class="hist-item">';
+          html += '<span class="hist-item-name"><span class="hist-qty">' + item.quantity + '×</span> ' + item.product_name;
+          if (item.variant) html += '<span class="hist-variant">' + item.variant + '</span>';
+          html += '</span>';
+          html += '<span class="hist-item-price">' + fmt(itemTotal) + '</span>';
           html += '</div>';
         });
-        if (items.length === 0) html += '<em style="color:#94a3b8;">Detail tidak tersedia</em>';
+        if (items.length === 0) html += '<em style="color:#94a3b8;font-size:12px;">Detail tidak tersedia</em>';
         html += '</div>';
         html += '<div class="history-card-bottom">';
         html += '<span class="history-card-total">' + fmt(o.total) + '</span>';
-        html += '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">';
+        html += '<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">';
         html += '<span class="history-status ' + bayarCls + '">' + bayarLabel + '</span>';
         if (kirimLabel) html += '<span class="history-status ' + kirimCls + '">' + kirimLabel + '</span>';
         html += '</div>';
         html += '</div>';
         if (o.packing_photo) {
-          html += '<img src="' + o.packing_photo + '" alt="Foto packing" class="packing-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + o.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')">';
+          html += '<img src="' + o.packing_photo + '" alt="Foto packing" class="history-pack-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + o.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')">';
         }
         html += '</div>';
       });
