@@ -132,7 +132,12 @@ export default async function handler(req, res) {
       let customerId = null;
       if (customer_name && phone) {
         // Normalize phone: strip leading 0, ensure starts with 62
-        const norm = (s) => s.replace(/[^0-9]/g, "").replace(/^0+/, "").replace(/^62(\d{9,})/, "62$1");
+        const norm = (s) => {
+          let d = s.replace(/[^0-9]/g, "").replace(/^0+/, "");
+          if (d.startsWith("62")) d = d;
+          else if (d.startsWith("8")) d = "62" + d;
+          return d;
+        };
         const phoneNorm = norm(phone);
         // Try exact match first, then ilike
         let { data: existing } = await sb
@@ -161,7 +166,7 @@ export default async function handler(req, res) {
         } else {
           customerId = randomUUID();
           await sb.from("customers").insert({
-            id: customerId, name: customer_name, phone: phone, address: "",
+            id: customerId, name: customer_name, phone: phoneNorm, address: "",
             category: "pelanggan", points: 0, total_spent: 0,
             member_level: "silver", created_at: now,
           });
