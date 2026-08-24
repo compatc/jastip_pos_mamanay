@@ -104,7 +104,7 @@ export default function Orders() {
   const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
   const [showProductSuggest, setShowProductSuggest] = useState(false);
-  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number; product_id: string }[]>>({});
+  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>>({});
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -161,13 +161,13 @@ export default function Orders() {
       if (ids.length === 0) { setItemsByOrder({}); return; }
       const { data } = await supabase
         .from("order_items")
-        .select("order_id, product_name, quantity, product_id")
+        .select("order_id, product_name, quantity, product_id, variant")
         .in("order_id", ids);
-      const map: Record<string, { product_name: string; quantity: number; product_id: string }[]> = {};
+      const map: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
       if (data) {
         for (const row of data) {
           if (!map[row.order_id]) map[row.order_id] = [];
-          map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, product_id: row.product_id });
+          map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, product_id: row.product_id, variant: row.variant });
         }
       }
       setItemsByOrder(map);
@@ -176,6 +176,10 @@ export default function Orders() {
   }, [allOrders]);
 
   const allProductNames = [...new Set(Object.values(itemsByOrder).flat().map((i) => i.product_name))].sort();
+
+  function itemLabel(i: { product_name: string; variant?: string | null }) {
+    return i.variant ? `${i.product_name} ${i.variant}` : i.product_name;
+  }
 
   const readyTargets = useMemo(() => {
     if (!productFilter) return [];
@@ -280,7 +284,7 @@ export default function Orders() {
     const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
 
     const items = itemsByOrder[order.id] || [];
-    const productText = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+    const productText = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
     const sisa = order.total - order.paid_total;
     const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
 
@@ -344,7 +348,7 @@ export default function Orders() {
     const wa = cleaned.startsWith("0") ? "62" + cleaned.slice(1) : cleaned.startsWith("62") ? cleaned : "62" + cleaned;
 
     const items = itemsByOrder[order.id] || [];
-    const productText = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+    const productText = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
     const sisa = order.total - order.paid_total;
     const isLunas = sisa <= 0;
 
@@ -411,7 +415,7 @@ export default function Orders() {
       const shopeePcs = product?.shopee_pcs || 1;
       const qtyPcs = Math.ceil((item.quantity * shopeePcs) / 1000);
       totalPcs += qtyPcs;
-      msg += `• ${item.product_name} x${item.quantity} → ${qtyPcs} pcs\n`;
+      msg += `• ${itemLabel(item)} x${item.quantity} → ${qtyPcs} pcs\n`;
     });
     msg += "\n";
 
@@ -534,7 +538,7 @@ export default function Orders() {
       if (!list) return;
       list.forEach((order) => {
         const items = itemsByOrder[order.id] || [];
-        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+        const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
         const payMethod = PAYMENT_LABELS_FULL[order.payment_type] || order.payment_type;
         const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
@@ -567,7 +571,7 @@ export default function Orders() {
           link.orders.forEach((order, i) => {
             const sisa = order.total - (order.paid_total || 0);
             const items = itemsByOrder[order.id] || [];
-            const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+            const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
             msg += `${i + 1}. ${productNames}\n`;
             msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
           });
@@ -578,7 +582,7 @@ export default function Orders() {
         }
         const sisa = link.order.total - (link.order.paid_total || 0);
         const items = itemsByOrder[link.order.id] || [];
-        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+        const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
         msg += `${idx + 1}. ${productNames}\n`;
         msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
         msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${link.url}\n\n`;
@@ -739,7 +743,7 @@ export default function Orders() {
 
       const lunas = g.orders.every((o) => isOrderLunas(o));
       const items = g.orders.flatMap((o) => itemsByOrder[o.id] || []);
-      const productNames = items.map((i) => i.product_name).join(", ");
+      const productNames = items.map((i) => itemLabel(i)).join(", ");
       const total = g.orders.reduce((s, o) => s + o.total, 0);
       const paid = g.orders.reduce((s, o) => s + (o.paid_total || 0), 0);
       const oldestReady = g.orders.reduce((earliest, o) => {
@@ -1256,7 +1260,7 @@ export default function Orders() {
                         {itemsByOrder[order.id]?.length || 0} Barang
                       </span>
                       <span className="truncate">
-                        {itemsByOrder[order.id]?.map((i) => `${i.product_name} x${i.quantity}`).join(", ") || "Loading..."}
+                        {itemsByOrder[order.id]?.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ") || "Loading..."}
                       </span>
                     </div>
 
