@@ -1744,9 +1744,43 @@ export default function Inventory() {
                         <h3 className="text-lg font-bold text-gray-800">Rekap Order</h3>
                         <p className="text-sm text-purple-500 font-medium">{product?.name || "-"}</p>
                       </div>
-                      <button onClick={() => { setRekapProductId(null); setRekapItems([]); }} className="p-1.5 rounded-full hover:bg-gray-100">
-                        <X className="w-4 h-4 text-gray-400" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {items.length > 0 && (
+                          <button
+                            onClick={async () => {
+                              const GROUP_ID = "120363404605912473@g.us";
+                              const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
+                              let msg = `📋 *REKAP ORDER*\nlist po *${product?.name || ""}*\n`;
+                              for (const [vname, v] of Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty)) {
+                                msg += `\n*${vname}*\n`;
+                                const custItems = items.filter((i: any) => (i.variant || "TANPA VARIAN").toUpperCase() === vname);
+                                custItems.forEach((ci: any, idx: number) => {
+                                  const last4 = String(ci.customer_name || "").slice(-4);
+                                  msg += `${idx + 1}. ${ci.customer_name || "-"} -- ${last4} -- ${ci.quantity}\n`;
+                                });
+                                msg += `subtotal: ${v.qty}\n`;
+                              }
+                              msg += `\ntotal: ${totalQty} pcs`;
+                              try {
+                                await fetch(`${BOT_URL}/api/send-group`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+                                  body: JSON.stringify({ group_jid: GROUP_ID, message: msg }),
+                                });
+                                alert("Rekap berhasil dikirim ke grup!");
+                              } catch {
+                                alert("Gagal mengirim ke grup");
+                              }
+                            }}
+                            className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 font-medium"
+                          >
+                            📤 Kirim ke Grup
+                          </button>
+                        )}
+                        <button onClick={() => { setRekapProductId(null); setRekapItems([]); }} className="p-1.5 rounded-full hover:bg-gray-100">
+                          <X className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto px-5 py-3">
