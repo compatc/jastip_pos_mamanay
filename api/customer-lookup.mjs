@@ -4,7 +4,7 @@ function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, PUT, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.end(JSON.stringify(body));
 }
@@ -15,6 +15,35 @@ export default async function handler(req, res) {
     res.end();
     return;
   }
+  if (req.method === "PUT") {
+    try {
+      const body = await new Promise((resolve, reject) => {
+        let data = "";
+        req.on("data", chunk => data += chunk);
+        req.on("end", () => { try { resolve(JSON.parse(data)); } catch { reject(new Error("Invalid JSON")); } });
+        req.on("error", reject);
+      });
+      const { id, name, phone, address, category } = body;
+      if (!id || !name || !phone) {
+        json(res, 400, { error: "id, name, phone wajib" });
+        return;
+      }
+      const sb = await getAdmin();
+      const { error } = await sb
+        .from("customers")
+        .update({ name, phone, address: address || "", category: category || "pelanggan" })
+        .eq("id", id);
+      if (error) {
+        json(res, 500, { error: error.message });
+        return;
+      }
+      json(res, 200, { ok: true });
+    } catch (e) {
+      json(res, 500, { error: e.message });
+    }
+    return;
+  }
+
   if (req.method !== "GET") {
     json(res, 405, { error: "Method not allowed" });
     return;
@@ -30,7 +59,6 @@ export default async function handler(req, res) {
 
   try {
     const sb = await getAdmin();
-    // Ambil semua customer, strip non-digit, cari match
     const { data: customers, error } = await sb
       .from("customers")
       .select("id, name, phone")
@@ -42,7 +70,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Filter: strip semua non-digit dari phone, lalu cari yang berakhir dengan last5
     const matches = (customers || []).filter(c => {
       const digits = (c.phone || "").replace(/\D/g, "");
       return digits.endsWith(last5);

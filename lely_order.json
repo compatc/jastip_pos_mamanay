@@ -1,0 +1,9 @@
+{
+  "items": [{"product_name": "HAIR STRAIGHTENING COMB", "price": 90000, "quantity": 1}],
+  "customer_name": "Lely Widyastuti",
+  "phone": "6281287838312",
+  "notes": "WA order",
+  "payment_type": "qris",
+  "paid_total": 0,
+  "order_type": "penjualan"
+}

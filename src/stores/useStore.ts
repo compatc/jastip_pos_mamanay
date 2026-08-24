@@ -215,11 +215,13 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   updateCustomer: async (id, name, phone, address, category) => {
-    const { error } = await supabase
-      .from("customers")
-      .update({ name, phone, address, category })
-      .eq("id", id);
-    if (error) throw error;
+    const res = await fetch("/api/customer-lookup", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, name, phone, address, category }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Gagal update");
     await get().loadCustomers();
   },
 

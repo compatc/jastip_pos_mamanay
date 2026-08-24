@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "product_name": "Greney TY251128 Red",
+      "price": 55000,
+      "quantity": 1,
+      "variant": "40/90b"
+    }
+  ],
+  "customer_name": "A.m💄",
+  "phone": "6287781246493",
+  "notes": "WA: Size 40 ka",
+  "payment_type": "qris",
+  "paid_total": 0,
+  "order_type": "penjualan"
+}
