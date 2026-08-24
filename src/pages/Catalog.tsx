@@ -129,7 +129,7 @@ export default function Catalog() {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (p.stock <= 0 && p.stock_type !== "po") return false;
-      if (tagFilter && !(p.tags || []).some((t) => t.name === tagFilter)) return false;
+      if (tagFilter && !(p.tags || []).some((t) => (typeof t === "string" ? t : t.name) === tagFilter)) return false;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       if (filter === "ready") return matchSearch && p.stock_type !== "po";
       if (filter === "po") return matchSearch && p.stock_type === "po";
@@ -358,11 +358,13 @@ export default function Catalog() {
                         )}
                         {p.tags && p.tags.length > 0 && (
                           <div className="flex flex-wrap gap-0.5 mt-1">
-                            {p.tags.map((t) => (
-                              <span key={t.id} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
-                                {t.name}
+                            {p.tags.map((t) => {
+                              const tagName = typeof t === "string" ? t : t.name;
+                              return (
+                              <span key={tagName} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
+                                {tagName}
                               </span>
-                            ))}
+                            )})}
                           </div>
                         )}
                       </div>
@@ -382,11 +384,13 @@ export default function Catalog() {
                         )}
                         {p.tags && p.tags.length > 0 && (
                           <div className="flex flex-wrap gap-0.5 mt-1">
-                            {p.tags.map((t) => (
-                              <span key={t.id} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
-                                {t.name}
+                            {p.tags.map((t) => {
+                              const tagName = typeof t === "string" ? t : t.name;
+                              return (
+                              <span key={tagName} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
+                                {tagName}
                               </span>
-                            ))}
+                            )})}
                           </div>
                         )}
                       </div>
@@ -511,11 +515,13 @@ export default function Catalog() {
                   )}
                   {selected.tags && selected.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
-                      {selected.tags.map((t) => (
-                        <span key={t.id} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
-                          {t.name}
+                      {selected.tags.map((t) => {
+                        const tagName = typeof t === "string" ? t : t.name;
+                        return (
+                        <span key={tagName} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
+                          {tagName}
                         </span>
-                      ))}
+                      )})}
                     </div>
                   )}
                 </div>
