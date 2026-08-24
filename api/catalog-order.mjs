@@ -131,7 +131,7 @@ export default async function handler(req, res) {
 
       let customerId = null;
       if (customer_name && phone) {
-        // Normalize phone: strip leading 0, ensure starts with 62
+        // Normalize phone: strip non-digits, ensure starts with 62
         const norm = (s) => {
           let d = s.replace(/[^0-9]/g, "").replace(/^0+/, "");
           if (d.startsWith("62")) d = d;
@@ -139,30 +139,20 @@ export default async function handler(req, res) {
           return d;
         };
         const phoneNorm = norm(phone);
-        // Try exact match first, then ilike
-        let { data: existing } = await sb
+
+        // Fetch all customers and match with flexible normalization
+        const { data: allCustomers } = await sb
           .from("customers")
-          .select("id")
-          .eq("phone", phoneNorm)
-          .limit(1);
-        if (!existing || existing.length === 0) {
-          ({ data: existing } = await sb
-            .from("customers")
-            .select("id")
-            .or(`phone.ilike.%${phoneNorm}%`)
-            .limit(1));
-        }
-        if (!existing || existing.length === 0) {
-          // Also try original phone
-          ({ data: existing } = await sb
-            .from("customers")
-            .select("id")
-            .eq("phone", phone)
-            .limit(1));
-        }
-        if (existing && existing.length > 0) {
-          customerId = existing[0].id;
-          console.log("bot-order: matched customer", customerId);
+          .select("id, name, phone");
+
+        const matched = (allCustomers || []).find((c) => {
+          const cNorm = norm(c.phone || "");
+          return cNorm === phoneNorm || cNorm.endsWith(phoneNorm.slice(-10)) || phoneNorm.endsWith(cNorm.slice(-10));
+        });
+
+        if (matched) {
+          customerId = matched.id;
+          console.log("bot-order: matched customer", customerId, matched.name);
         } else {
           customerId = randomUUID();
           await sb.from("customers").insert({
@@ -170,7 +160,7 @@ export default async function handler(req, res) {
             category: "pelanggan", points: 0, total_spent: 0,
             member_level: "silver", created_at: now,
           });
-          console.log("bot-order: created new customer", customerId);
+          console.log("bot-order: created new customer", customerId, customer_name);
         }
       }
 
