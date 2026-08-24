@@ -3,8 +3,8 @@ import { getAdmin } from "./pay.mjs";
 const REDEEM_RATE = 100;
 
 function calculateMemberLevel(totalSpent) {
-  if (totalSpent >= 5000000) return "platinum";
-  if (totalSpent >= 2000000) return "gold";
+  if (totalSpent >= 10000000) return "platinum";
+  if (totalSpent >= 5000000) return "gold";
   return "silver";
 }
 
