@@ -220,30 +220,52 @@
     .tab-bar { display: flex; gap: 6px; margin-top: 14px; position: relative; z-index: 1; }
     .tab { flex: 1; padding: 8px 0; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .tab.active { background: white; color: #e11d48; border-color: white; }
-    .history-card { background: white; border-radius: 16px; padding: 0; margin-bottom: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-    .history-card-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 8px; }
-    .history-card-id { font-size: 13px; font-weight: 700; color: #0f172a; }
-    .history-card-date { font-size: 11px; color: #94a3b8; font-weight: 500; }
-    .history-card-items { margin: 0 14px; background: #f8fafc; border-radius: 10px; padding: 8px 12px; }
-    .history-card-items .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
-    .history-card-items .hist-item + .hist-item { border-top: 1px solid #e2e8f0; }
-    .history-card-items .hist-item-name { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; min-width: 0; }
-    .history-card-items .hist-item-price { font-size: 13px; font-weight: 600; color: #334155; white-space: nowrap; margin-left: 8px; }
-    .history-card-items .hist-variant { display: inline-block; background: #f3e8ff; color: #7c3aed; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 6px; margin-left: 4px; letter-spacing: 0.3px; }
-    .history-card-items .hist-qty { color: #64748b; font-weight: 500; }
-    .history-card-bottom { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 12px; }
-    .history-card-total { font-size: 15px; font-weight: 800; color: #0f172a; }
-    .history-status { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.3px; }
-    .history-status.s-new { background: #dbeafe; color: #1d4ed8; }
-    .history-status.s-paid { background: #dcfce7; color: #15803d; }
-    .history-status.s-belum-ready { background: #fff7ed; color: #c2410c; }
-    .history-status.s-ready { background: #dcfce7; color: #15803d; }
-    .history-status.s-sent { background: #f3e8ff; color: #7c3aed; }
-    .history-status.s-completed { background: #dcfce7; color: #15803d; }
-    .history-status.s-cancelled { background: #fee2e2; color: #dc2626; }
-    .history-status.s-unpaid { background: #fef2f2; color: #dc2626; }
-    .history-status.s-dp { background: #fefce8; color: #a16207; }
-    .history-pack-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; margin: 0 14px 10px; cursor: pointer; }
+    .hist-search-wrap { position: relative; margin-bottom: 12px; }
+    .hist-search { width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 13px; background: white; outline: none; transition: border-color 0.2s; color: #1e293b; }
+    .hist-search:focus { border-color: #ec4899; }
+    .hist-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; pointer-events: none; }
+    .hist-card { background: white; border-radius: 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .hist-card-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 8px; }
+    .hist-card-id { font-size: 13px; font-weight: 700; color: #0f172a; }
+    .hist-card-date { font-size: 11px; color: #94a3b8; font-weight: 500; }
+    .hist-card-items { margin: 0 12px; background: #f8fafc; border-radius: 10px; padding: 2px 0; }
+    .hist-item { display: flex; align-items: center; padding: 8px 12px; gap: 8px; }
+    .hist-item + .hist-item { border-top: 1px solid #e9eef4; }
+    .hist-item-qty { font-size: 12px; font-weight: 600; color: #94a3b8; min-width: 22px; text-align: right; }
+    .hist-item-info { flex: 1; min-width: 0; }
+    .hist-item-name { font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.3; }
+    .hist-variant { display: inline-block; background: #f3e8ff; color: #7c3aed; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 6px; margin-left: 4px; vertical-align: middle; }
+    .hist-item-price { font-size: 13px; font-weight: 700; color: #334155; white-space: nowrap; }
+    .hist-card-notes { margin: 6px 14px 0; padding: 8px 10px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 11px; color: #92400e; line-height: 1.4; }
+    .hist-card-notes b { font-weight: 700; }
+    .hist-progress { margin: 10px 14px 0; display: flex; align-items: center; gap: 0; }
+    .hist-progress-step { flex: 1; text-align: center; position: relative; }
+    .hist-progress-dot { width: 18px; height: 18px; border-radius: 50%; margin: 0 auto 3px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; position: relative; z-index: 1; }
+    .hist-progress-dot.done { background: #22c55e; }
+    .hist-progress-dot.active { background: #ec4899; box-shadow: 0 0 0 3px rgba(236,72,153,0.2); }
+    .hist-progress-dot.pending { background: #e2e8f0; }
+    .hist-progress-label { font-size: 9px; font-weight: 600; color: #94a3b8; }
+    .hist-progress-label.active { color: #ec4899; }
+    .hist-progress-label.done { color: #22c55e; }
+    .hist-progress-line { position: absolute; top: 9px; left: 50%; right: -50%; height: 2px; background: #e2e8f0; z-index: 0; }
+    .hist-progress-line.done { background: #22c55e; }
+    .hist-progress-step:last-child .hist-progress-line { display: none; }
+    .hist-card-payment { margin: 8px 14px 0; padding: 8px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; display: flex; justify-content: space-between; font-size: 11px; }
+    .hist-card-payment .hp-label { color: #64748b; font-weight: 500; }
+    .hist-card-payment .hp-value { font-weight: 700; color: #0f172a; }
+    .hist-card-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 12px; }
+    .hist-card-total { font-size: 15px; font-weight: 800; color: #0f172a; }
+    .hist-status { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+    .hist-status-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .hist-status.s-paid { background: #dcfce7; color: #15803d; } .hist-status.s-paid .hist-status-dot { background: #22c55e; }
+    .hist-status.s-unpaid { background: #fef2f2; color: #dc2626; } .hist-status.s-unpaid .hist-status-dot { background: #ef4444; }
+    .hist-status.s-dp { background: #fefce8; color: #a16207; } .hist-status.s-dp .hist-status-dot { background: #eab308; }
+    .hist-status.s-ready { background: #dcfce7; color: #15803d; } .hist-status.s-ready .hist-status-dot { background: #22c55e; }
+    .hist-status.s-sent { background: #f3e8ff; color: #7c3aed; } .hist-status.s-sent .hist-status-dot { background: #a78bfa; }
+    .hist-status.s-completed { background: #ecfdf5; color: #059669; } .hist-status.s-completed .hist-status-dot { background: #10b981; }
+    .hist-status.s-belum-ready { background: #fff7ed; color: #c2410c; } .hist-status.s-belum-ready .hist-status-dot { background: #f97316; }
+    .hist-status.s-cancelled { background: #fee2e2; color: #dc2626; } .hist-status.s-cancelled .hist-status-dot { background: #ef4444; }
+    .hist-pack-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; margin: 8px 14px 10px; cursor: pointer; }
     .greeting {
       position: relative;
       z-index: 1;
@@ -1114,20 +1136,24 @@
         return;
       }
       var sorted = orders.slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
-      var html = '<div style="margin-bottom:10px;font-size:13px;color:#64748b;font-weight:600;">' + sorted.length + ' order</div>';
+
+      var html = '';
+      html += '<div class="hist-search-wrap"><span class="hist-search-icon">&#128269;</span>';
+      html += '<input class="hist-search" type="text" id="histSearchInput" placeholder="Cari produk atau order..." oninput="filterHistory()"></div>';
+      html += '<div id="histCount" style="margin-bottom:10px;font-size:12px;color:#94a3b8;font-weight:600;">' + sorted.length + ' order</div>';
+      html += '<div id="histList">';
       sorted.forEach(function(o) {
         var items = itemsByOrder[o.id] || [];
         var ps = o.payment_status || 'unpaid';
         var fs = o.fulfillment_status || 'belum_ready';
+        var sisa = (o.total || 0) - (o.paid_total || 0) - (o.diskon || 0);
 
-        // Status Bayar
         var bayarLabel = '', bayarCls = '';
         if (fs === 'cancelled') { bayarLabel = 'Dibatalkan'; bayarCls = 's-cancelled'; }
         else if (ps === 'paid') { bayarLabel = 'Lunas'; bayarCls = 's-paid'; }
         else if (ps === 'dp') { bayarLabel = 'DP'; bayarCls = 's-dp'; }
         else { bayarLabel = 'Belum Bayar'; bayarCls = 's-unpaid'; }
 
-        // Status Kirim
         var kirimLabel = '', kirimCls = '';
         if (fs === 'cancelled') { kirimLabel = ''; }
         else if (fs === 'shipped') { kirimLabel = 'Dikirim'; kirimCls = 's-sent'; }
@@ -1135,36 +1161,89 @@
         else if (fs === 'ready') { kirimLabel = 'Stok Ready'; kirimCls = 's-ready'; }
         else { kirimLabel = 'Belum Ready'; kirimCls = 's-belum-ready'; }
 
-        html += '<div class="history-card">';
-        html += '<div class="history-card-top">';
-        html += '<span class="history-card-id">#' + shortId(o.id) + '</span>';
-        html += '<span class="history-card-date">' + fmtDate(o.created_at) + '</span>';
+        var itemText = items.map(function(i) { return i.product_name + (i.variant || ''); }).join(' ').toLowerCase();
+        var searchKey = ('#' + shortId(o.id) + ' ' + itemText).toLowerCase();
+
+        html += '<div class="hist-card" data-search="' + searchKey + '">';
+        html += '<div class="hist-card-header">';
+        html += '<span class="hist-card-id">#' + shortId(o.id) + '</span>';
+        html += '<span class="hist-card-date">' + fmtDate(o.created_at) + '</span>';
         html += '</div>';
-        html += '<div class="history-card-items">';
+
+        html += '<div class="hist-card-items">';
         items.forEach(function(item) {
           var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
           html += '<div class="hist-item">';
-          html += '<span class="hist-item-name"><span class="hist-qty">' + item.quantity + '×</span> ' + item.product_name;
+          html += '<span class="hist-item-qty">' + item.quantity + '×</span>';
+          html += '<div class="hist-item-info"><span class="hist-item-name">' + item.product_name;
           if (item.variant) html += '<span class="hist-variant">' + item.variant + '</span>';
-          html += '</span>';
+          html += '</span></div>';
           html += '<span class="hist-item-price">' + fmt(itemTotal) + '</span>';
           html += '</div>';
         });
-        if (items.length === 0) html += '<em style="color:#94a3b8;font-size:12px;">Detail tidak tersedia</em>';
+        if (items.length === 0) html += '<div style="padding:8px 12px;color:#94a3b8;font-size:12px;">Detail tidak tersedia</div>';
         html += '</div>';
-        html += '<div class="history-card-bottom">';
-        html += '<span class="history-card-total">' + fmt(o.total) + '</span>';
-        html += '<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">';
-        html += '<span class="history-status ' + bayarCls + '">' + bayarLabel + '</span>';
-        if (kirimLabel) html += '<span class="history-status ' + kirimCls + '">' + kirimLabel + '</span>';
-        html += '</div>';
-        html += '</div>';
+
+        var steps = ['belum_ready','ready','shipped','completed'];
+        if (fs !== 'cancelled') {
+          var activeIdx = steps.indexOf(fs);
+          if (activeIdx < 0) activeIdx = 0;
+          html += '<div class="hist-progress">';
+          var stepLabels = ['Diproses','Ready','Dikirim','Selesai'];
+          for (var si = 0; si < steps.length; si++) {
+            var dotCls = si < activeIdx ? 'done' : si === activeIdx ? 'active' : 'pending';
+            var lblCls = si < activeIdx ? 'done' : si === activeIdx ? 'active' : '';
+            html += '<div class="hist-progress-step">';
+            if (si < steps.length - 1) html += '<div class="hist-progress-line ' + (si < activeIdx ? 'done' : '') + '"></div>';
+            html += '<div class="hist-progress-dot ' + dotCls + '">';
+            if (si < activeIdx) html += '&#10003;';
+            else if (si === activeIdx) html += '&#9679;';
+            else html += '&#9675;';
+            html += '</div>';
+            html += '<div class="hist-progress-label ' + lblCls + '">' + stepLabels[si] + '</div>';
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+
+        if (o.notes) {
+          html += '<div class="hist-card-notes"><b>Catatan: </b>' + escHtml(o.notes) + '</div>';
+        }
+
+        if (ps !== 'paid' && sisa > 0) {
+          html += '<div class="hist-card-payment">';
+          html += '<span class="hp-label">Dibayar</span><span class="hp-value">' + fmt(o.paid_total || 0) + '</span>';
+          html += '<span class="hp-label">Sisa</span><span class="hp-value" style="color:#dc2626;">' + fmt(sisa) + '</span>';
+          html += '</div>';
+        }
+
+        html += '<div class="hist-card-footer">';
+        html += '<span class="hist-card-total">' + fmt(o.total) + '</span>';
+        html += '<div style="display:flex;gap:5px;flex-wrap:wrap;">';
+        html += '<span class="hist-status ' + bayarCls + '"><span class="hist-status-dot"></span>' + bayarLabel + '</span>';
+        if (kirimLabel) html += '<span class="hist-status ' + kirimCls + '"><span class="hist-status-dot"></span>' + kirimLabel + '</span>';
+        html += '</div></div>';
+
         if (o.packing_photo) {
-          html += '<img src="' + o.packing_photo + '" alt="Foto packing" class="history-pack-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + o.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')">';
+          html += '<img src="' + o.packing_photo + '" alt="Foto packing" class="hist-pack-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + o.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')">';
         }
         html += '</div>';
       });
+      html += '</div>';
       el.innerHTML = html;
+    }
+
+    function filterHistory() {
+      var q = (document.getElementById('histSearchInput').value || '').toLowerCase().trim();
+      var cards = document.querySelectorAll('#histList .hist-card');
+      var visible = 0;
+      cards.forEach(function(card) {
+        var match = !q || (card.getAttribute('data-search') || '').indexOf(q) >= 0;
+        card.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      var el = document.getElementById('histCount');
+      if (el) el.textContent = visible + ' order' + (q ? ' ditemukan' : '');
     }
 
     function renderCard(order, items, showPay) {

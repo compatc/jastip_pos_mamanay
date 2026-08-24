@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup Riwayat - jastip_mamanay</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; min-height: 100vh; }
+
+  /* === MOCKUP HEADER === */
+  .mock-header { background: linear-gradient(135deg, #ec4899, #f43f5e); padding: 20px 16px 16px; color: white; }
+  .mock-header h1 { font-size: 18px; font-weight: 800; margin-bottom: 2px; }
+  .mock-header p { font-size: 12px; opacity: 0.85; }
+
+  .tab-bar { display: flex; margin-top: 14px; background: rgba(255,255,255,0.15); border-radius: 12px; padding: 3px; }
+  .tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; }
+  .tab.active { background: white; color: #ec4899; }
+  .tab:not(.active) { background: transparent; color: rgba(255,255,255,0.7); }
+
+  /* === CONTENT === */
+  .content { padding: 16px; max-width: 480px; margin: 0 auto; }
+
+  .section-label { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+  /* === MOCKUP CARD === */
+  .hist-card {
+    background: white;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* Header card: ID + tanggal + status */
+  .hist-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px 10px;
+  }
+  .hist-card-id {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .hist-card-date {
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+
+  /* Item list: beri background beda */
+  .hist-card-items {
+    margin: 0 12px;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 2px 0;
+  }
+  .hist-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .hist-item + .hist-item {
+    border-top: 1px solid #e9eef4;
+  }
+  .hist-item-qty {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    min-width: 24px;
+    text-align: right;
+  }
+  .hist-item-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .hist-item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.3;
+  }
+  .hist-item-variant {
+    display: inline-block;
+    background: #f3e8ff;
+    color: #7c3aed;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 6px;
+    margin-left: 4px;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+  }
+  .hist-item-unit {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 1px;
+  }
+  .hist-item-price {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    white-space: nowrap;
+  }
+
+  /* Footer: total + status badges */
+  .hist-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px 12px;
+  }
+  .hist-card-total {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .hist-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.2px;
+  }
+  .hist-status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .hist-status.s-paid { background: #dcfce7; color: #15803d; }
+  .hist-status.s-paid .hist-status-dot { background: #22c55e; }
+  .hist-status.s-unpaid { background: #fef2f2; color: #dc2626; }
+  .hist-status.s-unpaid .hist-status-dot { background: #ef4444; }
+  .hist-status.s-dp { background: #fefce8; color: #a16207; }
+  .hist-status.s-dp .hist-status-dot { background: #eab308; }
+  .hist-status.s-ready { background: #dcfce7; color: #15803d; }
+  .hist-status.s-ready .hist-status-dot { background: #22c55e; }
+  .hist-status.s-shipped { background: #f3e8ff; color: #7c3aed; }
+  .hist-status.s-shipped .hist-status-dot { background: #a78bfa; }
+  .hist-status.s-completed { background: #ecfdf5; color: #059669; }
+  .hist-status.s-completed .hist-status-dot { background: #10b981; }
+  .hist-status.s-belum { background: #fff7ed; color: #c2410c; }
+  .hist-status.s-belum .hist-status-dot { background: #f97316; }
+  .hist-status.s-cancelled { background: #fee2e2; color: #dc2626; }
+  .hist-status.s-cancelled .hist-status-dot { background: #ef4444; }
+
+  /* Packing photo */
+  .hist-card-photo {
+    margin: 8px 14px 12px;
+  }
+  .hist-card-photo img {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .hist-card-photo img:hover { transform: scale(1.05); }
+
+  /* === MOCKUP LEGEND === */
+  .mockup-legend {
+    margin-top: 24px;
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+  }
+  .mockup-legend h3 {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 12px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+    color: #475569;
+  }
+  .legend-item code {
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #6366f1;
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-header">
+  <h1>jastip_mamanay</h1>
+  <p>Halo, Wulandari 1817!</p>
+  <div class="tab-bar">
+    <button class="tab">Invoice</button>
+    <button class="tab active">Riwayat</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="section-label">27 order</div>
+
+  <!-- CARD 1: Multiple items dengan varian -->
+  <div class="hist-card">
+    <div class="hist-card-header">
+      <span class="hist-card-id">#c51b9cf4</span>
+      <span class="hist-card-date">Senin, 24 Agu 2026</span>
+    </div>
+    <div class="hist-card-items">
+      <div class="hist-item">
+        <span class="hist-item-qty">2×</span>
+        <div class="hist-item-info">
+          <div class="hist-item-name">Lilo pero lunch box set <span class="hist-item-variant">Blue</span></div>
+        </div>
+        <span class="hist-item-price">Rp 150.000</span>
+      </div>
+      <div class="hist-item">
+        <span class="hist-item-qty">1×</span>
+        <div class="hist-item-info">
+          <div class="hist-item-name">Lilo pero lunch box set <span class="hist-item-variant">Green</span></div>
+        </div>
+        <span class="hist-item-price">Rp 75.000</span>
+      </div>
+    </div>
+    <div class="hist-card-footer">
+      <span class="hist-card-total">Rp 225.000</span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <span class="hist-status s-unpaid"><span class="hist-status-dot"></span>Belum Bayar</span>
+        <span class="hist-status s-belum"><span class="hist-status-dot"></span>Belum Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 2: Single item tanpa varian -->
+  <div class="hist-card">
+    <div class="hist-card-header">
+      <span class="hist-card-id">#79d2df1b</span>
+      <span class="hist-card-date">Jumat, 21 Agu 2026</span>
+    </div>
+    <div class="hist-card-items">
+      <div class="hist-item">
+        <span class="hist-item-qty">1×</span>
+        <div class="hist-item-info">
+          <div class="hist-item-name">Moell spesial jastiper1</div>
+        </div>
+        <span class="hist-item-price">Rp 135.000</span>
+      </div>
+    </div>
+    <div class="hist-card-footer">
+      <span class="hist-card-total">Rp 135.000</span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <span class="hist-status s-unpaid"><span class="hist-status-dot"></span>Belum Bayar</span>
+        <span class="hist-status s-belum"><span class="hist-status-dot"></span>Belum Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 3: Lunas + dikirim + ada packing photo -->
+  <div class="hist-card">
+    <div class="hist-card-header">
+      <span class="hist-card-id">#605cf160</span>
+      <span class="hist-card-date">Rabu, 19 Agu 2026</span>
+    </div>
+    <div class="hist-card-items">
+      <div class="hist-item">
+        <span class="hist-item-qty">1×</span>
+        <div class="hist-item-info">
+          <div class="hist-item-name">Cry Baby Crying Again</div>
+        </div>
+        <span class="hist-item-price">Rp 48.000</span>
+      </div>
+    </div>
+    <div class="hist-card-photo">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect fill='%23e2e8f0' width='56' height='56' rx='10'/%3E%3Ctext x='28' y='32' text-anchor='middle' font-size='20'%3E📦%3C/text%3E%3C/svg%3E" alt="packing">
+    </div>
+    <div class="hist-card-footer">
+      <span class="hist-card-total">Rp 48.000</span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <span class="hist-status s-paid"><span class="hist-status-dot"></span>Lunas</span>
+        <span class="hist-status s-shipped"><span class="hist-status-dot"></span>Dikirim</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 4: Selesai -->
+  <div class="hist-card">
+    <div class="hist-card-header">
+      <span class="hist-card-id">#a1b2c3d4</span>
+      <span class="hist-card-date">Selasa, 12 Agu 2026</span>
+    </div>
+    <div class="hist-card-items">
+      <div class="hist-item">
+        <span class="hist-item-qty">3×</span>
+        <div class="hist-item-info">
+          <div class="hist-item-name">Hello Kitty Travel Set <span class="hist-item-variant">Pink</span></div>
+        </div>
+        <span class="hist-item-price">Rp 345.000</span>
+      </div>
+      <div class="hist-item">
+        <span class="hist-item-qty">1×</span>
+        <div class="hist-item-info">
+          <div class="hist-item-name">Hello Kitty Travel Set <span class="hist-item-variant">White</span></div>
+        </div>
+        <span class="hist-item-price">Rp 115.000</span>
+      </div>
+    </div>
+    <div class="hist-card-footer">
+      <span class="hist-card-total">Rp 460.000</span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <span class="hist-status s-paid"><span class="hist-status-dot"></span>Lunas</span>
+        <span class="hist-status s-completed"><span class="hist-status-dot"></span>Selesai</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="mockup-legend">
+    <h3>Layout Structure</h3>
+    <div class="legend-item"><code>.hist-card</code> Card putih, border-radius 16px, box-shadow tipis</div>
+    <div class="legend-item"><code>.hist-card-header</code> ID order + tanggal, flex space-between</div>
+    <div class="legend-item"><code>.hist-card-items</code> Container item dengan background <code>#f8fafc</code></div>
+    <div class="legend-item"><code>.hist-item</code> Per baris: qty · nama + varian · harga</div>
+    <div class="legend-item"><code>.hist-item-variant</code> Badge ungu pill</div>
+    <div class="legend-item"><code>.hist-card-footer</code> Total + status badges</div>
+    <div class="legend-item"><code>.hist-card-photo</code> Thumbnail packing 56×56</div>
+  </div>
+</div>
+
+</body>
+</html>
