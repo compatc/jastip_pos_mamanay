@@ -644,6 +644,7 @@ export default function Shipments() {
                               isChecked ? "text-emerald-700" : "text-slate-700"
                             }`}>
                               {item.product_name}
+                              {(item as any).variant && <span className="text-xs text-purple-500 ml-1">({(item as any).variant})</span>}
                             </span>
                             <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                               isChecked

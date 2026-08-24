@@ -306,7 +306,7 @@ export default function OrderDetail() {
       const shopeePcs = product?.shopee_pcs || 1;
       const qtyPcs = Math.ceil((item.quantity * shopeePcs) / 1000);
       totalPcs += qtyPcs;
-      msg += `• ${item.product_name} x${item.quantity} → ${qtyPcs} pcs\n`;
+      msg += `• ${item.product_name}${(item as any).variant ? " (" + (item as any).variant + ")" : ""} x${item.quantity} → ${qtyPcs} pcs\n`;
     });
     msg += "\n";
 
@@ -463,6 +463,7 @@ export default function OrderDetail() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-800 truncate">{item.product_name}</p>
+                    {(item as any).variant && <p className="text-xs text-purple-500 font-medium">Varian: {(item as any).variant}</p>}
                     <p className="text-xs text-gray-400">
                       {item.quantity} × {rupiah(item.price)}
                       {item.discount > 0 && <span className="text-red-400 ml-1">-{rupiah(item.discount)}</span>}
