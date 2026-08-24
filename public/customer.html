@@ -1135,7 +1135,14 @@
         html += '</div>';
         html += '<div class="history-card-items">';
         items.forEach(function(item) {
-          html += item.quantity + '× ' + item.product_name + (item.variant ? ' <span style="color:#a855f7;font-size:0.85em">(' + item.variant + ')</span>' : '') + '<br>';
+          var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
+          html += '<div style="flex:1;min-width:0;">';
+          html += '<span style="font-size:13px;font-weight:600;color:#1e293b;">' + item.quantity + '× ' + item.product_name + '</span>';
+          if (item.variant) html += ' <span style="display:inline-block;background:#f3e8ff;color:#9333ea;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px;">' + item.variant + '</span>';
+          html += '</div>';
+          html += '<span style="font-size:13px;font-weight:600;color:#334155;white-space:nowrap;margin-left:8px;">' + fmt(itemTotal) + '</span>';
+          html += '</div>';
         });
         if (items.length === 0) html += '<em style="color:#94a3b8;">Detail tidak tersedia</em>';
         html += '</div>';
