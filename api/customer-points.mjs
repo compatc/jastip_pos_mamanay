@@ -33,10 +33,17 @@ export default async function handler(req, res) {
       .eq("id", customer_id)
       .single();
 
+    const totalSpent = data?.total_spent || 0;
+    const memberLevel = calculateMemberLevel(totalSpent);
+
+    if (data?.member_level !== memberLevel) {
+      await sb.from("customers").update({ member_level: memberLevel }).eq("id", customer_id);
+    }
+
     res.json({
       points: data?.points || 0,
-      totalSpent: data?.total_spent || 0,
-      memberLevel: data?.member_level || "silver",
+      totalSpent: totalSpent,
+      memberLevel: memberLevel,
       discountAvailable: pointsToDiscount(data?.points || 0),
     });
     return;
