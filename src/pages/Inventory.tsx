@@ -162,10 +162,12 @@ export default function Inventory() {
     setRekapProductId(productId);
     setRekapLoading(true);
     try {
+      const product = products.find(p => p.id === productId);
+      const productName = product?.name || "";
       const { data: items, error } = await supabase
         .from("order_items")
         .select("product_name, variant, quantity, price, discount, order_id, product_id")
-        .eq("product_id", productId);
+        .or(`product_id.eq.${productId},product_name.eq.${productName}`);
       if (error) throw error;
       if (!items || items.length === 0) {
         setRekapItems([]);
