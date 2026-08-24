@@ -1838,9 +1838,10 @@ export default function Inventory() {
                             msg += ` harga Rp ${hargaPerUnit.toLocaleString("id-ID")}/ 1 ${unit}`;
                           }
                           msg += `\n`;
-                          for (const [vname, v] of Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty)) {
+                              for (const [vname, v] of Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty)) {
                             msg += `\n*${vname}*\n`;
-                            const custItems = items.filter((i: any) => (i.variant || "TANPA VARIAN").toUpperCase() === vname);
+                            const vnameUp = vname.toUpperCase();
+                            const custItems = items.filter((i: any) => (i.variant || "TANPA VARIAN").toUpperCase() === vnameUp);
                             custItems.forEach((ci: any, idx: number) => {
                               const last4 = String(ci.customer_name || "").slice(-4);
                               msg += `${idx + 1}. ${ci.customer_name || "-"} -- ${last4} -- ${ci.quantity}\n`;
