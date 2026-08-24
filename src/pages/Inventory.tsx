@@ -1850,11 +1850,13 @@ export default function Inventory() {
                             });
                             const custMap = new Map<string, { name: string; phone: string; qty: number }>();
                             custItems.forEach((ci: any) => {
-                              const key = (ci.customer_name || "-") + "|" + (ci.customer_phone || "");
-                              if (custMap.has(key)) {
-                                custMap.get(key)!.qty += ci.quantity;
+                              const key = (ci.customer_name || "-").trim().toLowerCase();
+                              const existing = custMap.get(key);
+                              if (existing) {
+                                existing.qty += ci.quantity;
+                                if (!existing.phone && ci.customer_phone) existing.phone = ci.customer_phone;
                               } else {
-                                custMap.set(key, { name: ci.customer_name || "-", phone: ci.customer_phone || "", qty: ci.quantity });
+                                custMap.set(key, { name: (ci.customer_name || "-").trim(), phone: ci.customer_phone || "", qty: ci.quantity });
                               }
                             });
                             let idx = 0;
