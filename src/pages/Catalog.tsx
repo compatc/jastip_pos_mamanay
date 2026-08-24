@@ -432,6 +432,16 @@ export default function Catalog() {
                       <span className="text-base font-extrabold text-rose-500 leading-none">
                         {rupiah(p.sell_price)}
                       </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = window.location.origin + "/catalog/" + p.id;
+                          navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {});
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-500 transition-colors"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                     {/* Quick add button */}
                     <button
