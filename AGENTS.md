@@ -4,6 +4,7 @@
 
 - **Loyalty points backfill**: HANYA dari tanggal 20 Agustus 2026 ke atas. Jangan backfill order sebelum 20 Agustus 2026.
 - **JANGAN PERNAH clear session WA bot** (`rm -rf /opt/wa-bot/session`). PM2 auto-restart sudah handle. Clear session = user harus scan QR ulang, sangat mengganggu. Kalau Bad MAC, biarkan bot restart sendiri.
+- **Customer phone matching**: WAJIB normalize **kedua sisi** (incoming phone DAN DB phone) sebelum compare. Format: strip non-digits, convert `0xxx` → `62xxx`. Kalau cuma normalize satu sisi, customer `08xxx` di DB tidak match incoming `628xxx` → duplicate customer.
 
 ## Bot Multi-Variant Order Flow
 
