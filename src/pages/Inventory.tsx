@@ -180,13 +180,16 @@ export default function Inventory() {
         .in("id", orderIds);
       const customerIds = [...new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length > 0
-        ? await supabase.from("customers").select("id, name").in("id", customerIds)
+        ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
         : { data: [] };
-      const customerMap = new Map((customers || []).map((c: any) => [c.id, c.name]));
-      const orderMap = new Map((orders || []).map((o: any) => [o.id, { ...o, customer_name: customerMap.get(o.customer_id) || "-" }]));
+      const customerMap = new Map((customers || []).map((c: any) => [c.id, { name: c.name, phone: c.phone || "" }]));
+      const orderMap = new Map((orders || []).map((o: any) => {
+        const c = customerMap.get(o.customer_id) || { name: "-", phone: "" };
+        return [o.id, { ...o, customer_name: c.name, customer_phone: c.phone }];
+      }));
       const merged = items.map((i: any) => {
         const o = orderMap.get(i.order_id) || {};
-        return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, order_type: (o as any).order_type };
+        return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", order_type: (o as any).order_type };
       });
       setRekapItems(merged);
     } catch {
@@ -1846,7 +1849,7 @@ export default function Inventory() {
                               return iv === vnameUp;
                             });
                             custItems.forEach((ci: any, idx: number) => {
-                              const last4 = String(ci.customer_name || "").slice(-4);
+                              const last4 = String(ci.customer_phone || ci.customer_name || "").replace(/[^0-9]/g, "").slice(-4);
                               msg += `${idx + 1}. ${ci.customer_name || "-"} -- ${last4} -- ${ci.quantity}\n`;
                             });
                             msg += `subtotal: ${v.qty}\n`;
