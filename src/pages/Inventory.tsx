@@ -164,10 +164,11 @@ export default function Inventory() {
     try {
       const product = products.find(p => p.id === productId);
       const productName = product?.name || "";
+      const cleanName = productName.replace(/\s*\[PO\]\s*/gi, "").trim();
       const { data: items, error } = await supabase
         .from("order_items")
         .select("product_name, variant, quantity, price, discount, order_id, product_id")
-        .or(`product_id.eq.${productId},product_name.eq.${productName}`);
+        .or(`product_id.eq.${productId},product_name.eq.${productName},product_name.ilike.%${cleanName}%`);
       if (error) throw error;
       if (!items || items.length === 0) {
         setRekapItems([]);
