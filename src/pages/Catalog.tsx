@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Search, Package, MessageCircle, ShoppingBag, ShoppingCart, X, Plus, Minus, Check, Loader2 } from "lucide-react";
+import { Search, Package, MessageCircle, ShoppingBag, ShoppingCart, X, Plus, Minus, Check, Loader2, Share2 } from "lucide-react";
 
 interface Variant {
   id: string;
@@ -536,8 +536,20 @@ export default function Catalog() {
 
             <div className="p-5">
               <div className="flex items-start justify-between gap-3 mb-3">
-                <div>
-                  <h2 className="text-lg font-extrabold text-slate-900 leading-snug">{selected.name}</h2>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-extrabold text-slate-900 leading-snug">{selected.name}</h2>
+                    <button
+                      onClick={() => {
+                        const url = window.location.origin + "/catalog/" + selected.id;
+                        navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {});
+                      }}
+                      className="shrink-0 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                      title="Share link"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  </div>
                   {selected.description && (
                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">{selected.description}</p>
                   )}
