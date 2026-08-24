@@ -69,6 +69,7 @@ export interface Product {
   stock_type: "ready" | "po";
   unit: string;
   image: string;
+  images: string[];
   shopee_pcs: number;
   created_at: string;
 }

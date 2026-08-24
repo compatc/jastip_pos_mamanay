@@ -78,6 +78,109 @@ cleanName = "Lilo pero lunch box set"
 match: "Lilo pero lunch box set", "Lilo pero lunch box set [PO]", "Lilo pero lunch box set ready"
 ```
 
+## Rekap Order — Filter Penjualan Only
+
+### Rule
+Rekap order HANYA tampilkan `order_type === 'penjualan'`. Pembelian/pembelian-stok harus di-exclude.
+
+### Bot (`buatRekapProduk()` in index.js)
+```javascript
+const { data: supaOrders } = await api.from('orders')
+  .select('id, customer_id, created_at, order_type')
+  .in('id', orderIds)
+  .eq('order_type', 'penjualan');  // ← filter di query
+```
+Items from non-penjualan orders are skipped via `if (!o) continue;`.
+
+### Inventory.tsx (`openRekap()`)
+```javascript
+const { data: orders } = await supabase
+  .from("orders")
+  .select("id, created_at, customer_id, order_type")
+  .in("id", orderIds)
+  .eq("order_type", "penjualan");  // ← filter di query
+
+// Filter items: only include penjualan orders
+const penjualanOrderIds = new Set((orders || []).map((o) => o.id));
+const merged = items
+  .filter((i) => penjualanOrderIds.has(i.order_id))  // ← filter items
+  .map((i) => { ... });
+```
+
+### Why both filters?
+1. Orders query filters by `order_type` → only penjualan orders returned
+2. Items filter ensures items from pembelian orders are excluded from display
+3. Without item filter, items from pembelian orders would still appear (with undefined customer info)
+
+## Rekap Order — Data Sources (Local + Supabase)
+
+### Rule
+Rekap order WA bot mengambil data dari **2 sumber** sekaligus:
+1. **Local `orders.json`** — order dari WA bot
+2. **Supabase `order_items` + `orders`** — order dari web/app + WA bot (via `pushOrderToSupabase`)
+
+### Flow in `buatRekapProduk()` (index.js)
+```
+1. Fetch local orders.json → filter by product name + penjualan
+2. Fetch Supabase order_items → fuzzy match product name
+3. Fetch Supabase orders → filter by penjualan
+4. Fetch Supabase customers → get names
+5. Merge local + supabase → dedupe by sender+variant+qty+timestamp
+6. Group by variant → format rekap
+7. Send to WA group
+```
+
+### Why both sources?
+- WA bot stores orders in local `orders.json` AND pushes to Supabase via `pushOrderToSupabase()`
+- Some orders may only exist locally (if Supabase push failed)
+- Some orders may only exist in Supabase (if created via web/app)
+- Merge + dedupe ensures no duplicates in rekap
+
+### Key code (index.js lines 477-530)
+```javascript
+// Local
+const localList = orders.filter(...);
+
+// Supabase
+const { data } = await api.from('order_items')...
+const { data: supaOrders } = await api.from('orders')...
+// ... fetch customers, build supaItems
+
+// Merge + dedupe
+const seen = new Set();
+const allItems = [];
+for (const x of [...supaItems, ...localList]) {
+  const key = (x.sender || '') + '|' + (x.variant || '') + '|' + x.qty + '|' + (x.timestamp || '');
+  if (!seen.has(key)) { seen.add(key); allItems.push(x); }
+}
+```
+
+## Supabase Storage — Product Images
+
+### Setup
+- **Bucket**: `products` (public)
+- **Policies**: Authenticated upload, public read
+- **URL format**: `https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/{id}.jpg`
+
+### File structure
+```
+products/
+  {product_id}.jpg     → product images
+variants/
+  {variant_id}.jpg     → variant images
+```
+
+### Rules
+- Images stored in Supabase Storage, NOT base64 in DB
+- `products.image` and `product_variants.image` store URL, not data
+- Upload via authenticated user (anon key + signIn)
+- Public read access for catalog/customer pages
+
+### Migration (2026-08-24)
+- Migrated 28 product images + 1 variant image from base64 to storage
+- All base64 data removed from DB
+- Total size: ~5MB compressed (was ~7MB base64 text)
+
 ### Example scenario
 Promo: `🏷️ PERO QIBY TUMBLER 739 ML 94000`
 Variants: `pink`, `rose gold`

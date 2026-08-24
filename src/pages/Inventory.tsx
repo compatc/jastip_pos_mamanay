@@ -29,6 +29,7 @@ interface ProductForm {
   stock_type: "ready" | "po";
   unit: string;
   image: string;
+  images: string[];
   shopee_pcs: string;
 }
 
@@ -41,6 +42,7 @@ const emptyForm: ProductForm = {
   stock_type: "ready",
   unit: "PCS",
   image: "",
+  images: [],
   shopee_pcs: "1",
 };
 
@@ -216,6 +218,7 @@ export default function Inventory() {
     const product = products.find((p) => p.id === id);
     if (!product) return;
     setEditId(id);
+    const existingImages = (product as any).images || (product.image ? [product.image] : []);
     setForm({
       name: product.name,
       description: (product as any).description || "",
@@ -225,6 +228,8 @@ export default function Inventory() {
       stock_type: (product as any).stock_type || "ready",
       unit: product.unit || "PCS",
       image: product.image || "",
+      images: existingImages,
+      shopee_pcs: ((product as any).shopee_pcs || 1).toString(),
     });
     setFormVariants([]);
     loadProductVariants(id);
@@ -234,18 +239,39 @@ export default function Inventory() {
     setShowForm(true);
   }
 
-  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 500 * 1024) {
-      alert("Ukuran gambar maksimal 500KB");
-      return;
+  async function uploadToStorage(file: File): Promise<string | null> {
+    const ext = file.name.split(".").pop() || "jpg";
+    const filename = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from("products").upload(filename, file, {
+      contentType: file.type,
+      upsert: true,
+    });
+    if (error) { console.error("Upload error:", error.message); return null; }
+    const { data } = supabase.storage.from("products").getPublicUrl(filename);
+    return data?.publicUrl || null;
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const maxSize = 500 * 1024;
+    const newImages: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > maxSize) { alert(`Ukuran gambar ${file.name} melebihi 500KB`); continue; }
+      const url = await uploadToStorage(file);
+      if (url) newImages.push(url);
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm({ ...form, image: reader.result as string });
-    };
-    reader.readAsDataURL(file);
+    if (newImages.length > 0) {
+      const allImages = [...form.images, ...newImages];
+      setForm({ ...form, image: allImages[0] || "", images: allImages });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeImage(index: number) {
+    const newImages = form.images.filter((_, i) => i !== index);
+    setForm({ ...form, image: newImages[0] || "", images: newImages });
   }
 
   async function handleSubmit(e?: React.FormEvent) {
@@ -265,7 +291,8 @@ export default function Inventory() {
           form.image,
           parseInt(form.shopee_pcs) || 1,
           form.stock_type,
-          form.description.trim()
+          form.description.trim(),
+          form.images
         );
       } else {
         productId = await addProduct(
@@ -277,7 +304,8 @@ export default function Inventory() {
           form.image,
           parseInt(form.shopee_pcs) || 1,
           form.stock_type,
-          form.description.trim()
+          form.description.trim(),
+          form.images
         );
       }
 
@@ -950,41 +978,40 @@ export default function Inventory() {
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
-                    Gambar Produk
+                    Gambar Produk {form.images.length > 0 && `(${form.images.length})`}
                   </label>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageUpload}
                     className="hidden"
                   />
+                  {form.images.length > 0 && (
+                    <div className="flex gap-2 mb-2 flex-wrap">
+                      {form.images.map((img, idx) => (
+                        <div key={idx} className="relative group">
+                          <img src={img} alt={`#${idx + 1}`} className="w-16 h-16 object-cover rounded-xl border-2 border-pink-200" />
+                          {idx === 0 && <span className="absolute -bottom-1 -left-1 bg-pink-500 text-white text-[8px] px-1 rounded-full font-bold">UTAMA</span>}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                            className="absolute -top-1.5 -right-1.5 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-gray-200 rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 hover:border-pink-300 hover:bg-pink-50/30 transition-all cursor-pointer min-h-[80px]"
+                    className="w-full border-2 border-dashed border-gray-200 rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 hover:border-pink-300 hover:bg-pink-50/30 transition-all cursor-pointer min-h-[60px]"
                   >
-                    {form.image ? (
-                      <div className="relative">
-                        <img src={form.image} alt="Preview" className="w-20 h-20 object-cover rounded-xl" />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setForm({ ...form, image: "" });
-                            if (fileInputRef.current) fileInputRef.current.value = "";
-                          }}
-                          className="absolute -top-1.5 -right-1.5 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <Camera className="w-6 h-6 text-pink-300" />
-                        <span className="text-xs text-pink-400 font-medium">Tap untuk tambah gambar</span>
-                        <span className="text-[10px] text-gray-400">Maks 500KB</span>
-                      </>
-                    )}
+                    <Camera className="w-5 h-5 text-pink-300" />
+                    <span className="text-xs text-pink-400 font-medium">Tap untuk tambah gambar</span>
+                    <span className="text-[10px] text-gray-400">Bisa pilih banyak sekaligus · Maks 500KB/file</span>
                   </div>
                 </div>
                 <div>

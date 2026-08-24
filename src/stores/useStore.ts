@@ -103,7 +103,8 @@ interface PosStore {
     image?: string,
     shopeePcs?: number,
     stockType?: string,
-    description?: string
+    description?: string,
+    images?: string[]
   ) => Promise<string>;
   updateProduct: (
     id: string,
@@ -115,7 +116,8 @@ interface PosStore {
     image?: string,
     shopeePcs?: number,
     stockType?: string,
-    description?: string
+    description?: string,
+    images?: string[]
   ) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
 
@@ -1074,7 +1076,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ products: (data || []) as Product[] });
   },
 
-  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "") => {
+  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = []) => {
     const id = uuid();
     const created_at = new Date().toISOString();
     const { error } = await supabase
@@ -1089,6 +1091,7 @@ export const useStore = create<PosStore>((set, get) => ({
         stock_type: stockType,
         unit: unit || "PCS",
         image: image || "",
+        images: images.length > 0 ? images : (image ? [image] : []),
         shopee_pcs: shopeePcs,
         created_at,
       });
@@ -1097,7 +1100,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return id;
   },
 
-  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "") => {
+  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = []) => {
     const { error } = await supabase
       .from("products")
       .update({
@@ -1109,6 +1112,7 @@ export const useStore = create<PosStore>((set, get) => ({
         stock_type: stockType,
         unit: unit || "PCS",
         image: image || "",
+        images: images.length > 0 ? images : (image ? [image] : []),
         shopee_pcs: shopeePcs,
       })
       .eq("id", id);
