@@ -178,7 +178,8 @@ export default function Inventory() {
       const { data: orders } = await supabase
         .from("orders")
         .select("id, created_at, customer_id, order_type")
-        .in("id", orderIds);
+        .in("id", orderIds)
+        .eq("order_type", "penjualan");
       const customerIds = [...new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length > 0
         ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
@@ -188,10 +189,14 @@ export default function Inventory() {
         const c = customerMap.get(o.customer_id) || { name: "-", phone: "" };
         return [o.id, { ...o, customer_name: c.name, customer_phone: c.phone, customer_id: o.customer_id }];
       }));
-      const merged = items.map((i: any) => {
-        const o = orderMap.get(i.order_id) || {};
-        return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
-      });
+      // Filter: only penjualan orders
+      const penjualanOrderIds = new Set((orders || []).map((o: any) => o.id));
+      const merged = items
+        .filter((i: any) => penjualanOrderIds.has(i.order_id))
+        .map((i: any) => {
+          const o = orderMap.get(i.order_id) || {};
+          return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
+        });
       setRekapItems(merged);
     } catch {
       setRekapItems([]);
