@@ -1135,7 +1135,7 @@
         html += '</div>';
         html += '<div class="history-card-items">';
         items.forEach(function(item) {
-          html += item.quantity + '× ' + item.product_name + '<br>';
+          html += item.quantity + '× ' + item.product_name + (item.variant ? ' <span style="color:#a855f7;font-size:0.85em">(' + item.variant + ')</span>' : '') + '<br>';
         });
         if (items.length === 0) html += '<em style="color:#94a3b8;">Detail tidak tersedia</em>';
         html += '</div>';
@@ -1184,7 +1184,7 @@
       items.forEach(function(item) {
         var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
         h += '<div class="card-item">';
-        h += '<span class="card-item-name">' + item.product_name + '</span>';
+        h += '<span class="card-item-name">' + item.product_name + (item.variant ? ' <span style="color:#a855f7;font-size:0.85em">(' + item.variant + ')</span>' : '') + '</span>';
         h += '<span class="card-item-qty">x' + item.quantity + '</span>';
         h += '<span class="card-item-price">' + fmt(itemTotal) + '</span>';
         h += '</div>';
