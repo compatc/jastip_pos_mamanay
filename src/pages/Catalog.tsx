@@ -19,6 +19,7 @@ interface Product {
   stock_type?: string;
   unit: string;
   image: string;
+  images?: string[];
   variants?: Variant[];
   tags?: { id: string; name: string }[];
 }
@@ -76,6 +77,7 @@ export default function Catalog() {
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [carouselIdx, setCarouselIdx] = useState(0);
 
   // Cart
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -339,13 +341,20 @@ export default function Catalog() {
               return (
                 <div
                   key={p.id}
-                  onClick={() => { setSelected(p); window.history.pushState({}, "", "/catalog/" + p.id); }}
+                  onClick={() => { setSelected(p); setCarouselIdx(0); window.history.pushState({}, "", "/catalog/" + p.id); }}
                   className="bg-white rounded-2xl overflow-hidden border border-slate-100/80 shadow-sm transition-all hover:shadow-md active:scale-[0.98] cursor-pointer"
                 >
                   {/* Image */}
                   {p.image ? (
                     <div className="relative w-full h-40 bg-slate-50 overflow-hidden">
                       <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                      {(p.images && p.images.length > 1) && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                          {p.images.slice(0, 5).map((_: string, i: number) => (
+                            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-white" : "bg-white/50"}`} />
+                          ))}
+                        </div>
+                      )}
                       <div className="absolute top-2 right-2">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm ${stock.color}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
@@ -497,8 +506,27 @@ export default function Catalog() {
             </div>
 
             {selected.image ? (
-              <div className="w-full max-h-80 lg:max-h-96 bg-slate-50 overflow-hidden flex items-center justify-center">
-                <img src={selected.image} alt={selected.name} className="w-full object-contain max-h-80 lg:max-h-96" />
+              <div className="w-full max-h-80 lg:max-h-96 bg-slate-50 overflow-hidden flex items-center justify-center relative">
+                {(() => {
+                  const allImages = (selected.images && selected.images.length > 0) ? selected.images : [selected.image];
+                  const imgSrc = allImages[carouselIdx] || allImages[0];
+                  return (
+                    <>
+                      <img src={imgSrc} alt={selected.name} className="w-full object-contain max-h-80 lg:max-h-96" />
+                      {allImages.length > 1 && (
+                        <>
+                          <button onClick={() => setCarouselIdx((carouselIdx - 1 + allImages.length) % allImages.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg">‹</button>
+                          <button onClick={() => setCarouselIdx((carouselIdx + 1) % allImages.length)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg">›</button>
+                          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                            {allImages.map((_: string, i: number) => (
+                              <button key={i} onClick={() => setCarouselIdx(i)} className={`w-2 h-2 rounded-full transition-all ${i === carouselIdx ? "bg-white scale-110" : "bg-white/50"}`} />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             ) : (
               <div className={`w-full h-56 bg-gradient-to-br ${getGradient(selected.name)} flex items-center justify-center`}>
