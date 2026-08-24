@@ -1723,7 +1723,7 @@ export default function Inventory() {
               let totalRevenue = 0;
               let rekapPreviewMsg = "";
               for (const i of items) {
-                const vname = i.variant || "Umum";
+                const vname = i.variant || "(tanpa varian)";
                 if (!byVariant[vname]) byVariant[vname] = { qty: 0, revenue: 0, orders: new Set(), customers: new Set() };
                 byVariant[vname].qty += i.quantity;
                 byVariant[vname].revenue += (i.price * i.quantity) - (i.discount || 0);
@@ -1841,7 +1841,10 @@ export default function Inventory() {
                               for (const [vname, v] of Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty)) {
                             msg += `\n*${vname}*\n`;
                             const vnameUp = vname.toUpperCase();
-                            const custItems = items.filter((i: any) => (i.variant || "TANPA VARIAN").toUpperCase() === vnameUp);
+                            const custItems = items.filter((i: any) => {
+                              const iv = (i.variant || "(tanpa varian)").toUpperCase();
+                              return iv === vnameUp;
+                            });
                             custItems.forEach((ci: any, idx: number) => {
                               const last4 = String(ci.customer_name || "").slice(-4);
                               msg += `${idx + 1}. ${ci.customer_name || "-"} -- ${last4} -- ${ci.quantity}\n`;
