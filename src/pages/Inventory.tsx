@@ -1750,7 +1750,14 @@ export default function Inventory() {
                             onClick={async () => {
                               const GROUP_ID = "120363404605912473@g.us";
                               const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
-                              let msg = `📋 *REKAP ORDER*\nlist po *${product?.name || ""}*\n`;
+                              let msg = `📋 *REKAP ORDER*\n${product?.name || ""}\n`;
+                              msg += `list po *${product?.name || ""}*`;
+                              const unit = ((product as any).unit || "pcs").toLowerCase();
+                              if (totalQty > 0 && totalRevenue > 0) {
+                                const hargaPerUnit = Math.round(totalRevenue / totalQty);
+                                msg += ` harga Rp ${hargaPerUnit.toLocaleString("id-ID")}/ 1 ${unit}`;
+                              }
+                              msg += `\n`;
                               for (const [vname, v] of Object.entries(byVariant).sort((a, b) => b[1].qty - a[1].qty)) {
                                 msg += `\n*${vname}*\n`;
                                 const custItems = items.filter((i: any) => (i.variant || "TANPA VARIAN").toUpperCase() === vname);
