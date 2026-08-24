@@ -1848,10 +1848,20 @@ export default function Inventory() {
                               const iv = (i.variant || "(tanpa varian)").toUpperCase();
                               return iv === vnameUp;
                             });
-                            custItems.forEach((ci: any, idx: number) => {
-                              const last4 = String(ci.customer_phone || ci.customer_name || "").replace(/[^0-9]/g, "").slice(-4);
-                              msg += `${idx + 1}. ${ci.customer_name || "-"} -- ${last4} -- ${ci.quantity}\n`;
+                            const custMap = new Map<string, { name: string; phone: string; qty: number }>();
+                            custItems.forEach((ci: any) => {
+                              const key = (ci.customer_name || "-") + "|" + (ci.customer_phone || "");
+                              if (custMap.has(key)) {
+                                custMap.get(key)!.qty += ci.quantity;
+                              } else {
+                                custMap.set(key, { name: ci.customer_name || "-", phone: ci.customer_phone || "", qty: ci.quantity });
+                              }
                             });
+                            let idx = 0;
+                            for (const [, c] of custMap) {
+                              const last4 = String(c.phone || c.name || "").replace(/[^0-9]/g, "").slice(-4);
+                              msg += `${++idx}. ${c.name} -- ${last4} -- ${c.qty}\n`;
+                            }
                             msg += `subtotal: ${v.qty}\n`;
                           }
                           msg += `\ntotal: ${totalQty} ${unit}`;
