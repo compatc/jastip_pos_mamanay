@@ -51,6 +51,7 @@ function getOrderStatusBadge(order: any): { label: string; cls: string; accent: 
 
 interface OrderItemData {
   product_name: string;
+  variant?: string | null;
   quantity: number;
   price: number;
   discount: number;
@@ -58,6 +59,10 @@ interface OrderItemData {
 }
 
 type FilterType = "all" | "unpaid" | "ready" | "completed";
+
+function itemLabel(i: { product_name: string; variant?: string | null }) {
+  return i.variant ? `${i.product_name} ${i.variant}` : i.product_name;
+}
 
 export default function CustomerOrders() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -132,13 +137,13 @@ export default function CustomerOrders() {
       const ids = orders.map((o) => o.id);
       const { data } = await supabase
         .from("order_items")
-        .select("order_id, product_name, quantity, price, discount, product_id")
+        .select("order_id, product_name, quantity, price, discount, product_id, variant")
         .in("order_id", ids);
       if (!data) return;
       const map: Record<string, OrderItemData[]> = {};
       for (const row of data) {
         if (!map[row.order_id]) map[row.order_id] = [];
-        map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, price: row.price, discount: row.discount || 0, product_id: row.product_id });
+        map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, price: row.price, discount: row.discount || 0, product_id: row.product_id, variant: row.variant });
       }
       setItemsByOrder(map);
     }
@@ -206,7 +211,7 @@ export default function CustomerOrders() {
       if (!list) return;
       list.forEach((order) => {
         const items = itemsByOrder[order.id] || [];
-        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+        const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
         const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
         msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
         msg += `Status barang: ${statusLabel}\n`;
@@ -237,7 +242,7 @@ export default function CustomerOrders() {
         const order = qrisOrders[0];
         const sisa = order.total - (order.paid_total || 0);
         const items = itemsByOrder[order.id] || [];
-        const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+        const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
         msg += `1. ${productNames}\n`;
         msg += `\u{1F4B0} Sisa: *${rupiah(sisa)}*\n`;
         msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${payOrderLink(order.id)}\n\n`;
@@ -246,7 +251,7 @@ export default function CustomerOrders() {
         qrisOrders.forEach((order, idx) => {
           const sisa = order.total - (order.paid_total || 0);
           const items = itemsByOrder[order.id] || [];
-          const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+          const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
           msg += `${idx + 1}. ${productNames}\n`;
           msg += `\u{1F4B0} Sisa: *${rupiah(sisa)}*\n\n`;
         });
@@ -436,7 +441,7 @@ export default function CustomerOrders() {
               const badge = getOrderStatusBadge(order);
               const paid = order.paid_total >= order.total && order.total > 0;
               const sisa = order.total - (order.paid_total || 0);
-              const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
+              const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
               const dateStr = new Date(order.created_at).toLocaleDateString("id-ID", {
                 day: "numeric",
                 month: "long",
@@ -578,7 +583,7 @@ export default function CustomerOrders() {
                         )}
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                        {items.map((i) => `${i.product_name} x${i.quantity}`).join(", ")}
+                        {items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ")}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5 font-semibold">{rupiah(order.total)}</p>
                     </div>
@@ -653,7 +658,7 @@ export default function CustomerOrders() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                        {items.map((i) => `${i.product_name} x${i.quantity}`).join(", ")}
+                        {items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ")}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5 font-semibold">
                         Tagihan: {rupiah(order.total - (order.paid_total || 0))}

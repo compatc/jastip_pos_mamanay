@@ -28,8 +28,13 @@ function shortId(id: string): string {
   return "NAY" + String(Math.abs(hash) % 10000).padStart(4, "0");
 }
 
+function itemLabel(i: { product_name: string; variant?: string | null }) {
+  return i.variant ? `${i.product_name} ${i.variant}` : i.product_name;
+}
+
 interface OrderItemData {
   product_name: string;
+  variant?: string | null;
   quantity: number;
   price: number;
   stock: number;
@@ -160,7 +165,7 @@ export default function Shipments() {
       const ids = allOrders.map((o) => o.id);
       const { data: items } = await supabase
         .from("order_items")
-        .select("order_id, product_name, quantity, price")
+        .select("order_id, product_name, quantity, price, variant")
         .in("order_id", ids);
 
       const { data: products } = await supabase
@@ -180,6 +185,7 @@ export default function Shipments() {
         if (!map[row.order_id]) map[row.order_id] = [];
         map[row.order_id].push({
           product_name: row.product_name,
+          variant: row.variant,
           quantity: row.quantity,
           price: row.price,
           stock: stockMap[row.product_name] || 0,
@@ -205,7 +211,7 @@ export default function Shipments() {
       const ids = shipped.map((o) => o.id);
       const { data: items } = await supabase
         .from("order_items")
-        .select("order_id, product_name, quantity, price")
+        .select("order_id, product_name, quantity, price, variant")
         .in("order_id", ids);
 
       const { data: customersData } = await supabase
@@ -225,6 +231,7 @@ export default function Shipments() {
           if (!map[row.order_id]) map[row.order_id] = [];
           map[row.order_id].push({
             product_name: row.product_name,
+            variant: row.variant,
             quantity: row.quantity,
             price: row.price,
             stock: 0,
@@ -396,7 +403,7 @@ export default function Shipments() {
     let msg = `Halo Kak ${customerName} 👋\n\n`;
     msg += "Kami mau info pesanan Kakak sudah siap dikirim:\n\n";
     for (const o of orders) {
-      const itemNames = o.items.map((i) => `${i.product_name} ×${i.quantity}`).join(", ");
+      const itemNames = o.items.map((i) => `${itemLabel(i)} ×${i.quantity}`).join(", ");
       msg += `📦 ${shortId(o.id)}: ${itemNames}\n`;
     }
     msg += `\nKalau sudah oke, kami kirim ya! 🚚`;

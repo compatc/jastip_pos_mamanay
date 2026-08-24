@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     if (orderIds.length > 0) {
       const { data: items } = await sb
         .from("order_items")
-        .select("order_id, product_name, quantity, price, discount")
+        .select("order_id, product_name, quantity, price, discount, variant")
         .in("order_id", orderIds);
       allItems = items || [];
     }

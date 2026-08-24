@@ -34,7 +34,7 @@ type PiutangCustomer = {
 export default function Piutang() {
   const navigate = useNavigate();
   const { allOrders, loadAllOrders, customers, loadCustomers, products, loadProducts } = useStore();
-  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string }[]>>({});
+  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; variant?: string | null }[]>>({});
   const [search, setSearch] = useState("");
   const [agingFilter, setAgingFilter] = useState<"all" | "30" | "60" | "90" | "90+">("all");
 
@@ -46,7 +46,7 @@ export default function Piutang() {
 
   useEffect(() => {
     async function loadItems() {
-      const map: Record<string, { product_name: string }[]> = {};
+      const map: Record<string, { product_name: string; variant?: string | null }[]> = {};
       for (const order of allOrders) {
         if (order.payment_status === "paid") continue;
         const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/customer-orders?customer_id=${order.customer_id}`);
@@ -74,7 +74,7 @@ export default function Piutang() {
       const sisa = order.total - (order.paid_total || 0);
       const days = daysSince(order.created_at);
       const items = itemsByOrder[order.id] || [];
-      const productNames = items.map((i) => i.product_name).join(", ") || "-";
+      const productNames = items.map((i) => i.variant ? `${i.product_name} ${i.variant}` : i.product_name).join(", ") || "-";
 
       if (existing) {
         existing.totalHutang += sisa;
