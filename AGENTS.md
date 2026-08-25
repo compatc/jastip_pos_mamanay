@@ -221,4 +221,5 @@ total: 2 pcs
 
 - **Loader2 missing import**: `Loader2` dari `lucide-react` WAJIB di-import kalau dipakai di file. Incident: 25 Agustus 2026, Inventory.tsx crash di Vercel karena `Loader2` dipakai di PO Summary Modal tapi tidak di-import. **Selalu cek import sebelum push.**
 - **Duplicate type declaration**: Jangan duplicate type declaration di `useStore.ts`. Kalau edit signature, update DI TEMPAT YANG SAMA, jangan buat baru.
+- **Duplicate const variable**: JANGAN declare `const` yang sama 2x di scope yang sama. Incident: 25 Agustus 2026, `catalog-order.mjs` punya 2x `const url = new URL(...)` di GET handler → SyntaxError → entire API 500 → catalog kosong. **Kalau tambah fitur baru di function yang sudah ada, PAKAI variable yang SUDAH ADA, jangan buat baru.**
 - **PO Summary Modal placement**: Modal harus di DALAM `<div>` return utama, bukan di luar `</div>` closing. Kalau di luar, build error.
