@@ -646,7 +646,10 @@ export default function Catalog() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-900">
-                      {(selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "Stok tersedia" : "Stok habis"}
+                      {selected.stock_type === "po"
+                        ? "Bisa Pre-Order"
+                        : (selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "Stok tersedia" : "Stok habis"
+                      }
                     </p>
                     <p className="text-[11px] text-slate-500">
                       {selected.stock_type === "po" ? "Pre-order, estimasi 7-14 hari" : "Siap dikirim 1-2 hari"}
