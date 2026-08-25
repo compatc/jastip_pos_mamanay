@@ -144,6 +144,10 @@ export default function Inventory() {
   const [sendStatus, setSendStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const promoScrollRef = useRef<HTMLDivElement>(null);
   const [previewPromo, setPreviewPromo] = useState<any | null>(null);
+  const [cancelPoProductId, setCancelPoProductId] = useState<string | null>(null);
+  const [cancelPoOrders, setCancelPoOrders] = useState<any[]>([]);
+  const [cancelPoLoading, setCancelPoLoading] = useState(false);
+  const [cancelPoConfirming, setCancelPoConfirming] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -608,6 +612,83 @@ export default function Inventory() {
     promoScrollRef.current.scrollBy({ left: dir === "left" ? -amt : amt, behavior: "smooth" });
   }
 
+  async function openCancelPo(productId: string) {
+    setCancelPoProductId(productId);
+    setCancelPoLoading(true);
+    try {
+      const product = products.find(p => p.id === productId);
+      const productName = product?.name || "";
+      const cleanName = productName.replace(/\s*\[PO\]\s*/gi, "").trim();
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, variant, quantity, price")
+        .or(`product_id.eq.${productId},product_name.eq.${productName},product_name.ilike.%${cleanName}%`);
+      if (!items || items.length === 0) {
+        setCancelPoOrders([]);
+        return;
+      }
+      const orderIds = [...new Set(items.map((i: any) => i.order_id))];
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, customer_id, payment_status, fulfillment_status, created_at")
+        .in("id", orderIds);
+      const pendingOrders = (orders || []).filter((o: any) =>
+        o.fulfillment_status === "belum_ready" || o.fulfillment_status === "ready"
+      );
+      if (pendingOrders.length === 0) {
+        setCancelPoOrders([]);
+        return;
+      }
+      const pendingIds = new Set(pendingOrders.map((o: any) => o.id));
+      const affectedItems = items.filter((i: any) => pendingIds.has(i.order_id));
+      const customerIds = [...new Set(pendingOrders.map((o: any) => o.customer_id).filter(Boolean))];
+      const { data: custs } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
+        : { data: [] };
+      const custMap = new Map((custs || []).map((c: any) => [c.id, c]));
+      const merged = pendingOrders.map((o: any) => {
+        const cust = custMap.get(o.customer_id) || { name: "-", phone: "" };
+        const oItems = affectedItems.filter((i: any) => i.order_id === o.id);
+        const total = oItems.reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0);
+        const paid = o.payment_status === "paid" ? total : o.payment_status === "dp" ? Math.round(total * 0.5) : 0;
+        return {
+          orderId: o.id,
+          customerName: cust.name,
+          customerPhone: cust.phone || "",
+          items: oItems,
+          total,
+          paid,
+          sisa: total - paid,
+          paymentStatus: o.payment_status,
+        };
+      });
+      setCancelPoOrders(merged);
+    } catch {
+      setCancelPoOrders([]);
+    } finally {
+      setCancelPoLoading(false);
+    }
+  }
+
+  async function confirmCancelPo() {
+    if (!cancelPoProductId || cancelPoOrders.length === 0) return;
+    setCancelPoConfirming(true);
+    try {
+      const orderIds = cancelPoOrders.map(o => o.orderId);
+      await supabase
+        .from("orders")
+        .update({ fulfillment_status: "cancelled" })
+        .in("id", orderIds);
+      setCancelPoProductId(null);
+      setCancelPoOrders([]);
+      alert(`Berhasil cancel ${orderIds.length} order!`);
+    } catch (e: any) {
+      alert("Gagal cancel: " + (e.message || e));
+    } finally {
+      setCancelPoConfirming(false);
+    }
+  }
+
   async function bulkSendToGroup() {
     if (selectedProducts.size === 0) return;
     setBulkSending(true);
@@ -994,16 +1075,26 @@ export default function Inventory() {
                       {(product as any).stock_type === "po" ? "PO" : "Ready"}
                     </span>
                     {(product as any).stock_type === "po" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); togglePoClosed(product.id, !(product as any).po_closed); }}
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all ${
-                          (product as any).po_closed
-                            ? "bg-red-100 text-red-600 hover:bg-red-200"
-                            : "bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-600"
-                        }`}
-                      >
-                        {(product as any).po_closed ? "PO TUTUP" : "Tutup PO"}
-                      </button>
+                      <div className="flex gap-1 mt-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); togglePoClosed(product.id, !(product as any).po_closed); }}
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all ${
+                            (product as any).po_closed
+                              ? "bg-red-100 text-red-600 hover:bg-red-200"
+                              : "bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-600"
+                          }`}
+                        >
+                          {(product as any).po_closed ? "PO TUTUP" : "Tutup PO"}
+                        </button>
+                        {(product as any).po_closed && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openCancelPo(product.id); }}
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white hover:bg-red-600 transition-all"
+                          >
+                            Cancel Order
+                          </button>
+                        )}
+                      </div>
                     )}
                     {(productTags[product.id] || []).length > 0 && (
                       <div className="flex flex-wrap gap-0.5 mt-1">
@@ -2356,6 +2447,97 @@ export default function Inventory() {
               >
                 {sendingPromo === previewPromo?.id ? "Mengirim..." : "Kirim ke Grup"}
               </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {cancelPoProductId && (() => {
+        const product = products.find(p => p.id === cancelPoProductId);
+        return (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50 max-h-[85dvh] flex flex-col">
+              <div className="flex items-center justify-between mb-3 shrink-0">
+                <div>
+                  <h3 className="text-base font-bold text-gray-800">Cancel Order PO</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{product?.name || "-"}</p>
+                </div>
+                <button onClick={() => { setCancelPoProductId(null); setCancelPoOrders([]); }} className="p-2 hover:bg-pink-50 rounded-xl transition-all">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto mb-3">
+                {cancelPoLoading ? (
+                  <div className="text-center py-8 text-sm text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                    Mencari order...
+                  </div>
+                ) : cancelPoOrders.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-400">
+                    <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                    Tidak ada order yang perlu dicancel
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-gray-400 font-semibold mb-2">
+                      {cancelPoOrders.length} order akan dicancel (status: belum_ready/ready, belum dikirim):
+                    </p>
+                    {cancelPoOrders.map((o) => (
+                      <div key={o.orderId} className="bg-red-50 border border-red-100 rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <div>
+                            <p className="text-xs font-bold text-gray-800">{o.customerName}</p>
+                            <p className="text-[10px] text-gray-400">{o.customerPhone || "Tanpa HP"}</p>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            o.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-600" :
+                            o.paymentStatus === "dp" ? "bg-amber-100 text-amber-600" :
+                            "bg-gray-100 text-gray-500"
+                          }`}>
+                            {o.paymentStatus === "paid" ? "Sudah Bayar" : o.paymentStatus === "dp" ? "DP" : "Belum Bayar"}
+                          </span>
+                        </div>
+                        <div className="space-y-0.5">
+                          {o.items.map((item: any, idx: number) => (
+                            <p key={idx} className="text-[10px] text-gray-600">
+                              {item.product_name}{item.variant ? ` ${item.variant}` : ""} × {item.quantity}
+                            </p>
+                          ))}
+                        </div>
+                        {o.sisa > 0 && (
+                          <p className="text-[10px] text-red-500 font-semibold mt-1">
+                            Sisa bayar: Rp{o.sisa.toLocaleString("id-ID")}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {cancelPoOrders.length > 0 && (
+                <div className="shrink-0 space-y-2">
+                  <p className="text-[10px] text-amber-600 font-semibold bg-amber-50 border border-amber-100 rounded-lg p-2">
+                    ⚠️ Order yang sudah dibayar (DP/Lunas) tetap dicancel. Hubungi pelanggan untuk refund.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setCancelPoProductId(null); setCancelPoOrders([]); }}
+                      className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={confirmCancelPo}
+                      disabled={cancelPoConfirming}
+                      className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-red-200/40"
+                    >
+                      {cancelPoConfirming ? "Mencancel..." : `Cancel ${cancelPoOrders.length} Order`}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
