@@ -190,9 +190,17 @@ export default async function handler(req, res) {
       }
 
       for (const item of items) {
+        // Lookup product_id by name if not provided
+        let productId = item.product_id || null;
+        if (!productId && item.product_name) {
+          const cleanName = item.product_name.replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, '').replace(/\s+/g, ' ').trim();
+          const { data: prodMatch } = await sb.from("products").select("id").or(`name.eq.${item.product_name},name.ilike.%${cleanName}%`).limit(1).maybeSingle();
+          if (prodMatch) productId = prodMatch.id;
+        }
+
         const { error: itemErr } = await sb.from("order_items").insert({
           id: randomUUID(), order_id: orderId,
-          product_id: item.product_id || null,
+          product_id: productId,
           product_name: item.product_name || item.name || "Produk",
           price: item.price || 0,
           quantity: item.quantity || 1,
@@ -201,9 +209,9 @@ export default async function handler(req, res) {
         });
         if (itemErr) console.error("bot-order item:", itemErr.message);
 
-        // Create stock movement if product_id exists
-        if (item.product_id) {
-          const { data: prod } = await sb.from("products").select("id, stock, unit").eq("id", item.product_id).single();
+        // Create stock movement if product_id found
+        if (productId) {
+          const { data: prod } = await sb.from("products").select("id, stock, unit").eq("id", productId).single();
           if (prod) {
             const qty = -(item.quantity || 1);
             const newStock = (prod.stock || 0) + qty;
