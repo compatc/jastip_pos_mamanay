@@ -26,6 +26,7 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  Check,
 } from "lucide-react";
 
 interface ProductForm {
@@ -148,6 +149,7 @@ export default function Inventory() {
   const [cancelPoOrders, setCancelPoOrders] = useState<any[]>([]);
   const [cancelPoLoading, setCancelPoLoading] = useState(false);
   const [cancelPoConfirming, setCancelPoConfirming] = useState(false);
+  const [cancelPoSelected, setCancelPoSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadProducts();
@@ -663,24 +665,27 @@ export default function Inventory() {
         };
       });
       setCancelPoOrders(merged);
+      setCancelPoSelected(new Set(merged.map(o => o.orderId)));
     } catch {
       setCancelPoOrders([]);
+      setCancelPoSelected(new Set());
     } finally {
       setCancelPoLoading(false);
     }
   }
 
   async function confirmCancelPo() {
-    if (!cancelPoProductId || cancelPoOrders.length === 0) return;
+    if (!cancelPoProductId || cancelPoSelected.size === 0) return;
     setCancelPoConfirming(true);
     try {
-      const orderIds = cancelPoOrders.map(o => o.orderId);
+      const orderIds = [...cancelPoSelected];
       await supabase
         .from("orders")
         .update({ fulfillment_status: "cancelled" })
         .in("id", orderIds);
       setCancelPoProductId(null);
       setCancelPoOrders([]);
+      setCancelPoSelected(new Set());
       alert(`Berhasil cancel ${orderIds.length} order!`);
     } catch (e: any) {
       alert("Gagal cancel: " + (e.message || e));
@@ -2480,38 +2485,77 @@ export default function Inventory() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-[10px] text-gray-400 font-semibold mb-2">
-                      {cancelPoOrders.length} order akan dicancel (status: belum_ready/ready, belum dikirim):
-                    </p>
-                    {cancelPoOrders.map((o) => (
-                      <div key={o.orderId} className="bg-red-50 border border-red-100 rounded-xl p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <div>
-                            <p className="text-xs font-bold text-gray-800">{o.customerName}</p>
-                            <p className="text-[10px] text-gray-400">{o.customerPhone || "Tanpa HP"}</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] text-gray-400 font-semibold">
+                        {cancelPoOrders.length} order ditemukan (belum_ready/ready):
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (cancelPoSelected.size === cancelPoOrders.length) {
+                            setCancelPoSelected(new Set());
+                          } else {
+                            setCancelPoSelected(new Set(cancelPoOrders.map(o => o.orderId)));
+                          }
+                        }}
+                        className="text-[10px] text-pink-500 font-bold hover:text-pink-600"
+                      >
+                        {cancelPoSelected.size === cancelPoOrders.length ? "Batal Pilih" : "Pilih Semua"}
+                      </button>
+                    </div>
+                    {cancelPoOrders.map((o) => {
+                      const isSelected = cancelPoSelected.has(o.orderId);
+                      return (
+                        <div
+                          key={o.orderId}
+                          onClick={() => {
+                            setCancelPoSelected(prev => {
+                              const next = new Set(prev);
+                              if (next.has(o.orderId)) next.delete(o.orderId);
+                              else next.add(o.orderId);
+                              return next;
+                            });
+                          }}
+                          className={`border rounded-xl p-3 cursor-pointer transition-all ${
+                            isSelected ? "bg-red-50 border-red-300 shadow-sm" : "bg-gray-50 border-gray-200 opacity-60"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                              isSelected ? "bg-red-500 border-red-500" : "border-gray-300 bg-white"
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div>
+                                  <p className="text-xs font-bold text-gray-800">{o.customerName}</p>
+                                  <p className="text-[10px] text-gray-400">{o.customerPhone || "Tanpa HP"}</p>
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  o.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-600" :
+                                  o.paymentStatus === "dp" ? "bg-amber-100 text-amber-600" :
+                                  "bg-gray-100 text-gray-500"
+                                }`}>
+                                  {o.paymentStatus === "paid" ? "Sudah Bayar" : o.paymentStatus === "dp" ? "DP" : "Belum Bayar"}
+                                </span>
+                              </div>
+                              <div className="space-y-0.5">
+                                {o.items.map((item: any, idx: number) => (
+                                  <p key={idx} className="text-[10px] text-gray-600">
+                                    {item.product_name}{item.variant ? ` ${item.variant}` : ""} × {item.quantity}
+                                  </p>
+                                ))}
+                              </div>
+                              {o.sisa > 0 && (
+                                <p className="text-[10px] text-red-500 font-semibold mt-1">
+                                  Sisa bayar: Rp{o.sisa.toLocaleString("id-ID")}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            o.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-600" :
-                            o.paymentStatus === "dp" ? "bg-amber-100 text-amber-600" :
-                            "bg-gray-100 text-gray-500"
-                          }`}>
-                            {o.paymentStatus === "paid" ? "Sudah Bayar" : o.paymentStatus === "dp" ? "DP" : "Belum Bayar"}
-                          </span>
                         </div>
-                        <div className="space-y-0.5">
-                          {o.items.map((item: any, idx: number) => (
-                            <p key={idx} className="text-[10px] text-gray-600">
-                              {item.product_name}{item.variant ? ` ${item.variant}` : ""} × {item.quantity}
-                            </p>
-                          ))}
-                        </div>
-                        {o.sisa > 0 && (
-                          <p className="text-[10px] text-red-500 font-semibold mt-1">
-                            Sisa bayar: Rp{o.sisa.toLocaleString("id-ID")}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -2523,17 +2567,17 @@ export default function Inventory() {
                   </p>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setCancelPoProductId(null); setCancelPoOrders([]); }}
+                      onClick={() => { setCancelPoProductId(null); setCancelPoOrders([]); setCancelPoSelected(new Set()); }}
                       className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
                     >
                       Batal
                     </button>
                     <button
                       onClick={confirmCancelPo}
-                      disabled={cancelPoConfirming}
+                      disabled={cancelPoConfirming || cancelPoSelected.size === 0}
                       className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-red-200/40"
                     >
-                      {cancelPoConfirming ? "Mencancel..." : `Cancel ${cancelPoOrders.length} Order`}
+                      {cancelPoConfirming ? "Mencancel..." : `Cancel ${cancelPoSelected.size} Order`}
                     </button>
                   </div>
                 </div>
