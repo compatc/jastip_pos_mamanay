@@ -285,10 +285,10 @@ export default function Catalog() {
               Semua
             </button>
             {allUniqueTags.map((t) => (
+              <div key={t} className="flex items-center gap-1 shrink-0">
               <button
-                key={t}
                 onClick={() => { const p = new URLSearchParams(searchParams); p.set("tag", t); setSearchParams(p); }}
-                className={`px-4 py-2.5 rounded-2xl text-[0.82rem] font-semibold whitespace-nowrap transition-all shrink-0 border-2 ${
+                className={`px-4 py-2.5 rounded-2xl text-[0.82rem] font-semibold whitespace-nowrap transition-all border-2 ${
                   tagFilter === t
                     ? "bg-slate-900 text-white border-slate-900"
                     : "bg-white text-slate-600 border-slate-200"
@@ -296,6 +296,14 @@ export default function Catalog() {
               >
                 {t}
               </button>
+              <button
+                onClick={() => { const url = window.location.origin + "/api/catalog-order?ogTag=" + t; navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {}); }}
+                className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+                title={"Share " + t}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+              </div>
             ))}
           </div>
         )}
