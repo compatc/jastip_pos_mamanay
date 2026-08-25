@@ -64,6 +64,67 @@ export default async function handler(req, res) {
         return;
       }
 
+      const promoRec = url.searchParams.get("promoRec");
+      if (promoRec !== null) {
+        const pDays = parseInt(url.searchParams.get("days") || "30");
+        const pMinStock = parseInt(url.searchParams.get("minStock") || "3");
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - pDays);
+        const cutoffISO = cutoffDate.toISOString();
+
+        const { data: prods } = await sb.from("products")
+          .select("id, name, sell_price, stock, stock_type, image, images, supplier")
+          .gt("stock", 0).order("name");
+
+        const { data: rItems } = await sb.from("order_items")
+          .select("product_name, product_id, quantity, order_id")
+          .gte("created_at", cutoffISO);
+
+        const rOrderIds = [...new Set((rItems || []).map(i => i.order_id))];
+        const { data: rOrders } = await sb.from("orders")
+          .select("id, order_type").in("id", rOrderIds).eq("order_type", "penjualan");
+        const penjualanIds = new Set((rOrders || []).map(o => o.id));
+        const pItems = (rItems || []).filter(i => penjualanIds.has(i.order_id));
+
+        const salesById = {};
+        const salesByName = {};
+        for (const item of pItems) {
+          const n = (item.product_name || "").toLowerCase().replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, "").trim();
+          salesByName[n] = (salesByName[n] || 0) + item.quantity;
+          if (item.product_id) salesById[item.product_id] = (salesById[item.product_id] || 0) + item.quantity;
+        }
+
+        const recs = [];
+        for (const p of (prods || [])) {
+          if (p.stock < pMinStock || p.stock_type === "po") continue;
+          const cn = p.name.toLowerCase().replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, "").trim();
+          const sold = salesById[p.id] || salesByName[cn] || 0;
+          const ratio = p.stock > 0 ? sold / p.stock : 1;
+          if (ratio >= 0.3 && sold > 0) continue;
+
+          let promoType = "discount", promoValue = 15, promoMsg = "";
+          if (sold === 0 && p.stock >= 5) {
+            promoType = "flash_sale"; promoValue = 20;
+            promoMsg = `🔥 FLASH SALE! ${p.name} diskon 20%! Stok terbatas!`;
+          } else if (p.stock >= 10 && ratio < 0.2) {
+            promoType = "bundling"; promoValue = 0;
+            promoMsg = `🎁 BUNDLING! Beli ${p.name} hemat spesial! Stok: ${p.stock} pcs`;
+          } else {
+            promoMsg = `🏷️ ${p.name} diskon 15%! Stok: ${p.stock} pcs, buruan sebelum kehabisan!`;
+          }
+          recs.push({
+            id: p.id, name: p.name, price: p.sell_price, stock: p.stock,
+            soldLast30Days: sold, salesRatio: Math.round(ratio * 100),
+            supplier: p.supplier || "", image: (p.images?.[0]) || p.image || null,
+            promoType, promoValue, promoMsg,
+          });
+        }
+        recs.sort((a, b) => b.stock - a.stock);
+
+        json(res, 200, { ok: true, days: pDays, minStock: pMinStock, totalProducts: (prods || []).length, recommendations: recs });
+        return;
+      }
+
       res.setHeader("Cache-Control", "public, max-age=60");
 
       const tagFilter = url.searchParams.get("tag");
