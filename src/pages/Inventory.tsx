@@ -143,6 +143,7 @@ export default function Inventory() {
   const [sendingPromo, setSendingPromo] = useState<string | null>(null);
   const [sendStatus, setSendStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const promoScrollRef = useRef<HTMLDivElement>(null);
+  const [previewPromo, setPreviewPromo] = useState<any | null>(null);
 
   useEffect(() => {
     loadProducts();
@@ -768,10 +769,10 @@ export default function Inventory() {
                       <span className="text-[9px] font-semibold text-pink-600">Rp{promo.price.toLocaleString("id-ID")}</span>
                     </div>
                     <button
-                      onClick={() => sendPromoToGroup(promo)}
+                      onClick={() => setPreviewPromo(promo)}
                       disabled={sendingPromo !== null}
                       className="p-1.5 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition-all shrink-0 disabled:opacity-50 active:scale-90 shadow-sm shadow-pink-500/20"
-                      title="Kirim ke Grup"
+                      title="Preview & Kirim"
                     >
                       {sendingPromo === promo.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                     </button>
@@ -2287,6 +2288,78 @@ export default function Inventory() {
           </div>
         </div>
       )}
+
+      {previewPromo && (() => {
+        const promo = previewPromo;
+        const img = promo.image || "";
+        const previewMsg = promo.promoMsg.split("\n").join("\n");
+        return (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-800">Preview Promo</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{promo.name}</p>
+                </div>
+                <button onClick={() => setPreviewPromo(null)} className="p-2 hover:bg-pink-50 rounded-xl transition-all">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {img && (
+                <div className="mb-3 flex justify-center">
+                  <img src={img} alt={promo.name} className="w-20 h-20 rounded-xl object-cover border border-gray-100" />
+                </div>
+              )}
+
+              <div className="mb-3">
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1.5">Preview di Grup</label>
+                <div className="bg-[#e5ddd5] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9InAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMS41IiBmaWxsPSJyZ2JhKDAsMCwwLDAuMDMpIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI3ApIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiLz48L3N2Zz4=')] rounded-xl p-3 min-h-[120px] max-h-[300px] overflow-y-auto">
+                  <div className="bg-white rounded-xl shadow-sm max-w-[85%] ml-auto overflow-hidden">
+                    {img && (
+                      <img src={img} alt={promo.name} className="w-full h-32 object-cover" />
+                    )}
+                    <div className="px-2.5 py-1.5">
+                      <p className="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: previewMsg.replace(/_([^_]+)_/g, '<em>$1</em>') }} />
+                      <div className="flex items-center justify-end gap-1 mt-0.5">
+                        <span className="text-[9px] text-gray-400">12:00</span>
+                        <svg className="w-3 h-3 text-blue-400" viewBox="0 0 16 11" fill="currentColor"><path d="M11.071.653a.457.457 0 0 0-.304-.102-.493.493 0 0 0-.381.178l-6.19 7.636-2.011-2.095a.46.46 0 0 0-.353-.146.457.457 0 0 0-.331.136.448.448 0 0 0-.14.339c0 .136.046.255.14.351l2.365 2.44a.463.463 0 0 0 .353.146c.14 0 .27-.046.38-.14l6.545-8.091a.448.448 0 0 0 .1-.362.448.448 0 0 0-.155-.33l-.018-.012z"/><path d="M14.757.148a.493.493 0 0 0-.381-.178.457.457 0 0 0-.304.102l-.018.012a.448.448 0 0 0-.155.33c0 .142.034.27.1.362l6.545 8.091a.517.517 0 0 0 .38.14c.14 0 .27-.046.353-.14l2.365-2.44a.455.455 0 0 0 .14-.351.448.448 0 0 0-.14-.339.457.457 0 0 0-.331-.136.46.46 0 0 0-.353.146l-2.011 2.095-6.19-7.636z" opacity=".5"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setSendingPromo(promo.id);
+                  setSendStatus(null);
+                  try {
+                    const caption = previewMsg;
+                    const res = await fetch("https://hardship-broadly-mammogram.ngrok-free.dev/api/send-group", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+                      body: JSON.stringify({ group_jid: "120363404605912473@g.us", message: caption, image: img }),
+                    });
+                    const data = await res.json();
+                    setSendStatus({ ok: data.ok, msg: data.ok ? `"${promo.name}" terkirim!` : (data.error || "Gagal kirim") });
+                  } catch (e: any) {
+                    setSendStatus({ ok: false, msg: "Error: " + (e.message || e) });
+                  } finally {
+                    setSendingPromo(null);
+                    setPreviewPromo(null);
+                    setTimeout(() => setSendStatus(null), 3000);
+                  }
+                }}
+                disabled={sendingPromo !== null}
+                className="w-full py-2.5 bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-green-200/40 text-sm"
+              >
+                {sendingPromo === previewPromo?.id ? "Mengirim..." : "Kirim ke Grup"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
