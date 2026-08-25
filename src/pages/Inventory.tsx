@@ -85,6 +85,8 @@ export default function Inventory() {
     productTags,
     loadProductTags,
     setProductTags,
+    customers,
+    loadCustomers,
   } = useStore();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -124,7 +126,7 @@ export default function Inventory() {
   const [rekapProductId, setRekapProductId] = useState<string | null>(null);
   const [rekapItems, setRekapItems] = useState<any[]>([]);
   const [rekapLoading, setRekapLoading] = useState(false);
-  const existingSuppliers = [...new Set(products.map((p: any) => p.supplier).filter(Boolean))].sort();
+  const existingSuppliers = [...new Set(customers.filter((c: any) => c.category === "supplier").map((c: any) => c.name))].sort();
 
   const [poSummaryOpen, setPoSummaryOpen] = useState(false);
   const [poSummaryItems, setPoSummaryItems] = useState<any[]>([]);
@@ -135,6 +137,7 @@ export default function Inventory() {
     loadAllProductDiscounts();
     loadVariantStock();
     loadTags();
+    loadCustomers();
   }, []);
 
   useEffect(() => {
