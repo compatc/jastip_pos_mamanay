@@ -15,6 +15,15 @@ import {
   MessageCircle,
   ChevronRight,
   AlertTriangle,
+  Megaphone,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Sparkles,
+  Send,
+  Flame,
+  Percent,
+  Package,
 } from "lucide-react";
 
 type TabFilter = "all" | "pelanggan" | "supplier";
@@ -55,9 +64,19 @@ export default function Dashboard() {
   const [editAddress, setEditAddress] = useState("");
   const [editCategory, setEditCategory] = useState<CustomerCategory>("pelanggan");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [promoRecs, setPromoRecs] = useState<any[]>([]);
+  const [promoLoading, setPromoLoading] = useState(true);
+  const [showPromos, setShowPromos] = useState(true);
+  const [sendingPromo, setSendingPromo] = useState<string | null>(null);
+  const [sendStatus, setSendStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
   useEffect(() => {
     loadCustomers();
+    fetch("/api/catalog-order?promoRec=1&days=30&minStock=3")
+      .then((r) => r.json())
+      .then((d) => setPromoRecs(d.recommendations || []))
+      .catch(() => {})
+      .finally(() => setPromoLoading(false));
   }, []);
 
   const filtered = customers.filter((c) => {
@@ -131,6 +150,69 @@ export default function Dashboard() {
       URL.revokeObjectURL(url);
     } catch (err) {
       alert("Gagal membuat backup: " + (err instanceof Error ? err.message : String(err)));
+    }
+  }
+
+  async function sendPromoToGroup(promo: any) {
+    setSendingPromo(promo.id);
+    setSendStatus(null);
+    try {
+      const img = promo.image || "";
+      const lines = promo.promoMsg.split("\n");
+      const caption = lines.join("\n");
+      const res = await fetch("https://hardship-broadly-mammogram.ngrok-free.dev/api/send-group", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer mamanay2026",
+        },
+        body: JSON.stringify({ caption, image: img }),
+      });
+      const data = await res.json();
+      setSendStatus({ ok: data.ok, msg: data.ok ? `"${promo.name}" terkirim!` : (data.error || "Gagal kirim") });
+    } catch (e: any) {
+      setSendStatus({ ok: false, msg: "Error: " + (e.message || e) });
+    } finally {
+      setSendingPromo(null);
+      setTimeout(() => setSendStatus(null), 3000);
+    }
+  }
+
+  async function sendAllPromos() {
+    setSendingPromo("all");
+    setSendStatus(null);
+    let ok = 0, fail = 0;
+    for (const p of promoRecs) {
+      try {
+        const img = p.image || "";
+        const lines = p.promoMsg.split("\n");
+        const caption = lines.join("\n");
+        const res = await fetch("https://hardship-broadly-mammogram.ngrok-free.dev/api/send-group", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer mamanay2026",
+          },
+          body: JSON.stringify({ caption, image: img }),
+        });
+        const data = await res.json();
+        if (data.ok) ok++; else fail++;
+      } catch {
+        fail++;
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    setSendStatus({ ok: fail === 0, msg: `Selesai: ${ok} berhasil, ${fail} gagal` });
+    setSendingPromo(null);
+    setTimeout(() => setSendStatus(null), 4000);
+  }
+
+  function promoTypeBadge(type: string) {
+    switch (type) {
+      case "flash_sale": return { icon: Flame, color: "bg-red-100 text-red-600 border-red-200", label: "Flash Sale" };
+      case "bundling": return { icon: Package, color: "bg-purple-100 text-purple-600 border-purple-200", label: "Bundling" };
+      case "discount": return { icon: Percent, color: "bg-amber-100 text-amber-600 border-amber-200", label: "Diskon" };
+      default: return { icon: Sparkles, color: "bg-sky-100 text-sky-600 border-sky-200", label: type };
     }
   }
 
@@ -242,6 +324,106 @@ export default function Dashboard() {
             <p className="text-xs text-amber-400 font-semibold">Pasok barang</p>
           </div>
         </div>
+
+        {promoRecs.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <button
+              onClick={() => setShowPromos(!showPromos)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50/50 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-sm shadow-pink-500/20">
+                  <Megaphone className="w-3.5 h-3.5 text-white" />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Rekomendasi Promo</span>
+                <span className="text-[10px] font-bold bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded-full">{promoRecs.length}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {!showPromos && promoRecs.length > 0 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); sendAllPromos(); }}
+                    disabled={sendingPromo !== null}
+                    className="px-3 py-1.5 bg-pink-500 hover:bg-pink-600 text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {sendingPromo === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                    Kirim Semua
+                  </button>
+                )}
+                {showPromos ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </div>
+            </button>
+
+            {showPromos && (
+              <div className="px-4 pb-3 space-y-2">
+                {sendStatus && (
+                  <div className={`px-3 py-2 rounded-xl text-xs font-semibold ${sendStatus.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                    {sendStatus.ok ? "✅ " : "❌ "}{sendStatus.msg}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-3 h-3 text-pink-400" />
+                  <span className="text-[10px] text-slate-400 font-semibold">Produk dengan stok tinggi tapi penjualan rendah — kirim promo ke grup!</span>
+                </div>
+
+                {promoRecs.map((promo) => {
+                  const badge = promoTypeBadge(promo.promoType);
+                  const BadgeIcon = badge.icon;
+                  return (
+                    <div key={promo.id} className="flex items-center gap-3 p-2.5 bg-slate-50/80 rounded-xl border border-slate-100 hover:border-pink-200 transition-all group">
+                      {promo.image ? (
+                        <img src={promo.image} alt={promo.name} className="w-11 h-11 rounded-lg object-cover border border-slate-200 shrink-0" />
+                      ) : (
+                        <div className="w-11 h-11 rounded-lg bg-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                          <ShoppingBag className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{promo.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badge.color}`}>
+                            <BadgeIcon className="w-2.5 h-2.5" />
+                            {badge.label}
+                          </span>
+                          <span className="text-[10px] text-slate-500">Stok: {promo.stock}</span>
+                          <span className="text-[10px] text-slate-400">Terjual: {promo.soldLast30Days}</span>
+                          <span className="text-[10px] font-semibold text-pink-600">Rp{promo.price.toLocaleString("id-ID")}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => sendPromoToGroup(promo)}
+                        disabled={sendingPromo !== null}
+                        className="px-3 py-2 bg-pink-500 hover:bg-pink-600 text-white text-[10px] font-bold rounded-xl transition-all flex items-center gap-1 shrink-0 disabled:opacity-50 active:scale-95 shadow-sm shadow-pink-500/20"
+                        title="Kirim ke Grup"
+                      >
+                        {sendingPromo === promo.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Send className="w-3 h-3" />
+                        )}
+                        Kirim
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {promoRecs.length > 3 && (
+                  <button
+                    onClick={sendAllPromos}
+                    disabled={sendingPromo !== null}
+                    className="w-full py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm shadow-pink-500/20"
+                  >
+                    {sendingPromo === "all" ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Mengirim semua...</>
+                    ) : (
+                      <><Send className="w-3.5 h-3.5" /> Kirim Semua ke Grup ({promoRecs.length} promo)</>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           <button
