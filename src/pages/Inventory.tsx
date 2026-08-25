@@ -31,6 +31,7 @@ interface ProductForm {
   image: string;
   images: string[];
   shopee_pcs: string;
+  supplier: string;
 }
 
 const emptyForm: ProductForm = {
@@ -44,6 +45,7 @@ const emptyForm: ProductForm = {
   image: "",
   images: [],
   shopee_pcs: "1",
+  supplier: "",
 };
 
 const avatarColors = [
@@ -216,8 +218,7 @@ export default function Inventory() {
     setPoSummaryLoading(true);
     try {
       const poProducts = products.filter((p) => (p as any).stock_type === "po");
-      const poNames = poProducts.map((p) => p.name);
-      if (poNames.length === 0) { setPoSummaryItems([]); return; }
+      if (poProducts.length === 0) { setPoSummaryItems([]); return; }
 
       const { data: allItems } = await supabase
         .from("order_items")
@@ -230,7 +231,7 @@ export default function Inventory() {
         : { data: [] };
       const orderMap = new Map((orders || []).map((o: any) => [o.id, o]));
 
-      const grouped: Record<string, Record<string, { qty: number; total: number; price: number }>> = {};
+      const grouped: Record<string, Record<string, { qty: number; total: number; price: number; supplier: string }>> = {};
       for (const item of allItems) {
         const o = orderMap.get(item.order_id);
         if (!o || o.order_type !== "penjualan") continue;
@@ -240,19 +241,32 @@ export default function Inventory() {
         if (!matched) continue;
         const v = item.variant || "(tanpa varian)";
         if (!grouped[matched.name]) grouped[matched.name] = {};
-        if (!grouped[matched.name][v]) grouped[matched.name][v] = { qty: 0, total: 0, price: item.price || 0 };
+        if (!grouped[matched.name][v]) grouped[matched.name][v] = { qty: 0, total: 0, price: item.price || 0, supplier: (matched as any).supplier || "" };
         grouped[matched.name][v].qty += item.quantity || 1;
         grouped[matched.name][v].total += (item.price || 0) * (item.quantity || 1);
       }
 
-      const result = Object.entries(grouped).map(([name, variants]) => {
-        const variantList = Object.entries(variants).map(([v, data]) => ({ variant: v, ...data }));
+      const productList = Object.entries(grouped).map(([name, variants]) => {
+        const variantList = Object.entries(variants).map(([v, data]) => ({ variant: v, qty: data.qty, total: data.total, price: data.price }));
         const totalQty = variantList.reduce((s, v) => s + v.qty, 0);
         const totalHarga = variantList.reduce((s, v) => s + v.total, 0);
-        return { name, variants: variantList, totalQty, totalHarga };
+        const supplier = Object.values(variants)[0]?.supplier || "";
+        return { name, variants: variantList, totalQty, totalHarga, supplier };
       }).sort((a, b) => b.totalQty - a.totalQty);
 
-      setPoSummaryItems(result);
+      const bySupplier: Record<string, typeof productList> = {};
+      for (const p of productList) {
+        const key = p.supplier || "Tanpa Supplier";
+        if (!bySupplier[key]) bySupplier[key] = [];
+        bySupplier[key].push(p);
+      }
+
+      setPoSummaryItems(Object.entries(bySupplier).map(([supplier, items]) => ({
+        supplier,
+        items,
+        totalQty: items.reduce((s, i) => s + i.totalQty, 0),
+        totalHarga: items.reduce((s, i) => s + i.totalHarga, 0),
+      })));
     } catch (e) {
       console.error("PO summary error:", e);
       setPoSummaryItems([]);
@@ -284,6 +298,7 @@ export default function Inventory() {
       image: product.image || "",
       images: existingImages,
       shopee_pcs: ((product as any).shopee_pcs || 1).toString(),
+      supplier: (product as any).supplier || "",
     });
     setFormVariants([]);
     loadProductVariants(id);
@@ -346,7 +361,8 @@ export default function Inventory() {
           parseInt(form.shopee_pcs) || 1,
           form.stock_type,
           form.description.trim(),
-          form.images
+          form.images,
+          form.supplier.trim()
         );
       } else {
         productId = await addProduct(
@@ -359,7 +375,8 @@ export default function Inventory() {
           parseInt(form.shopee_pcs) || 1,
           form.stock_type,
           form.description.trim(),
-          form.images
+          form.images,
+          form.supplier.trim()
         );
       }
 
@@ -1020,6 +1037,18 @@ export default function Inventory() {
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Supplier
+                  </label>
+                  <input
+                    type="text"
+                    value={form.supplier}
+                    onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                    placeholder="Nama supplier / toko"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
@@ -1920,9 +1949,9 @@ export default function Inventory() {
                                 </div>
                               </div>
                             ))}
-                          </div>
-                        </div>
-                        <div>
+                  </div>
+                </div>
+                <div>
                           <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Per Pelanggan</p>
                           <div className="space-y-1.5">
                             {Object.entries(byCustomer).sort((a, b) => b[1].qty - a[1].qty).map(([name, c]) => (
@@ -2030,30 +2059,40 @@ export default function Inventory() {
                   <p className="text-gray-300 text-xs mt-1">Semua produk PO sudah diproses</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {poSummaryItems.map((item) => (
-                    <div key={item.name} className="bg-gray-50 rounded-2xl p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-sm font-bold text-gray-800 flex-1 min-w-0 truncate">{item.name}</h3>
-                        <span className="text-sm font-extrabold text-rose-500 shrink-0 ml-2">{item.totalQty} pcs</span>
+                <div className="space-y-6">
+                  {poSummaryItems.map((group: any) => (
+                    <div key={group.supplier}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                          <Package className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-bold text-gray-800 truncate">{group.supplier}</h3>
+                          <p className="text-[10px] text-gray-400">{group.items.length} produk — {group.totalQty} pcs</p>
+                        </div>
                       </div>
-                      <div className="space-y-1.5">
-                        {item.variants.map((v: any) => (
-                          <div key={v.variant} className="flex items-center justify-between text-xs">
-                            <span className="text-gray-600 font-medium">{v.variant}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-500">{v.total > 0 ? `Rp ${v.total.toLocaleString("id-ID")}` : ""}</span>
-                              <span className="font-bold text-gray-800 w-12 text-right">{v.qty} pcs</span>
+                      <div className="space-y-3 pl-10">
+                        {group.items.map((item: any) => (
+                          <div key={item.name} className="bg-gray-50 rounded-2xl p-3">
+                            <div className="flex items-start justify-between mb-1.5">
+                              <h4 className="text-xs font-bold text-gray-700 flex-1 min-w-0 truncate">{item.name}</h4>
+                              <span className="text-xs font-extrabold text-rose-500 shrink-0 ml-2">{item.totalQty} pcs</span>
+                            </div>
+                            <div className="space-y-1">
+                              {item.variants.map((v: any) => (
+                                <div key={v.variant} className="flex items-center justify-between text-[11px]">
+                                  <span className="text-gray-500">{v.variant}</span>
+                                  <span className="font-semibold text-gray-700">{v.qty} pcs {v.total > 0 ? `— Rp ${v.total.toLocaleString("id-ID")}` : ""}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ))}
                       </div>
-                      {item.variants.length > 1 && (
-                        <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between text-xs">
-                          <span className="font-bold text-gray-700">Total</span>
-                          <span className="font-extrabold text-gray-900">{item.totalQty} pcs — Rp {item.totalHarga.toLocaleString("id-ID")}</span>
-                        </div>
-                      )}
+                      <div className="mt-2 pt-2 border-t border-gray-200 ml-10 flex items-center justify-between text-xs">
+                        <span className="font-bold text-gray-600">Subtotal {group.supplier}</span>
+                        <span className="font-extrabold text-gray-800">{group.totalQty} pcs — Rp {group.totalHarga.toLocaleString("id-ID")}</span>
+                      </div>
                     </div>
                   ))}
 
@@ -2061,7 +2100,7 @@ export default function Inventory() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-rose-700">Total Semua</span>
                       <span className="text-lg font-extrabold text-rose-600">
-                        {poSummaryItems.reduce((s, i) => s + i.totalQty, 0)} pcs — Rp {poSummaryItems.reduce((s, i) => s + i.totalHarga, 0).toLocaleString("id-ID")}
+                        {poSummaryItems.reduce((s: number, g: any) => s + g.totalQty, 0)} pcs — Rp {poSummaryItems.reduce((s: number, g: any) => s + g.totalHarga, 0).toLocaleString("id-ID")}
                       </span>
                     </div>
                   </div>

@@ -68,6 +68,7 @@ export interface Product {
   stock: number;
   stock_type: "ready" | "po";
   po_closed?: boolean;
+  supplier?: string;
   unit: string;
   image: string;
   images: string[];

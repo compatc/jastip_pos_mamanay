@@ -104,10 +104,24 @@ interface PosStore {
     shopeePcs?: number,
     stockType?: string,
     description?: string,
-    images?: string[]
+    images?: string[],
+    supplier?: string
   ) => Promise<string>;
   togglePoClosed: (productId: string, closed: boolean) => Promise<void>;
   updateProduct: (
+    id: string,
+    name: string,
+    costPrice: number,
+    sellPrice: number,
+    stock: number,
+    unit: string,
+    image?: string,
+    shopeePcs?: number,
+    stockType?: string,
+    description?: string,
+    images?: string[],
+    supplier?: string
+  ) => Promise<void>;
     id: string,
     name: string,
     costPrice: number,
@@ -1077,7 +1091,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ products: (data || []) as Product[] });
   },
 
-  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = []) => {
+  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
     const id = uuid();
     const created_at = new Date().toISOString();
     const { error } = await supabase
@@ -1094,6 +1108,7 @@ export const useStore = create<PosStore>((set, get) => ({
         image: image || "",
         images: images.length > 0 ? images : (image ? [image] : []),
         shopee_pcs: shopeePcs,
+        supplier: supplier || "",
         created_at,
       });
     if (error) throw error;
@@ -1101,7 +1116,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return id;
   },
 
-  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = []) => {
+  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
     const { error } = await supabase
       .from("products")
       .update({
@@ -1115,6 +1130,7 @@ export const useStore = create<PosStore>((set, get) => ({
         image: image || "",
         images: images.length > 0 ? images : (image ? [image] : []),
         shopee_pcs: shopeePcs,
+        supplier: supplier || "",
       })
       .eq("id", id);
     if (error) throw error;
