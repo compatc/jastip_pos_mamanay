@@ -124,6 +124,8 @@ export default function Inventory() {
   const [rekapProductId, setRekapProductId] = useState<string | null>(null);
   const [rekapItems, setRekapItems] = useState<any[]>([]);
   const [rekapLoading, setRekapLoading] = useState(false);
+  const existingSuppliers = [...new Set(products.map((p: any) => p.supplier).filter(Boolean))].sort();
+
   const [poSummaryOpen, setPoSummaryOpen] = useState(false);
   const [poSummaryItems, setPoSummaryItems] = useState<any[]>([]);
   const [poSummaryLoading, setPoSummaryLoading] = useState(false);
@@ -1054,9 +1056,15 @@ export default function Inventory() {
                     type="text"
                     value={form.supplier}
                     onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-                    placeholder="Nama supplier / toko"
+                    placeholder="Pilih atau ketik supplier"
+                    list="supplier-list"
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
                   />
+                  <datalist id="supplier-list">
+                    {existingSuppliers.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
@@ -1860,7 +1868,7 @@ export default function Inventory() {
 
       {rekapProductId && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-start justify-center px-4 pt-10">
-          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-purple-100 max-h-[80vh] flex flex-col">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-purple-100 flex flex-col" style={{maxHeight: 'min(80vh, 80dvh)'}}>
             {(() => {
               const product = products.find(p => p.id === rekapProductId);
               const items = rekapItems;
@@ -2042,7 +2050,7 @@ export default function Inventory() {
       {/* PO Summary Modal */}
       {poSummaryOpen && (
         <div className="fixed inset-0 z-[200] bg-black/40 flex items-end md:items-center justify-center" onClick={() => setPoSummaryOpen(false)}>
-          <div className="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden max-h-[85vh] flex flex-col animate-[slideUp_0.3s_ease]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden flex flex-col animate-[slideUp_0.3s_ease]" style={{maxHeight: 'min(85vh, 85dvh)'}} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 shrink-0">
               <div>
                 <h2 className="text-lg font-extrabold text-gray-900">Rekap PO</h2>
@@ -2053,7 +2061,7 @@ export default function Inventory() {
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 min-h-0 p-5">
+            <div className="overflow-y-auto flex-1 min-h-0 p-4 md:p-5" style={{WebkitOverflowScrolling: 'touch'}}>
               {poSummaryLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
