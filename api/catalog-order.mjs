@@ -73,7 +73,7 @@ export default async function handler(req, res) {
         const cutoffISO = cutoffDate.toISOString();
 
         const { data: prods } = await sb.from("products")
-          .select("id, name, sell_price, stock, stock_type, image, images, supplier")
+          .select("id, name, sell_price, cost_price, stock, stock_type, image, images, supplier")
           .gt("stock", 0).order("name");
 
         const { data: rItems } = await sb.from("order_items")
@@ -104,13 +104,17 @@ export default async function handler(req, res) {
 
           const discountedPrice20 = Math.round(p.sell_price * 0.8);
           const discountedPrice15 = Math.round(p.sell_price * 0.85);
+          const costPrice = p.cost_price || 0;
+          const minProfit = 6000;
           let promoType = "discount", promoValue = 15, promoMsg = "";
-          if (sold === 0 && p.stock >= 5) {
+          if (sold === 0 && p.stock >= 5 && (discountedPrice20 - costPrice) >= minProfit) {
             promoType = "flash_sale"; promoValue = 20;
             promoMsg = `🔥 FLASH SALE!\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
-          } else if (p.stock >= 10 && ratio < 0.2) {
+          } else if (p.stock >= 10 && ratio < 0.2 && (discountedPrice15 - costPrice) >= minProfit) {
             promoType = "bundling"; promoValue = 0;
             promoMsg = `🎁 BUNDLING SPESIAL!\n\n*${p.name}*\nHarga: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\n\nBeli banyak lebih hemat!\nStok: ${p.stock} pcs`;
+          } else if ((discountedPrice15 - costPrice) < minProfit) {
+            continue;
           } else {
             promoMsg = `🏷️ DISKON ${promoValue}%\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice15.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice15).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
           }
