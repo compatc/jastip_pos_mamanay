@@ -109,10 +109,7 @@ export default async function handler(req, res) {
 
           let promoType = "discount", promoValue = 15, promoMsg = "";
 
-          if (sold === 0 && p.stock >= 5 && (discountedPrice20 - costPrice) >= minProfit) {
-            promoType = "flash_sale"; promoValue = 20;
-            promoMsg = `🔥 FLASH SALE!\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
-          } else if (p.stock >= 15 && (discountedPrice15 - costPrice) >= minProfit) {
+          if (p.stock >= 15 && (discountedPrice15 - costPrice) >= minProfit) {
             const bundleQty = p.stock >= 20 ? 3 : 2;
             const bundleDiscount = p.stock >= 20 ? 25 : 15;
             const bundlePrice = Math.round(p.sell_price * (1 - bundleDiscount / 100));
@@ -121,6 +118,9 @@ export default async function handler(req, res) {
             const bundleSaving = normalTotal - bundleTotal;
             promoType = "bundling"; promoValue = bundleDiscount;
             promoMsg = `🎁 BUNDLING! Beli ${bundleQty} Lebih Hemat!\n\n*${p.name}*\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli ${bundleQty} pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk ${bundleQty} pcs!\n\nStok: ${p.stock} pcs`;
+          } else if (sold === 0 && p.stock >= 5 && (discountedPrice20 - costPrice) >= minProfit) {
+            promoType = "flash_sale"; promoValue = 20;
+            promoMsg = `🔥 FLASH SALE!\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
           } else if ((discountedPrice15 - costPrice) < minProfit) {
             continue;
           } else {
