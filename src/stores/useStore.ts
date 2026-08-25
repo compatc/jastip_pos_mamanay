@@ -106,6 +106,7 @@ interface PosStore {
     description?: string,
     images?: string[]
   ) => Promise<string>;
+  togglePoClosed: (productId: string, closed: boolean) => Promise<void>;
   updateProduct: (
     id: string,
     name: string,
@@ -1124,6 +1125,15 @@ export const useStore = create<PosStore>((set, get) => ({
       .update({ price: sellPrice })
       .eq("product_id", id);
 
+    await get().loadProducts();
+  },
+
+  togglePoClosed: async (productId, closed) => {
+    const { error } = await supabase
+      .from("products")
+      .update({ po_closed: closed })
+      .eq("id", productId);
+    if (error) throw error;
     await get().loadProducts();
   },
 

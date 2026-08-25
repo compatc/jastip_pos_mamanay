@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
       let query = sb
         .from("products")
-        .select("id, name, description, sell_price, stock, stock_type, unit, image, images")
+        .select("id, name, description, sell_price, stock, stock_type, po_closed, unit, image, images")
         .order("name", { ascending: true });
 
       if (tagFilter) {
@@ -119,6 +119,18 @@ export default async function handler(req, res) {
       if (!items || !Array.isArray(items) || items.length === 0) {
         json(res, 400, { error: "items wajib diisi" });
         return;
+      }
+
+      // Check po_closed for bot orders (product_id may be null, match by name)
+      for (const item of items) {
+        let productName = (item.product_name || "").replace(/\[.*?\]/g, "").trim();
+        if (!productName) continue;
+        const { data: botPoCheck } = await sb.from("products").select("id, po_closed, stock_type").ilike("name", "%" + productName + "%").limit(1);
+        const poMatch = (botPoCheck || []).find((p) => p.po_closed && p.stock_type === "po");
+        if (poMatch) {
+          json(res, 400, { error: "PO ditutup: " + (item.product_name || productName) });
+          return;
+        }
       }
 
       let subtotal = 0;
@@ -239,6 +251,18 @@ export default async function handler(req, res) {
       json(res, 400, { error: "items wajib diisi" });
       return;
     }
+
+    const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
+    if (productIds.length > 0) {
+      const { data: poProducts } = await sb.from("products").select("id, po_closed, stock_type").in("id", productIds);
+      const closedIds = (poProducts || []).filter((p) => p.po_closed && p.stock_type === "po").map((p) => p.id);
+      if (closedIds.length > 0) {
+        const closedNames = (items || []).filter((i) => closedIds.includes(i.product_id)).map((i) => i.product_name || i.name || "Produk");
+        json(res, 400, { error: "PO sudah ditutup untuk: " + [...new Set(closedNames)].join(", ") });
+        return;
+      }
+    }
+
     if (!customer_name || !customer_name.trim()) {
       json(res, 400, { error: "Nama wajib diisi" });
       return;

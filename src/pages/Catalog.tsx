@@ -375,8 +375,10 @@ export default function Catalog() {
                           {stock.label}
                         </span>
                         {p.stock_type === "po" && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200 mt-1">
-                            PO (Pre-Order)
+                          <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm mt-1 ${
+                            p.po_closed ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200"
+                          }`}>
+                            {p.po_closed ? "PO Ditutup" : "PO (Pre-Order)"}
                           </span>
                         )}
                         {p.tags && p.tags.length > 0 && (
@@ -613,27 +615,40 @@ export default function Catalog() {
               )}
 
               {/* Stock info */}
-              <div className={`flex items-center gap-3 p-3 rounded-xl mb-4 ${
-                (selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "bg-emerald-50" : "bg-slate-50"
-              }`}>
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  (selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "bg-emerald-100" : "bg-slate-100"
+              {selected.po_closed ? (
+                <div className="flex items-center gap-3 p-3 rounded-xl mb-4 bg-red-50">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-red-100">
+                    <X className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-red-700">PO Ditutup</p>
+                    <p className="text-[11px] text-red-500">Pesanan untuk produk ini sudah ditutup</p>
+                  </div>
+                </div>
+              ) : (
+                <div className={`flex items-center gap-3 p-3 rounded-xl mb-4 ${
+                  (selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "bg-emerald-50" : "bg-slate-50"
                 }`}>
-                  <Check className={`w-4 h-4 ${
-                    (selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "text-emerald-600" : "text-slate-400"
-                  }`} />
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    (selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "bg-emerald-100" : "bg-slate-100"
+                  }`}>
+                    <Check className={`w-4 h-4 ${
+                      (selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "text-emerald-600" : "text-slate-400"
+                    }`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">
+                      {(selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "Stok tersedia" : "Stok habis"}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {selected.stock_type === "po" ? "Pre-order, estimasi 7-14 hari" : "Siap dikirim 1-2 hari"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">
-                    {(selectedVariant ? selectedVariant.stock : selected.stock) > 0 ? "Stok tersedia" : "Stok habis"}
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    {selected.stock_type === "po" ? "Pre-order, estimasi 7-14 hari" : "Siap dikirim 1-2 hari"}
-                  </p>
-                </div>
-              </div>
+              )}
 
               <button
+                disabled={!!selected.po_closed}
                 onClick={() => {
                   if (selected.variants && selected.variants.length > 0 && !selectedVariant) {
                     alert("Pilih varian terlebih dahulu");
@@ -641,7 +656,11 @@ export default function Catalog() {
                   }
                   addToCart(selected, selectedVariant || undefined);
                 }}
-                className="flex items-center justify-center gap-2.5 w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-slate-900/20"
+                className={`flex items-center justify-center gap-2.5 w-full py-3.5 font-bold rounded-2xl transition-all active:scale-[0.98] ${
+                  selected.po_closed
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                    : "bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20"
+                }`}
               >
                 <ShoppingCart className="w-5 h-5" />
                 Tambah ke Keranjang

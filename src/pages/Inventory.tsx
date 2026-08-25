@@ -61,6 +61,7 @@ export default function Inventory() {
     addProduct,
     updateProduct,
     deleteProduct,
+    togglePoClosed,
     stockMovements,
     loadStockMovements,
     variantStock,
@@ -740,6 +741,18 @@ export default function Inventory() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${(product as any).stock_type === "po" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
                       {(product as any).stock_type === "po" ? "PO" : "Ready"}
                     </span>
+                    {(product as any).stock_type === "po" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); togglePoClosed(product.id, !(product as any).po_closed); }}
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all ${
+                          (product as any).po_closed
+                            ? "bg-red-100 text-red-600 hover:bg-red-200"
+                            : "bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-600"
+                        }`}
+                      >
+                        {(product as any).po_closed ? "PO TUTUP" : "Tutup PO"}
+                      </button>
+                    )}
                     {(productTags[product.id] || []).length > 0 && (
                       <div className="flex flex-wrap gap-0.5 mt-1">
                         {(productTags[product.id] || []).map((tid) => {
