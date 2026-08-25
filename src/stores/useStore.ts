@@ -122,18 +122,6 @@ interface PosStore {
     images?: string[],
     supplier?: string
   ) => Promise<void>;
-    id: string,
-    name: string,
-    costPrice: number,
-    sellPrice: number,
-    stock: number,
-    unit: string,
-    image?: string,
-    shopeePcs?: number,
-    stockType?: string,
-    description?: string,
-    images?: string[]
-  ) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
 
   stockMovements: StockMovement[];

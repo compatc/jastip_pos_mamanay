@@ -2031,8 +2031,6 @@ export default function Inventory() {
         </div>
       )}
 
-    </div>
-
       {/* PO Summary Modal */}
       {poSummaryOpen && (
         <div className="fixed inset-0 z-[200] bg-black/40 flex items-end md:items-center justify-center" onClick={() => setPoSummaryOpen(false)}>
