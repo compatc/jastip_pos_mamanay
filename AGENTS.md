@@ -11,6 +11,8 @@
 - **Stock movement backfill**: Semua order_items yang punya `product_id` tapi belum ada `stock_movement` sudah di-backfill (86 item + 123 item tanpa product_id sudah di-lookup). Fix: 25 Agustus 2026.
 - **Stock display mixed variant bug**: `Inventory.tsx` lama pakai `reduce((a,b) => a + Math.max(0,b), 0)` — clamp per variant, bukan total. Kalau stock movement punya variant null (pembelian) DAN variant name (penjualan), penjualan negative ke-clamp jadi 0 → stok tampil lebih besar. Fix: `Math.max(0, reduce((a,b) => a+b, 0))` — sum dulu baru clamp. 3 produk terdampak: ganci stitch ungu (66→62), produk telon (40→39), produk pink (57→54). Data juga dinormalisasi: movement `variant: null` diubah ke nama variant yang benar. Incident: 25 Agustus 2026.
 - **Stock movement variant normalization**: Kalau produk tidak punya `product_variants` tapi punya stock movement dengan variant name (dari bot) DAN variant null (dari pembelian manual), WAJIB normalisasi supaya semua movement pakai key variant yang sama. Kalau tidak, `variantStock` split jadi 2 key terpisah.
+- **Tutup PO (`po_closed`)**: Field boolean di tabel `products`. Default `false`. Quando `true`, bot dan catalog menolak order produk ini. Toggle button "Tutup PO" / "PO TUTUP" di Inventory.tsx (hanya untuk produk PO). Catalog tampilkan "PO Ditutup" badge merah dan disable tombol "Tambah ke Keranjang". Bot cek via API sebelum push order. Kolom: `ALTER TABLE products ADD COLUMN po_closed BOOLEAN DEFAULT FALSE;`
+- **Known limitation Tutup PO**: Bot simpan order ke `orders.json` DULU, baru push ke API. Kalau API reject (PO ditutup), order tetap ada di `orders.json` tapi ga ada di Supabase. Admin harus pastikan ga ada yang sedang order sebelum tutup PO.
 
 ## Bot Multi-Variant Order Flow
 
@@ -214,3 +216,9 @@ subtotal: 1
 
 total: 2 pcs
 ```
+
+## Build Rules
+
+- **Loader2 missing import**: `Loader2` dari `lucide-react` WAJIB di-import kalau dipakai di file. Incident: 25 Agustus 2026, Inventory.tsx crash di Vercel karena `Loader2` dipakai di PO Summary Modal tapi tidak di-import. **Selalu cek import sebelum push.**
+- **Duplicate type declaration**: Jangan duplicate type declaration di `useStore.ts`. Kalau edit signature, update DI TEMPAT YANG SAMA, jangan buat baru.
+- **PO Summary Modal placement**: Modal harus di DALAM `<div>` return utama, bukan di luar `</div>` closing. Kalau di luar, build error.
