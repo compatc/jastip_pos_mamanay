@@ -117,14 +117,14 @@ export default async function handler(req, res) {
             const normalTotal = p.sell_price * bundleQty;
             const bundleSaving = normalTotal - bundleTotal;
             promoType = "bundling"; promoValue = bundleDiscount;
-            promoMsg = `🎁 BUNDLING! Beli ${bundleQty} Lebih Hemat!\n\n*${p.name}*\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli ${bundleQty} pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk ${bundleQty} pcs!\n\nStok: ${p.stock} pcs`;
+            promoMsg = `🏷️ ${p.name} ${bundlePrice.toLocaleString("id-ID")}\n[stok:${p.stock}]\n🎁 BUNDLING Beli ${bundleQty} Lebih Hemat!\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli ${bundleQty} pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk ${bundleQty} pcs!`;
           } else if (sold === 0 && p.stock >= 5 && (discountedPrice20 - costPrice) >= minProfit) {
             promoType = "flash_sale"; promoValue = 20;
-            promoMsg = `🔥 FLASH SALE!\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
+            promoMsg = `🏷️ ${p.name} ${discountedPrice20.toLocaleString("id-ID")}\n[stok:${p.stock}]\n🔥 FLASH SALE!\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\nBuruan sebelum kehabisan!`;
           } else if ((discountedPrice15 - costPrice) < minProfit) {
             continue;
           } else {
-            promoMsg = `🏷️ DISKON ${promoValue}%\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice15.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice15).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
+            promoMsg = `🏷️ ${p.name} ${discountedPrice15.toLocaleString("id-ID")}\n[stok:${p.stock}]\n🏷️ DISKON ${promoValue}%\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice15.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice15).toLocaleString("id-ID")})\nBuruan sebelum kehabisan!`;
           }
           recs.push({
             id: p.id, name: p.name, price: p.sell_price, stock: p.stock,
