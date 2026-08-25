@@ -102,15 +102,17 @@ export default async function handler(req, res) {
           const ratio = p.stock > 0 ? sold / p.stock : 1;
           if (ratio >= 0.3 && sold > 0) continue;
 
+          const discountedPrice20 = Math.round(p.sell_price * 0.8);
+          const discountedPrice15 = Math.round(p.sell_price * 0.85);
           let promoType = "discount", promoValue = 15, promoMsg = "";
           if (sold === 0 && p.stock >= 5) {
             promoType = "flash_sale"; promoValue = 20;
-            promoMsg = `🔥 FLASH SALE! ${p.name} diskon 20%! Stok terbatas!`;
+            promoMsg = `🔥 FLASH SALE!\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
           } else if (p.stock >= 10 && ratio < 0.2) {
             promoType = "bundling"; promoValue = 0;
-            promoMsg = `🎁 BUNDLING! Beli ${p.name} hemat spesial! Stok: ${p.stock} pcs`;
+            promoMsg = `🎁 BUNDLING SPESIAL!\n\n*${p.name}*\nHarga: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\n\nBeli banyak lebih hemat!\nStok: ${p.stock} pcs`;
           } else {
-            promoMsg = `🏷️ ${p.name} diskon 15%! Stok: ${p.stock} pcs, buruan sebelum kehabisan!`;
+            promoMsg = `🏷️ DISKON ${promoValue}%\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice15.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice15).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
           }
           recs.push({
             id: p.id, name: p.name, price: p.sell_price, stock: p.stock,
