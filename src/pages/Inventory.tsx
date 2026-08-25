@@ -185,14 +185,7 @@ export default function Inventory() {
         setRekapItems([]);
         return;
       }
-      const seenKeys = new Set<string>();
-      const uniqueItems = items.filter((i: any) => {
-        const key = `${i.order_id}|${i.product_name}|${i.variant || ""}|${i.quantity}`;
-        if (seenKeys.has(key)) return false;
-        seenKeys.add(key);
-        return true;
-      });
-      const orderIds = [...new Set(uniqueItems.map((i: any) => i.order_id))];
+      const orderIds = [...new Set(items.map((i: any) => i.order_id))];
       const { data: orders } = await supabase
         .from("orders")
         .select("id, created_at, customer_id, order_type")
@@ -209,13 +202,25 @@ export default function Inventory() {
       }));
       // Filter: only penjualan orders
       const penjualanOrderIds = new Set((orders || []).map((o: any) => o.id));
-      const merged = uniqueItems
+      const merged = items
         .filter((i: any) => penjualanOrderIds.has(i.order_id))
         .map((i: any) => {
           const o = orderMap.get(i.order_id) || {};
           return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
         });
-      setRekapItems(merged);
+      // Dedup: merge same customer + same product + same variant into single entry
+      const customerProductMap = new Map<string, any>();
+      for (const i of merged) {
+        const key = `${i.customer_id || i.customer_name}|${i.product_name}|${i.variant || ""}`;
+        if (customerProductMap.has(key)) {
+          const existing = customerProductMap.get(key);
+          existing.quantity += i.quantity;
+          existing.price = Math.max(existing.price, i.price);
+        } else {
+          customerProductMap.set(key, { ...i });
+        }
+      }
+      setRekapItems([...customerProductMap.values()]);
     } catch {
       setRekapItems([]);
     } finally {
