@@ -593,11 +593,11 @@ export default function Inventory() {
     setTimeout(() => setSendStatus(null), 4000);
   }
 
-  function promoTypeBadge(type: string) {
+  function promoTypeBadge(type: string, value?: number) {
     switch (type) {
       case "flash_sale": return { icon: Flame, color: "bg-red-100 text-red-600 border-red-200", label: "Flash Sale" };
-      case "bundling": return { icon: Package, color: "bg-purple-100 text-purple-600 border-purple-200", label: "Bundling" };
-      case "discount": return { icon: Percent, color: "bg-amber-100 text-amber-600 border-amber-200", label: "Diskon" };
+      case "bundling": return { icon: Package, color: "bg-purple-100 text-purple-600 border-purple-200", label: value ? `Bundling ${value}%` : "Bundling" };
+      case "discount": return { icon: Percent, color: "bg-amber-100 text-amber-600 border-amber-200", label: `Diskon ${value || 15}%` };
       default: return { icon: Sparkles, color: "bg-sky-100 text-sky-600 border-sky-200", label: type };
     }
   }
@@ -746,7 +746,7 @@ export default function Inventory() {
               className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
             >
               {promoRecs.map((promo) => {
-                const badge = promoTypeBadge(promo.promoType);
+                const badge = promoTypeBadge(promo.promoType, promo.promoValue);
                 const BadgeIcon = badge.icon;
                 return (
                   <div key={promo.id} className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl p-2 min-w-[200px] max-w-[220px] shrink-0 hover:border-pink-200 transition-all">

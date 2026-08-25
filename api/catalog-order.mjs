@@ -106,13 +106,21 @@ export default async function handler(req, res) {
           const discountedPrice15 = Math.round(p.sell_price * 0.85);
           const costPrice = p.cost_price || 0;
           const minProfit = 6000;
+
           let promoType = "discount", promoValue = 15, promoMsg = "";
+
           if (sold === 0 && p.stock >= 5 && (discountedPrice20 - costPrice) >= minProfit) {
             promoType = "flash_sale"; promoValue = 20;
             promoMsg = `🔥 FLASH SALE!\n\n*${p.name}*\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\n\nStok: ${p.stock} pcs\nBuruan sebelum kehabisan!`;
-          } else if (p.stock >= 10 && ratio < 0.2 && (discountedPrice15 - costPrice) >= minProfit) {
-            promoType = "bundling"; promoValue = 0;
-            promoMsg = `🎁 BUNDLING SPESIAL!\n\n*${p.name}*\nHarga: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\n\nBeli banyak lebih hemat!\nStok: ${p.stock} pcs`;
+          } else if (p.stock >= 15 && (discountedPrice15 - costPrice) >= minProfit) {
+            const bundleQty = p.stock >= 20 ? 3 : 2;
+            const bundleDiscount = p.stock >= 20 ? 25 : 15;
+            const bundlePrice = Math.round(p.sell_price * (1 - bundleDiscount / 100));
+            const bundleTotal = bundlePrice * bundleQty;
+            const normalTotal = p.sell_price * bundleQty;
+            const bundleSaving = normalTotal - bundleTotal;
+            promoType = "bundling"; promoValue = bundleDiscount;
+            promoMsg = `🎁 BUNDLING! Beli ${bundleQty} Lebih Hemat!\n\n*${p.name}*\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli ${bundleQty} pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk ${bundleQty} pcs!\n\nStok: ${p.stock} pcs`;
           } else if ((discountedPrice15 - costPrice) < minProfit) {
             continue;
           } else {
