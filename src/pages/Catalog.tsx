@@ -537,7 +537,7 @@ export default function Catalog() {
                 </div>
                 <button
                   onClick={() => {
-                    const url = window.location.origin + "/catalog/" + selected.id;
+                    const url = window.location.origin + "/api/catalog-order?og=" + selected.id;
                     navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {});
                   }}
                   className="shrink-0 w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
