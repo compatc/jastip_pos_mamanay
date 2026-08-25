@@ -606,15 +606,15 @@ export default function Catalog() {
                           className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
                             isSelected
                               ? "border-rose-500 bg-rose-50 text-rose-600"
-                              : v.stock <= 0
+                              : v.stock <= 0 && selected.stock_type !== "po"
                                 ? "border-slate-200 bg-slate-50 text-slate-400 opacity-50"
                                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                           }`}
-                          disabled={v.stock <= 0}
+                          disabled={v.stock <= 0 && selected.stock_type !== "po"}
                         >
                           {v.image && <img src={v.image} alt="" className="w-5 h-5 rounded-full object-cover ring-2 ring-white" />}
                           <span>{v.name}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isSelected ? "bg-rose-100 text-rose-600" : vStock.color}`}>{v.stock}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isSelected ? "bg-rose-100 text-rose-600" : selected.stock_type === "po" ? "bg-amber-50 text-amber-600" : vStock.color}`}>{selected.stock_type === "po" ? "PO" : v.stock}</span>
                         </button>
                       );
                     })}
