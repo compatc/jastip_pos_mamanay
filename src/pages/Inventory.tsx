@@ -183,7 +183,14 @@ export default function Inventory() {
         setRekapItems([]);
         return;
       }
-      const orderIds = [...new Set(items.map((i: any) => i.order_id))];
+      const seenKeys = new Set<string>();
+      const uniqueItems = items.filter((i: any) => {
+        const key = `${i.order_id}|${i.product_name}|${i.variant || ""}|${i.quantity}`;
+        if (seenKeys.has(key)) return false;
+        seenKeys.add(key);
+        return true;
+      });
+      const orderIds = [...new Set(uniqueItems.map((i: any) => i.order_id))];
       const { data: orders } = await supabase
         .from("orders")
         .select("id, created_at, customer_id, order_type")
@@ -200,7 +207,7 @@ export default function Inventory() {
       }));
       // Filter: only penjualan orders
       const penjualanOrderIds = new Set((orders || []).map((o: any) => o.id));
-      const merged = items
+      const merged = uniqueItems
         .filter((i: any) => penjualanOrderIds.has(i.order_id))
         .map((i: any) => {
           const o = orderMap.get(i.order_id) || {};
