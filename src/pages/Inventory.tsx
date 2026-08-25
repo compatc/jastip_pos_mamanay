@@ -147,7 +147,7 @@ export default function Inventory() {
     const vs = variantStock[p.id];
     const hasVariants = vs && Object.keys(vs).length > 0;
     const realStock = hasVariants
-      ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0)
+      ? Math.max(0, Object.values(vs).reduce((a, b) => a + b, 0))
       : p.stock;
     if (categoryFilter === "habis") return realStock === 0;
     if (categoryFilter === "rendah") return realStock > 0 && realStock <= 5;
@@ -416,13 +416,13 @@ export default function Inventory() {
   const totalModal = filtered.reduce((s, p) => {
     const vs = variantStock[p.id];
     const hasVariants = vs && Object.keys(vs).length > 0;
-    const realStock = hasVariants ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0) : p.stock;
+    const realStock = hasVariants ? Math.max(0, Object.values(vs).reduce((a, b) => a + b, 0)) : p.stock;
     return s + p.cost_price * realStock;
   }, 0);
   const totalJual = filtered.reduce((s, p) => {
     const vs = variantStock[p.id];
     const hasVariants = vs && Object.keys(vs).length > 0;
-    const realStock = hasVariants ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0) : p.stock;
+    const realStock = hasVariants ? Math.max(0, Object.values(vs).reduce((a, b) => a + b, 0)) : p.stock;
     return s + p.sell_price * realStock;
   }, 0);
 
@@ -606,7 +606,7 @@ export default function Inventory() {
               const vs = variantStock[product.id];
               const hasVariants = vs && Object.keys(vs).length > 0;
               const displayStock = hasVariants
-                ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0)
+                ? Math.max(0, Object.values(vs).reduce((a, b) => a + b, 0))
                 : product.stock;
               const stockStatus = getStockStatus(displayStock);
               const colorClass = avatarColors[i % avatarColors.length];

@@ -302,7 +302,7 @@ export default function Catalog() {
 
         {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
                 <div className="h-40 bg-slate-100" />
@@ -323,7 +323,7 @@ export default function Catalog() {
             <p className="text-slate-400 text-xs mt-1">Coba kata kunci lain</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
             {filtered.map((p) => {
               const stock = getStockInfo(p.stock);
               return (
@@ -395,26 +395,26 @@ export default function Catalog() {
                   )}
 
                   {/* Info */}
-                  <div className="p-3">
-                    <h3 className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-1.5 min-h-[36px]">
+                  <div className="p-2.5 sm:p-3">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-1 min-h-[32px] sm:min-h-[36px]">
                       {p.name}
                     </h3>
                     {p.variants && p.variants.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
+                      <div className="flex flex-wrap gap-1 mb-1.5">
                         {p.variants.slice(0, 3).map((v) => (
-                          <span key={v.id} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-semibold">
+                          <span key={v.id} className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-semibold">
                             {v.name}
                           </span>
                         ))}
                         {p.variants.length > 3 && (
-                          <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md font-semibold">
+                          <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md font-semibold">
                             +{p.variants.length - 3}
                           </span>
                         )}
                       </div>
                     )}
                     <div className="flex items-end justify-between">
-                      <span className="text-base font-extrabold text-rose-500 leading-none">
+                      <span className="text-sm sm:text-base font-extrabold text-rose-500 leading-none">
                         {rupiah(p.sell_price)}
                       </span>
                       <div className="flex items-center gap-1">
@@ -476,13 +476,21 @@ export default function Catalog() {
           onClick={() => { setSelected(null); window.history.pushState({}, "", "/catalog"); }}
         >
           <div
-            className="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden animate-[slideUp_0.3s_ease] md:animate-[popIn_0.25s_ease] max-h-[90vh] md:max-h-[85vh] md:my-auto"
+            className="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden animate-[slideUp_0.3s_ease] md:animate-[popIn_0.25s_ease] max-h-[90vh] md:max-h-[85vh] md:my-auto flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center pt-3 pb-2">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
               <div className="w-10 h-1 bg-slate-200 rounded-full" />
+              <button
+                onClick={() => { setSelected(null); window.history.pushState({}, "", "/catalog"); }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors -mt-1"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
             </div>
 
+            <div className="overflow-y-auto flex-1 min-h-0">
             {selected.image ? (
               <div className="w-full max-h-80 lg:max-h-96 bg-slate-50 overflow-hidden flex items-center justify-center relative">
                 {(() => {
@@ -638,6 +646,7 @@ export default function Catalog() {
                 <ShoppingCart className="w-5 h-5" />
                 Tambah ke Keranjang
               </button>
+            </div>
             </div>
           </div>
         </div>

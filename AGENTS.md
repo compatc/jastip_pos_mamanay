@@ -5,6 +5,12 @@
 - **Loyalty points backfill**: HANYA dari tanggal 20 Agustus 2026 ke atas. Jangan backfill order sebelum 20 Agustus 2026.
 - **JANGAN PERNAH clear session WA bot** (`rm -rf /opt/wa-bot/session`). PM2 auto-restart sudah handle. Clear session = user harus scan QR ulang, sangat mengganggu. Kalau Bad MAC, biarkan bot restart sendiri.
 - **Customer phone matching**: WAJIB normalize **kedua sisi** (incoming phone DAN DB phone) sebelum compare. Format: strip non-digits, convert `0xxx` → `62xxx`. Kalau cuma normalize satu sisi, customer `08xxx` di DB tidak match incoming `628xxx` → duplicate customer.
+- **Phone kosong bug (roma market)**: Customer dengan `phone: ""` di DB bikin `endsWith("")` selalu `true` → semua order bot salah match ke customer itu. **WAJIB skip matching kalau salah satu phone kosong** (`if (!cNorm || !phoneNorm) return false`). Incident: 25 Agustus 2026, 6 order salah assign ke "roma market".
+- **VARIANT_STOP**: Kata-kata yang dianggap sebagai stop word saat parsing varian dari reply customer. Kalau ada di list ini, tidak dianggap sebagai nama varian. Update terakhir: 25 Agustus 2026. Full list di `/opt/wa-bot/index.js` line 346.
+- **Bot order stock movement**: Bot kirim `product_id: null` ke API. `catalog-order.mjs` sekarang lookup `product_id` by name (fuzzy match) sebelum create stock movement. Sebelumnya stock movement tidak pernah dibuat untuk bot orders karena `product_id` null. Fix: 25 Agustus 2026.
+- **Stock movement backfill**: Semua order_items yang punya `product_id` tapi belum ada `stock_movement` sudah di-backfill (86 item + 123 item tanpa product_id sudah di-lookup). Fix: 25 Agustus 2026.
+- **Stock display mixed variant bug**: `Inventory.tsx` lama pakai `reduce((a,b) => a + Math.max(0,b), 0)` — clamp per variant, bukan total. Kalau stock movement punya variant null (pembelian) DAN variant name (penjualan), penjualan negative ke-clamp jadi 0 → stok tampil lebih besar. Fix: `Math.max(0, reduce((a,b) => a+b, 0))` — sum dulu baru clamp. 3 produk terdampak: ganci stitch ungu (66→62), produk telon (40→39), produk pink (57→54). Data juga dinormalisasi: movement `variant: null` diubah ke nama variant yang benar. Incident: 25 Agustus 2026.
+- **Stock movement variant normalization**: Kalau produk tidak punya `product_variants` tapi punya stock movement dengan variant name (dari bot) DAN variant null (dari pembelian manual), WAJIB normalisasi supaya semua movement pakai key variant yang sama. Kalau tidak, `variantStock` split jadi 2 key terpisah.
 
 ## Bot Multi-Variant Order Flow
 
