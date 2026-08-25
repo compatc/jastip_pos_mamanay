@@ -326,6 +326,7 @@ export default function Catalog() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
             {filtered.map((p) => {
               const stock = getStockInfo(p.stock);
+              const isPoClosed = p.stock_type === "po" && p.po_closed;
               return (
                 <div
                   key={p.id}
@@ -344,13 +345,18 @@ export default function Catalog() {
                         </div>
                       )}
                       <div className="absolute top-2 right-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm ${stock.color}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
-                          {stock.label}
-                        </span>
-                        {p.stock_type === "po" && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200 mt-1">
+                        {isPoClosed ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-red-50 text-red-600 border-red-200">
+                            PO Ditutup
+                          </span>
+                        ) : p.stock_type === "po" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200">
                             PO (Pre-Order)
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm ${stock.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
+                            {stock.label}
                           </span>
                         )}
                         {p.tags && p.tags.length > 0 && (
@@ -421,7 +427,9 @@ export default function Catalog() {
                       </span>
                       <div className="flex items-center gap-1">
                         {p.stock_type === "po" && (
-                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">PO</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                            p.po_closed ? "text-red-600 bg-red-50 border-red-200" : "text-amber-600 bg-amber-50 border-amber-200"
+                          }`}>{p.po_closed ? "PO Ditutup" : "PO"}</span>
                         )}
                         {p.stock > 0 && p.stock_type !== "po" && (
                           <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Ready</span>
