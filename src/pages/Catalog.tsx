@@ -273,7 +273,7 @@ export default function Catalog() {
       <div className="px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto pb-28">
         {/* Tag Filter */}
         {allUniqueTags.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide items-center">
             <button
               onClick={() => { const p = new URLSearchParams(searchParams); p.delete("tag"); setSearchParams(p); }}
               className={`px-4 py-2.5 rounded-2xl text-[0.82rem] font-bold whitespace-nowrap transition-all shrink-0 border-2 ${
@@ -297,6 +297,15 @@ export default function Catalog() {
                 {t}
               </button>
             ))}
+            {tagFilter && (
+              <button
+                onClick={() => { const url = window.location.origin + "/api/catalog-order?ogTag=" + tagFilter; navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {}); }}
+                className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors shrink-0"
+                title="Copy share link"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
 
