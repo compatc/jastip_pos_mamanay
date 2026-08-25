@@ -19,6 +19,13 @@ import {
   Layers,
   ClipboardList,
   Loader2,
+  Megaphone,
+  Send,
+  Flame,
+  Percent,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface ProductForm {
@@ -131,6 +138,11 @@ export default function Inventory() {
   const [poSummaryOpen, setPoSummaryOpen] = useState(false);
   const [poSummaryItems, setPoSummaryItems] = useState<any[]>([]);
   const [poSummaryLoading, setPoSummaryLoading] = useState(false);
+  const [promoRecs, setPromoRecs] = useState<any[]>([]);
+  const [promoLoading, setPromoLoading] = useState(true);
+  const [sendingPromo, setSendingPromo] = useState<string | null>(null);
+  const [sendStatus, setSendStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const promoScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadProducts();
@@ -138,6 +150,11 @@ export default function Inventory() {
     loadVariantStock();
     loadTags();
     loadCustomers();
+    fetch("/api/catalog-order?promoRec=1&days=30&minStock=3")
+      .then((r) => r.json())
+      .then((d) => setPromoRecs(d.recommendations || []))
+      .catch(() => {})
+      .finally(() => setPromoLoading(false));
   }, []);
 
   useEffect(() => {
@@ -528,6 +545,68 @@ export default function Inventory() {
     return { label: `${stock}`, cls: "bg-emerald-100 text-emerald-600" };
   }
 
+  async function sendPromoToGroup(promo: any) {
+    setSendingPromo(promo.id);
+    setSendStatus(null);
+    try {
+      const img = promo.image || "";
+      const caption = promo.promoMsg.split("\n").join("\n");
+      const res = await fetch("https://hardship-broadly-mammogram.ngrok-free.dev/api/send-group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+        body: JSON.stringify({ group_jid: "120363404605912473@g.us", message: caption, image: img }),
+      });
+      const data = await res.json();
+      setSendStatus({ ok: data.ok, msg: data.ok ? `"${promo.name}" terkirim!` : (data.error || "Gagal kirim") });
+    } catch (e: any) {
+      setSendStatus({ ok: false, msg: "Error: " + (e.message || e) });
+    } finally {
+      setSendingPromo(null);
+      setTimeout(() => setSendStatus(null), 3000);
+    }
+  }
+
+  async function sendAllPromos() {
+    setSendingPromo("all");
+    setSendStatus(null);
+    const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
+    const GROUP_ID = "120363404605912473@g.us";
+    let ok = 0, fail = 0;
+    for (const p of promoRecs) {
+      try {
+        const caption = p.promoMsg.split("\n").join("\n");
+        const res = await fetch(`${BOT_URL}/api/send-group`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+          body: JSON.stringify({ group_jid: GROUP_ID, message: caption, image: p.image || "" }),
+        });
+        const data = await res.json();
+        if (data.ok) ok++; else fail++;
+      } catch {
+        fail++;
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    setSendStatus({ ok: fail === 0, msg: `Selesai: ${ok} berhasil, ${fail} gagal` });
+    setSendingPromo(null);
+    setTimeout(() => setSendStatus(null), 4000);
+  }
+
+  function promoTypeBadge(type: string) {
+    switch (type) {
+      case "flash_sale": return { icon: Flame, color: "bg-red-100 text-red-600 border-red-200", label: "Flash Sale" };
+      case "bundling": return { icon: Package, color: "bg-purple-100 text-purple-600 border-purple-200", label: "Bundling" };
+      case "discount": return { icon: Percent, color: "bg-amber-100 text-amber-600 border-amber-200", label: "Diskon" };
+      default: return { icon: Sparkles, color: "bg-sky-100 text-sky-600 border-sky-200", label: type };
+    }
+  }
+
+  function scrollPromo(dir: "left" | "right") {
+    if (!promoScrollRef.current) return;
+    const amt = 220;
+    promoScrollRef.current.scrollBy({ left: dir === "left" ? -amt : amt, behavior: "smooth" });
+  }
+
   async function bulkSendToGroup() {
     if (selectedProducts.size === 0) return;
     setBulkSending(true);
@@ -626,6 +705,82 @@ export default function Inventory() {
             Produk
           </button>
         </div>
+
+        {promoRecs.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-md bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
+                  <Megaphone className="w-2.5 h-2.5 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-gray-600">Rekomendasi Promo</span>
+                <span className="text-[9px] font-bold bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded-full">{promoRecs.length}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => scrollPromo("left")} className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-all">
+                  <ChevronLeft className="w-3 h-3 text-gray-400" />
+                </button>
+                <button onClick={() => scrollPromo("right")} className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-all">
+                  <ChevronRight className="w-3 h-3 text-gray-400" />
+                </button>
+                <button
+                  onClick={sendAllPromos}
+                  disabled={sendingPromo !== null}
+                  className="ml-1 px-2 py-1 bg-pink-500 hover:bg-pink-600 text-white text-[9px] font-bold rounded-lg transition-all flex items-center gap-1 disabled:opacity-50"
+                >
+                  {sendingPromo === "all" ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
+                  Kirim Semua
+                </button>
+              </div>
+            </div>
+
+            {sendStatus && (
+              <div className={`mb-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold ${sendStatus.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                {sendStatus.ok ? "✅ " : "❌ "}{sendStatus.msg}
+              </div>
+            )}
+
+            <div
+              ref={promoScrollRef}
+              className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+            >
+              {promoRecs.map((promo) => {
+                const badge = promoTypeBadge(promo.promoType);
+                const BadgeIcon = badge.icon;
+                return (
+                  <div key={promo.id} className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl p-2 min-w-[200px] max-w-[220px] shrink-0 hover:border-pink-200 transition-all">
+                    {promo.image ? (
+                      <img src={promo.image} alt={promo.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100 shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                        <ShoppingBag className="w-4 h-4" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-gray-800 truncate">{promo.name}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className={`inline-flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.5 rounded border ${badge.color}`}>
+                          <BadgeIcon className="w-2 h-2" />
+                          {badge.label}
+                        </span>
+                        <span className="text-[9px] text-gray-400">Stok:{promo.stock}</span>
+                      </div>
+                      <span className="text-[9px] font-semibold text-pink-600">Rp{promo.price.toLocaleString("id-ID")}</span>
+                    </div>
+                    <button
+                      onClick={() => sendPromoToGroup(promo)}
+                      disabled={sendingPromo !== null}
+                      className="p-1.5 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition-all shrink-0 disabled:opacity-50 active:scale-90 shadow-sm shadow-pink-500/20"
+                      title="Kirim ke Grup"
+                    >
+                      {sendingPromo === promo.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="relative mb-2">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
