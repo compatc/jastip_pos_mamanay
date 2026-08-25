@@ -147,6 +147,7 @@ export default async function handler(req, res) {
 
         const matched = (allCustomers || []).find((c) => {
           const cNorm = norm(c.phone || "");
+          if (!cNorm || !phoneNorm) return false;
           return cNorm === phoneNorm || cNorm.endsWith(phoneNorm.slice(-10)) || phoneNorm.endsWith(cNorm.slice(-10));
         });
 
@@ -255,6 +256,7 @@ export default async function handler(req, res) {
     const normalizedPhone = phone.trim().replace(/\D/g, "");
     const matched = (existingCustomers || []).find((c) => {
       const cp = (c.phone || "").replace(/\D/g, "");
+      if (!cp || !normalizedPhone) return false;
       return cp === normalizedPhone || cp.endsWith(normalizedPhone) || normalizedPhone.endsWith(cp);
     });
 
