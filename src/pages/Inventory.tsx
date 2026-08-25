@@ -121,6 +121,9 @@ export default function Inventory() {
   const [rekapProductId, setRekapProductId] = useState<string | null>(null);
   const [rekapItems, setRekapItems] = useState<any[]>([]);
   const [rekapLoading, setRekapLoading] = useState(false);
+  const [poSummaryOpen, setPoSummaryOpen] = useState(false);
+  const [poSummaryItems, setPoSummaryItems] = useState<any[]>([]);
+  const [poSummaryLoading, setPoSummaryLoading] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -205,6 +208,56 @@ export default function Inventory() {
       setRekapItems([]);
     } finally {
       setRekapLoading(false);
+    }
+  }
+
+  async function openPoSummary() {
+    setPoSummaryOpen(true);
+    setPoSummaryLoading(true);
+    try {
+      const poProducts = products.filter((p) => (p as any).stock_type === "po");
+      const poNames = poProducts.map((p) => p.name);
+      if (poNames.length === 0) { setPoSummaryItems([]); return; }
+
+      const { data: allItems } = await supabase
+        .from("order_items")
+        .select("product_name, variant, quantity, price, order_id, product_id");
+      if (!allItems) { setPoSummaryItems([]); return; }
+
+      const orderIds = [...new Set(allItems.map((i: any) => i.order_id).filter(Boolean))];
+      const { data: orders } = orderIds.length > 0
+        ? await supabase.from("orders").select("id, payment_status, fulfillment_status, order_type").in("id", orderIds)
+        : { data: [] };
+      const orderMap = new Map((orders || []).map((o: any) => [o.id, o]));
+
+      const grouped: Record<string, Record<string, { qty: number; total: number; price: number }>> = {};
+      for (const item of allItems) {
+        const o = orderMap.get(item.order_id);
+        if (!o || o.order_type !== "penjualan") continue;
+        if (o.payment_status === "paid" && o.fulfillment_status === "completed") continue;
+        const cleanName = (item.product_name || "").replace(/\s*\[PO\]\s*/gi, "").trim();
+        const matched = poProducts.find((p) => p.name === cleanName || p.name.includes(cleanName) || cleanName.includes(p.name));
+        if (!matched) continue;
+        const v = item.variant || "(tanpa varian)";
+        if (!grouped[matched.name]) grouped[matched.name] = {};
+        if (!grouped[matched.name][v]) grouped[matched.name][v] = { qty: 0, total: 0, price: item.price || 0 };
+        grouped[matched.name][v].qty += item.quantity || 1;
+        grouped[matched.name][v].total += (item.price || 0) * (item.quantity || 1);
+      }
+
+      const result = Object.entries(grouped).map(([name, variants]) => {
+        const variantList = Object.entries(variants).map(([v, data]) => ({ variant: v, ...data }));
+        const totalQty = variantList.reduce((s, v) => s + v.qty, 0);
+        const totalHarga = variantList.reduce((s, v) => s + v.total, 0);
+        return { name, variants: variantList, totalQty, totalHarga };
+      }).sort((a, b) => b.totalQty - a.totalQty);
+
+      setPoSummaryItems(result);
+    } catch (e) {
+      console.error("PO summary error:", e);
+      setPoSummaryItems([]);
+    } finally {
+      setPoSummaryLoading(false);
     }
   }
 
@@ -522,6 +575,14 @@ export default function Inventory() {
             <Share2 className="w-3.5 h-3.5" />
             {bulkSelect ? `Kirim (${selectedProducts.size})` : "Massal"}
           </button>
+          {products.some((p) => (p as any).stock_type === "po") && (
+            <button
+              onClick={openPoSummary}
+              className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
+            >
+              Rekap PO
+            </button>
+          )}
           <button
             onClick={openAdd}
             className="shrink-0 px-3 py-2 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
@@ -1937,6 +1998,76 @@ export default function Inventory() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+    </div>
+
+      {/* PO Summary Modal */}
+      {poSummaryOpen && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-end md:items-center justify-center" onClick={() => setPoSummaryOpen(false)}>
+          <div className="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden max-h-[85vh] flex flex-col animate-[slideUp_0.3s_ease]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 shrink-0">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Rekap PO</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Total order yang perlu dibeli ke supplier</p>
+              </div>
+              <button onClick={() => setPoSummaryOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 min-h-0 p-5">
+              {poSummaryLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
+                </div>
+              ) : poSummaryItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Package className="w-10 h-10 text-gray-200 mb-3" />
+                  <p className="text-gray-400 font-bold text-sm">Tidak ada order PO</p>
+                  <p className="text-gray-300 text-xs mt-1">Semua produk PO sudah diproses</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {poSummaryItems.map((item) => (
+                    <div key={item.name} className="bg-gray-50 rounded-2xl p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-sm font-bold text-gray-800 flex-1 min-w-0 truncate">{item.name}</h3>
+                        <span className="text-sm font-extrabold text-rose-500 shrink-0 ml-2">{item.totalQty} pcs</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {item.variants.map((v: any) => (
+                          <div key={v.variant} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600 font-medium">{v.variant}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-gray-500">{v.total > 0 ? `Rp ${v.total.toLocaleString("id-ID")}` : ""}</span>
+                              <span className="font-bold text-gray-800 w-12 text-right">{v.qty} pcs</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {item.variants.length > 1 && (
+                        <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between text-xs">
+                          <span className="font-bold text-gray-700">Total</span>
+                          <span className="font-extrabold text-gray-900">{item.totalQty} pcs — Rp {item.totalHarga.toLocaleString("id-ID")}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  <div className="bg-rose-50 rounded-2xl p-4 mt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-rose-700">Total Semua</span>
+                      <span className="text-lg font-extrabold text-rose-600">
+                        {poSummaryItems.reduce((s, i) => s + i.totalQty, 0)} pcs — Rp {poSummaryItems.reduce((s, i) => s + i.totalHarga, 0).toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
