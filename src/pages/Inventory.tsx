@@ -365,11 +365,11 @@ export default function Inventory() {
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const maxSize = 500 * 1024;
+    const maxSize = 1.5 * 1024 * 1024;
     const newImages: string[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.size > maxSize) { alert(`Ukuran gambar ${file.name} melebihi 500KB`); continue; }
+      if (file.size > maxSize) { alert(`Ukuran gambar ${file.name} melebihi 1.5MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`); continue; }
       const url = await uploadToStorage(file);
       if (url) newImages.push(url);
     }
@@ -382,6 +382,14 @@ export default function Inventory() {
 
   function removeImage(index: number) {
     const newImages = form.images.filter((_, i) => i !== index);
+    setForm({ ...form, image: newImages[0] || "", images: newImages });
+  }
+
+  function setMainImage(index: number) {
+    if (index === 0) return;
+    const newImages = [...form.images];
+    const [moved] = newImages.splice(index, 1);
+    newImages.unshift(moved);
     setForm({ ...form, image: newImages[0] || "", images: newImages });
   }
 
@@ -1370,13 +1378,14 @@ export default function Inventory() {
                   {form.images.length > 0 && (
                     <div className="flex gap-2 mb-2 flex-wrap">
                       {form.images.map((img, idx) => (
-                        <div key={idx} className="relative group">
-                          <img src={img} alt={`#${idx + 1}`} className="w-16 h-16 object-cover rounded-xl border-2 border-pink-200" />
+                        <div key={idx} className="relative group cursor-pointer" onClick={() => setMainImage(idx)}>
+                          <img src={img} alt={`#${idx + 1}`} className={`w-16 h-16 object-cover rounded-xl border-2 transition-all ${idx === 0 ? "border-pink-500 ring-2 ring-pink-200" : "border-gray-200 hover:border-pink-300"}`} />
                           {idx === 0 && <span className="absolute -bottom-1 -left-1 bg-pink-500 text-white text-[8px] px-1 rounded-full font-bold">UTAMA</span>}
+                          {idx !== 0 && <span className="absolute -bottom-1 -left-1 bg-gray-400 text-white text-[8px] px-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity">Jadikan Utama</span>}
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                            className="absolute -top-1.5 -right-1.5 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -top-1.5 -right-1.5 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -1390,7 +1399,7 @@ export default function Inventory() {
                   >
                     <Camera className="w-5 h-5 text-pink-300" />
                     <span className="text-xs text-pink-400 font-medium">Tap untuk tambah gambar</span>
-                    <span className="text-[10px] text-gray-400">Bisa pilih banyak sekaligus · Maks 500KB/file</span>
+                    <span className="text-[10px] text-gray-400">Bisa pilih banyak sekaligus · Maks 1.5MB/file</span>
                   </div>
                 </div>
                 <div>
