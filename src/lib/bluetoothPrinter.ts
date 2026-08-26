@@ -329,9 +329,10 @@ export function generateReceiptFromOrder(order: any, items: any[], products: any
     };
   });
 
-  const totalPcs = orderItems.reduce((sum, item) => {
-    return sum + Math.ceil((item.qty * item.shopeePcs) / 1000);
+  const totalWeight = orderItems.reduce((sum, item) => {
+    return sum + (item.qty * item.shopeePcs);
   }, 0);
+  const totalPcs = Math.ceil(totalWeight / 1000);
 
   return {
     storeName: "Jastip_mamanay",

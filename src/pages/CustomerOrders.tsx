@@ -266,14 +266,15 @@ export default function CustomerOrders() {
     msg += "BCA 5271330651 a.n. Nurul Azizah\n";
     msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
 
-    const pcsShopee = selected.reduce((sum, order) => {
+    const totalWeight = selected.reduce((sum, order) => {
       const items = itemsByOrder[order.id] || [];
       return sum + items.reduce((s, i) => {
         const product = products.find((p) => p.id === i.product_id);
         const shopeePcs = product?.shopee_pcs || 1;
-        return s + Math.ceil((i.quantity * shopeePcs) / 1000);
+        return s + (i.quantity * shopeePcs);
       }, 0);
     }, 0);
+    const pcsShopee = Math.ceil(totalWeight / 1000);
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
     msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n\n";

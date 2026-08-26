@@ -270,11 +270,12 @@ export default function OrderDetail() {
     msg += `${BANK_INFO}\n`;
     msg += `⏰ Batas Pembayaran: ${deadlineStr}\n\n`;
 
-    const pcsShopee = items.reduce((sum, i) => {
+    const totalWeight = items.reduce((sum, i) => {
       const product = products.find((p) => p.id === i.product_id);
       const shopeePcs = product?.shopee_pcs || 1;
-      return sum + Math.ceil((i.quantity * shopeePcs) / 1000);
+      return sum + (i.quantity * shopeePcs);
     }, 0);
+    const pcsShopee = Math.ceil(totalWeight / 1000);
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
     msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
@@ -300,13 +301,18 @@ export default function OrderDetail() {
     msg += "Apabila menggunakan metode split payment via Shopee, kami tidak menanggung risiko apabila paket dinyatakan hilang oleh pihak ekspedisi. Mohon dimengerti ya 💕\n\n";
 
     msg += "Barang yang sudah ready:\n";
-    let totalPcs = 0;
+    let totalWeight = 0;
     items.forEach((item) => {
       const product = products.find((p) => p.id === item.product_id);
       const shopeePcs = product?.shopee_pcs || 1;
-      const qtyPcs = Math.ceil((item.quantity * shopeePcs) / 1000);
-      totalPcs += qtyPcs;
-      msg += `• ${item.product_name}${(item as any).variant ? " (" + (item as any).variant + ")" : ""} x${item.quantity} → ${qtyPcs} pcs\n`;
+      totalWeight += item.quantity * shopeePcs;
+    });
+    const totalPcs = Math.ceil(totalWeight / 1000);
+    items.forEach((item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      const shopeePcs = product?.shopee_pcs || 1;
+      const itemWeight = item.quantity * shopeePcs;
+      msg += `• ${item.product_name}${(item as any).variant ? " (" + (item as any).variant + ")" : ""} x${item.quantity} → ${itemWeight}g\n`;
     });
     msg += "\n";
 
