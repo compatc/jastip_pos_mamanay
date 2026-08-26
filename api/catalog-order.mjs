@@ -105,7 +105,7 @@ export default async function handler(req, res) {
           const discountedPrice20 = Math.round(p.sell_price * 0.8);
           const discountedPrice15 = Math.round(p.sell_price * 0.85);
           const costPrice = p.cost_price || 0;
-          const minProfit = 6000;
+          const minProfit = 5000;
 
           let promoType = "discount", promoValue = 15, promoMsg = "";
 
