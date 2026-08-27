@@ -17,6 +17,7 @@
 - **Cancelled order payment**: Order dengan `fulfillment_status = cancelled` TIDAK BOLEH di-mark sebagai `paid`. Kalau admin salah mark, harus di-revert ke `unpaid` + `paid_total = 0`. Incident: 26 Agustus 2026.
 - **Bot parseQty fix (pcs/buah priority)**: `parseQty()` sekarang cek `\d+\s*(pcs|buah)` DULU sebelum `mau\s*(\d+)`. Sebelumnya "kak mau 38 1 pcs" → qty=38 (salah). Sekarang → qty=1 (prioritas angka + unit). Fix: 26 Agustus 2026.
 - **Bot variant qty re-calculation**: Kalau angka yang match `mau\s*(\d+)` SAMA dengan nama variant (`variantNum`), angka itu di-skip dan cari angka lain. Contoh: variannya "38", customer "mau 38" → qty=1 (bukan 38). Kalau "mau 38 2 pcs" → qty=2. Fix: 26 Agustus 2026.
+- **Bot parseQty fix (ukuran/size ignore)**: Customer tulis "ukuran 180 (1)" atau "size 180 (1)" — artinya 1 PCS, bukan 180. `parseQty()` sekarang prioritas: (1) `\d+\s*(pcs|buah)` → (2) `mau\s*(\d+)` → (3) `\((\d+)\)` (angka dalam kurung). Angka telanjang tanpa unit diabaikan. Incident: 27 Agustus 2026, Wulandari order sprei size 180, qty salah jadi 180. Fix di `/opt/wa-bot/index.js` parseQty function.
 
 ## Bot Multi-Variant Order Flow
 
