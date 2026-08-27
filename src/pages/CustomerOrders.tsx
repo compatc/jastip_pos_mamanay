@@ -108,8 +108,7 @@ export default function CustomerOrders() {
   }
 
   function openPaidModal() {
-    const unpaid = orders.filter((o) => o.paid_total < o.total && o.total > 0);
-    setSelectedPaidOrders(new Set(unpaid.map((o) => o.id)));
+    setSelectedPaidOrders(new Set());
     setPaidModalOpen(true);
   }
 
@@ -706,7 +705,26 @@ export default function CustomerOrders() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30" onClick={() => setPaidModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3 z-10 max-h-[85vh] flex flex-col overflow-hidden">
-            <p className="text-base font-bold text-gray-800 shrink-0">Tandai Lunas</p>
+            <div className="flex items-center justify-between shrink-0">
+              <p className="text-base font-bold text-gray-800">Tandai Lunas</p>
+              {unpaidOrders.length > 0 && (
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600 select-none">
+                  <input
+                    type="checkbox"
+                    checked={unpaidOrders.length > 0 && selectedPaidOrders.size === unpaidOrders.length}
+                    onChange={() => {
+                      if (selectedPaidOrders.size === unpaidOrders.length) {
+                        setSelectedPaidOrders(new Set());
+                      } else {
+                        setSelectedPaidOrders(new Set(unpaidOrders.map((o) => o.id)));
+                      }
+                    }}
+                    className="w-4 h-4 accent-emerald-500 rounded"
+                  />
+                  <span>Pilih Semua</span>
+                </label>
+              )}
+            </div>
             <p className="text-xs text-gray-400 leading-relaxed shrink-0">
               Pilih order yang sudah dibayar, lalu tandai lunas sekaligus.
             </p>
@@ -751,35 +769,47 @@ export default function CustomerOrders() {
                 );
               })}
             </div>
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100 shrink-0">
-              <span className="text-xs text-gray-400">{selectedPaidOrders.size} dipilih</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPaidModalOpen(false)}
-                  className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={async () => {
-                    const selected = orders.filter((o) => selectedPaidOrders.has(o.id));
-                    if (selected.length === 0) return;
-                    setMarkingPaid(true);
-                    try {
-                      await markOrdersPaid(selected.map((o) => o.id));
-                      await loadOrders(customerId!);
-                      setPaidModalOpen(false);
-                    } finally {
-                      setMarkingPaid(false);
-                    }
-                  }}
-                  disabled={selectedPaidOrders.size === 0 || markingPaid}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-all"
-                >
-                  {markingPaid ? "Menyimpan..." : "Tandai Lunas"}
-                </button>
-              </div>
-            </div>
+            {(() => {
+              const totalSelectedAmount = unpaidOrders
+                .filter((o) => selectedPaidOrders.has(o.id))
+                .reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+              return (
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100 shrink-0">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-500 font-medium">{selectedPaidOrders.size} dipilih</span>
+                    <span className="text-xs font-bold text-emerald-600">
+                      {rupiah(totalSelectedAmount)}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPaidModalOpen(false)}
+                      className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const selected = orders.filter((o) => selectedPaidOrders.has(o.id));
+                        if (selected.length === 0) return;
+                        setMarkingPaid(true);
+                        try {
+                          await markOrdersPaid(selected.map((o) => o.id));
+                          await loadOrders(customerId!);
+                          setPaidModalOpen(false);
+                        } finally {
+                          setMarkingPaid(false);
+                        }
+                      }}
+                      disabled={selectedPaidOrders.size === 0 || markingPaid}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-all"
+                    >
+                      {markingPaid ? "Menyimpan..." : "Tandai Lunas"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
