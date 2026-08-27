@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import { uuid } from "../lib/uuid";
 import { awardPoints } from "../lib/loyalty";
-import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductDiscount, ProductVariant, StockMovement } from "../types";
+import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductBundleItem, ProductDiscount, ProductVariant, StockMovement } from "../types";
 
 interface PosStore {
   user: { id: string; email: string; name: string; auth_source?: "supabase" | "offline" } | null;
@@ -161,6 +161,13 @@ interface PosStore {
   loadProductTags: (productId: string) => Promise<void>;
   setProductTags: (productId: string, tagIds: string[]) => Promise<void>;
 
+  bundleItems: ProductBundleItem[];
+  loadBundleItems: (bundleId: string) => Promise<void>;
+  addBundleItem: (bundleId: string, productId: string, quantity: number) => Promise<void>;
+  updateBundleItem: (id: string, quantity: number) => Promise<void>;
+  removeBundleItem: (id: string) => Promise<void>;
+  getBundleStock: (bundleId: string) => number;
+
   accounts: Account[];
   loadAccounts: () => Promise<void>;
   addAccount: (name: string, type: string, icon: string, accountNumber?: string) => Promise<void>;
@@ -297,42 +304,90 @@ export const useStore = create<PosStore>((set, get) => ({
           variant: item.variant || null,
         });
 
-      const { data: product } = await supabase
-        .from("products")
-        .select("id, stock, unit")
-        .eq("id", item.product_id)
-        .single();
-      if (product) {
-        const newStock = product.stock - item.quantity;
-        await supabase
+      const { data: bundleItems } = await supabase
+        .from("product_bundles")
+        .select("product_id, quantity")
+        .eq("bundle_id", item.product_id);
+
+      if (bundleItems && bundleItems.length > 0) {
+        for (const bi of bundleItems) {
+          const { data: product } = await supabase
+            .from("products")
+            .select("id, stock, unit")
+            .eq("id", bi.product_id)
+            .single();
+          if (product) {
+            const deductQty = bi.quantity * item.quantity;
+            const newStock = product.stock - deductQty;
+            await supabase
+              .from("products")
+              .update({ stock: newStock })
+              .eq("id", product.id);
+
+            const maxInvoice = await supabase
+              .from("stock_movements")
+              .select("invoice_no")
+              .order("invoice_no", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
+
+            await supabase
+              .from("stock_movements")
+              .insert({
+                id: uuid(),
+                product_id: product.id,
+                order_id: orderId,
+                date: now.split("T")[0],
+                transaction_type: "Penjualan",
+                invoice_no: nextInvoice,
+                party_name: "",
+                qty: -deductQty,
+                qty_after: newStock,
+                unit: product.unit || "SET",
+                created_at: now,
+                variant: item.variant || null,
+              });
+          }
+        }
+      } else {
+        const { data: product } = await supabase
           .from("products")
-          .update({ stock: newStock })
-          .eq("id", product.id);
+          .select("id, stock, unit")
+          .eq("id", item.product_id)
+          .single();
+        if (product) {
+          const newStock = product.stock - item.quantity;
+          await supabase
+            .from("products")
+            .update({ stock: newStock })
+            .eq("id", product.id);
 
-        const maxInvoice = await supabase
-          .from("stock_movements")
-          .select("invoice_no")
-          .order("invoice_no", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
+          const maxInvoice = await supabase
+            .from("stock_movements")
+            .select("invoice_no")
+            .order("invoice_no", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const nextInvoice = ((maxInvoice?.data?.invoice_no as number) || 0) + 1;
 
-        await supabase
-          .from("stock_movements")
-          .insert({
-            id: uuid(),
-            product_id: product.id,
-            order_id: orderId,
-            date: now.split("T")[0],
-            transaction_type: "Penjualan",
-            invoice_no: nextInvoice,
-            party_name: "",
-            qty: -item.quantity,
-            qty_after: newStock,
-            unit: product.unit || "SET",
-            created_at: now,
-            variant: item.variant || null,
-          });
+          await supabase
+            .from("stock_movements")
+            .insert({
+              id: uuid(),
+              product_id: product.id,
+              order_id: orderId,
+              date: now.split("T")[0],
+              transaction_type: "Penjualan",
+              invoice_no: nextInvoice,
+              party_name: "",
+              qty: -item.quantity,
+              qty_after: newStock,
+              unit: product.unit || "SET",
+              created_at: now,
+              variant: item.variant || null,
+            });
+        }
       }
     }
 
@@ -1545,5 +1600,49 @@ export const useStore = create<PosStore>((set, get) => ({
       await supabase.from("product_tags").insert(tagIds.map((tag_id) => ({ product_id: productId, tag_id })));
     }
     set((s) => ({ productTags: { ...s.productTags, [productId]: tagIds } }));
+  },
+
+  bundleItems: [],
+  loadBundleItems: async (bundleId: string) => {
+    const { data, error } = await supabase
+      .from("product_bundles")
+      .select("*")
+      .eq("bundle_id", bundleId);
+    if (error) { console.error("loadBundleItems:", error); return; }
+    set({ bundleItems: (data || []) as ProductBundleItem[] });
+  },
+  addBundleItem: async (bundleId: string, productId: string, quantity: number) => {
+    const { error } = await supabase
+      .from("product_bundles")
+      .insert({ bundle_id: bundleId, product_id: productId, quantity });
+    if (error) { console.error("addBundleItem:", error); return; }
+    const { data } = await supabase.from("product_bundles").select("*").eq("bundle_id", bundleId);
+    set({ bundleItems: (data || []) as ProductBundleItem[] });
+  },
+  updateBundleItem: async (id: string, quantity: number) => {
+    const { error } = await supabase
+      .from("product_bundles")
+      .update({ quantity })
+      .eq("id", id);
+    if (error) { console.error("updateBundleItem:", error); return; }
+    set((s) => ({ bundleItems: s.bundleItems.map((i) => i.id === id ? { ...i, quantity } : i) }));
+  },
+  removeBundleItem: async (id: string) => {
+    const { error } = await supabase.from("product_bundles").delete().eq("id", id);
+    if (error) { console.error("removeBundleItem:", error); return; }
+    set((s) => ({ bundleItems: s.bundleItems.filter((i) => i.id !== id) }));
+  },
+  getBundleStock: (bundleId: string) => {
+    const items = get().bundleItems.filter((i) => i.bundle_id === bundleId);
+    if (items.length === 0) return 0;
+    const products = get().products;
+    let minStock = Infinity;
+    for (const item of items) {
+      const product = products.find((p) => p.id === item.product_id);
+      if (!product) return 0;
+      const available = Math.floor(product.stock / (item.quantity || 1));
+      if (available < minStock) minStock = available;
+    }
+    return minStock === Infinity ? 0 : minStock;
   },
 }));

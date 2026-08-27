@@ -570,7 +570,10 @@ export default async function handler(req, res) {
 
   try {
     const rawBody = (await readBody(req)) || "";
-    const body = JSON.parse(rawBody || "{}");
+    console.log("[PAY] Raw body length:", rawBody.length, "headers:", JSON.stringify(Object.keys(req.headers || {})));
+    let body;
+    try { body = JSON.parse(rawBody || "{}"); } catch (e) { console.log("[PAY] JSON parse error:", e.message); json(res, 400, { error: "Invalid JSON" }); return; }
+    console.log("[PAY] Body keys:", Object.keys(body), "event:", body.event, "type:", body.type, "action:", body.action);
     const sb = await getAdmin();
 
     if (body.event || body.type === "payment.success" || body.type === "payment.expired") {
@@ -764,8 +767,8 @@ export default async function handler(req, res) {
             transaction_id: tx.transaction_id,
             requested_amount: sisa,
           });
-        } catch {
-          // riwayat tidak wajib; jangan gagalkan pembayaran
+        } catch (e) {
+          console.error("[PAY] Gagal insert qris_payments (single):", e.message);
         }
         const info = await loadOrderInfo(sb, order);
         const qrSvg = await QRCode.toString(tx.qris_dynamic || tx.qr_url, { type: "svg", margin: 0, width: 200, color: { dark: "#ec4899", light: "#ffffff" } }).catch(() => null);

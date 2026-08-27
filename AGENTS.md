@@ -13,6 +13,10 @@
 - **Stock movement variant normalization**: Kalau produk tidak punya `product_variants` tapi punya stock movement dengan variant name (dari bot) DAN variant null (dari pembelian manual), WAJIB normalisasi supaya semua movement pakai key variant yang sama. Kalau tidak, `variantStock` split jadi 2 key terpisah.
 - **Tutup PO (`po_closed`)**: Field boolean di tabel `products`. Default `false`. Quando `true`, bot dan catalog menolak order produk ini. Toggle button "Tutup PO" / "PO TUTUP" di Inventory.tsx (hanya untuk produk PO). Catalog tampilkan "PO Ditutup" badge merah dan disable tombol "Tambah ke Keranjang". Bot cek via API sebelum push order. Kolom: `ALTER TABLE products ADD COLUMN po_closed BOOLEAN DEFAULT FALSE;`
 - **Known limitation Tutup PO**: Bot simpan order ke `orders.json` DULU, baru push ke API. Kalau API reject (PO ditutup), order tetap ada di `orders.json` tapi ga ada di Supabase. Admin harus pastikan ga ada yang sedang order sebelum tutup PO.
+- **Loyalty points discount cap**: Order < Rp500.000 → max diskon Rp10.000. Order ≥ Rp500.000 → max diskon Rp20.000. Logic di `redeem-points.mjs`. Fix: 26 Agustus 2026.
+- **Cancelled order payment**: Order dengan `fulfillment_status = cancelled` TIDAK BOLEH di-mark sebagai `paid`. Kalau admin salah mark, harus di-revert ke `unpaid` + `paid_total = 0`. Incident: 26 Agustus 2026.
+- **Bot parseQty fix (pcs/buah priority)**: `parseQty()` sekarang cek `\d+\s*(pcs|buah)` DULU sebelum `mau\s*(\d+)`. Sebelumnya "kak mau 38 1 pcs" → qty=38 (salah). Sekarang → qty=1 (prioritas angka + unit). Fix: 26 Agustus 2026.
+- **Bot variant qty re-calculation**: Kalau angka yang match `mau\s*(\d+)` SAMA dengan nama variant (`variantNum`), angka itu di-skip dan cari angka lain. Contoh: variannya "38", customer "mau 38" → qty=1 (bukan 38). Kalau "mau 38 2 pcs" → qty=2. Fix: 26 Agustus 2026.
 
 ## Bot Multi-Variant Order Flow
 
@@ -226,3 +230,4 @@ total: 2 pcs
 - **Bot order `pushed` flag**: Setelah `pushOrderToSupabase()` sukses, order di `orders.json` ditandai `pushed: true`. Di `buatRekapProduk()`, local orders dengan `pushed: true` di-skip (ambil dari Supabase aja). Order yang push gagal tetap ada di local sebagai fallback. Ini mencegah double order di rekap. Incident: 25 Agustus 2026.
 - **Dynamic OG tags**: `catalog-order.mjs` handle 2 tipe OG: `?og=PRODUCT_ID` (produk individual) dan `?ogTag=TAG_NAME` (tag filter). Share URL produk: `/api/catalog-order?og={id}`. Share URL tag: `/api/catalog-order?ogTag={tag}`. Catalog page (`/catalog?tag=...`) adalah SPA → crawler ga bisa baca React → harus pakai API URL untuk share. Share button di Catalog.tsx muncul saat tag aktif, copy API URL ke clipboard.
 - **PO Summary Modal placement**: Modal harus di DALAM `<div>` return utama, bukan di luar `</div>` closing. Kalau di luar, build error.
+- **Product Bundles**: Tabel `product_bundles` (bundle_id, product_id, quantity). Stock bundle = `min(stok_item / qty_per_item)`. Saat bundle dipesan via `addOrder()`, stok item individual dikurangi (bukan stok bundle). Form bundle di Inventaris: pilih produk + qty. Fix: 26 Agustus 2026.

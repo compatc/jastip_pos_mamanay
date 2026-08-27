@@ -266,6 +266,13 @@
     .hist-status.s-belum-ready { background: #fff7ed; color: #c2410c; } .hist-status.s-belum-ready .hist-status-dot { background: #f97316; }
     .hist-status.s-cancelled { background: #fee2e2; color: #dc2626; } .hist-status.s-cancelled .hist-status-dot { background: #ef4444; }
     .hist-pack-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; margin: 8px 14px 10px; cursor: pointer; }
+    .hist-month-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1.5px solid #e2e8f0; background: white; color: #64748b; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .hist-month-btn.active { background: #ec4899; color: white; border-color: #ec4899; }
+    .hist-month-btn:hover:not(.active) { border-color: #ec4899; color: #ec4899; }
+    .hist-month-group { margin-bottom: 8px; }
+    .hist-month-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px 6px; border-bottom: 2px solid #f1f5f9; margin-bottom: 8px; }
+    .hist-month-title { font-size: 13px; font-weight: 700; color: #334155; }
+    .hist-month-total { font-size: 11px; color: #94a3b8; }
     .greeting {
       position: relative;
       z-index: 1;
@@ -1156,14 +1163,49 @@
         el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128230;</div><h3>Belum ada riwayat</h3></div>';
         return;
       }
-      var sorted = orders.slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+      var sorted = orders.slice().sort(function(a, b) {
+        var timeA = (a.payment_status === 'paid') ? (a.updated_at || a.created_at) : a.created_at;
+        var timeB = (b.payment_status === 'paid') ? (b.updated_at || b.created_at) : b.created_at;
+        return new Date(timeB) - new Date(timeA);
+      });
+
+      var months = {};
+      sorted.forEach(function(o) {
+        var d = new Date(o.created_at);
+        var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (!months[key]) months[key] = [];
+        months[key].push(o);
+      });
 
       var html = '';
       html += '<div class="hist-search-wrap"><span class="hist-search-icon">&#128269;</span>';
       html += '<input class="hist-search" type="text" id="histSearchInput" placeholder="Cari produk atau order..." oninput="filterHistory()"></div>';
+      html += '<div class="hist-filter-row" id="histFilterRow" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;">';
+      html += '<button class="hist-month-btn active" data-month="all">Semua</button>';
+      Object.keys(months).sort().reverse().forEach(function(m) {
+        var parts = m.split('-');
+        var d = new Date(Number(parts[0]), Number(parts[1]) - 1);
+        var label = d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+        html += '<button class="hist-month-btn" data-month="' + m + '">' + label + '</button>';
+      });
+      html += '</div>';
       html += '<div id="histCount" style="margin-bottom:10px;font-size:12px;color:#94a3b8;font-weight:600;">' + sorted.length + ' order</div>';
       html += '<div id="histList">';
-      sorted.forEach(function(o) {
+
+      Object.keys(months).sort().reverse().forEach(function(monthKey) {
+        var monthOrders = months[monthKey];
+        var parts = monthKey.split('-');
+        var d = new Date(Number(parts[0]), Number(parts[1]) - 1);
+        var monthLabel = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        var monthTotal = monthOrders.reduce(function(s, o) { return s + (o.total || 0); }, 0);
+
+        html += '<div class="hist-month-group" data-month="' + monthKey + '">';
+        html += '<div class="hist-month-header">';
+        html += '<span class="hist-month-title">' + monthLabel + '</span>';
+        html += '<span class="hist-month-total">' + monthOrders.length + ' order · ' + fmt(monthTotal) + '</span>';
+        html += '</div>';
+
+        monthOrders.forEach(function(o) {
         var items = itemsByOrder[o.id] || [];
         var ps = o.payment_status || 'unpaid';
         var fs = o.fulfillment_status || 'belum_ready';
@@ -1250,8 +1292,36 @@
         }
         html += '</div>';
       });
+      });
+      html += '</div>';
       html += '</div>';
       el.innerHTML = html;
+
+      var filterBtns = el.querySelectorAll('.hist-month-btn');
+      filterBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          filterMonth(btn.getAttribute('data-month'));
+        });
+      });
+    }
+
+    function filterMonth(month) {
+      document.querySelectorAll('.hist-month-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-month') === month);
+      });
+      document.querySelectorAll('.hist-month-group').forEach(function(group) {
+        if (month === 'all') {
+          group.style.display = '';
+        } else {
+          group.style.display = group.getAttribute('data-month') === month ? '' : 'none';
+        }
+      });
+      var visible = 0;
+      document.querySelectorAll('#histList .hist-card').forEach(function(card) {
+        if (card.offsetParent !== null) visible++;
+      });
+      var el = document.getElementById('histCount');
+      if (el) el.textContent = visible + ' order';
     }
 
     function filterHistory() {

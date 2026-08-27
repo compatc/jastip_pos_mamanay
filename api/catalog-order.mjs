@@ -336,6 +336,18 @@ export default async function handler(req, res) {
           if (prodMatch) productId = prodMatch.id;
         }
 
+        // Extract variant from product_name if not provided
+        let variant = item.variant || null;
+        if (!variant && productId && item.product_name) {
+          const { data: prodVariants } = await sb.from("product_variants").select("name").eq("product_id", productId);
+          for (const pv of (prodVariants || [])) {
+            if (item.product_name.toLowerCase().endsWith(pv.name.toLowerCase())) {
+              variant = pv.name;
+              break;
+            }
+          }
+        }
+
         const { error: itemErr } = await sb.from("order_items").insert({
           id: randomUUID(), order_id: orderId,
           product_id: productId,
@@ -343,7 +355,7 @@ export default async function handler(req, res) {
           price: item.price || 0,
           quantity: item.quantity || 1,
           discount: 0, paid_value: 0, status: "new",
-          variant: item.variant || null,
+          variant: variant,
         });
         if (itemErr) console.error("bot-order item:", itemErr.message);
 
@@ -361,7 +373,7 @@ export default async function handler(req, res) {
               date: now.split("T")[0], transaction_type: "Penjualan",
               invoice_no: nextInv, party_name: customer_name || "",
               qty, qty_after: newStock, unit: prod.unit || "PCS",
-              variant: item.variant || null, created_at: now,
+              variant: variant, created_at: now,
             });
           }
         }

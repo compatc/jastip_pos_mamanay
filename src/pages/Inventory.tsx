@@ -93,6 +93,11 @@ export default function Inventory() {
     productTags,
     loadProductTags,
     setProductTags,
+    bundleItems,
+    loadBundleItems,
+    addBundleItem,
+    removeBundleItem,
+    getBundleStock,
     customers,
     loadCustomers,
   } = useStore();
@@ -174,6 +179,11 @@ export default function Inventory() {
     if (variantProductId) loadProductVariants(variantProductId);
   }, [variantProductId]);
 
+  useEffect(() => {
+    if (editId) loadBundleItems(editId);
+    else useStore.setState({ bundleItems: [] });
+  }, [editId]);
+
   const baseFiltered = products.filter((p) => {
     return p.name.toLowerCase().includes(search.toLowerCase());
   });
@@ -212,6 +222,31 @@ export default function Inventory() {
         setRekapItems([]);
         return;
       }
+
+      // Load product_variants for this product to help extract variant from product_name
+      const { data: pvData } = await supabase
+        .from("product_variants")
+        .select("name")
+        .eq("product_id", productId);
+      const variantNames = (pvData || []).map((v: any) => v.name).filter(Boolean);
+
+      // Helper: extract variant from product_name when variant column is empty
+      function extractVariant(item: any): string {
+        if (item.variant) return item.variant;
+        const pname = (item.product_name || "").trim();
+        // Try to match known variant names from product_variants
+        for (const vn of variantNames) {
+          if (pname.toLowerCase().endsWith(vn.toLowerCase())) return vn;
+        }
+        // Fallback: remove base product name to get the trailing variant
+        const base = cleanName.toLowerCase();
+        const full = pname.toLowerCase();
+        if (full.startsWith(base) && full.length > base.length) {
+          return pname.slice(cleanName.length).trim();
+        }
+        return "";
+      }
+
       const orderIds = [...new Set(items.map((i: any) => i.order_id))];
       const { data: orders } = await supabase
         .from("orders")
@@ -227,15 +262,14 @@ export default function Inventory() {
         const c = customerMap.get(o.customer_id) || { name: "-", phone: "" };
         return [o.id, { ...o, customer_name: c.name, customer_phone: c.phone, customer_id: o.customer_id }];
       }));
-      // Filter: only penjualan orders
       const penjualanOrderIds = new Set((orders || []).map((o: any) => o.id));
       const merged = items
         .filter((i: any) => penjualanOrderIds.has(i.order_id))
         .map((i: any) => {
           const o = orderMap.get(i.order_id) || {};
-          return { ...i, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
+          const variant = extractVariant(i);
+          return { ...i, variant, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
         });
-      // Dedup: merge same customer + same product + same variant into single entry
       const customerProductMap = new Map<string, any>();
       for (const i of merged) {
         const key = `${i.customer_id || i.customer_name}|${i.product_name}|${i.variant || ""}`;
@@ -466,8 +500,8 @@ export default function Inventory() {
   function handleVariantImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 500 * 1024) {
-      alert("Ukuran gambar maksimal 500KB");
+    if (file.size > 1.5 * 1024 * 1024) {
+      alert("Ukuran gambar maksimal 1.5MB");
       return;
     }
     const reader = new FileReader();
@@ -478,8 +512,8 @@ export default function Inventory() {
   function handleFormVariantImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 500 * 1024) {
-      alert("Ukuran gambar maksimal 500KB");
+    if (file.size > 1.5 * 1024 * 1024) {
+      alert("Ukuran gambar maksimal 1.5MB");
       return;
     }
     const reader = new FileReader();
@@ -1517,6 +1551,75 @@ export default function Inventory() {
                         className="absolute -top-1 -right-1 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500"
                       >
                         <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Bundle Items {editId && bundleItems.length > 0 && `(${bundleItems.length})`}
+                  </label>
+                  {editId && bundleItems.length > 0 && (
+                    <div className="space-y-1.5 mb-2">
+                      {bundleItems.map((item) => {
+                        const product = products.find((p) => p.id === item.product_id);
+                        const available = product ? Math.floor(product.stock / (item.quantity || 1)) : 0;
+                        return (
+                          <div key={item.id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                            <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                              <Package className="w-3.5 h-3.5 text-purple-400" />
+                            </div>
+                            <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{product?.name || "?"}</span>
+                            <span className="text-[10px] text-gray-400">×{item.quantity}</span>
+                            <span className="text-[10px] text-gray-400">stok: {available}</span>
+                            <button
+                              type="button"
+                              onClick={async () => { await removeBundleItem(item.id); loadBundleItems(editId!); }}
+                              className="p-1 rounded hover:bg-red-50 transition-all"
+                            >
+                              <Trash2 className="w-3 h-3 text-gray-300 hover:text-red-400" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      <div className="flex items-center gap-1 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
+                        <span className="text-xs font-bold text-purple-600">Stock Bundle:</span>
+                        <span className="text-xs font-bold text-purple-600">{getBundleStock(editId)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {editId && (
+                    <div className="flex gap-2">
+                      <select
+                        id="bundleProductSelect"
+                        className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      >
+                        <option value="">Pilih produk...</option>
+                        {products.filter((p) => p.id !== editId && !bundleItems.some((b) => b.product_id === p.id)).map((p) => (
+                          <option key={p.id} value={p.id}>{p.name} (stok: {p.stock})</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        id="bundleQtyInput"
+                        defaultValue="1"
+                        min="1"
+                        className="w-14 shrink-0 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const sel = document.getElementById("bundleProductSelect") as HTMLSelectElement;
+                          const qtyInput = document.getElementById("bundleQtyInput") as HTMLInputElement;
+                          if (!sel.value) return;
+                          await addBundleItem(editId, sel.value, parseInt(qtyInput.value) || 1);
+                          loadBundleItems(editId);
+                          sel.value = "";
+                          qtyInput.value = "1";
+                        }}
+                        className="shrink-0 px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-600 rounded-lg transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}

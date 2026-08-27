@@ -101,6 +101,20 @@ export interface ProductVariant {
   created_at: string;
 }
 
+export interface ProductBundleItem {
+  id: string;
+  bundle_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+}
+
+export interface ProductBundleWithProduct extends ProductBundleItem {
+  product_name?: string;
+  product_stock?: number;
+  product_price?: number;
+}
+
 export interface ProductDiscount {
   id: string;
   product_id: string;

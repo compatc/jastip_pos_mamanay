@@ -45,7 +45,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  const maxDiscount = Math.floor((order.total || 0) * 0.05);
+  const orderTotal = order.total || 0;
+  const maxDiscount = orderTotal < 500000 ? 10000 : 20000;
   let discount = Math.floor(points / REDEEM_RATE) * 1000;
   let usedPoints = points;
 
@@ -56,7 +57,7 @@ export default async function handler(req, res) {
 
   const maxDiskonLeft = maxDiscount - (order.diskon || 0);
   if (maxDiskonLeft <= 0) {
-    res.status(400).json({ error: "Diskon poin sudah mencapai batas maksimal 5%" });
+    res.status(400).json({ error: "Diskon poin sudah mencapai batas maksimal" });
     return;
   }
   if (discount > maxDiskonLeft) {
