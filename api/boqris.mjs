@@ -7,6 +7,19 @@ function getSb() {
   return createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_ANON_KEY || "");
 }
 
+let _adminSb = null;
+async function getAdmin() {
+  if (_adminSb) return _adminSb;
+  const sb = createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "");
+  const email = process.env.SUPABASE_EMAIL;
+  const password = process.env.SUPABASE_PASSWORD;
+  if (email && password) {
+    await sb.auth.signInWithPassword({ email, password });
+  }
+  _adminSb = sb;
+  return sb;
+}
+
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
@@ -62,8 +75,8 @@ export default async function handler(req, res) {
       if (orderIds && orderIds.length > 1) {
         const groupId = "qg-" + randomUUID().replace(/-/g, "").slice(0, 22);
         invoiceNo = groupId.slice(0, 25);
-        const sb = getSb();
-        await sb.from("qris_payments").insert({
+        const sb = await getAdmin();
+        const { error: insertErr } = await sb.from("qris_payments").insert({
           id: invoiceNo,
           order_ids: orderIds,
           amount: amount,
@@ -71,6 +84,11 @@ export default async function handler(req, res) {
           transaction_id: "",
           requested_amount: amount,
         });
+        if (insertErr) {
+          console.error("[BOQRIS] qris_payments insert failed:", insertErr.message);
+          json(res, 500, { error: "Gagal menyimpan data pembayaran: " + insertErr.message });
+          return;
+        }
       }
 
       const basePayload = { merchant_id: merchantId, expires_in: Math.min(Math.max(Number(body.expires_in) || EXPIRES_IN, 60), 3600) };
@@ -113,8 +131,9 @@ export default async function handler(req, res) {
           data.amount = qrAmount;
           console.log("[BOQRIS] Final amount sent to client:", qrAmount, "(code:", code, ")");
           if (orderIds && orderIds.length > 1 && invoiceNo) {
-            const sb = getSb();
-            await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);
+            const sb = await getAdmin();
+            const { error: updateErr } = await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);
+            if (updateErr) console.error("[BOQRIS] qris_payments update failed:", updateErr.message);
           }
           json(res, 201, data);
           return;

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import webpush from "web-push";
 import QRCode from "qrcode";
+import { logAudit } from "./_audit.mjs";
 
 const REDEEM_RATE = 100;
 
@@ -379,6 +380,16 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
     // Ada request lain yang sudah konfirmasi lebih dulu
     return { status: "paid", confirmed: true, already: true };
   }
+
+  await logAudit(sb, {
+    orderId,
+    action: "confirm_order",
+    oldPaidTotal: currentPaidTotal,
+    newPaidTotal: finalPaid,
+    oldPaymentStatus: order.status,
+    newPaymentStatus: finalPaid >= finalTotal ? "paid" : "dp",
+    performedBy: "pay.mjs:confirmOrder"
+  });
 
   // Award loyalty points for penjualan orders
   if (order.order_type === "penjualan" && order.customer_id && finalPaid >= finalTotal) {

@@ -1,5 +1,6 @@
 import { getAdmin } from "./pay.mjs";
 import { randomUUID } from "node:crypto";
+import { logAudit } from "./_audit.mjs";
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -327,6 +328,16 @@ export default async function handler(req, res) {
         return;
       }
 
+      await logAudit(sb, {
+        orderId,
+        action: "order_created",
+        oldPaidTotal: null,
+        newPaidTotal: paid_total || 0,
+        oldPaymentStatus: null,
+        newPaymentStatus: paid_total >= subtotal ? "paid" : "unpaid",
+        performedBy: "catalog-order.mjs:bot-order"
+      });
+
       for (const item of items) {
         // Lookup product_id by name if not provided
         let productId = item.product_id || null;
@@ -473,6 +484,16 @@ export default async function handler(req, res) {
       json(res, 500, { error: "Gagal buat order: " + orderErr.message });
       return;
     }
+
+    await logAudit(sb, {
+      orderId,
+      action: "order_created",
+      oldPaidTotal: null,
+      newPaidTotal: 0,
+      oldPaymentStatus: null,
+      newPaymentStatus: "unpaid",
+      performedBy: "catalog-order.mjs:catalog-order"
+    });
 
     for (const item of items) {
       const { error: iErr } = await sb.from("order_items").insert({

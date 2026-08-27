@@ -1455,7 +1455,7 @@
             fetch('/api/pay', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'confirm', transaction_id: txId, invoice_no: orderIds })
+              body: JSON.stringify({ action: 'confirm', transactionId: txId, orderIds: ids })
             }).catch(function() {});
             setTimeout(function() { showDashboard(); }, 3000);
           } else if (data.status === 'expired') {

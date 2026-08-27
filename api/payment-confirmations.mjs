@@ -1,4 +1,5 @@
 import { getAdmin } from "./pay.mjs";
+import { logAudit } from "./_audit.mjs";
 
 const REDEEM_RATE = 100;
 
@@ -132,10 +133,22 @@ export default async function handler(req, res) {
           const newPaidTotal = (order.paid_total || 0) + payAmount;
           const newPaymentStatus = newPaidTotal >= (order.total || 0) ? "paid" : "dp";
 
-          await sb
+          const { error: updErr } = await sb
             .from("orders")
             .update({ paid_total: newPaidTotal, payment_status: newPaymentStatus })
             .eq("id", oid);
+
+          if (!updErr) {
+            await logAudit(sb, {
+              orderId: oid,
+              action: "payment_confirmation_approve",
+              oldPaidTotal: order.paid_total,
+              newPaidTotal,
+              oldPaymentStatus: order.payment_status || "unpaid",
+              newPaymentStatus,
+              performedBy: "payment-confirmations.mjs"
+            });
+          }
 
           remaining -= payAmount;
 
