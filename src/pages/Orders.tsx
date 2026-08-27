@@ -32,6 +32,7 @@ import {
   ExternalLink,
   Eye,
   X,
+  ArrowUpDown,
 } from "lucide-react";
 
 type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil" | "lunas" | "ready";
@@ -103,6 +104,7 @@ export default function Orders() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
+  const [sortBy, setSortBy] = useState<string>("newest");
   const [showProductSuggest, setShowProductSuggest] = useState(false);
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>>({});
 
@@ -262,10 +264,25 @@ export default function Orders() {
     return "bg-red-50 text-red-600 border-red-200";
   }
 
-  const sortedOrders = [...filtered];
-  if (tab === "belum-lunas" || tab === "belum-diambil") {
-    sortedOrders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }
+  const sortedOrders = [...filtered].sort((a, b) => {
+    switch (sortBy) {
+      case "oldest":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "name-asc":
+        return (a.customer_name || "").localeCompare(b.customer_name || "");
+      case "name-desc":
+        return (b.customer_name || "").localeCompare(a.customer_name || "");
+      case "total-desc":
+        return (b.total || 0) - (a.total || 0);
+      case "total-asc":
+        return (a.total || 0) - (b.total || 0);
+      case "unpaid":
+        return (b.total - (b.paid_total || 0)) - (a.total - (a.paid_total || 0));
+      case "newest":
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
 
   const totalPiutang = filtered
     .filter((o) => !isOrderLunas(o))
@@ -969,6 +986,22 @@ export default function Orders() {
                     })()}
                   </div>
                 )}
+              </div>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none pl-8 pr-6 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all cursor-pointer"
+                >
+                  <option value="newest">Terbaru</option>
+                  <option value="oldest">Terlama</option>
+                  <option value="name-asc">Nama A-Z</option>
+                  <option value="name-desc">Nama Z-A</option>
+                  <option value="total-desc">Nominal Besar</option>
+                  <option value="total-asc">Nominal Kecil</option>
+                  <option value="unpaid">Belum Bayar</option>
+                </select>
+                <ArrowUpDown className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
               <button
                 onClick={() => navigate("/orders/new")}
