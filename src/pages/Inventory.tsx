@@ -250,9 +250,10 @@ export default function Inventory() {
       const orderIds = [...new Set(items.map((i: any) => i.order_id))];
       const { data: orders } = await supabase
         .from("orders")
-        .select("id, created_at, customer_id, order_type")
+        .select("id, created_at, customer_id, order_type, fulfillment_status")
         .in("id", orderIds)
-        .eq("order_type", "penjualan");
+        .eq("order_type", "penjualan")
+        .not("fulfillment_status", "in", "(completed,cancelled)");
       const customerIds = [...new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length > 0
         ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
