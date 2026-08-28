@@ -106,8 +106,11 @@ export async function sendPushNotification(sb, { title, body, url, type, orderId
           } catch (err) {
             if (err && (err.statusCode === 404 || err.statusCode === 410)) {
               await sb.from("push_subscriptions").delete().eq("id", s.id);
-            }
-          }
+    }
+    } catch (e) {
+      console.error("[PAY] account_transactions failed, continuing:", e.message);
+    }
+  }
         })
       );
     }
@@ -403,10 +406,15 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
 
   // Award loyalty points for penjualan orders
   if (order.order_type === "penjualan" && order.customer_id && finalPaid >= finalTotal) {
-    await awardLoyaltyPoints(sb, order.customer_id, orderId, order.total || shareOfPayment);
+    try {
+      await awardLoyaltyPoints(sb, order.customer_id, orderId, order.total || shareOfPayment);
+    } catch (e) {
+      console.error("[PAY] awardLoyaltyPoints failed, continuing:", e.message);
+    }
   }
 
   if (order.account_id) {
+    try {
     const txId = randomUUID();
     await sb.from("account_transactions").insert({
       id: txId,
@@ -429,6 +437,9 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
         .from("accounts")
         .update({ balance: (acc.balance || 0) + (order.order_type === "penjualan" ? shareOfPayment : -shareOfPayment) })
         .eq("id", order.account_id);
+    }
+    } catch (e) {
+      console.error("[PAY] account_transactions failed, continuing:", e.message);
     }
   }
 
