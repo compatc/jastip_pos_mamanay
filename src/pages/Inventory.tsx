@@ -889,12 +889,9 @@ export default function Inventory() {
       const selected = infoReadyProducts.filter(p => infoReadySelected.has(p.id));
       let msg = `📢 *INFO BARANG READY STOCK TANGGAL ${today} :*\n\n`;
       selected.forEach((p, i) => {
-        const variantStr = p.variants.length > 0
-          ? ` (${p.variants.map((v: any) => `${v.name}: ${v.qty}`).join(", ")})`
-          : ` (stok: ${p.totalStock})`;
-        msg += `${i + 1}. *${p.name.toUpperCase()}*${variantStr} — Rp${p.sellPrice.toLocaleString("id-ID")}\n`;
+        msg += `${i + 1}. *${p.name.toUpperCase()}*\n`;
       });
-      msg += `\nSilakan diorder kak! 😊`;
+      msg += `\nBisa cek invoicenya di https://mamanay.vercel.app/customer.html ya 😊`;
 
       await fetch(`${BOT_URL}/api/send-group`, {
         method: "POST",
