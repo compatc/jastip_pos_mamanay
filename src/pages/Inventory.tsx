@@ -161,6 +161,10 @@ export default function Inventory() {
   const [markReadyLoading, setMarkReadyLoading] = useState(false);
   const [markReadyConfirming, setMarkReadyConfirming] = useState(false);
   const [markReadySelected, setMarkReadySelected] = useState<Set<string>>(new Set());
+  const [infoReadyOpen, setInfoReadyOpen] = useState(false);
+  const [infoReadyProducts, setInfoReadyProducts] = useState<any[]>([]);
+  const [infoReadySelected, setInfoReadySelected] = useState<Set<string>>(new Set());
+  const [infoReadySending, setInfoReadySending] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -863,6 +867,50 @@ export default function Inventory() {
     }
   }
 
+  function openInfoReady() {
+    const withStock = products.filter(p => (p as any).stock > 0 || Object.keys(variantStock).includes(p.id));
+    const items = withStock.map(p => {
+      const variants = (variantStock[p.id] || []).filter((v: any) => v.qty > 0);
+      const totalStock = variants.length > 0
+        ? variants.reduce((s: number, v: any) => s + v.qty, 0)
+        : (p as any).stock || 0;
+      return { id: p.id, name: p.name, sellPrice: p.sell_price, variants, totalStock };
+    });
+    setInfoReadyProducts(items);
+    setInfoReadySelected(new Set(items.map(i => i.id)));
+    setInfoReadyOpen(true);
+  }
+
+  async function sendInfoReady() {
+    if (infoReadySelected.size === 0) return;
+    setInfoReadySending(true);
+    try {
+      const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+      const selected = infoReadyProducts.filter(p => infoReadySelected.has(p.id));
+      let msg = `📢 *INFO BARANG READY STOCK TANGGAL ${today} :*\n\n`;
+      selected.forEach((p, i) => {
+        const variantStr = p.variants.length > 0
+          ? ` (${p.variants.map((v: any) => `${v.name}: ${v.qty}`).join(", ")})`
+          : ` (stok: ${p.totalStock})`;
+        msg += `${i + 1}. *${p.name.toUpperCase()}*${variantStr} — Rp${p.sellPrice.toLocaleString("id-ID")}\n`;
+      });
+      msg += `\nSilakan diorder kak! 😊`;
+
+      await fetch(`${BOT_URL}/api/send-group`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+        body: JSON.stringify({ group_jid: GROUP_ID, message: msg }),
+      });
+
+      setInfoReadyOpen(false);
+      alert("Berhasil kirim info ready stock ke grup!");
+    } catch (e: any) {
+      alert("Gagal: " + (e.message || e));
+    } finally {
+      setInfoReadySending(false);
+    }
+  }
+
   async function bulkSendToGroup() {
     if (selectedProducts.size === 0) return;
     setBulkSending(true);
@@ -944,6 +992,13 @@ export default function Inventory() {
           >
             <Share2 className="w-3.5 h-3.5" />
             {bulkSelect ? `Kirim (${selectedProducts.size})` : "Massal"}
+          </button>
+          <button
+            onClick={openInfoReady}
+            className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100"
+          >
+            <CheckCircle className="w-3.5 h-3.5" />
+            Info Ready
           </button>
           {products.some((p) => (p as any).stock_type === "po") && (
             <button
@@ -1209,13 +1264,6 @@ export default function Inventory() {
                           title="Rekap Order"
                         >
                           <ClipboardList className="w-3 h-3 text-gray-400 hover:text-purple-500" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openMarkReady(product.id); }}
-                          className="p-1 rounded hover:bg-sky-50 transition-all"
-                          title="Tandai Ready + Notif"
-                        >
-                          <CheckCircle className="w-3 h-3 text-gray-400 hover:text-sky-500" />
                         </button>
                         <button
                           onClick={() => openEdit(product.id)}
@@ -2954,6 +3002,107 @@ export default function Inventory() {
           </div>
         );
       })()}
+
+      {infoReadyOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-sky-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-sky-100/50 max-h-[85dvh] flex flex-col">
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-gray-800">Info Ready Stock</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Pilih produk untuk di-info ke grup</p>
+              </div>
+              <button onClick={() => setInfoReadyOpen(false)} className="p-2 hover:bg-sky-50 rounded-xl transition-all">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto mb-3">
+              {infoReadyProducts.length === 0 ? (
+                <div className="text-center py-8 text-sm text-gray-400">
+                  <CheckCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                  Tidak ada produk ready
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] text-gray-400 font-semibold">
+                      {infoReadyProducts.length} produk ready:
+                    </p>
+                    <button
+                      onClick={() => {
+                        if (infoReadySelected.size === infoReadyProducts.length) {
+                          setInfoReadySelected(new Set());
+                        } else {
+                          setInfoReadySelected(new Set(infoReadyProducts.map(p => p.id)));
+                        }
+                      }}
+                      className="text-[10px] text-sky-500 font-bold hover:text-sky-600"
+                    >
+                      {infoReadySelected.size === infoReadyProducts.length ? "Batal Pilih" : "Pilih Semua"}
+                    </button>
+                  </div>
+                  {infoReadyProducts.map((p) => {
+                    const isSelected = infoReadySelected.has(p.id);
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setInfoReadySelected(prev => {
+                            const next = new Set(prev);
+                            if (next.has(p.id)) next.delete(p.id);
+                            else next.add(p.id);
+                            return next;
+                          });
+                        }}
+                        className={`border rounded-xl p-3 cursor-pointer transition-all ${
+                          isSelected ? "bg-sky-50 border-sky-300 shadow-sm" : "bg-gray-50 border-gray-200 opacity-60"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                            isSelected ? "bg-sky-500 border-sky-500" : "border-gray-300 bg-white"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-gray-800">{p.name}</p>
+                            <p className="text-[10px] text-gray-400">
+                              {p.variants.length > 0
+                                ? p.variants.map((v: any) => `${v.name}: ${v.qty}`).join(", ")
+                                : `Stok: ${p.totalStock}`}
+                              {" "}— Rp{p.sellPrice.toLocaleString("id-ID")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {infoReadyProducts.length > 0 && (
+              <div className="shrink-0 space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setInfoReadyOpen(false)}
+                    className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={sendInfoReady}
+                    disabled={infoReadySending || infoReadySelected.size === 0}
+                    className="flex-1 py-2.5 bg-sky-500 hover:bg-sky-600 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-sky-200/40"
+                  >
+                    {infoReadySending ? "Mengirim..." : `Kirim (${infoReadySelected.size})`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
