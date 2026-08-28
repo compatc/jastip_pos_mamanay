@@ -868,16 +868,15 @@ export default function Inventory() {
   }
 
   function openInfoReady() {
-    const withStock = products.filter(p => (p as any).stock > 0 || Object.keys(variantStock).includes(p.id));
-    const items = withStock.map(p => {
+    const items = products.map(p => {
       const variants = (variantStock[p.id] || []).filter((v: any) => v.qty > 0);
       const totalStock = variants.length > 0
         ? variants.reduce((s: number, v: any) => s + v.qty, 0)
         : (p as any).stock || 0;
-      return { id: p.id, name: p.name, sellPrice: p.sell_price, variants, totalStock };
+      return { id: p.id, name: p.name, sellPrice: p.sell_price, variants, totalStock, stockType: (p as any).stock_type };
     });
     setInfoReadyProducts(items);
-    setInfoReadySelected(new Set(items.map(i => i.id)));
+    setInfoReadySelected(new Set(items.filter(i => i.totalStock > 0).map(i => i.id)));
     setInfoReadyOpen(true);
   }
 
@@ -3062,12 +3061,14 @@ export default function Inventory() {
                             {isSelected && <Check className="w-3 h-3 text-white" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-gray-800">{p.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-bold text-gray-800">{p.name}</p>
+                              <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${p.stockType === "po" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
+                                {p.stockType === "po" ? "PO" : "Ready"}
+                              </span>
+                            </div>
                             <p className="text-[10px] text-gray-400">
-                              {p.variants.length > 0
-                                ? p.variants.map((v: any) => `${v.name}: ${v.qty}`).join(", ")
-                                : `Stok: ${p.totalStock}`}
-                              {" "}— Rp{p.sellPrice.toLocaleString("id-ID")}
+                              Stok: {p.totalStock}
                             </p>
                           </div>
                         </div>
