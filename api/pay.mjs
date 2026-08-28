@@ -229,10 +229,20 @@ async function createBoqrisTransaction(amount, invoiceNo) {
 
 export async function checkBoqrisTransaction(transactionId) {
   const apiKey = process.env.BOQRIS_API_KEY;
-  const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions/${transactionId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  return bo.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions/${transactionId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return bo.json();
+  } catch (err) {
+    clearTimeout(timer);
+    console.error("[PAY] checkBoqrisTransaction error:", err.message, "txId:", transactionId);
+    return { status: "error", error: err.message };
+  }
 }
 
 export async function confirmOrder(sb, orderId, transactionId, boData, amountOverride) {
@@ -615,6 +625,11 @@ export default async function handler(req, res) {
           return;
         }
         const bo = await checkBoqrisTransaction(txId);
+        if (bo.status === "error" || bo.status === "timeout") {
+          console.log("[WEBHOOK] Boqris API error, will retry later:", bo.error);
+          json(res, 503, { status: "upstream_error", confirmed: false });
+          return;
+        }
         if (bo.status !== "paid") {
           json(res, 200, { status: bo.status || "pending", confirmed: false });
           return;
@@ -668,6 +683,11 @@ export default async function handler(req, res) {
       if (!order) {
         // Kondisi 1: Order tidak ditemukan — auto-create dari data QRIS
         const bo = await checkBoqrisTransaction(txId);
+        if (bo.status === "error" || bo.status === "timeout") {
+          console.log("[WEBHOOK] Boqris API error (fallback), will retry later:", bo.error);
+          json(res, 503, { status: "upstream_error", confirmed: false });
+          return;
+        }
         if (bo.status !== "paid") {
           json(res, 200, { status: bo.status || "pending", confirmed: false });
           return;
