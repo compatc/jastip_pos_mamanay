@@ -471,7 +471,7 @@ export function allocatePaymentShares(orders, totalPaid) {
 
 // Cek semua pembayaran QRIS pending yang menyimpan transaction_id, konfirmasi
 // yang ternyata sudah dibayar di BOQris, lalu kirim notifikasi. Dipanggil oleh
-// poll dari halaman web (action "reconcile") dan oleh cron (/api/qris-reconcile)
+// poll dari halaman web (action "reconcile")
 // sehingga pembayaran tetap dikonfirmasi walau halaman PayOrder ditutup.
 export async function reconcilePending(sb, limit = 30) {
   const { data: pendings, error } = await sb
