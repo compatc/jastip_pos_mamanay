@@ -27,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  CheckCircle,
 } from "lucide-react";
 
 interface ProductForm {
@@ -155,6 +156,11 @@ export default function Inventory() {
   const [cancelPoLoading, setCancelPoLoading] = useState(false);
   const [cancelPoConfirming, setCancelPoConfirming] = useState(false);
   const [cancelPoSelected, setCancelPoSelected] = useState<Set<string>>(new Set());
+  const [markReadyProductId, setMarkReadyProductId] = useState<string | null>(null);
+  const [markReadyOrders, setMarkReadyOrders] = useState<any[]>([]);
+  const [markReadyLoading, setMarkReadyLoading] = useState(false);
+  const [markReadyConfirming, setMarkReadyConfirming] = useState(false);
+  const [markReadySelected, setMarkReadySelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadProducts();
@@ -737,6 +743,126 @@ export default function Inventory() {
     }
   }
 
+  const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
+  const GROUP_ID = "120363404605912473@g.us";
+
+  async function openMarkReady(productId: string) {
+    setMarkReadyProductId(productId);
+    setMarkReadyLoading(true);
+    setMarkReadyOrders([]);
+    setMarkReadySelected(new Set());
+    try {
+      const { data: product } = await supabase.from("products").select("name").eq("id", productId).single();
+      const productName = product?.name || "";
+      const cleanName = productName.replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, "").replace(/\s+/g, " ").trim();
+      const colorWords = /\s+(biru|kuning|pink|ungu|merah|hijau|putih|hitam|abu|coklat|gold|silver|navy|tosca|milo|mocca|army|lavender|rose|coral|cream|peach|maroon|grey|brokenwhite|offwhite)$/i;
+      const baseName = cleanName.replace(colorWords, "").trim();
+
+      const { data: exactItems } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, variant, quantity, price")
+        .eq("product_name", productName);
+      const { data: fuzzyItems } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, variant, quantity, price")
+        .ilike("product_name", `%${cleanName}%`);
+      let baseItems: any[] = [];
+      if (baseName !== cleanName) {
+        const { data: bd } = await supabase
+          .from("order_items")
+          .select("order_id, product_name, variant, quantity, price")
+          .ilike("product_name", `%${baseName}%`);
+        baseItems = bd || [];
+      }
+      const allItems = [...(exactItems || []), ...(fuzzyItems || []), ...baseItems];
+      const seenIds = new Set<string>();
+      const items = allItems.filter((i: any) => { const k = i.order_id + "|" + (i.variant || ""); if (seenIds.has(k)) return false; seenIds.add(k); return true; });
+
+      if (!items || items.length === 0) {
+        setMarkReadyOrders([]);
+        return;
+      }
+      const orderIds = [...new Set(items.map((i: any) => i.order_id))];
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, customer_id, payment_status, fulfillment_status, created_at")
+        .in("id", orderIds);
+      const pendingOrders = (orders || []).filter((o: any) =>
+        o.fulfillment_status === "belum_ready"
+      );
+      if (pendingOrders.length === 0) {
+        setMarkReadyOrders([]);
+        return;
+      }
+      const pendingIds = new Set(pendingOrders.map((o: any) => o.id));
+      const affectedItems = items.filter((i: any) => pendingIds.has(i.order_id));
+      const customerIds = [...new Set(pendingOrders.map((o: any) => o.customer_id).filter(Boolean))];
+      const { data: custs } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
+        : { data: [] };
+      const custMap = new Map((custs || []).map((c: any) => [c.id, c]));
+      const merged = pendingOrders.map((o: any) => {
+        const cust = custMap.get(o.customer_id) || { name: "-", phone: "" };
+        const oItems = affectedItems.filter((i: any) => i.order_id === o.id);
+        const total = oItems.reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0);
+        return {
+          orderId: o.id,
+          customerName: cust.name,
+          customerPhone: cust.phone || "",
+          items: oItems,
+          total,
+          paymentStatus: o.payment_status,
+        };
+      });
+      setMarkReadyOrders(merged);
+      setMarkReadySelected(new Set(merged.map(o => o.orderId)));
+    } catch {
+      setMarkReadyOrders([]);
+    } finally {
+      setMarkReadyLoading(false);
+    }
+  }
+
+  async function confirmMarkReady() {
+    if (!markReadyProductId || markReadySelected.size === 0) return;
+    setMarkReadyConfirming(true);
+    try {
+      const orderIds = [...markReadySelected];
+      const { data: product } = await supabase.from("products").select("name").eq("id", markReadyProductId).single();
+      const productName = product?.name || "Produk";
+
+      await supabase
+        .from("orders")
+        .update({ fulfillment_status: "ready" })
+        .in("id", orderIds);
+
+      const readyOrders = markReadyOrders.filter(o => markReadySelected.has(o.orderId));
+      let msg = `✅ *PESANAN SIAP DIAMBIL!*\n📦 *${productName}*\n\n`;
+      readyOrders.forEach((o, i) => {
+        const itemStr = o.items.map((it: any) => `${it.product_name}${it.variant ? " " + it.variant : ""} ×${it.quantity}`).join(", ");
+        msg += `${i + 1}. *${o.customerName}* — ${itemStr}\n`;
+      });
+      msg += `\nSilakan diambil ya kak! 😊`;
+
+      try {
+        await fetch(`${BOT_URL}/api/send-group`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+          body: JSON.stringify({ group_jid: GROUP_ID, message: msg }),
+        });
+      } catch {}
+
+      setMarkReadyProductId(null);
+      setMarkReadyOrders([]);
+      setMarkReadySelected(new Set());
+      alert(`Berhasil tandai ${orderIds.length} order ready + notif grup!`);
+    } catch (e: any) {
+      alert("Gagal: " + (e.message || e));
+    } finally {
+      setMarkReadyConfirming(false);
+    }
+  }
+
   async function bulkSendToGroup() {
     if (selectedProducts.size === 0) return;
     setBulkSending(true);
@@ -1083,6 +1209,13 @@ export default function Inventory() {
                           title="Rekap Order"
                         >
                           <ClipboardList className="w-3 h-3 text-gray-400 hover:text-purple-500" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openMarkReady(product.id); }}
+                          className="p-1 rounded hover:bg-sky-50 transition-all"
+                          title="Tandai Ready + Notif"
+                        >
+                          <CheckCircle className="w-3 h-3 text-gray-400 hover:text-sky-500" />
                         </button>
                         <button
                           onClick={() => openEdit(product.id)}
@@ -2691,6 +2824,128 @@ export default function Inventory() {
                       className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-red-200/40"
                     >
                       {cancelPoConfirming ? "Mencancel..." : `Cancel ${cancelPoSelected.size} Order`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {markReadyProductId && (() => {
+        const product = products.find(p => p.id === markReadyProductId);
+        return (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-sky-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-sky-100/50 max-h-[85dvh] flex flex-col">
+              <div className="flex items-center justify-between mb-3 shrink-0">
+                <div>
+                  <h3 className="text-base font-bold text-gray-800">Tandai Ready + Notif</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{product?.name || "-"}</p>
+                </div>
+                <button onClick={() => { setMarkReadyProductId(null); setMarkReadyOrders([]); }} className="p-2 hover:bg-sky-50 rounded-xl transition-all">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto mb-3">
+                {markReadyLoading ? (
+                  <div className="text-center py-8 text-sm text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                    Mencari order...
+                  </div>
+                ) : markReadyOrders.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-400">
+                    <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                    Tidak ada order belum_ready
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] text-gray-400 font-semibold">
+                        {markReadyOrders.length} order belum_ready:
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (markReadySelected.size === markReadyOrders.length) {
+                            setMarkReadySelected(new Set());
+                          } else {
+                            setMarkReadySelected(new Set(markReadyOrders.map(o => o.orderId)));
+                          }
+                        }}
+                        className="text-[10px] text-sky-500 font-bold hover:text-sky-600"
+                      >
+                        {markReadySelected.size === markReadyOrders.length ? "Batal Pilih" : "Pilih Semua"}
+                      </button>
+                    </div>
+                    {markReadyOrders.map((o) => {
+                      const isSelected = markReadySelected.has(o.orderId);
+                      return (
+                        <div
+                          key={o.orderId}
+                          onClick={() => {
+                            setMarkReadySelected(prev => {
+                              const next = new Set(prev);
+                              if (next.has(o.orderId)) next.delete(o.orderId);
+                              else next.add(o.orderId);
+                              return next;
+                            });
+                          }}
+                          className={`border rounded-xl p-3 cursor-pointer transition-all ${
+                            isSelected ? "bg-sky-50 border-sky-300 shadow-sm" : "bg-gray-50 border-gray-200 opacity-60"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                              isSelected ? "bg-sky-500 border-sky-500" : "border-gray-300 bg-white"
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div>
+                                  <p className="text-xs font-bold text-gray-800">{o.customerName}</p>
+                                  <p className="text-[10px] text-gray-400">{o.customerPhone || "Tanpa HP"}</p>
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  o.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-600" :
+                                  o.paymentStatus === "dp" ? "bg-amber-100 text-amber-600" :
+                                  "bg-gray-100 text-gray-500"
+                                }`}>
+                                  {o.paymentStatus === "paid" ? "Lunas" : o.paymentStatus === "dp" ? "DP" : "Belum Bayar"}
+                                </span>
+                              </div>
+                              <div className="space-y-0.5">
+                                {o.items.map((item: any, idx: number) => (
+                                  <p key={idx} className="text-[10px] text-gray-600">
+                                    {item.product_name}{item.variant ? ` ${item.variant}` : ""} × {item.quantity}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {markReadyOrders.length > 0 && (
+                <div className="shrink-0 space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setMarkReadyProductId(null); setMarkReadyOrders([]); setMarkReadySelected(new Set()); }}
+                      className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={confirmMarkReady}
+                      disabled={markReadyConfirming || markReadySelected.size === 0}
+                      className="flex-1 py-2.5 bg-sky-500 hover:bg-sky-600 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-sky-200/40"
+                    >
+                      {markReadyConfirming ? "Memproses..." : `Ready ${markReadySelected.size} Order + Notif`}
                     </button>
                   </div>
                 </div>
