@@ -1122,6 +1122,35 @@
           openTfModal(orderId, sisa);
         });
       });
+      recheckPendingQris(unpaid);
+    }
+
+    async function recheckPendingQris(unpaidOrders) {
+      if (!unpaidOrders || unpaidOrders.length === 0) return;
+      try {
+        var qrisRes = await fetch(API_BASE + '/api/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pending', customer_id: currentCustomer.id })
+        });
+        if (!qrisRes.ok) return;
+        var qrisData = await qrisRes.json();
+        var pending = (qrisData.payments || []).filter(function(p) { return p.status === 'pending' && p.transaction_id; });
+        for (var i = 0; i < pending.length; i++) {
+          var p = pending[i];
+          try {
+            var checkRes = await fetch(API_BASE + '/api/pay', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'confirm', transactionId: p.transaction_id, orderIds: p.order_ids || [] })
+            });
+            var checkData = await checkRes.json();
+            if (checkData.confirmed) {
+              console.log('[QRIS-AUTO] Confirmed:', p.id);
+            }
+          } catch (e) {}
+        }
+      } catch (e) {}
     }
 
     var allOrdersCache = [];

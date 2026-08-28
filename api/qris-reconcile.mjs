@@ -7,21 +7,25 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-// Cron Vercel (GET, header Authorization: Bearer <CRON_SECRET>).
-// Memastikan QRIS yang sudah dibayar tetap dikonfirmasi walau halaman
-// PayOrder sudah ditutup dan webhook BOQris tidak aktif.
+// GET = Cron Vercel (needs CRON_SECRET)
+// POST = Manual trigger dari admin portal (tanpa CRON_SECRET, tapi dari domain yang sama)
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
     res.end();
     return;
   }
+
   const secret = process.env.CRON_SECRET;
   const auth = req.headers.authorization || "";
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const isCron = secret && auth === `Bearer ${secret}`;
+  const isPost = req.method === "POST";
+
+  if (!isCron && !isPost) {
     json(res, 401, { error: "Forbidden" });
     return;
   }
+
   try {
     const sb = await getAdmin();
     const results = await reconcilePending(sb);

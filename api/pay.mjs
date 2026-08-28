@@ -827,6 +827,18 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (body.action === "pending") {
+      const customerId = String(body.customer_id || "");
+      if (!customerId) { json(res, 400, { error: "customer_id wajib" }); return; }
+      const sb = await getAdmin();
+      const { data: custOrders } = await sb.from("orders").select("id").eq("customer_id", customerId).in("payment_status", ["unpaid", "dp"]);
+      if (!custOrders || custOrders.length === 0) { json(res, 200, { payments: [] }); return; }
+      const orderIds = custOrders.map((o) => o.id);
+      const { data: payments } = await sb.from("qris_payments").select("id, order_ids, amount, status, transaction_id, created_at").in("order_ids", orderIds).eq("status", "pending").order("created_at", { ascending: false });
+      json(res, 200, { payments: payments || [] });
+      return;
+    }
+
     if (body.action === "confirm") {
       const orderIds = Array.isArray(body.orderIds)
         ? body.orderIds.map((x) => String(x).trim()).filter(Boolean)

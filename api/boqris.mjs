@@ -69,12 +69,11 @@ export default async function handler(req, res) {
         return;
       }
 
-      const orderIds = Array.isArray(body.order_ids) ? body.order_ids : null;
-      let invoiceNo = body.invoice_no ? String(body.invoice_no).slice(0, 25) : "";
+      const orderIds = Array.isArray(body.order_ids) ? body.order_ids : (body.invoice_no ? String(body.invoice_no).split(",").filter(Boolean) : null);
+      const groupId = "qg-" + randomUUID().replace(/-/g, "").slice(0, 22);
+      let invoiceNo = groupId.slice(0, 25);
 
-      if (orderIds && orderIds.length > 1) {
-        const groupId = "qg-" + randomUUID().replace(/-/g, "").slice(0, 22);
-        invoiceNo = groupId.slice(0, 25);
+      if (orderIds && orderIds.length > 0) {
         const sb = await getAdmin();
         const { error: insertErr } = await sb.from("qris_payments").insert({
           id: invoiceNo,
@@ -130,7 +129,7 @@ export default async function handler(req, res) {
           data.custom_unique_code = code;
           data.amount = qrAmount;
           console.log("[BOQRIS] Final amount sent to client:", qrAmount, "(code:", code, ")");
-          if (orderIds && orderIds.length > 1 && invoiceNo) {
+          if (invoiceNo) {
             const sb = await getAdmin();
             const { error: updateErr } = await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);
             if (updateErr) console.error("[BOQRIS] qris_payments update failed:", updateErr.message);
