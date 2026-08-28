@@ -868,16 +868,21 @@ export default function Inventory() {
   }
 
   function openInfoReady() {
-    const items = products.map(p => {
-      const variants = (variantStock[p.id] || []).filter((v: any) => v.qty > 0);
-      const totalStock = variants.length > 0
-        ? variants.reduce((s: number, v: any) => s + v.qty, 0)
-        : (p as any).stock || 0;
-      return { id: p.id, name: p.name, sellPrice: p.sell_price, variants, totalStock, stockType: (p as any).stock_type };
-    });
-    setInfoReadyProducts(items);
-    setInfoReadySelected(new Set(items.filter(i => i.totalStock > 0).map(i => i.id)));
-    setInfoReadyOpen(true);
+    try {
+      const items = products.map(p => {
+        const vs = (variantStock || {})[p.id];
+        const variants = Array.isArray(vs) ? vs.filter((v: any) => v.qty > 0) : [];
+        const totalStock = variants.length > 0
+          ? variants.reduce((s: number, v: any) => s + v.qty, 0)
+          : (p as any).stock || 0;
+        return { id: p.id, name: p.name, sellPrice: p.sell_price, variants, totalStock, stockType: (p as any).stock_type };
+      });
+      setInfoReadyProducts(items);
+      setInfoReadySelected(new Set(items.filter(i => i.totalStock > 0).map(i => i.id)));
+      setInfoReadyOpen(true);
+    } catch (e) {
+      console.error("openInfoReady error:", e);
+    }
   }
 
   async function sendInfoReady() {
