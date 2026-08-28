@@ -106,11 +106,8 @@ export async function sendPushNotification(sb, { title, body, url, type, orderId
           } catch (err) {
             if (err && (err.statusCode === 404 || err.statusCode === 410)) {
               await sb.from("push_subscriptions").delete().eq("id", s.id);
-    }
-    } catch (e) {
-      console.error("[PAY] account_transactions failed, continuing:", e.message);
-    }
-  }
+            }
+          }
         })
       );
     }
