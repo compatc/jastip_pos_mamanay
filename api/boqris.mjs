@@ -1,7 +1,28 @@
 const BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const EXPIRES_IN = Math.min(Math.max(Number(process.env.BOQRIS_EXPIRES_IN || 3600) || 3600, 60), 3600);
+import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
-import { getAdmin } from "./pay.mjs";
+
+let _adminSb = null;
+async function getAdmin() {
+  if (_adminSb) return _adminSb;
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
+  const sb = createClient(url, key);
+  const email = process.env.SUPABASE_EMAIL || process.env.BOT_EMAIL;
+  const password = process.env.SUPABASE_PASSWORD || process.env.BOT_PASSWORD;
+  if (email && password) {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error("[BOQRIS] signIn failed:", error.message);
+      throw new Error("Login Supabase gagal: " + error.message);
+    }
+  } else {
+    console.error("[BOQRIS] Missing SUPABASE_EMAIL or SUPABASE_PASSWORD");
+  }
+  _adminSb = sb;
+  return sb;
+}
 
 function json(res, status, body) {
   res.statusCode = status;
