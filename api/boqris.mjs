@@ -1,24 +1,7 @@
 const BASE = process.env.BOQRIS_BASE_URL || "https://api.boqris.id";
 const EXPIRES_IN = Math.min(Math.max(Number(process.env.BOQRIS_EXPIRES_IN || 3600) || 3600, 60), 3600);
-import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
-
-function getSb() {
-  return createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_ANON_KEY || "");
-}
-
-let _adminSb = null;
-async function getAdmin() {
-  if (_adminSb) return _adminSb;
-  const sb = createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "");
-  const email = process.env.SUPABASE_EMAIL;
-  const password = process.env.SUPABASE_PASSWORD;
-  if (email && password) {
-    await sb.auth.signInWithPassword({ email, password });
-  }
-  _adminSb = sb;
-  return sb;
-}
+import { getAdmin } from "./pay.mjs";
 
 function json(res, status, body) {
   res.statusCode = status;
