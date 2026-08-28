@@ -3081,6 +3081,20 @@ export default function Inventory() {
 
             {infoReadyProducts.length > 0 && (
               <div className="shrink-0 space-y-2">
+                {infoReadySelected.size > 0 && (() => {
+                  const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+                  const selected = infoReadyProducts.filter(p => infoReadySelected.has(p.id));
+                  const previewLines = selected.map((p, i) => `${i + 1}. ${p.name.toUpperCase()}`);
+                  const previewMsg = `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${previewLines.join("\n")}\n\nBisa cek invoicenya di https://mamanay.vercel.app/customer.html ya 😊`;
+                  return (
+                    <div className="bg-white rounded-xl border border-gray-100 p-3 mb-1">
+                      <p className="text-[10px] text-gray-400 font-semibold mb-2">Preview Pesan:</p>
+                      <div className="bg-[#dcf8c6] rounded-lg p-2.5 text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed">
+                        {previewMsg}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="flex gap-2">
                   <button
                     onClick={() => setInfoReadyOpen(false)}
