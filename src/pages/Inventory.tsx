@@ -980,7 +980,7 @@ export default function Inventory() {
     <div className="h-full flex flex-col overflow-hidden">
 
       <div className="shrink-0 px-4 pt-3 pb-2 relative z-10">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
           <h1 className="text-base font-bold text-gray-800">📦 Inventaris</h1>
           <div className="flex-1" />
           <button
