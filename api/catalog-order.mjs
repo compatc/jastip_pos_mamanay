@@ -109,6 +109,7 @@ export default async function handler(req, res) {
           const minProfit = 6000;
 
           let promoType = "discount", promoValue = 15, promoMsg = "";
+          const stockBadge = p.stock_type === "po" ? "[PO] " : "[Ready] ";
 
           if (p.stock >= 15 && (discountedPrice15 - costPrice) >= minProfit) {
             const bundleQty = p.stock >= 20 ? 3 : 2;
@@ -118,7 +119,7 @@ export default async function handler(req, res) {
             const normalTotal = p.sell_price * bundleQty;
             const bundleSaving = normalTotal - bundleTotal;
             promoType = "bundling"; promoValue = bundleDiscount;
-            promoMsg = `🏷️ ${p.name} ${bundlePrice.toLocaleString("id-ID")}\n[stok:${p.stock}]\n🎁 BUNDLING Beli ${bundleQty} Lebih Hemat!\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli ${bundleQty} pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk ${bundleQty} pcs!`;
+            promoMsg = `🏷️ ${p.name} ${bundlePrice.toLocaleString("id-ID")}\n${stockBadge}[stok:${p.stock}]\n🎁 BUNDLING Beli ${bundleQty} Lebih Hemat!\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli ${bundleQty} pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk ${bundleQty} pcs!`;
           } else if (p.stock >= 5 && (discountedPrice15 - costPrice) >= minProfit) {
             const bundleQty = 2;
             const bundleDiscount = 10;
@@ -127,14 +128,14 @@ export default async function handler(req, res) {
             const normalTotal = p.sell_price * bundleQty;
             const bundleSaving = normalTotal - bundleTotal;
             promoType = "bundling"; promoValue = bundleDiscount;
-            promoMsg = `🏷️ ${p.name} ${bundlePrice.toLocaleString("id-ID")}\n[stok:${p.stock}]\n🎁 BUNDLING Beli 2 Lebih Hemat!\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli 2 pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk 2 pcs!`;
+            promoMsg = `🏷️ ${p.name} ${bundlePrice.toLocaleString("id-ID")}\n${stockBadge}[stok:${p.stock}]\n🎁 BUNDLING Beli 2 Lebih Hemat!\nHarga normal: Rp${p.sell_price.toLocaleString("id-ID")}/pcs\nBeli 2 pcs: *Rp${bundlePrice.toLocaleString("id-ID")}/pcs*\n💡 Hemat Rp${bundleSaving.toLocaleString("id-ID")} untuk 2 pcs!`;
           } else if (sold === 0 && p.stock >= 5 && (discountedPrice20 - costPrice) >= minProfit) {
             promoType = "flash_sale"; promoValue = 20;
-            promoMsg = `🏷️ ${p.name} ${discountedPrice20.toLocaleString("id-ID")}\n[stok:${p.stock}]\n🔥 FLASH SALE!\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\nBuruan sebelum kehabisan!`;
+            promoMsg = `🏷️ ${p.name} ${discountedPrice20.toLocaleString("id-ID")}\n${stockBadge}[stok:${p.stock}]\n🔥 FLASH SALE!\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice20.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice20).toLocaleString("id-ID")})\nBuruan sebelum kehabisan!`;
           } else if ((discountedPrice15 - costPrice) < minProfit) {
             continue;
           } else {
-            promoMsg = `🏷️ ${p.name} ${discountedPrice15.toLocaleString("id-ID")}\n[stok:${p.stock}]\n🏷️ DISKON ${promoValue}%\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice15.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice15).toLocaleString("id-ID")})\nBuruan sebelum kehabisan!`;
+            promoMsg = `🏷️ ${p.name} ${discountedPrice15.toLocaleString("id-ID")}\n${stockBadge}[stok:${p.stock}]\n🏷️ DISKON ${promoValue}%\nRp${p.sell_price.toLocaleString("id-ID")} → *Rp${discountedPrice15.toLocaleString("id-ID")}* (hemat Rp${(p.sell_price - discountedPrice15).toLocaleString("id-ID")})\nBuruan sebelum kehabisan!`;
           }
           recs.push({
             id: p.id, name: p.name, price: p.sell_price, stock: p.stock,

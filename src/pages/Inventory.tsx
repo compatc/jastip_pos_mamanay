@@ -926,7 +926,7 @@ export default function Inventory() {
       if (!product) continue;
       const vs = variantStock[pid];
       const hasVariants = vs && Object.keys(vs).length > 0;
-      const stType = (product as any).stock_type === "po" ? " [PO]" : "";
+      const stType = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
       const desc = (product as any).description || "";
       const footer = "\n\n_Fix, reply difoto_";
 
@@ -2056,7 +2056,7 @@ export default function Inventory() {
         const shareImage = isAllSelected
           ? (variants.some((v) => v.image) ? "" : product.image || "")
           : (selectedVariant?.image || product.image || "");
-        const stockTypeBadge = (product as any).stock_type === "po" ? " [PO]" : "";
+        const stockTypeBadge = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
         const footer = "\n\n_Fix, reply difoto_";
         const previewMsg = isAllSelected
           ? `🏷️ ${product.name}${stockTypeBadge} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${variants.map((v) => `• ${v.name}${v.stock > 0 ? ` [stok:${v.stock}]` : ""}`).join("\n")}${footer}`
@@ -2202,7 +2202,7 @@ export default function Inventory() {
                         const sendable = variants.filter((v) => v.image);
                         let sent = 0;
                         for (const v of sendable) {
-                          const stType = (product as any).stock_type === "po" ? " [PO]" : "";
+                          const stType = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
                           const stockLabel = v.stock > 0 ? ` [stok:${v.stock}]` : "";
                           const msg = `🏷️ ${product.name} ${v.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}• ${v.name}${stockLabel}\n\n_Fix, reply difoto_`;
                           const fd = new FormData();
@@ -2223,7 +2223,7 @@ export default function Inventory() {
                       } else {
                         // Tidak ada foto varian → 1 bubble gabungan + foto produk
                         const lines = variants.map((v) => `• ${v.name}${v.stock > 0 ? ` [stok:${v.stock}]` : ""}`).join("\n");
-                        const stType2 = (product as any).stock_type === "po" ? " [PO]" : "";
+                        const stType2 = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
                         const msg = `🏷️ ${product.name}${stType2} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${lines}\n\n_Fix, reply difoto_`;
                         if (product.image) {
                           const fd = new FormData();
