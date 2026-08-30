@@ -343,8 +343,13 @@ export default async function handler(req, res) {
         let productId = item.product_id || null;
         if (!productId && item.product_name) {
           const cleanName = item.product_name.replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, '').replace(/\s+/g, ' ').trim();
-          const { data: prodMatch } = await sb.from("products").select("id").or(`name.eq.${item.product_name},name.ilike.%${cleanName}%`).limit(1).maybeSingle();
-          if (prodMatch) productId = prodMatch.id;
+          // Try exact match first (avoid .or() which breaks with parentheses in names)
+          let { data: prodMatch } = await sb.from("products").select("id").eq("name", item.product_name).limit(1);
+          if (!prodMatch || prodMatch.length === 0) {
+            const { data: fuzzyMatch } = await sb.from("products").select("id").ilike("name", "%" + cleanName + "%").limit(1);
+            if (fuzzyMatch && fuzzyMatch.length > 0) prodMatch = fuzzyMatch;
+          }
+          if (prodMatch && prodMatch.length > 0) productId = prodMatch[0].id;
         }
 
         // Extract variant from product_name if not provided
