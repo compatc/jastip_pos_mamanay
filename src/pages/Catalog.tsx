@@ -238,7 +238,7 @@ export default function Catalog() {
     <div className="min-h-dvh bg-[#f8f7f4]">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-[#f8f7f4]/90 backdrop-blur-xl">
-        <div className="px-4 sm:px-6 lg:px-8 pt-5 pb-4 max-w-5xl mx-auto">
+        <div className="px-4 sm:px-6 lg:px-8 pt-5 pb-4 max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-[1.35rem] font-extrabold text-slate-900 tracking-tight">jastip_mamanay</h1>
@@ -271,7 +271,7 @@ export default function Catalog() {
       </div>
 
       {/* Content */}
-      <div className="px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto pb-28">
+      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-28">
         {/* Tag Filter */}
         {allUniqueTags.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide items-center">
@@ -312,7 +312,7 @@ export default function Catalog() {
 
         {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
                 <div className="h-40 bg-slate-100" />
@@ -333,7 +333,7 @@ export default function Catalog() {
             <p className="text-slate-400 text-xs mt-1">Coba kata kunci lain</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
             {filtered.map((p) => {
               const stock = getStockInfo(p.stock);
               const isPoClosed = p.stock_type === "po" && p.po_closed;
