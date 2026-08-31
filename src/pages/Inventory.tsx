@@ -263,7 +263,7 @@ export default function Inventory() {
         .select("id, created_at, customer_id, order_type, fulfillment_status")
         .in("id", orderIds)
         .eq("order_type", "penjualan")
-        .not("fulfillment_status", "in", "(completed,cancelled)")
+        .not("fulfillment_status", "in", "(completed,cancelled,shipped,diterima)")
         .neq("status", "deleted");
       const customerIds = [...new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length > 0
@@ -280,7 +280,7 @@ export default function Inventory() {
         .map((i: any) => {
           const o = orderMap.get(i.order_id) || {};
           const variant = extractVariant(i);
-          return { ...i, variant, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type, fulfillment_status: (o as any).fulfillment_status || "" };
+          return { ...i, variant, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
         });
       const customerProductMap = new Map<string, any>();
       for (const i of merged) {
@@ -289,9 +289,8 @@ export default function Inventory() {
           const existing = customerProductMap.get(key);
           existing.quantity += i.quantity;
           existing.price = Math.max(existing.price, i.price);
-          if (i.order_id && !existing._orderIds.includes(i.order_id)) existing._orderIds.push(i.order_id);
         } else {
-          customerProductMap.set(key, { ...i, _orderIds: [i.order_id] });
+          customerProductMap.set(key, { ...i });
         }
       }
       setRekapItems([...customerProductMap.values()]);
@@ -2527,21 +2526,10 @@ export default function Inventory() {
                 <div>
                           <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Per Pelanggan</p>
                           <div className="space-y-1.5">
-                            {Object.entries(byCustomer).sort((a, b) => b[1].qty - a[1].qty).map(([name, c]) => {
-                              const statuses = [...c.orders].map((oid: string) => {
-                                const mi = items.find((m: any) => m.order_id === oid);
-                                return mi?.fulfillment_status || "";
-                              });
-                              const allShipped = statuses.length > 0 && statuses.every((s: string) => ["shipped","diterima","completed"].includes(s));
-                              const anyShipped = statuses.some((s: string) => ["shipped","diterima","completed"].includes(s));
-                              return (
+                            {Object.entries(byCustomer).sort((a, b) => b[1].qty - a[1].qty).map(([name, c]) => (
                               <div key={name} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
                                 <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <p className="text-sm font-semibold text-gray-700">{name}</p>
-                                    {allShipped && <span className="text-[9px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-bold">✓ Dikirim</span>}
-                                    {!allShipped && anyShipped && <span className="text-[9px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-bold">Sebagian Dikirim</span>}
-                                  </div>
+                                  <p className="text-sm font-semibold text-gray-700">{name}</p>
                                   <p className="text-[10px] text-gray-400">{c.orders.size} order</p>
                                 </div>
                                 <div className="text-right">
@@ -2549,8 +2537,7 @@ export default function Inventory() {
                                   <p className="text-[10px] text-green-500">Rp {c.revenue.toLocaleString("id-ID")}</p>
                                 </div>
                               </div>
-                              );
-                            })}
+                            ))}
                           </div>
                         </div>
                         {(() => {
@@ -2583,12 +2570,7 @@ export default function Inventory() {
                             let idx = 0;
                             for (const [, c] of custMap) {
                               const last4 = String(c.phone || c.name || "").replace(/[^0-9]/g, "").slice(-4);
-                              const cStatuses = custItems.filter((ci: any) => {
-                                const key2 = ci.customer_id || (ci.customer_name || "-").trim().toLowerCase().replace(/\s+/g, " ");
-                                return key2 === (c.name || "").trim().toLowerCase().replace(/\s+/g, " ");
-                              }).map((ci: any) => ci.fulfillment_status || "");
-                              const cAllShipped = cStatuses.length > 0 && cStatuses.every((s: string) => ["shipped","diterima","completed"].includes(s));
-                              msg += `${++idx}. ${c.name} -- ${last4} -- ${c.qty}${cAllShipped ? " ✓" : ""}\n`;
+                              msg += `${++idx}. ${c.name} -- ${last4} -- ${c.qty}\n`;
                             }
                             msg += `subtotal: ${v.qty}\n`;
                           }
