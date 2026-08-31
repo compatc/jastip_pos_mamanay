@@ -289,8 +289,9 @@ export default function Inventory() {
           const existing = customerProductMap.get(key);
           existing.quantity += i.quantity;
           existing.price = Math.max(existing.price, i.price);
+          if (i.order_id && !existing._orderIds.includes(i.order_id)) existing._orderIds.push(i.order_id);
         } else {
-          customerProductMap.set(key, { ...i });
+          customerProductMap.set(key, { ...i, _orderIds: [i.order_id] });
         }
       }
       setRekapItems([...customerProductMap.values()]);
@@ -2528,7 +2529,7 @@ export default function Inventory() {
                           <div className="space-y-1.5">
                             {Object.entries(byCustomer).sort((a, b) => b[1].qty - a[1].qty).map(([name, c]) => {
                               const statuses = [...c.orders].map((oid: string) => {
-                                const mi = merged.find((m: any) => m.order_id === oid);
+                                const mi = items.find((m: any) => m.order_id === oid);
                                 return mi?.fulfillment_status || "";
                               });
                               const allShipped = statuses.length > 0 && statuses.every((s: string) => ["shipped","diterima","completed"].includes(s));
