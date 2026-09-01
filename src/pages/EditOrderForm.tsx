@@ -746,7 +746,7 @@ export default function EditOrderForm() {
                                 onChange={(e) => {
                                   const val = e.target.value.replace(/[^0-9]/g, "");
                                   const updated = [...items];
-                                  updated[index] = { ...updated[index], unit_cost: val };
+                                  updated[index] = { ...updated[index], unit_cost: val, price: val || updated[index].price };
                                   setItems(updated);
                                 }}
                                 placeholder="0"
