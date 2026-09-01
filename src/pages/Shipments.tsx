@@ -60,8 +60,8 @@ interface ShipmentOrder {
 
 type FilterType = "all" | "ready" | "hold" | "shipped";
 
-function isOrderLunas(o: { paid_total: number; total: number }) {
-  return (o.paid_total || 0) >= (o.total || 0) && o.total > 0;
+function isOrderLunas(o: { paid_total: number; total: number; diskon?: number }) {
+  return (o.paid_total || 0) >= ((o.total || 0) - (o.diskon || 0)) && o.total > 0;
 }
 
 function isHold(notes: string): boolean {

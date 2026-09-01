@@ -35,7 +35,7 @@ const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
 const FULFILLMENT_STATUS_ORDER = ["belum_ready", "ready", "shipped", "diterima", "completed", "cancelled"];
 
 function getOrderStatusBadge(order: any): { label: string; cls: string; accent: string } {
-  const paid = order.payment_status === "paid" || (order.paid_total >= order.total && order.total > 0);
+  const paid = order.payment_status === "paid" || (order.paid_total >= (order.total - (order.diskon || 0)) && order.total > 0);
   if (paid && order.fulfillment_status === "completed") return { label: "Selesai", cls: "bg-gray-100 text-gray-500", accent: "bg-gray-300" };
   if (paid) return { label: "Lunas", cls: "bg-emerald-50 text-emerald-600", accent: "bg-emerald-400" };
   const map: Record<string, { label: string; cls: string; accent: string }> = {
@@ -113,7 +113,7 @@ export default function CustomerOrders() {
   }
 
   function openWaModal() {
-    const unpaid = orders.filter((o) => o.paid_total < o.total && o.total > 0);
+    const unpaid = orders.filter((o) => o.paid_total < (o.total - (o.diskon || 0)) && o.total > 0);
     setSelectedOrders(new Set(unpaid.map((o) => o.id)));
     setWaModalOpen(true);
   }
@@ -152,18 +152,18 @@ export default function CustomerOrders() {
   }, [orders]);
 
   const customer = customers.find((c) => c.id === customerId);
-  const unpaidOrders = orders.filter((o) => o.paid_total < o.total && o.total > 0);
+  const unpaidOrders = orders.filter((o) => o.paid_total < (o.total - (o.diskon || 0)) && o.total > 0);
 
   const totalBelanja = orders.reduce((s, o) => s + o.total, 0);
-  const totalLunas = orders.filter((o) => o.paid_total >= o.total && o.total > 0).length;
-  const sisaPiutang = unpaidOrders.reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+  const totalLunas = orders.filter((o) => o.paid_total >= (o.total - (o.diskon || 0)) && o.total > 0).length;
+  const sisaPiutang = unpaidOrders.reduce((s, o) => s + ((o.total - (o.diskon || 0)) - (o.paid_total || 0)), 0);
   const totalPiutang = unpaidOrders.reduce((s, o) => s + o.total, 0);
 
   const filteredOrders = orders.filter((o) => {
     if (filter === "all") return true;
     if (filter === "unpaid") return o.payment_status === "unpaid" && o.total > 0;
     if (filter === "dikemas") {
-      const isPaid = o.payment_status === "paid" || o.paid_total >= o.total;
+      const isPaid = o.payment_status === "paid" || o.paid_total >= (o.total - (o.diskon || 0));
       return isPaid && ["belum_ready", "ready"].includes(o.fulfillment_status);
     }
     if (filter === "completed") {
@@ -217,7 +217,7 @@ export default function CustomerOrders() {
     all: orders.length,
     unpaid: orders.filter((o) => o.payment_status === "unpaid" && o.total > 0).length,
     dikemas: orders.filter((o) => {
-      const isPaid = o.payment_status === "paid" || o.paid_total >= o.total;
+      const isPaid = o.payment_status === "paid" || o.paid_total >= (o.total - (o.diskon || 0));
       return isPaid && ["belum_ready", "ready"].includes(o.fulfillment_status);
     }).length,
     completed: completedOrders.length,
@@ -285,12 +285,12 @@ export default function CustomerOrders() {
       msg += `*Sisa: ${rupiah(grandTotal - grandPaid)}*\n\n`;
     }
 
-    const qrisOrders = selected.filter((o) => o.total - (o.paid_total || 0) > 0);
+    const qrisOrders = selected.filter((o) => (o.total - (o.diskon || 0)) - (o.paid_total || 0) > 0);
     if (qrisOrders.length > 0) {
       msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
       if (qrisOrders.length === 1) {
         const order = qrisOrders[0];
-        const sisa = order.total - (order.paid_total || 0);
+        const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
         const items = itemsByOrder[order.id] || [];
         const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
         msg += `1. ${productNames}\n`;
@@ -299,13 +299,13 @@ export default function CustomerOrders() {
       } else {
         const qrisIds = qrisOrders.map((o) => o.id);
         qrisOrders.forEach((order, idx) => {
-          const sisa = order.total - (order.paid_total || 0);
+          const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
           const items = itemsByOrder[order.id] || [];
           const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
           msg += `${idx + 1}. ${productNames}\n`;
           msg += `\u{1F4B0} Sisa: *${rupiah(sisa)}*\n\n`;
         });
-        const totalSisa = qrisOrders.reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+        const totalSisa = qrisOrders.reduce((s, o) => s + ((o.total - (o.diskon || 0)) - (o.paid_total || 0)), 0);
         msg += `\u{1F9FE} Total sisa: *${rupiah(totalSisa)}* (${qrisOrders.length} pesanan digabung dalam 1 QRIS)\n`;
         msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${payGroupLink(qrisIds)}\n\n`;
       }
@@ -346,8 +346,8 @@ export default function CustomerOrders() {
   function renderOrderCard(order: any, isCompletedTab: boolean) {
     const items = itemsByOrder[order.id] || [];
     const badge = getOrderStatusBadge(order);
-    const paid = order.payment_status === "paid" || order.paid_total >= order.total;
-    const sisa = order.total - (order.paid_total || 0);
+    const paid = order.payment_status === "paid" || order.paid_total >= (order.total - (order.diskon || 0));
+    const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
     const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
     const dateStr = new Date(order.created_at).toLocaleDateString("id-ID", {
       day: "numeric",
@@ -637,7 +637,7 @@ export default function CustomerOrders() {
             <p className="text-base font-bold text-gray-800 shrink-0">Pilih Tagihan</p>
             <div className="overflow-y-auto flex-1 min-h-0 space-y-2 -mx-5 px-5">
               {orders.map((order) => {
-                const isUnpaid = order.paid_total < order.total && order.total > 0;
+                const isUnpaid = order.paid_total < (order.total - (order.diskon || 0)) && order.total > 0;
                 const items = itemsByOrder[order.id] || [];
                 return (
                   <label
@@ -762,7 +762,7 @@ export default function CustomerOrders() {
                         {items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ")}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5 font-semibold">
-                        Tagihan: {rupiah(order.total - (order.paid_total || 0))}
+                        Tagihan: {rupiah((order.total - (order.diskon || 0)) - (order.paid_total || 0))}
                       </p>
                     </div>
                   </label>
@@ -772,7 +772,7 @@ export default function CustomerOrders() {
             {(() => {
               const totalSelectedAmount = unpaidOrders
                 .filter((o) => selectedPaidOrders.has(o.id))
-                .reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+                .reduce((s, o) => s + ((o.total - (o.diskon || 0)) - (o.paid_total || 0)), 0);
               return (
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100 shrink-0">
                   <div className="flex flex-col">

@@ -127,16 +127,16 @@ function savePromoStocks() {
 
 async function fetchStockFromDb(productName) {
   try {
-    const api = await getApi();
+    const catalogUrl = process.env.WEB_API_URL || 'https://mamanay.vercel.app';
+    const res = await fetch(catalogUrl + '/api/catalog-order');
+    const json = await res.json();
+    const products = json.data || json.products || [];
     const cleanName = productName.replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, '').replace(/\s+/g, ' ').trim();
-    let { data: prod } = await api.sb.from('products').select('id, stock, stock_type').eq('name', productName).maybeSingle();
-    if (!prod) {
-      const { data: fuzzy } = await api.sb.from('products').select('id, stock, stock_type').ilike('name', '%' + cleanName + '%').limit(1).maybeSingle();
-      prod = fuzzy;
-    }
-    if (!prod) return null;
-    if (prod.stock_type === 'po') return null;
-    return prod.stock || 0;
+    let match = products.find(p => p.name === productName);
+    if (!match) match = products.find(p => p.name.toLowerCase().includes(cleanName.toLowerCase()));
+    if (!match) return null;
+    if (match.stock_type === 'po') return null;
+    return match.stock || 0;
   } catch (e) {
     console.error('fetchStockFromDb error:', e.message);
     return null;
@@ -145,31 +145,20 @@ async function fetchStockFromDb(productName) {
 
 async function rebuildPromoStocksFromDb() {
   try {
-    const api = await getApi();
-    const { data: products } = await api.sb.from('products').select('id, name, stock, stock_type');
-    if (!products) return {};
-    const { data: variants } = await api.sb.from('product_variants').select('product_id, name, stock');
-    const { data: movements } = await api.sb.from('stock_movements').select('product_id, variant, qty');
-
-    const variantStock = {};
-    for (const v of (variants || [])) {
-      if (!variantStock[v.product_id]) variantStock[v.product_id] = {};
-      variantStock[v.product_id][v.name] = v.stock || 0;
-    }
-    for (const m of (movements || [])) {
-      if (!m.product_id || !m.variant) continue;
-      if (!variantStock[m.product_id]) variantStock[m.product_id] = {};
-      variantStock[m.product_id][m.variant] = (variantStock[m.product_id][m.variant] || 0) + m.qty;
-    }
+    const catalogUrl = process.env.WEB_API_URL || 'https://mamanay.vercel.app';
+    const res = await fetch(catalogUrl + '/api/catalog-order');
+    const json = await res.json();
+    const products = json.data || json.products || [];
 
     const newPromoStocks = {};
     for (const p of products) {
       if (p.stock_type === 'po') continue;
-      const vs = variantStock[p.id];
-      const hasVariants = vs && Object.keys(vs).length > 0;
-      if (hasVariants) {
+      const variants = p.variants || [];
+      if (variants.length > 0) {
         let total = 0;
-        for (const v of Object.values(vs)) { total += v; }
+        for (const v of variants) {
+          if (p.stock_type !== 'po' && (v.stock || 0) > 0) total += v.stock;
+        }
         if (total > 0) newPromoStocks[p.name] = total;
       } else {
         if ((p.stock || 0) > 0) newPromoStocks[p.name] = p.stock;
@@ -185,7 +174,6 @@ async function rebuildPromoStocksFromDb() {
     return null;
   }
 }
-
 let promoStocks = loadPromoStocks();
 let orders = loadOrders();
 loadLidMap();

@@ -249,7 +249,7 @@ export default function Orders() {
   }
 
   function isOrderLunas(order: typeof allOrders[0]): boolean {
-    return order.paid_total >= order.total && order.total > 0;
+    return order.paid_total >= (order.total - (order.diskon || 0)) && order.total > 0;
   }
 
   function getAgeDays(createdAt: string): number {
@@ -277,7 +277,7 @@ export default function Orders() {
       case "total-asc":
         return (a.total || 0) - (b.total || 0);
       case "unpaid":
-        return (b.total - (b.paid_total || 0)) - (a.total - (a.paid_total || 0));
+        return ((b.total - (b.diskon || 0)) - (b.paid_total || 0)) - ((a.total - (a.diskon || 0)) - (a.paid_total || 0));
       case "newest":
       default:
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -286,7 +286,7 @@ export default function Orders() {
 
   const totalPiutang = filtered
     .filter((o) => !isOrderLunas(o))
-    .reduce((s, o) => s + (o.total - o.paid_total), 0);
+    .reduce((s, o) => s + ((o.total - (o.diskon || 0)) - o.paid_total), 0);
 
   const totalBelumDiambil = filtered.reduce((s, o) => s + o.total, 0);
 
@@ -302,7 +302,7 @@ export default function Orders() {
 
     const items = itemsByOrder[order.id] || [];
     const productText = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
-    const sisa = order.total - order.paid_total;
+    const sisa = (order.total - (order.diskon || 0)) - order.paid_total;
     const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
 
     const deadlineBase = order.invoice_sent_at || order.created_at;
@@ -367,7 +367,7 @@ export default function Orders() {
 
     const items = itemsByOrder[order.id] || [];
     const productText = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
-    const sisa = order.total - order.paid_total;
+    const sisa = (order.total - (order.diskon || 0)) - order.paid_total;
     const isLunas = sisa <= 0;
 
     let msg = `Halo Kak ${order.customer_name || ""} \u{1F64F}\n\n`;
@@ -518,7 +518,7 @@ export default function Orders() {
   async function buildQrisLinks(
     group: CustomerGroup
   ): Promise<{ order: Order; url: string }[] | { combined: true; url: string; orders: Order[] }[]> {
-    const unpaid = group.orders.filter((o) => o.total - (o.paid_total || 0) > 0);
+    const unpaid = group.orders.filter((o) => (o.total - (o.diskon || 0)) - (o.paid_total || 0) > 0);
     if (unpaid.length > 1) {
       return [
         {
@@ -593,18 +593,18 @@ export default function Orders() {
       qrisLinks.forEach((link, idx) => {
         if (link.combined) {
           link.orders.forEach((order, i) => {
-            const sisa = order.total - (order.paid_total || 0);
+            const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
             const items = itemsByOrder[order.id] || [];
             const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
             msg += `${i + 1}. ${productNames}\n`;
             msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
           });
-          const totalSisa = link.orders.reduce((s, o) => s + (o.total - (o.paid_total || 0)), 0);
+          const totalSisa = link.orders.reduce((s, o) => s + ((o.total - (o.diskon || 0)) - (o.paid_total || 0)), 0);
           msg += `\u{1F9FE} Total sisa: *Rp ${totalSisa.toLocaleString("id-ID")}* (${link.orders.length} pesanan digabung dalam 1 QRIS)\n`;
           msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${link.url}\n\n`;
           return;
         }
-        const sisa = link.order.total - (link.order.paid_total || 0);
+        const sisa = (link.order.total - (link.order.diskon || 0)) - (link.order.paid_total || 0);
         const items = itemsByOrder[link.order.id] || [];
         const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
         msg += `${idx + 1}. ${productNames}\n`;
@@ -916,7 +916,7 @@ export default function Orders() {
   }
 
   const countBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).length;
-  const totalBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + (o.total - o.paid_total), 0);
+  const totalBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + ((o.total - (o.diskon || 0)) - o.paid_total), 0);
   const countReady = baseFiltered.filter((o) => o.fulfillment_status === "ready").length;
   const countLunas = baseFiltered.filter((o) => isOrderLunas(o)).length;
   const today = new Date().toISOString().slice(0, 10);
@@ -1322,7 +1322,7 @@ export default function Orders() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const sisa = order.total - (order.paid_total || 0);
+                              const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
                               showConfirm(
                                 "Tandai Lunas",
                                 `Tandai order ${order.customer_name || ""} sebagai lunas (TF BCA)?\nSisa tagihan: Rp ${sisa.toLocaleString("id-ID")}`,

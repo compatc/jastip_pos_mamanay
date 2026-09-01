@@ -85,8 +85,8 @@ function getStatusColor(fulfillmentStatus: string): string {
   return colors[fulfillmentStatus] || "bg-blue-100 text-blue-600";
 }
 
-function isOrderLunas(o: { payment_status: string; paid_total: number; total: number }) {
-  return o.payment_status === "paid" || o.paid_total >= o.total;
+function isOrderLunas(o: { payment_status: string; paid_total: number; total: number; diskon?: number }) {
+  return o.payment_status === "paid" || o.paid_total >= (o.total - (o.diskon || 0));
 }
 
 export default function OrderDetail() {
@@ -259,7 +259,7 @@ export default function OrderDetail() {
     msg += "\n";
 
     if (qrisLink) {
-      const sisa = order.total - order.paid_total;
+  const sisa = (order.total - (order.diskon || 0)) - order.paid_total;
       msg += `💳 *Bayar QRIS sekarang:*\n`;
       msg += `${productNames}\n`;
       msg += `💰 Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;

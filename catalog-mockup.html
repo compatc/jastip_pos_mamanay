@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalog Mockup - jastip_mamanay</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8f9fa; color: #1a1a2e; }
+  .container { max-width: 960px; margin: 0 auto; padding: 20px 16px; }
+  
+  /* Header */
+  .header { text-align: center; margin-bottom: 24px; }
+  .header h1 { font-size: 1.5rem; font-weight: 800; color: #1a1a2e; }
+  .header p { font-size: 0.85rem; color: #9ca3af; margin-top: 2px; }
+  
+  /* Search */
+  .search-box { width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 0.9rem; outline: none; transition: border 0.2s; }
+  .search-box:focus { border-color: #a78bfa; }
+  
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin: 16px 0; overflow-x: auto; padding-bottom: 4px; }
+  .tab { padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; cursor: pointer; border: 1.5px solid #e5e7eb; background: #fff; color: #6b7280; transition: all 0.2s; }
+  .tab.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+  .tab:hover:not(.active) { background: #f3f4f6; }
+  
+  /* Grid */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+  
+  /* Card */
+  .card { background: #fff; border-radius: 14px; overflow: hidden; border: 1px solid #f0f0f0; transition: transform 0.15s, box-shadow 0.15s; cursor: pointer; position: relative; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .card-img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #f3f4f6; }
+  .card-body { padding: 10px 12px 12px; }
+  .card-name { font-size: 0.8rem; font-weight: 700; color: #1a1a2e; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.1em; }
+  .card-price { font-size: 0.9rem; font-weight: 800; color: #e11d48; margin-top: 6px; }
+  .card-badge { display: inline-block; font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .badge-ready { background: #ecfdf5; color: #059669; }
+  .badge-po { background: #fef3c7; color: #d97706; }
+  .badge-sisa { background: #fef2f2; color: #dc2626; }
+  
+  /* Badges on image */
+  .card-tag { position: absolute; top: 8px; left: 8px; font-size: 0.55rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.92); color: #7c3aed; backdrop-filter: blur(4px); }
+  .card-stock-badge { position: absolute; top: 8px; right: 8px; font-size: 0.6rem; font-weight: 700; padding: 3px 8px; border-radius: 8px; }
+  .stock-habis { background: #fee2e2; color: #dc2626; }
+  .stock-low { background: #fef3c7; color: #d97706; }
+  .stock-ok { background: #ecfdf5; color: #059669; }
+  
+  /* Variants row */
+  .variants { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .variant-chip { font-size: 0.6rem; padding: 2px 6px; border-radius: 6px; background: #f3f4f6; color: #6b7280; font-weight: 500; border: 1px solid #e5e7eb; }
+
+  /* Section title */
+  .section-title { font-size: 0.7rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; }
+  
+  /* Toggle buttons */
+  .toggle-group { display: flex; gap: 8px; margin: 20px 0; flex-wrap: wrap; }
+  .toggle-btn { padding: 6px 14px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; border: 1.5px solid #e5e7eb; background: #fff; cursor: pointer; transition: all 0.2s; }
+  .toggle-btn.active { border-color: #7c3aed; background: #f5f3ff; color: #7c3aed; }
+  
+  .note { background: #fefce8; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px; margin: 16px 0; font-size: 0.8rem; color: #92400e; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>jastip_mamanay</h1>
+    <p>119 produk tersedia</p>
+  </div>
+  
+  <input type="text" class="search-box" placeholder="Mau cari apa?">
+
+  <div class="tabs">
+    <div class="tab active">Semua</div>
+    <div class="tab">mainan</div>
+    <div class="tab">greney</div>
+    <div class="tab">pero</div>
+    <div class="tab">baby</div>
+    <div class="tab">kitchen</div>
+  </div>
+
+  <div class="note">
+    <strong>Mockup Opsi:</strong> Klik tombol di bawah untuk ganti tampilan. Beri tahu mana yang kamu suka!
+  </div>
+
+  <div class="toggle-group">
+    <button class="toggle-btn active" onclick="setLayout('compact')">Kompak (3 kolom)</button>
+    <button class="toggle-btn" onclick="setLayout('comfortable')">Nyaman (2 kolom)</button>
+    <button class="toggle-btn" onclick="setLayout('list')">List (1 kolom)</button>
+  </div>
+
+  <!-- Layout: Compact 3-col -->
+  <div id="layout-compact">
+    <p class="section-title">Layout Kompak — 3 kolom, info padat</p>
+    <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+      
+      <div class="card">
+        <div class="card-tag">mainan</div>
+        <div class="card-stock-badge stock-low">Sisa 1</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/0e044581-1e50-41dc-81a5-eeedb39a09b0.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">Bath &amp; Buff Kids Protection Sunscreen</div>
+          <div class="card-price">Rp 65.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">mainan</div>
+        <div class="card-stock-badge stock-low">Sisa 1</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/8a9b2f0d-18e3-4bf0-a489-4b8bb12e32b1.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">BusyBoard Montessori Girl</div>
+          <div class="card-price">Rp 56.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">pero</div>
+        <div class="card-stock-badge stock-low">Sisa 3</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/438022bd-99d1-4ca6-869e-b32c2819e1ed.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">buy1get1 serena chocolate short cake</div>
+          <div class="card-price">Rp 18.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">greney</div>
+        <div class="card-stock-badge stock-low">Sisa 8</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/f3a5741a-fd5c-4ef0-8b2f-18c304be5c67.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">Greney WSX 250918 Nude</div>
+          <div class="variants">
+            <span class="variant-chip">34/75B</span>
+            <span class="variant-chip">38/85B</span>
+            <span class="variant-chip">40/90B</span>
+          </div>
+          <div class="card-price">Rp 55.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">greney</div>
+        <div class="card-stock-badge stock-low">Sisa 3</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/d1be3860-1a9c-48f5-a4bd-c21b30fd1c02.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">Greney TY250916 Pink</div>
+          <div class="variants">
+            <span class="variant-chip">36/80B</span>
+            <span class="variant-chip">40/90B</span>
+          </div>
+          <div class="card-price">Rp 55.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">pero</div>
+        <div class="card-stock-badge stock-low">Sisa 1</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/0e044581-1e50-41dc-81a5-eeedb39a09b0.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">ceko tumbler by pero</div>
+          <div class="card-price">Rp 66.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Layout: Comfortable 2-col -->
+  <div id="layout-comfortable" style="display:none;">
+    <p class="section-title">Layout Nyaman — 2 kolom, lebih lega</p>
+    <div class="grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px;">
+      
+      <div class="card">
+        <div class="card-tag">mainan</div>
+        <div class="card-stock-badge stock-low">Sisa 1</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/0e044581-1e50-41dc-81a5-eeedb39a09b0.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">Bath &amp; Buff Kids Protection Sunscreen</div>
+          <div class="card-price">Rp 65.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">mainan</div>
+        <div class="card-stock-badge stock-low">Sisa 1</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/8a9b2f0d-18e3-4bf0-a489-4b8bb12e32b1.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">BusyBoard Montessori Girl</div>
+          <div class="card-price">Rp 56.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">greney</div>
+        <div class="card-stock-badge stock-low">Sisa 8</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/f3a5741a-fd5c-4ef0-8b2f-18c304be5c67.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">Greney WSX 250918 Nude</div>
+          <div class="variants">
+            <span class="variant-chip">34/75B</span>
+            <span class="variant-chip">38/85B</span>
+            <span class="variant-chip">40/90B</span>
+          </div>
+          <div class="card-price">Rp 55.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag">greney</div>
+        <div class="card-stock-badge stock-low">Sisa 3</div>
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/d1be3860-1a9c-48f5-a4bd-c21b30fd1c02.jpg" alt="">
+        <div class="card-body">
+          <div class="card-name">Greney TY250916 Pink</div>
+          <div class="variants">
+            <span class="variant-chip">36/80B</span>
+            <span class="variant-chip">40/90B</span>
+          </div>
+          <div class="card-price">Rp 55.000</div>
+          <span class="card-badge badge-ready">Ready</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Layout: List -->
+  <div id="layout-list" style="display:none;">
+    <p class="section-title">Layout List — 1 kolom, detail lengkap</p>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      
+      <div class="card" style="display: flex; flex-direction: row; border-radius: 12px;">
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/0e044581-1e50-41dc-81a5-eeedb39a09b0.jpg" alt="" style="width: 100px; height: 100px; min-width: 100px; aspect-ratio: 1; border-radius: 12px 0 0 12px;">
+        <div class="card-body" style="display: flex; flex-direction: column; justify-content: center; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="card-tag" style="position: static;">mainan</span>
+            <span class="card-badge badge-ready" style="margin: 0;">Ready</span>
+          </div>
+          <div class="card-name" style="-webkit-line-clamp: 1;">Bath &amp; Buff Kids Protection Sunscreen</div>
+          <div class="card-price" style="margin: 0;">Rp 65.000</div>
+        </div>
+      </div>
+
+      <div class="card" style="display: flex; flex-direction: row; border-radius: 12px;">
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/f3a5741a-fd5c-4ef0-8b2f-18c304be5c67.jpg" alt="" style="width: 100px; height: 100px; min-width: 100px; aspect-ratio: 1; border-radius: 12px 0 0 12px;">
+        <div class="card-body" style="display: flex; flex-direction: column; justify-content: center; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="card-tag" style="position: static;">greney</span>
+            <span class="card-badge badge-ready" style="margin: 0;">Ready</span>
+          </div>
+          <div class="card-name" style="-webkit-line-clamp: 1;">Greney WSX 250918 Nude</div>
+          <div class="variants">
+            <span class="variant-chip">34/75B</span>
+            <span class="variant-chip">38/85B</span>
+            <span class="variant-chip">40/90B</span>
+          </div>
+          <div class="card-price" style="margin: 0;">Rp 55.000</div>
+        </div>
+      </div>
+
+      <div class="card" style="display: flex; flex-direction: row; border-radius: 12px;">
+        <img class="card-img" src="https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/d1be3860-1a9c-48f5-a4bd-c21b30fd1c02.jpg" alt="" style="width: 100px; height: 100px; min-width: 100px; aspect-ratio: 1; border-radius: 12px 0 0 12px;">
+        <div class="card-body" style="display: flex; flex-direction: column; justify-content: center; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="card-tag" style="position: static;">greney</span>
+            <span class="card-badge badge-ready" style="margin: 0;">Ready</span>
+          </div>
+          <div class="card-name" style="-webkit-line-clamp: 1;">Greney TY250916 Pink</div>
+          <div class="variants">
+            <span class="variant-chip">36/80B</span>
+            <span class="variant-chip">40/90B</span>
+          </div>
+          <div class="card-price" style="margin: 0;">Rp 55.000</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+function setLayout(type) {
+  document.getElementById('layout-compact').style.display = type === 'compact' ? '' : 'none';
+  document.getElementById('layout-comfortable').style.display = type === 'comfortable' ? '' : 'none';
+  document.getElementById('layout-list').style.display = type === 'list' ? '' : 'none';
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

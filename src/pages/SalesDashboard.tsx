@@ -276,13 +276,13 @@ export default function SalesDashboard() {
 
   // Piutang
   const piutangList: PiutangRow[] = allOrders
-    .filter((o) => o.order_type === "penjualan" && o.paid_total < o.total && o.fulfillment_status !== "cancelled")
+    .filter((o) => o.order_type === "penjualan" && o.paid_total < (o.total - (o.diskon || 0)) && o.fulfillment_status !== "cancelled")
     .map((o) => ({
       customer_name: o.contact_name,
       order_id: o.id,
       total: o.total,
       paid: o.paid_total,
-      sisa: o.total - o.paid_total,
+      sisa: (o.total - (o.diskon || 0)) - o.paid_total,
       date: o.date,
       items: o.items.map((i) => `${i.product_name} ×${i.quantity}`).join(", "),
     }))
@@ -363,7 +363,7 @@ export default function SalesDashboard() {
           "0",
           rupiahFull(o.total),
           rupiahFull(o.paid_total),
-          rupiahFull(o.total - o.paid_total),
+          rupiahFull((o.total - (o.diskon || 0)) - o.paid_total),
           o.payment_type.toUpperCase(),
           o.status,
         ]);

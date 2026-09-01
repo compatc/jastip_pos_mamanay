@@ -62,7 +62,7 @@ export default function Piutang() {
 
   const piutangData = useMemo(() => {
     const unpaidOrders = allOrders.filter((o) => {
-      const sisa = o.total - (o.paid_total || 0);
+      const sisa = (o.total - (o.diskon || 0)) - (o.paid_total || 0);
       return sisa > 0 && o.payment_status !== "paid" && o.fulfillment_status !== "cancelled";
     });
 
@@ -71,7 +71,7 @@ export default function Piutang() {
       const custId = order.customer_id || "none";
       const cust = customers.find((c) => c.id === custId);
       const existing = custMap.get(custId);
-      const sisa = order.total - (order.paid_total || 0);
+      const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
       const days = daysSince(order.created_at);
       const items = itemsByOrder[order.id] || [];
       const productNames = items.map((i) => i.variant ? `${i.product_name} ${i.variant}` : i.product_name).join(", ") || "-";
