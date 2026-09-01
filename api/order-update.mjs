@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     if (payment_status !== undefined) updates.payment_status = payment_status;
     if (fulfillment_status !== undefined) updates.fulfillment_status = fulfillment_status;
     if (notes !== undefined) updates.notes = notes;
-    if (diskon !== undefined) updates.diskon = diskon;
+    if (diskon !== undefined) updates.diskon = Math.min(diskon, oldOrder.total || 0);
     if (ongkir !== undefined) updates.ongkir = ongkir;
 
     const { error: updErr } = await sb.from("orders").update(updates).eq("id", orderId);
