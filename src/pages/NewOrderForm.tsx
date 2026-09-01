@@ -22,6 +22,7 @@ interface OrderItemInput {
   quantity: string;
   discount: string;
   variant?: string;
+  unit_cost?: string;
 }
 
 const emptyItem: OrderItemInput = {
@@ -30,6 +31,7 @@ const emptyItem: OrderItemInput = {
   price: "",
   quantity: "1",
   discount: "",
+  unit_cost: "",
 };
 
 const PAYMENT_OPTIONS: { value: PaymentType; label: string }[] = [
@@ -214,6 +216,7 @@ export default function NewOrderForm() {
         quantity: parseInt(i.quantity) || 1,
         discount: parseFloat(i.discount) || 0,
         variant: i.variant || "",
+        unit_cost: orderType === "pembelian" ? (parseFloat(i.unit_cost || "") || undefined) : undefined,
       }));
 
     if (validItems.length === 0) return;
@@ -564,6 +567,31 @@ export default function NewOrderForm() {
                           />
                         </div>
                       </div>
+                      {orderType === "pembelian" && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
+                              Harga Modal / pcs
+                            </label>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400 text-sm">Rp</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={item.unit_cost || ""}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, "");
+                                  const updated = [...items];
+                                  updated[index] = { ...updated[index], unit_cost: val };
+                                  setItems(updated);
+                                }}
+                                placeholder="0"
+                                className="flex-1 px-3 py-2.5 bg-amber-50/50 border border-amber-100 rounded-xl text-gray-800 text-base text-center focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     {warning && (
                       <div className="flex items-center gap-2 px-4 py-2 mt-1">

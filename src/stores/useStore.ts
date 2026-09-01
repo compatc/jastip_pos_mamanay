@@ -46,7 +46,7 @@ interface PosStore {
     orderType: OrderType;
     paymentType: PaymentType;
     contactName: string;
-    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number; variant?: string }[];
+    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number; variant?: string; unit_cost?: number }[];
     paidTotal: number;
     ongkir: number;
     diskon: number;
@@ -60,7 +60,7 @@ interface PosStore {
     status: OrderStatus;
     paymentType: PaymentType;
     contactName: string;
-    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number; variant?: string }[];
+    items: { product_id: string; product_name: string; price: number; quantity: number; discount: number; variant?: string; unit_cost?: number }[];
     paidTotal: number;
     ongkir: number;
     diskon: number;
@@ -542,8 +542,29 @@ export const useStore = create<PosStore>((set, get) => ({
             unit: product.unit || "SET",
             created_at: now,
             variant: item.variant || null,
+            unit_cost: orderType === "pembelian" ? (item.unit_cost || null) : null,
           });
         if (smErr) itemErrors.push(`Stock movement ${item.product_name}: ${smErr.message}`);
+
+        if (orderType === "pembelian" && item.unit_cost && item.unit_cost > 0) {
+          const { data: allPurchases } = await supabase
+            .from("stock_movements")
+            .select("qty, unit_cost")
+            .eq("product_id", product.id)
+            .eq("transaction_type", "Pembelian")
+            .not("unit_cost", "is", null);
+          if (allPurchases && allPurchases.length > 0) {
+            let totalCost = 0, totalQty = 0;
+            for (const p of allPurchases) {
+              totalCost += (p.unit_cost || 0) * (p.qty || 0);
+              totalQty += p.qty || 0;
+            }
+            if (totalQty > 0) {
+              const avgCost = Math.round(totalCost / totalQty);
+              await supabase.from("products").update({ cost_price: avgCost }).eq("id", product.id);
+            }
+          }
+        }
       } else {
         itemErrors.push(`${item.product_name}: produk tidak ditemukan di database`);
       }
@@ -777,7 +798,27 @@ export const useStore = create<PosStore>((set, get) => ({
             unit: product.unit || "SET",
             created_at: now,
             variant: item.variant || null,
+            unit_cost: orderType === "pembelian" ? (item.unit_cost || null) : null,
           });
+        if (orderType === "pembelian" && item.unit_cost && item.unit_cost > 0) {
+          const { data: allPurchases } = await supabase
+            .from("stock_movements")
+            .select("qty, unit_cost")
+            .eq("product_id", product.id)
+            .eq("transaction_type", "Pembelian")
+            .not("unit_cost", "is", null);
+          if (allPurchases && allPurchases.length > 0) {
+            let totalCost = 0, totalQty = 0;
+            for (const p of allPurchases) {
+              totalCost += (p.unit_cost || 0) * (p.qty || 0);
+              totalQty += p.qty || 0;
+            }
+            if (totalQty > 0) {
+              const avgCost = Math.round(totalCost / totalQty);
+              await supabase.from("products").update({ cost_price: avgCost }).eq("id", product.id);
+            }
+          }
+        }
       }
     }
 

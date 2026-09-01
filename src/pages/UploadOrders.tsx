@@ -345,6 +345,7 @@ export default function UploadOrders() {
               qty_after: newStock,
               unit: product.unit || "SET",
               created_at: now,
+              unit_cost: null,
             });
           }
         }
