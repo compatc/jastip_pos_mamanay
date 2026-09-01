@@ -46,7 +46,8 @@ export default async function handler(req, res) {
   }
 
   const orderTotal = order.total || 0;
-  const maxDiscount = orderTotal < 500000 ? 10000 : 20000;
+  const tierMax = orderTotal < 500000 ? 10000 : 20000;
+  const maxDiscount = Math.min(tierMax, orderTotal);
   let discount = Math.floor(points / REDEEM_RATE) * 1000;
   let usedPoints = points;
 
