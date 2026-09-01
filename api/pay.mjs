@@ -349,7 +349,6 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   // Overpayment: bayar lebih dari sisa → cap di sisa, tidak ada diskon tambahan
   const effectivePayment = Math.min(shareOfPayment, sisaInvoice);
 
-  const finalTotal = isKodeUnik ? (currentTotal || 0) - kodeUnik : (currentTotal || 0);
   const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
   const finalPaid = (currentPaidTotal || 0) + effectivePayment;
   const paidNote = isKodeUnik
@@ -365,12 +364,12 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   // Optimistic lock: hanya 1 yang berhasil update per order, sehingga
   // konfirmasi ganda (polling app + webhook) tidak mengkredit 2x.
   let lockQuery = sb.from("orders").update({
-    total: finalTotal,
+    total: currentTotal,
     diskon: finalDiskon,
     paid_total: finalPaid,
     payment_type: "qris",
     status: newStatus,
-    payment_status: finalPaid >= finalTotal ? "paid" : finalPaid > 0 ? "dp" : "unpaid",
+    payment_status: finalPaid >= (currentTotal - finalDiskon) ? "paid" : finalPaid > 0 ? "dp" : "unpaid",
     notes: order.notes || "",
     qris_notes: order.qris_notes
       ? `${order.qris_notes}\n${paidNote}`
@@ -397,12 +396,12 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
     oldPaidTotal: currentPaidTotal,
     newPaidTotal: finalPaid,
     oldPaymentStatus: order.status,
-    newPaymentStatus: finalPaid >= finalTotal ? "paid" : "dp",
+    newPaymentStatus: finalPaid >= (currentTotal - finalDiskon) ? "paid" : "dp",
     performedBy: "pay.mjs:confirmOrder"
   });
 
   // Award loyalty points for penjualan orders
-  if (order.order_type === "penjualan" && order.customer_id && finalPaid >= finalTotal) {
+  if (order.order_type === "penjualan" && order.customer_id && finalPaid >= (currentTotal - finalDiskon)) {
     try {
       await awardLoyaltyPoints(sb, order.customer_id, orderId, order.total || shareOfPayment);
     } catch (e) {
