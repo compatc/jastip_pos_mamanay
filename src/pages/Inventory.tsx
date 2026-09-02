@@ -2096,7 +2096,7 @@ export default function Inventory() {
                           shareVariantId === v.id ? "bg-pink-500 text-white border-pink-500" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
                         }`}
                       >
-                        {v.name} ({v.stock})
+                        {v.name}{v.stock > 0 ? ` (${v.stock})` : ""}
                       </button>
                     ))}
                   </div>
