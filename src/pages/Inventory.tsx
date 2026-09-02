@@ -500,7 +500,8 @@ export default function Inventory() {
       setNewTagName("");
     } catch (err) {
       console.error("Submit error:", err);
-      alert("Gagal menyimpan produk: " + (err instanceof Error ? err.message : String(err)));
+      const errMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      alert("Gagal menyimpan produk: " + errMsg);
     }
   }
 
