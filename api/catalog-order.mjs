@@ -181,23 +181,14 @@ export default async function handler(req, res) {
         return;
       }
 
-      const { data: allTags } = await sb.from("tags").select("id, name");
-      const { data: allProductTags } = await sb.from("product_tags").select("product_id, tag_id");
-      const tagMap = {};
-      for (const t of allTags || []) tagMap[t.id] = t.name;
-      const productTagMap = {};
-      for (const pt of allProductTags || []) {
-        if (!productTagMap[pt.product_id]) productTagMap[pt.product_id] = [];
-        const tagName = tagMap[pt.tag_id];
-        if (tagName) productTagMap[pt.product_id].push(tagName);
-      }
+      const productIds = (data || []).map(p => p.id);
 
-      const { data: variants } = await sb
-        .from("product_variants")
-        .select("id, product_id, name, image, stock, stock_type");
-      const { data: movements } = await sb
-        .from("stock_movements")
-        .select("product_id, variant, qty");
+      const [{ data: allTags }, { data: allProductTags }, { data: variants }, { data: movements }] = await Promise.all([
+        sb.from("tags").select("id, name"),
+        sb.from("product_tags").select("product_id, tag_id"),
+        sb.from("product_variants").select("id, product_id, name, image, stock, stock_type").in("product_id", productIds),
+        sb.from("stock_movements").select("product_id, variant, qty").in("product_id", productIds),
+      ]);
 
       const variantStockMap = {};
       const variantDetailsMap = {};
