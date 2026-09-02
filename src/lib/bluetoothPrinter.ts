@@ -320,7 +320,7 @@ export async function printReceipt(receiptData: {
 export function generateReceiptFromOrder(order: any, items: any[], products: any[]) {
   const orderItems = items.map((item) => {
     const product = products.find((p) => p.id === item.product_id);
-    const shopeePcs = product?.shopee_pcs || 1;
+    const shopeePcs = product?.weight || 250;
     return {
       name: item.product_name,
       qty: item.quantity,

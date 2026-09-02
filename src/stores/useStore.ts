@@ -101,7 +101,7 @@ interface PosStore {
     stock: number,
     unit: string,
     image?: string,
-    shopeePcs?: number,
+    weight?: number,
     stockType?: string,
     description?: string,
     images?: string[],
@@ -116,7 +116,7 @@ interface PosStore {
     stock: number,
     unit: string,
     image?: string,
-    shopeePcs?: number,
+    weight?: number,
     stockType?: string,
     description?: string,
     images?: string[],
@@ -1175,7 +1175,7 @@ export const useStore = create<PosStore>((set, get) => ({
     set({ products: (data || []) as Product[] });
   },
 
-  addProduct: async (name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
+  addProduct: async (name, costPrice, sellPrice, stock, unit, image, weight = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
     const id = uuid();
     const created_at = new Date().toISOString();
     const { error } = await supabase
@@ -1191,7 +1191,7 @@ export const useStore = create<PosStore>((set, get) => ({
         unit: unit || "PCS",
         image: image || "",
         images: images.length > 0 ? images : (image ? [image] : []),
-        shopee_pcs: shopeePcs,
+        weight: weight,
         supplier: supplier || "",
         created_at,
       });
@@ -1200,7 +1200,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return id;
   },
 
-  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, shopeePcs = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
+  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, weight = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
     const { error } = await supabase
       .from("products")
       .update({
@@ -1213,7 +1213,7 @@ export const useStore = create<PosStore>((set, get) => ({
         unit: unit || "PCS",
         image: image || "",
         images: images.length > 0 ? images : (image ? [image] : []),
-        shopee_pcs: shopeePcs,
+        weight: weight,
         supplier: supplier || "",
       })
       .eq("id", id);

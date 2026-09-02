@@ -40,7 +40,7 @@ interface ProductForm {
   unit: string;
   image: string;
   images: string[];
-  shopee_pcs: string;
+  weight: string;
   supplier: string;
 }
 
@@ -54,7 +54,7 @@ const emptyForm: ProductForm = {
   unit: "PCS",
   image: "",
   images: [],
-  shopee_pcs: "1",
+  weight: "250",
   supplier: "",
 };
 
@@ -385,7 +385,7 @@ export default function Inventory() {
       unit: product.unit || "PCS",
       image: product.image || "",
       images: existingImages,
-      shopee_pcs: ((product as any).shopee_pcs || 1).toString(),
+      weight: ((product as any).weight || 250).toString(),
       supplier: (product as any).supplier || "",
     });
     setFormVariants([]);
@@ -454,7 +454,7 @@ export default function Inventory() {
           parseInt(form.stock) || 0,
           form.unit.trim() || "PCS",
           form.image,
-          parseInt(form.shopee_pcs) || 1,
+          parseInt(form.weight) || 1,
           form.stock_type,
           form.description.trim(),
           form.images,
@@ -468,7 +468,7 @@ export default function Inventory() {
           parseInt(form.stock) || 0,
           form.unit.trim() || "PCS",
           form.image,
-          parseInt(form.shopee_pcs) || 1,
+          parseInt(form.weight) || 250,
           form.stock_type,
           form.description.trim(),
           form.images,
@@ -1522,13 +1522,13 @@ export default function Inventory() {
                   </div>
                   <div className="flex-1">
                     <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
-                      Shopee PCS
+                      Berat (Gram)
                     </label>
                     <input
                       type="number"
-                      value={form.shopee_pcs}
-                      onChange={(e) => setForm({ ...form, shopee_pcs: e.target.value })}
-                      placeholder="1"
+                      value={form.weight}
+                      onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                      placeholder="250"
                       min="1"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
                     />

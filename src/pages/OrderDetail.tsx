@@ -272,8 +272,8 @@ export default function OrderDetail() {
 
     const totalWeight = items.reduce((sum, i) => {
       const product = products.find((p) => p.id === i.product_id);
-      const shopeePcs = product?.shopee_pcs || 1;
-      return sum + (i.quantity * shopeePcs);
+      const weight = product?.weight || 250;
+      return sum + (i.quantity * weight);
     }, 0);
     const pcsShopee = Math.ceil(totalWeight / 1000);
 
@@ -304,14 +304,14 @@ export default function OrderDetail() {
     let totalWeight = 0;
     items.forEach((item) => {
       const product = products.find((p) => p.id === item.product_id);
-      const shopeePcs = product?.shopee_pcs || 1;
-      totalWeight += item.quantity * shopeePcs;
+      const weight = product?.weight || 250;
+      totalWeight += item.quantity * weight;
     });
     const totalPcs = Math.ceil(totalWeight / 1000);
     items.forEach((item) => {
       const product = products.find((p) => p.id === item.product_id);
-      const shopeePcs = product?.shopee_pcs || 1;
-      const itemWeight = item.quantity * shopeePcs;
+      const weight = product?.weight || 250;
+      const itemWeight = item.quantity * weight;
       msg += `• ${item.product_name}${(item as any).variant ? " (" + (item as any).variant + ")" : ""} x${item.quantity} → ${itemWeight}g\n`;
     });
     msg += "\n";
