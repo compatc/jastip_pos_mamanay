@@ -190,6 +190,15 @@ export default async function handler(req, res) {
         sb.from("stock_movements").select("product_id, variant, qty").in("product_id", productIds),
       ]);
 
+      const tagMap = {};
+      for (const t of allTags || []) tagMap[t.id] = t.name;
+      const productTagMap = {};
+      for (const pt of allProductTags || []) {
+        if (!productTagMap[pt.product_id]) productTagMap[pt.product_id] = [];
+        const tagName = tagMap[pt.tag_id];
+        if (tagName) productTagMap[pt.product_id].push(tagName);
+      }
+
       const variantStockMap = {};
       const variantDetailsMap = {};
       for (const v of variants || []) {
