@@ -19,7 +19,14 @@ export default async function handler(req, res) {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    const { orderId, paid_total, payment_status, fulfillment_status, notes, diskon, ongkir } = body;
+    const { orderId, action, paid_total, payment_status, fulfillment_status, notes, diskon, ongkir } = body;
+
+    if (action === "delete" && orderId) {
+      await sb.from("order_items").delete().eq("order_id", orderId);
+      await sb.from("orders").delete().eq("id", orderId);
+      json(res, 200, { ok: true, deleted: orderId });
+      return;
+    }
 
     if (!orderId) { json(res, 400, { error: "orderId wajib" }); return; }
 
