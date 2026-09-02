@@ -22,8 +22,13 @@ export default async function handler(req, res) {
     const { orderId, action, paid_total, payment_status, fulfillment_status, notes, diskon, ongkir } = body;
 
     if (action === "delete" && orderId) {
-      await sb.from("order_items").delete().eq("order_id", orderId);
-      await sb.from("orders").delete().eq("id", orderId);
+      const { createClient } = await import("@supabase/supabase-js");
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const sbAdmin = serviceKey
+        ? createClient(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL, serviceKey)
+        : sb;
+      await sbAdmin.from("order_items").delete().eq("order_id", orderId);
+      await sbAdmin.from("orders").delete().eq("id", orderId);
       json(res, 200, { ok: true, deleted: orderId });
       return;
     }
