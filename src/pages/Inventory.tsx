@@ -2435,7 +2435,7 @@ export default function Inventory() {
               let totalRevenue = 0;
               let rekapPreviewMsg = "";
               for (const i of items) {
-                const vname = i.variant || "(tanpa varian)";
+                const vname = (i.variant || "(tanpa varian)").replace(/\s*\+\s*/g, '+').toLowerCase().trim();
                 if (!byVariant[vname]) byVariant[vname] = { qty: 0, revenue: 0, orders: new Set(), customers: new Set() };
                 byVariant[vname].qty += i.quantity;
                 byVariant[vname].revenue += (i.price * i.quantity) - (i.discount || 0);
@@ -2554,7 +2554,7 @@ export default function Inventory() {
                             msg += `\n*${vname}*\n`;
                             const vnameUp = vname.toUpperCase();
                             const custItems = items.filter((i: any) => {
-                              const iv = (i.variant || "(tanpa varian)").toUpperCase();
+                              const iv = (i.variant || "(tanpa varian)").replace(/\s*\+\s*/g, '+').toLowerCase().trim().toUpperCase();
                               return iv === vnameUp;
                             });
                             const custMap = new Map<string, { name: string; phone: string; qty: number }>();
