@@ -3410,10 +3410,10 @@ export default function Inventory() {
       )}
 
       {infoReadyOpen && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-sky-100 rounded-2xl max-w-sm w-full shadow-2xl shadow-sky-100/50 max-h-[90dvh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-sky-100 rounded-t-2xl sm:rounded-2xl max-w-sm w-full shadow-2xl shadow-sky-100/50 max-h-[88dvh] sm:max-h-[85dvh] flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="px-5 pt-5 pb-3 shrink-0">
+            <div className="px-4 pt-4 pb-2 sm:px-5 sm:pt-5 sm:pb-3 shrink-0">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-base font-bold text-gray-800">Info Ready Stock</h3>
                 <button onClick={() => setInfoReadyOpen(false)} className="p-2 hover:bg-sky-50 rounded-xl transition-all -mr-2">
@@ -3424,7 +3424,7 @@ export default function Inventory() {
             </div>
 
             {/* Search */}
-            <div className="px-5 pb-2 shrink-0">
+            <div className="px-4 pb-2 sm:px-5 shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
                 <input
@@ -3438,7 +3438,7 @@ export default function Inventory() {
             </div>
 
             {/* Toolbar */}
-            <div className="px-5 pb-2 flex items-center justify-between shrink-0">
+            <div className="px-4 pb-2 sm:px-5 flex items-center justify-between shrink-0">
               <span className="text-[10px] text-gray-400 font-semibold">
                 {infoReadySelected.size}/{infoReadyProducts.length} dipilih
               </span>
@@ -3459,7 +3459,7 @@ export default function Inventory() {
             </div>
 
             {/* Product List */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-2">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 sm:px-5">
               {infoReadyProducts.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-400">
                   <CheckCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
@@ -3536,7 +3536,7 @@ export default function Inventory() {
 
             {/* Footer */}
             {infoReadyProducts.length > 0 && (
-              <div className="shrink-0 border-t border-gray-100 px-5 py-3">
+              <div className="shrink-0 border-t border-gray-100 px-4 py-3 sm:px-5">
                 {/* Preview Toggle */}
                 <button
                   onClick={() => setInfoReadyPreviewOpen(!infoReadyPreviewOpen)}
