@@ -244,7 +244,7 @@ function updatePreview() {
   }
   const lines = items.map((p, i) => `${i + 1}. ${p.name.toUpperCase()}`);
   document.getElementById('previewBox').textContent =
-    `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${lines.join('\n')}\n\n🛒 Order: https://mamanay.vercel.app/customer.html\n📋 Cek invoice/pembayaran: https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
+    `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${lines.join('\n')}\n\n🛒 Order: https://mamanay.vercel.app/catalog\n📋 Cek invoice/pembayaran: https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
 }
 
 function updateWAPreview() {
@@ -263,7 +263,7 @@ function updateWAPreview() {
 
   const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const lines = items.map((p, i) => `${i + 1}. *${p.name.toUpperCase()}*`);
-  const msg = `📢 *INFO BARANG READY STOCK TANGGAL ${today} :*\n\n${lines.join('\n')}\n\n🛒 *Order:* https://mamanay.vercel.app/customer.html\n📋 *Cek invoice/pembayaran:* https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
+  const msg = `📢 *INFO BARANG READY STOCK TANGGAL ${today} :*\n\n${lines.join('\n')}\n\n🛒 *Order:* https://mamanay.vercel.app/catalog\n📋 *Cek invoice/pembayaran:* https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
 
   const wrap = document.createElement('div');
   wrap.className = 'wa-outgoing-wrap';

@@ -1057,7 +1057,7 @@ export default function Inventory() {
       selected.forEach((p, i) => {
         msg += `${i + 1}. *${p.name.toUpperCase()}*\n`;
       });
-      msg += `\n🛒 *Order:* https://mamanay.vercel.app/customer.html\n📋 *Cek invoice/pembayaran:* https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
+      msg += `\n🛒 *Order:* https://mamanay.vercel.app/catalog\n📋 *Cek invoice/pembayaran:* https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
 
       await fetch(`${BOT_URL}/api/send-group`, {
         method: "POST",
@@ -3488,7 +3488,7 @@ export default function Inventory() {
                   const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
                   const selected = infoReadyProducts.filter(p => infoReadySelected.has(p.id));
                   const previewLines = selected.map((p, i) => `${i + 1}. ${p.name.toUpperCase()}`);
-                  const previewMsg = `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${previewLines.join("\n")}\n\n🛒 Order: https://mamanay.vercel.app/customer.html\n📋 Cek invoice/pembayaran: https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
+                  const previewMsg = `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${previewLines.join("\n")}\n\n🛒 Order: https://mamanay.vercel.app/catalog\n📋 Cek invoice/pembayaran: https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
                   return (
                     <div className="bg-white rounded-xl border border-gray-100 p-3 mb-1">
                       <p className="text-[10px] text-gray-400 font-semibold mb-2">Preview Pesan:</p>
