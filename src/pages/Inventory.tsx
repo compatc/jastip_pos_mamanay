@@ -246,21 +246,41 @@ export default function Inventory() {
         .eq("product_id", productId);
       const variantNames = (pvData || []).map((v: any) => v.name).filter(Boolean);
 
+      // Build canonical name map: lowercase → original name from product_variants
+      const canonicalMap = new Map<string, string>();
+      for (const vn of variantNames) {
+        canonicalMap.set(vn.toLowerCase().trim(), vn);
+      }
+
       // Helper: extract variant from product_name when variant column is empty
+      // Also normalizes variant name to canonical name from product_variants
       function extractVariant(item: any): string {
-        if (item.variant) return item.variant;
-        const pname = (item.product_name || "").trim();
-        // Try to match known variant names from product_variants
-        for (const vn of variantNames) {
-          if (pname.toLowerCase().endsWith(vn.toLowerCase())) return vn;
+        let raw = item.variant || "";
+        if (!raw) {
+          const pname = (item.product_name || "").trim();
+          // Try to match known variant names from product_variants
+          for (const vn of variantNames) {
+            if (pname.toLowerCase().endsWith(vn.toLowerCase())) { raw = vn; break; }
+          }
+          if (!raw) {
+            // Fallback: remove base product name to get the trailing variant
+            const base = cleanName.toLowerCase();
+            const full = pname.toLowerCase();
+            if (full.startsWith(base) && full.length > base.length) {
+              raw = pname.slice(cleanName.length).trim();
+            }
+          }
         }
-        // Fallback: remove base product name to get the trailing variant
-        const base = cleanName.toLowerCase();
-        const full = pname.toLowerCase();
-        if (full.startsWith(base) && full.length > base.length) {
-          return pname.slice(cleanName.length).trim();
+        if (!raw) return "";
+        // Map to canonical name from product_variants (case-insensitive, strip + normalize)
+        const normalized = raw.replace(/\s*\+\s*/g, '&').toLowerCase().trim();
+        // Check exact match first
+        if (canonicalMap.has(normalized)) return canonicalMap.get(normalized)!;
+        // Check if canonical name contains this (e.g. "hijaiyah" → "Hijaiyah & Arabic")
+        for (const [key, canonical] of canonicalMap) {
+          if (key.includes(normalized) || normalized.includes(key)) return canonical;
         }
-        return "";
+        return raw;
       }
 
       const orderIds = [...new Set(items.map((i: any) => i.order_id))];
