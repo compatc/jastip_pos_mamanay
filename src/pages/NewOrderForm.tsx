@@ -47,7 +47,7 @@ function formatRp(n: number): string {
 }
 
 export default function NewOrderForm() {
-  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, accounts, loadAccounts, addCustomer, addProduct, productVariants, loadProductVariants } = useStore();
+  const { addStandaloneOrder, products, loadProducts, customers, loadCustomers, productDiscounts, loadAllProductDiscounts, accounts, loadAccounts, addCustomer, addProduct, productVariants, loadProductVariants, variantStock, loadVariantStock } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as any)?.returnTo;
@@ -74,6 +74,7 @@ export default function NewOrderForm() {
     loadAllProductDiscounts();
     loadAccounts();
     loadProductVariants();
+    loadVariantStock();
   }, []);
 
   useEffect(() => {
@@ -190,8 +191,8 @@ export default function NewOrderForm() {
     const variants = productVariants.filter((v) => v.product_id === product.id);
     let availableStock = product.stock;
     if (variants.length > 0 && item.variant) {
-      const sel = variants.find((v) => v.name === item.variant);
-      if (sel) availableStock = sel.stock;
+      const vs = variantStock[product.id];
+      if (vs && vs[item.variant] !== undefined) availableStock = vs[item.variant];
     }
     if (qty > availableStock) {
       return `Melebihi stok yang tersedia (stok: ${availableStock} ${product.unit})`;
@@ -501,8 +502,8 @@ export default function NewOrderForm() {
                                 value={(() => {
                                   const variants = productVariants.filter((v) => v.product_id === product.id);
                                   if (variants.length > 0 && item.variant) {
-                                    const sel = variants.find((v) => v.name === item.variant);
-                                    if (sel) return `${sel.stock} ${product.unit}`;
+                                    const vs = variantStock[product.id];
+                                    if (vs && vs[item.variant] !== undefined) return `${vs[item.variant]} ${product.unit}`;
                                   }
                                   return `${product.stock} ${product.unit}`;
                                 })()}
