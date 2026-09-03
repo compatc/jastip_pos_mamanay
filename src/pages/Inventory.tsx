@@ -171,6 +171,10 @@ export default function Inventory() {
   const [shopeeLoading, setShopeeLoading] = useState(false);
   const [shopeeAction, setShopeeAction] = useState<string>("");
   const [shopeeResults, setShopeeResults] = useState<any[]>([]);
+  const [diskonOpen, setDiskonOpen] = useState(false);
+  const [diskonProducts, setDiskonProducts] = useState<{ id: string; name: string; image: string; originalPrice: number; diskonPrice: string; variants: { name: string; stock: number }[] }[]>([]);
+  const [diskonSending, setDiskonSending] = useState(false);
+  const [diskonProgress, setDiskonProgress] = useState({ sent: 0, total: 0 });
 
   useEffect(() => {
     loadProducts();
@@ -983,6 +987,45 @@ export default function Inventory() {
     }
   }
 
+  async function sendDiskonToGroup() {
+    const selected = diskonProducts.filter(p => p.diskonPrice && Number(p.diskonPrice) > 0);
+    if (selected.length === 0) return;
+    setDiskonSending(true);
+    const GROUP_ID = "120363404605912473@g.us";
+    const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
+    setDiskonProgress({ sent: 0, total: selected.length });
+    let sent = 0;
+
+    for (const p of selected) {
+      const diskonNum = Number(p.diskonPrice);
+      const stType = (products.find(x => x.id === p.id) as any)?.stock_type === "po" ? " [PO]" : " [Ready]";
+      const footer = "\n\n_Fix, reply difoto_";
+      const msg = `🔥 *DISKON* 🔥\n\n🏷️ *${p.name}*${stType}\n~Rp ${p.originalPrice.toLocaleString("id-ID")}~ → *Rp ${diskonNum.toLocaleString("id-ID")}*\n${footer}`;
+
+      try {
+        if (p.image) {
+          const fd = new FormData();
+          fd.append("group_jid", GROUP_ID);
+          fd.append("message", msg);
+          const res = await fetch(p.image);
+          const blob = await res.blob();
+          fd.append("image", blob, "product.jpg");
+          await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { Authorization: "Bearer mamanay2026" }, body: fd });
+        } else {
+          await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" }, body: JSON.stringify({ group_jid: GROUP_ID, message: msg }) });
+        }
+        sent++;
+        setDiskonProgress({ sent, total: selected.length });
+      } catch (err) {
+        console.error("Diskon send error:", p.name, err);
+      }
+    }
+
+    setDiskonSending(false);
+    setDiskonOpen(false);
+    alert(`Berhasil kirim ${sent}/${selected.length} produk diskon ke grup!`);
+  }
+
   function openInfoReady() {
     try {
       const items = products.map(p => {
@@ -1126,6 +1169,21 @@ export default function Inventory() {
           >
             <Store className="w-3.5 h-3.5" />
             Shopee
+          </button>
+          <button
+            onClick={() => {
+              const items = products.map(p => {
+                const vs = (variantStock || {})[p.id];
+                const variants = Array.isArray(vs) ? vs.filter((v: any) => v.qty > 0) : [];
+                return { id: p.id, name: p.name, image: p.image, originalPrice: p.sell_price, diskonPrice: "", variants };
+              });
+              setDiskonProducts(items);
+              setDiskonOpen(true);
+            }}
+            className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] bg-red-50 border border-red-200 text-red-700 hover:bg-red-100"
+          >
+            <Percent className="w-3.5 h-3.5" />
+            Diskon
           </button>
           {products.some((p) => (p as any).stock_type === "po") && (
             <button
@@ -3249,6 +3307,91 @@ export default function Inventory() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {diskonOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-red-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-red-100/50 max-h-[85dvh] flex flex-col">
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-gray-800">Share Diskon</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Isi harga diskon, kosongkan = skip</p>
+              </div>
+              <button onClick={() => setDiskonOpen(false)} className="p-2 hover:bg-red-50 rounded-xl transition-all">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto mb-3">
+              {diskonProducts.length === 0 ? (
+                <div className="text-center py-8 text-sm text-gray-400">
+                  <Percent className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                  Tidak ada produk
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {diskonProducts.map(p => (
+                    <div key={p.id} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
+                      <div className="w-8 h-8 rounded-lg bg-gray-200 overflow-hidden shrink-0">
+                        {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-gray-400 m-auto mt-2" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-700 truncate">{p.name}</p>
+                        <p className="text-[10px] text-gray-400">Rp {p.originalPrice.toLocaleString("id-ID")}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] text-gray-400">Rp</span>
+                        <input
+                          type="number"
+                          value={p.diskonPrice}
+                          onChange={(e) => setDiskonProducts(prev => prev.map(x => x.id === p.id ? { ...x, diskonPrice: e.target.value } : x))}
+                          placeholder="Harga diskon"
+                          className="w-20 text-xs border border-gray-200 rounded-lg px-2 py-1 text-right focus:outline-none focus:border-red-300"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {diskonProducts.filter(p => p.diskonPrice && Number(p.diskonPrice) > 0).length > 0 && (
+              <div className="mb-3">
+                <p className="text-[10px] text-gray-400 font-semibold mb-1">Preview:</p>
+                {diskonProducts.filter(p => p.diskonPrice && Number(p.diskonPrice) > 0).map(p => (
+                  <div key={p.id} className="bg-[#dcf8c6] rounded-lg p-2 text-[11px] text-gray-800 mb-1">
+                    🔥 <strong>DISKON</strong> 🔥<br/><br/>
+                    🏷️ <strong>{p.name}</strong><br/>
+                    <s>Rp {p.originalPrice.toLocaleString("id-ID")}</s> → <strong>Rp {Number(p.diskonPrice).toLocaleString("id-ID")}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="shrink-0 space-y-2">
+              {diskonSending && (
+                <div className="text-center text-xs text-gray-400">
+                  Mengirim {diskonProgress.sent}/{diskonProgress.total}...
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDiskonOpen(false)}
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium rounded-xl transition-all text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={sendDiskonToGroup}
+                  disabled={diskonSending || diskonProducts.filter(p => p.diskonPrice && Number(p.diskonPrice) > 0).length === 0}
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-red-200/40"
+                >
+                  {diskonSending ? "Mengirim..." : `Kirim (${diskonProducts.filter(p => p.diskonPrice && Number(p.diskonPrice) > 0).length})`}
+                </button>
+              </div>
             </div>
           </div>
         </div>
