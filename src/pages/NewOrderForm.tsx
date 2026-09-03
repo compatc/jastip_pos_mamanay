@@ -187,8 +187,14 @@ export default function NewOrderForm() {
     const product = products.find((p) => p.id === item.product_id);
     if (!product) return null;
     const qty = parseInt(item.quantity) || 0;
-    if (qty > product.stock) {
-      return `Melebihi stok yang tersedia (stok: ${product.stock} ${product.unit})`;
+    const variants = productVariants.filter((v) => v.product_id === product.id);
+    let availableStock = product.stock;
+    if (variants.length > 0 && item.variant) {
+      const sel = variants.find((v) => v.name === item.variant);
+      if (sel) availableStock = sel.stock;
+    }
+    if (qty > availableStock) {
+      return `Melebihi stok yang tersedia (stok: ${availableStock} ${product.unit})`;
     }
     return null;
   }
@@ -492,10 +498,17 @@ export default function NewOrderForm() {
                               </label>
                               <input
                                 type="text"
-                                value={`${product.stock} ${product.unit}`}
+                                value={(() => {
+                                  const variants = productVariants.filter((v) => v.product_id === product.id);
+                                  if (variants.length > 0 && item.variant) {
+                                    const sel = variants.find((v) => v.name === item.variant);
+                                    if (sel) return `${sel.stock} ${product.unit}`;
+                                  }
+                                  return `${product.stock} ${product.unit}`;
+                                })()}
                                 readOnly
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-pink-100 rounded-xl text-gray-500 text-base text-center"
-                            />
+                              />
                           </div>
                           <div className="flex-1">
                             <label className="block text-xs text-gray-300 uppercase tracking-wider font-semibold mb-1">
