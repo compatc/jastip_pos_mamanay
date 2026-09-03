@@ -67,7 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function checkPending() {
       try {
-        const res = await fetch("/api/payment-confirmations?status=pending");
+        const res = await fetch("/api/payment-confirm?action=list&status=pending");
         const json = await res.json();
         setPendingConfCount(json.data?.length || 0);
       } catch {}

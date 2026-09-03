@@ -47,7 +47,7 @@ export default function PaymentConfirmations() {
   async function loadData() {
     setLoading(true);
     try {
-      const res = await fetch("/api/payment-confirmations?status=" + filter);
+      const res = await fetch("/api/payment-confirm?action=list&status=" + filter);
       const json = await res.json();
       setItems(json.data || []);
     } catch (e) {
@@ -67,7 +67,7 @@ export default function PaymentConfirmations() {
 
     setActionLoading(id);
     try {
-      const res = await fetch("/api/payment-confirmations", {
+      const res = await fetch("/api/payment-confirm?action=" + action, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, action }),

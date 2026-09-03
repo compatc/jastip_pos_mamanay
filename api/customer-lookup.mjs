@@ -1,11 +1,23 @@
 import { getAdmin } from "./pay.mjs";
 
+const REDEEM_RATE = 100;
+
+function calculateMemberLevel(totalSpent) {
+  if (totalSpent >= 10000000) return "platinum";
+  if (totalSpent >= 5000000) return "gold";
+  return "silver";
+}
+
+function pointsToDiscount(points) {
+  return Math.floor(points / REDEEM_RATE) * 1000;
+}
+
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, PUT, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.end(JSON.stringify(body));
 }
 
@@ -15,6 +27,36 @@ export default async function handler(req, res) {
     res.end();
     return;
   }
+
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+
+  // POST /api/customer-lookup?action=update-points — bot updates points
+  if (req.method === "POST") {
+    try {
+      const auth = req.headers.authorization;
+      if (auth !== `Bearer ${process.env.BOT_API_TOKEN || "mamanay2026"}`) {
+        json(res, 401, { error: "Unauthorized" });
+        return;
+      }
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      const { customer_id, points } = body;
+      if (!customer_id || points == null) {
+        json(res, 400, { error: "customer_id and points required" });
+        return;
+      }
+      const sb = await getAdmin();
+      const { error } = await sb.from("customers").update({ points }).eq("id", customer_id);
+      if (error) { json(res, 500, { error: error.message }); return; }
+      json(res, 200, { ok: true, customer_id, points });
+    } catch (e) {
+      json(res, 500, { error: e.message });
+    }
+    return;
+  }
+
+  // PUT /api/customer-lookup — update customer
   if (req.method === "PUT") {
     try {
       const body = await new Promise((resolve, reject) => {
@@ -33,10 +75,7 @@ export default async function handler(req, res) {
         .from("customers")
         .update({ name, phone, address: address || "", category: category || "pelanggan" })
         .eq("id", id);
-      if (error) {
-        json(res, 500, { error: error.message });
-        return;
-      }
+      if (error) { json(res, 500, { error: error.message }); return; }
       json(res, 200, { ok: true });
     } catch (e) {
       json(res, 500, { error: e.message });
@@ -49,9 +88,35 @@ export default async function handler(req, res) {
     return;
   }
 
-  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
-  const last5 = (url.searchParams.get("phone") || "").replace(/\D/g, "");
+  // GET /api/customer-lookup?customer_id=xxx — get loyalty points
+  const customerId = url.searchParams.get("customer_id");
+  if (customerId) {
+    try {
+      const sb = await getAdmin();
+      const { data } = await sb
+        .from("customers")
+        .select("points, total_spent, member_level")
+        .eq("id", customerId)
+        .single();
+      const totalSpent = data?.total_spent || 0;
+      const memberLevel = calculateMemberLevel(totalSpent);
+      if (data?.member_level !== memberLevel) {
+        await sb.from("customers").update({ member_level: memberLevel }).eq("id", customerId);
+      }
+      json(res, 200, {
+        points: data?.points || 0,
+        totalSpent,
+        memberLevel,
+        discountAvailable: pointsToDiscount(data?.points || 0),
+      });
+    } catch (e) {
+      json(res, 500, { error: e.message });
+    }
+    return;
+  }
 
+  // GET /api/customer-lookup?phone=xxx — search by phone
+  const last5 = (url.searchParams.get("phone") || "").replace(/\D/g, "");
   if (last5.length < 3) {
     json(res, 400, { error: "Minimal 3 digit" });
     return;
@@ -65,10 +130,7 @@ export default async function handler(req, res) {
       .not("phone", "eq", "")
       .limit(500);
 
-    if (error) {
-      json(res, 500, { error: error.message });
-      return;
-    }
+    if (error) { json(res, 500, { error: error.message }); return; }
 
     const matches = (customers || []).filter(c => {
       const digits = (c.phone || "").replace(/\D/g, "");

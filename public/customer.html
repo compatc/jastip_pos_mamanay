@@ -1620,7 +1620,7 @@
 
     async function loadLoyaltyPoints(customerId) {
       try {
-        var res = await fetch(API_BASE + '/api/customer-points?customer_id=' + customerId);
+        var res = await fetch(API_BASE + '/api/customer-lookup?customer_id=' + customerId);
         var data = await res.json();
         if (data.points !== undefined) {
           document.getElementById('loyaltyCard').style.display = '';

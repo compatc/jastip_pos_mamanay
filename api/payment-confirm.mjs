@@ -1,11 +1,12 @@
 import { getAdmin } from "./pay.mjs";
+import { logAudit } from "./_audit.mjs";
 
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.end(JSON.stringify(body));
 }
 
@@ -48,167 +49,305 @@ function parsePart(partBuf) {
   return { name, value: body.toString('utf8').trim(), isFile: false };
 }
 
+const REDEEM_RATE = 100;
+
+function calcMemberLevel(totalSpent) {
+  if (totalSpent >= 10000000) return "platinum";
+  if (totalSpent >= 5000000) return "gold";
+  return "silver";
+}
+
+async function awardLoyaltyPoints(sb, customerId, orderId, amount) {
+  try {
+    const { data: customer } = await sb
+      .from("customers")
+      .select("points, total_spent, member_level")
+      .eq("id", customerId)
+      .single();
+    if (!customer) return;
+
+    const base = Math.floor(amount / 1000);
+    const multiplier = customer.member_level === "platinum" ? 1.2 : customer.member_level === "gold" ? 1.1 : 1.0;
+    const points = Math.floor(base * multiplier);
+    if (points <= 0) return;
+
+    const newTotalSpent = (customer.total_spent || 0) + amount;
+    const newLevel = calcMemberLevel(newTotalSpent);
+    const newPoints = (customer.points || 0) + points;
+
+    await sb.from("customers").update({
+      points: newPoints,
+      total_spent: newTotalSpent,
+      member_level: newLevel,
+    }).eq("id", customerId);
+
+    await sb.from("points_history").insert({
+      customer_id: customerId,
+      order_id: orderId,
+      points,
+      type: "earn",
+      description: `Bayar transfer Rp${amount.toLocaleString("id-ID")}`,
+    });
+  } catch (e) {
+    console.error("[LOYALTY] Failed to award points:", e);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
     res.end();
     return;
   }
-  if (req.method !== "POST") {
-    json(res, 405, { error: "Method not allowed" });
-    return;
-  }
 
   try {
-    const contentType = req.headers['content-type'] || '';
-    let orderId = '', orderIds = '', customerId = '', amount = '', transferDate = '', buktiBase64 = '', buktiMime = '';
+    const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const action = url.searchParams.get("action");
 
-    if (contentType.includes('multipart/form-data')) {
-      const boundaryMatch = contentType.match(/boundary=(.+)/);
-      if (!boundaryMatch) { json(res, 400, { error: "No boundary" }); return; }
-      const boundary = boundaryMatch[1];
+    // GET /api/payment-confirm — list confirmations (admin)
+    if (req.method === "GET" && action === "list") {
+      const sb = await getAdmin();
+      const { status } = Object.fromEntries(url.searchParams);
+      let query = sb.from("payment_confirmations").select("*").order("created_at", { ascending: false });
+      if (status && status !== "all") {
+        query = query.eq("status", status);
+      }
+      const { data, error } = await query;
+      if (error) { json(res, 500, { error: error.message }); return; }
+      json(res, 200, { ok: true, data: data || [] });
+      return;
+    }
+
+    // POST /api/payment-confirm?action=approve|reject — admin approve/reject
+    if (req.method === "POST" && action) {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
-      const buffer = Buffer.concat(chunks);
-      const parts = parsePart(buffer, boundary);
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      const { id } = body;
 
-      // Re-parse properly
-      const boundaryBuf = Buffer.from('--' + boundary);
-      const raw = buffer.toString('binary');
-      const sections = raw.split('--' + boundary).filter(s => s.trim());
-      for (const section of sections) {
-        if (section.startsWith('--')) continue;
-        const [headerPart, ...bodyParts] = section.split('\r\n\r\n');
-        const body = bodyParts.join('\r\n\r\n').replace(/\r\n--$/, '');
-        const nameMatch = headerPart.match(/name="([^"]+)"/);
-        const filenameMatch = headerPart.match(/filename="([^"]+)"/);
-        const mimeMatch = headerPart.match(/Content-Type:\s*(.+)/i);
-        const name = nameMatch ? nameMatch[1] : '';
+      if (!id || !action) {
+        json(res, 400, { error: "id dan action wajib" });
+        return;
+      }
 
-        if (filenameMatch) {
-          buktiMime = mimeMatch ? mimeMatch[1].trim() : 'image/jpeg';
-          const fileBuf = Buffer.from(body, 'binary');
-          buktiBase64 = 'data:' + buktiMime + ';base64,' + fileBuf.toString('base64');
-        } else {
-          const val = body.trim();
-          if (name === 'order_id') orderId = val;
-          else if (name === 'order_ids') orderIds = val;
-          else if (name === 'customer_id') customerId = val;
-          else if (name === 'amount') amount = val;
-          else if (name === 'transfer_date') transferDate = val;
+      const sb = await getAdmin();
+      const newStatus = action === "approve" ? "approved" : "rejected";
+      const { error: updateErr } = await sb
+        .from("payment_confirmations")
+        .update({ status: newStatus })
+        .eq("id", id);
+
+      if (updateErr) { json(res, 500, { error: updateErr.message }); return; }
+
+      if (action === "approve") {
+        const { data: conf } = await sb
+          .from("payment_confirmations")
+          .select("order_id, order_ids, amount")
+          .eq("id", id)
+          .single();
+
+        const allOrderIds = conf?.order_ids
+          ? conf.order_ids.split(",").map((s) => s.trim()).filter(Boolean)
+          : conf?.order_id
+          ? [conf.order_id]
+          : [];
+
+        let remaining = conf?.amount || 0;
+
+        for (const oid of allOrderIds) {
+          if (remaining <= 0) break;
+
+          const { data: order } = await sb
+            .from("orders")
+            .select("paid_total, total")
+            .eq("id", oid)
+            .single();
+
+          if (!order) continue;
+          const sisa = (order.total || 0) - (order.paid_total || 0);
+          if (sisa <= 0) continue;
+          const payAmount = Math.min(remaining, sisa);
+          const newPaidTotal = (order.paid_total || 0) + payAmount;
+          const newPaymentStatus = newPaidTotal >= (order.total || 0) ? "paid" : "dp";
+
+          const { error: updErr } = await sb
+            .from("orders")
+            .update({ paid_total: newPaidTotal, payment_status: newPaymentStatus })
+            .eq("id", oid);
+
+          if (!updErr) {
+            await logAudit(sb, {
+              orderId: oid,
+              action: "payment_confirmation_approve",
+              oldPaidTotal: order.paid_total,
+              newPaidTotal,
+              oldPaymentStatus: order.payment_status || "unpaid",
+              newPaymentStatus,
+              performedBy: "payment-confirm.mjs"
+            });
+          }
+
+          remaining -= payAmount;
+
+          if (newPaymentStatus === "paid") {
+            const { data: ord } = await sb.from("orders").select("customer_id, order_type").eq("id", oid).single();
+            if (ord && ord.order_type === "penjualan" && ord.customer_id) {
+              await awardLoyaltyPoints(sb, ord.customer_id, oid, payAmount);
+            }
+          }
         }
       }
-    } else {
-      const chunks = [];
-      for await (const chunk of req) chunks.push(chunk);
-      const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      orderId = body.order_id || '';
-      orderIds = body.order_ids || '';
-      customerId = body.customer_id || '';
-      amount = body.amount || '';
-      transferDate = body.transfer_date || '';
-      buktiBase64 = body.bukti || '';
-      if (buktiBase64) {
-        buktiMime = buktiBase64.includes('image/png') ? 'image/png' : 'image/jpeg';
-      }
-    }
 
-    if (!orderId || !customerId) {
-      json(res, 400, { error: "order_id dan customer_id wajib" });
+      json(res, 200, { ok: true });
       return;
     }
 
-    // Bukti wajib
-    if (!buktiBase64) {
-      json(res, 400, { error: "Bukti transfer wajib diupload" });
-      return;
-    }
+    // POST /api/payment-confirm — customer submit transfer (existing)
+    if (req.method === "POST") {
+      const contentType = req.headers['content-type'] || '';
+      let orderId = '', orderIds = '', customerId = '', amount = '', transferDate = '', buktiBase64 = '', buktiMime = '';
 
-    const sb = await getAdmin();
+      if (contentType.includes('multipart/form-data')) {
+        const boundaryMatch = contentType.match(/boundary=(.+)/);
+        if (!boundaryMatch) { json(res, 400, { error: "No boundary" }); return; }
+        const boundary = boundaryMatch[1];
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
 
-    // Get order info
-    const { data: order } = await sb.from('orders')
-      .select('id, total, paid_total, customer_id')
-      .eq('id', orderId)
-      .single();
+        const raw = buffer.toString('binary');
+        const sections = raw.split('--' + boundary).filter(s => s.trim());
+        for (const section of sections) {
+          if (section.startsWith('--')) continue;
+          const [headerPart, ...bodyParts] = section.split('\r\n\r\n');
+          const body = bodyParts.join('\r\n\r\n').replace(/\r\n--$/, '');
+          const nameMatch = headerPart.match(/name="([^"]+)"/);
+          const filenameMatch = headerPart.match(/filename="([^"]+)"/);
+          const mimeMatch = headerPart.match(/Content-Type:\s*(.+)/i);
+          const name = nameMatch ? nameMatch[1] : '';
 
-    if (!order) { json(res, 404, { error: "Order tidak ditemukan" }); return; }
-
-    // Get customer info
-    const { data: customer } = await sb.from('customers')
-      .select('name, phone')
-      .eq('id', customerId)
-      .single();
-
-    const customerName = customer?.name || '-';
-    const sisa = (order.total || 0) - (order.paid_total || 0);
-
-    // Save bukti to Supabase Storage if provided
-    let buktiUrl = '';
-    if (buktiBase64) {
-      const ext = buktiMime.includes('png') ? 'png' : 'jpg';
-      const filePath = 'bukti-bayar/' + orderId + '_' + Date.now() + '.' + ext;
-      const fileData = Buffer.from(buktiBase64.split(',')[1] || '', 'base64');
-      const { error: uploadErr } = await sb.storage
-        .from('public')
-        .upload(filePath, fileData, { contentType: buktiMime });
-      if (!uploadErr) {
-        const { data: urlData } = sb.storage.from('public').getPublicUrl(filePath);
-        buktiUrl = urlData?.publicUrl || '';
-      }
-    }
-
-    // Save confirmation (non-blocking - WA still sends even if table missing)
-    let insertOk = false;
-    try {
-      const { error: insertErr } = await sb.from('payment_confirmations').insert({
-        id: orderId + '_' + Date.now(),
-        order_id: orderId,
-        order_ids: orderIds || orderId,
-        customer_id: customerId,
-        customer_name: customerName,
-        amount: parseFloat(amount) || sisa,
-        transfer_date: transferDate,
-        bukti_url: buktiUrl,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      });
-      if (insertErr) {
-        console.error('Insert confirmation error (table mungkin belum ada):', insertErr.message);
+          if (filenameMatch) {
+            buktiMime = mimeMatch ? mimeMatch[1].trim() : 'image/jpeg';
+            const fileBuf = Buffer.from(body, 'binary');
+            buktiBase64 = 'data:' + buktiMime + ';base64,' + fileBuf.toString('base64');
+          } else {
+            const val = body.trim();
+            if (name === 'order_id') orderId = val;
+            else if (name === 'order_ids') orderIds = val;
+            else if (name === 'customer_id') customerId = val;
+            else if (name === 'amount') amount = val;
+            else if (name === 'transfer_date') transferDate = val;
+          }
+        }
       } else {
-        insertOk = true;
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        orderId = body.order_id || '';
+        orderIds = body.order_ids || '';
+        customerId = body.customer_id || '';
+        amount = body.amount || '';
+        transferDate = body.transfer_date || '';
+        buktiBase64 = body.bukti || '';
+        if (buktiBase64) {
+          buktiMime = buktiBase64.includes('image/png') ? 'image/png' : 'image/jpeg';
+        }
       }
-    } catch (e) {
-      console.error('Insert confirmation exception:', e.message);
-    }
 
-    // Send WA to admin
-    const botApiUrl = await getBotApiUrl(sb);
-    const adminPhone = '6285894652806';
-    let waMsg = '🏦 *Transfer via BCA*\n\n';
-    waMsg += '👤 Pelanggan: *' + customerName + '*\n';
-    waMsg += '📦 Order: *#' + orderId.slice(0, 6) + '*\n\n';
-    waMsg += '💰 Total: Rp ' + (order.total || 0).toLocaleString('id-ID') + '\n';
-    waMsg += '💳 Dibayar: *Rp ' + (parseFloat(amount) || sisa).toLocaleString('id-ID') + '*\n';
-    waMsg += '📅 Transfer: ' + transferDate + '\n';
-    waMsg += '📸 Bukti: ' + (buktiUrl ? 'ada' : 'tidak ada') + '\n\n';
-    waMsg += '───────────\n';
-    waMsg += 'Link: https://mamanay.vercel.app/orders/' + orderId;
+      if (!orderId || !customerId) {
+        json(res, 400, { error: "order_id dan customer_id wajib" });
+        return;
+      }
 
-    if (botApiUrl && adminPhone) {
+      if (!buktiBase64) {
+        json(res, 400, { error: "Bukti transfer wajib diupload" });
+        return;
+      }
+
+      const sb = await getAdmin();
+
+      const { data: order } = await sb.from('orders')
+        .select('id, total, paid_total, customer_id')
+        .eq('id', orderId)
+        .single();
+
+      if (!order) { json(res, 404, { error: "Order tidak ditemukan" }); return; }
+
+      const { data: customer } = await sb.from('customers')
+        .select('name, phone')
+        .eq('id', customerId)
+        .single();
+
+      const customerName = customer?.name || '-';
+      const sisa = (order.total || 0) - (order.paid_total || 0);
+
+      let buktiUrl = '';
+      if (buktiBase64) {
+        const ext = buktiMime.includes('png') ? 'png' : 'jpg';
+        const filePath = 'bukti-bayar/' + orderId + '_' + Date.now() + '.' + ext;
+        const fileData = Buffer.from(buktiBase64.split(',')[1] || '', 'base64');
+        const { error: uploadErr } = await sb.storage
+          .from('public')
+          .upload(filePath, fileData, { contentType: buktiMime });
+        if (!uploadErr) {
+          const { data: urlData } = sb.storage.from('public').getPublicUrl(filePath);
+          buktiUrl = urlData?.publicUrl || '';
+        }
+      }
+
+      let insertOk = false;
       try {
-        await fetch(botApiUrl + '/api/send-invoice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (process.env.BOT_API_TOKEN || 'mamanay2026') },
-          body: JSON.stringify({ phone: adminPhone, message: waMsg }),
+        const { error: insertErr } = await sb.from('payment_confirmations').insert({
+          id: orderId + '_' + Date.now(),
+          order_id: orderId,
+          order_ids: orderIds || orderId,
+          customer_id: customerId,
+          customer_name: customerName,
+          amount: parseFloat(amount) || sisa,
+          transfer_date: transferDate,
+          bukti_url: buktiUrl,
+          status: 'pending',
+          created_at: new Date().toISOString(),
         });
+        if (insertErr) {
+          console.error('Insert confirmation error:', insertErr.message);
+        } else {
+          insertOk = true;
+        }
       } catch (e) {
-        console.error('WA send error:', e.message);
+        console.error('Insert confirmation exception:', e.message);
       }
+
+      const botApiUrl = await getBotApiUrl(sb);
+      const adminPhone = '6285894652806';
+      let waMsg = '🏦 *Transfer via BCA*\n\n';
+      waMsg += '👤 Pelanggan: *' + customerName + '*\n';
+      waMsg += '📦 Order: *#' + orderId.slice(0, 6) + '*\n\n';
+      waMsg += '💰 Total: Rp ' + (order.total || 0).toLocaleString('id-ID') + '\n';
+      waMsg += '💳 Dibayar: *Rp ' + (parseFloat(amount) || sisa).toLocaleString('id-ID') + '*\n';
+      waMsg += '📅 Transfer: ' + transferDate + '\n';
+      waMsg += '📸 Bukti: ' + (buktiUrl ? 'ada' : 'tidak ada') + '\n\n';
+      waMsg += '───────────\n';
+      waMsg += 'Link: https://mamanay.vercel.app/orders/' + orderId;
+
+      if (botApiUrl && adminPhone) {
+        try {
+          await fetch(botApiUrl + '/api/send-invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (process.env.BOT_API_TOKEN || 'mamanay2026') },
+            body: JSON.stringify({ phone: adminPhone, message: waMsg }),
+          });
+        } catch (e) {
+          console.error('WA send error:', e.message);
+        }
+      }
+
+      let msg = insertOk ? 'Konfirmasi terkirim' : 'Konfirmasi terkirim (catatan: table payment_confirmations belum ada)';
+      json(res, 200, { ok: true, message: msg });
+      return;
     }
 
-    let msg = insertOk ? 'Konfirmasi terkirim' : 'Konfirmasi terkirim (catatan: table payment_confirmations belum ada, data tidak tersimpan)';
-    json(res, 200, { ok: true, message: msg });
+    json(res, 405, { error: "Method not allowed" });
   } catch (e) {
     console.error('payment-confirm error:', e);
     json(res, 500, { error: e.message });
