@@ -27,6 +27,7 @@ import {
   Store,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Check,
   CheckCircle,
 } from "lucide-react";
@@ -166,6 +167,8 @@ export default function Inventory() {
   const [infoReadyProducts, setInfoReadyProducts] = useState<any[]>([]);
   const [infoReadySelected, setInfoReadySelected] = useState<Set<string>>(new Set());
   const [infoReadySending, setInfoReadySending] = useState(false);
+  const [infoReadySearch, setInfoReadySearch] = useState("");
+  const [infoReadyPreviewOpen, setInfoReadyPreviewOpen] = useState(false);
   const [shopeeOpen, setShopeeOpen] = useState(false);
   const [shopeeStatus, setShopeeStatus] = useState<any>(null);
   const [shopeeLoading, setShopeeLoading] = useState(false);
@@ -1032,15 +1035,19 @@ export default function Inventory() {
   function openInfoReady() {
     try {
       const items = products.map(p => {
-        const vs = (variantStock || {})[p.id];
-        const variants = Array.isArray(vs) ? vs.filter((v: any) => v.qty > 0) : [];
-        const totalStock = variants.length > 0
-          ? variants.reduce((s: number, v: any) => s + v.qty, 0)
+        const vs = (variantStock || {})[p.id] || {};
+        const variantEntries = Object.entries(vs).filter(([k, qty]) => k !== "(tanpa varian)" && qty > 0);
+        const hasVariants = variantEntries.length > 0;
+        const totalStock = hasVariants
+          ? variantEntries.reduce((s, [, qty]) => s + (qty as number), 0)
           : (p as any).stock || 0;
+        const variants = variantEntries.map(([name, qty]) => ({ name, stock: qty as number }));
         return { id: p.id, name: p.name, sellPrice: p.sell_price, variants, totalStock, stockType: (p as any).stock_type };
       });
       setInfoReadyProducts(items);
       setInfoReadySelected(new Set(items.filter(i => i.totalStock > 0).map(i => i.id)));
+      setInfoReadySearch("");
+      setInfoReadyPreviewOpen(false);
       setInfoReadyOpen(true);
     } catch (e) {
       console.error("openInfoReady error:", e);
@@ -3404,100 +3411,155 @@ export default function Inventory() {
 
       {infoReadyOpen && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-sky-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-sky-100/50 max-h-[85dvh] flex flex-col">
-            <div className="flex items-center justify-between mb-3 shrink-0">
-              <div>
+          <div className="bg-white border border-sky-100 rounded-2xl max-w-sm w-full shadow-2xl shadow-sky-100/50 max-h-[90dvh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3 shrink-0">
+              <div className="flex items-center justify-between mb-1">
                 <h3 className="text-base font-bold text-gray-800">Info Ready Stock</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Pilih produk untuk di-info ke grup</p>
+                <button onClick={() => setInfoReadyOpen(false)} className="p-2 hover:bg-sky-50 rounded-xl transition-all -mr-2">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
               </div>
-              <button onClick={() => setInfoReadyOpen(false)} className="p-2 hover:bg-sky-50 rounded-xl transition-all">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
+              <p className="text-xs text-gray-400">Pilih produk untuk di-info ke grup</p>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto mb-3">
+            {/* Search */}
+            <div className="px-5 pb-2 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                <input
+                  type="text"
+                  placeholder="Cari produk..."
+                  value={infoReadySearch}
+                  onChange={(e) => setInfoReadySearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Toolbar */}
+            <div className="px-5 pb-2 flex items-center justify-between shrink-0">
+              <span className="text-[10px] text-gray-400 font-semibold">
+                {infoReadySelected.size}/{infoReadyProducts.length} dipilih
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setInfoReadySelected(new Set(infoReadyProducts.map(p => p.id)))}
+                  className="text-[10px] text-sky-500 font-bold hover:text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50 transition-all"
+                >
+                  Semua
+                </button>
+                <button
+                  onClick={() => setInfoReadySelected(new Set())}
+                  className="text-[10px] text-gray-400 font-bold hover:text-gray-600 px-2 py-1 rounded-lg hover:bg-gray-100 transition-all"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+
+            {/* Product List */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-2">
               {infoReadyProducts.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-400">
                   <CheckCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  Tidak ada produk ready
+                  Tidak ada produk
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] text-gray-400 font-semibold">
-                      {infoReadyProducts.length} produk ready:
-                    </p>
-                    <button
+              ) : (() => {
+                const filtered = infoReadySearch
+                  ? infoReadyProducts.filter(p => p.name.toLowerCase().includes(infoReadySearch.toLowerCase()))
+                  : infoReadyProducts;
+                if (filtered.length === 0) {
+                  return <div className="text-center py-6 text-xs text-gray-400">Tidak ditemukan</div>;
+                }
+                return filtered.map(p => {
+                  const isSelected = infoReadySelected.has(p.id);
+                  return (
+                    <div
+                      key={p.id}
                       onClick={() => {
-                        if (infoReadySelected.size === infoReadyProducts.length) {
-                          setInfoReadySelected(new Set());
-                        } else {
-                          setInfoReadySelected(new Set(infoReadyProducts.map(p => p.id)));
-                        }
+                        setInfoReadySelected(prev => {
+                          const next = new Set(prev);
+                          if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                          return next;
+                        });
                       }}
-                      className="text-[10px] text-sky-500 font-bold hover:text-sky-600"
+                      className={`flex items-center gap-2.5 p-2.5 rounded-xl mb-1.5 cursor-pointer transition-all border ${
+                        isSelected
+                          ? "bg-sky-50 border-sky-200 shadow-sm"
+                          : "bg-white border-gray-100 hover:border-gray-200"
+                      }`}
                     >
-                      {infoReadySelected.size === infoReadyProducts.length ? "Batal Pilih" : "Pilih Semua"}
-                    </button>
-                  </div>
-                  {infoReadyProducts.map((p) => {
-                    const isSelected = infoReadySelected.has(p.id);
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => {
-                          setInfoReadySelected(prev => {
-                            const next = new Set(prev);
-                            if (next.has(p.id)) next.delete(p.id);
-                            else next.add(p.id);
-                            return next;
-                          });
-                        }}
-                        className={`border rounded-xl p-3 cursor-pointer transition-all ${
-                          isSelected ? "bg-sky-50 border-sky-300 shadow-sm" : "bg-gray-50 border-gray-200 opacity-60"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
-                            isSelected ? "bg-sky-500 border-sky-500" : "border-gray-300 bg-white"
+                      {/* Checkbox */}
+                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+                        isSelected ? "bg-sky-500 border-sky-500" : "border-gray-300 bg-white"
+                      }`}>
+                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-semibold text-gray-800 truncate">{p.name}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                            p.stockType === "po" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
                           }`}>
-                            {isSelected && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-xs font-bold text-gray-800">{p.name}</p>
-                              <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${p.stockType === "po" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
-                                {p.stockType === "po" ? "PO" : "Ready"}
-                              </span>
+                            {p.stockType === "po" ? "PO" : "Ready"}
+                          </span>
+                          {p.variants.length > 0 ? (
+                            <div className="flex gap-1 flex-wrap">
+                              {p.variants.map((v: any) => (
+                                <span key={v.name} className={`text-[8px] px-1.5 py-0.5 rounded ${
+                                  v.stock <= 2 ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"
+                                }`}>
+                                  {v.name}:{v.stock}
+                                </span>
+                              ))}
                             </div>
-                            <p className="text-[10px] text-gray-400">
-                              Stok: {p.totalStock}
-                            </p>
-                          </div>
+                          ) : (
+                            <span className="text-[10px] text-gray-400">Stok: {p.totalStock}</span>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+
+                      {/* Harga */}
+                      <span className="text-[10px] text-gray-400 font-medium shrink-0">
+                        Rp{p.sellPrice.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
+            {/* Footer */}
             {infoReadyProducts.length > 0 && (
-              <div className="shrink-0 space-y-2">
-                {infoReadySelected.size > 0 && (() => {
+              <div className="shrink-0 border-t border-gray-100 px-5 py-3">
+                {/* Preview Toggle */}
+                <button
+                  onClick={() => setInfoReadyPreviewOpen(!infoReadyPreviewOpen)}
+                  className="w-full flex items-center justify-between py-1.5 text-[11px] font-semibold text-gray-500 hover:text-gray-700 transition-all"
+                >
+                  <span>Preview Pesan ({infoReadySelected.size} produk)</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${infoReadyPreviewOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* Preview */}
+                {infoReadyPreviewOpen && infoReadySelected.size > 0 && (() => {
                   const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
                   const selected = infoReadyProducts.filter(p => infoReadySelected.has(p.id));
-                  const previewLines = selected.map((p, i) => `${i + 1}. ${p.name.toUpperCase()}`);
-                  const previewMsg = `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${previewLines.join("\n")}\n\n🛒 Order: https://mamanay.vercel.app/catalog\n📋 Cek invoice/pembayaran: https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
+                  const lines = selected.map((p, i) => `${i + 1}. ${p.name.toUpperCase()}`);
+                  const previewMsg = `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${lines.join("\n")}\n\n🛒 Order: https://mamanay.vercel.app/catalog\n📋 Cek invoice/pembayaran: https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
                   return (
-                    <div className="bg-white rounded-xl border border-gray-100 p-3 mb-1">
-                      <p className="text-[10px] text-gray-400 font-semibold mb-2">Preview Pesan:</p>
-                      <div className="bg-[#dcf8c6] rounded-lg p-2.5 text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed">
-                        {previewMsg}
-                      </div>
+                    <div className="bg-[#dcf8c6] rounded-xl p-3 text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed mb-3 max-h-32 overflow-y-auto">
+                      {previewMsg}
                     </div>
                   );
                 })()}
+
+                {/* Buttons */}
                 <div className="flex gap-2">
                   <button
                     onClick={() => setInfoReadyOpen(false)}
