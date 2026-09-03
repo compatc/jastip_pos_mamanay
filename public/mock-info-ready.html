@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Info Ready Stock - Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; gap: 24px; padding: 24px 16px; }
+
+  /* MODAL */
+  .modal { background: white; border-radius: 20px; width: 100%; max-width: 400px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; position: sticky; top: 24px; }
+  .header { padding: 20px 20px 0; flex-shrink: 0; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .header h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+  .header p { font-size: 11px; color: #9ca3af; margin-bottom: 12px; }
+  .close-btn { width: 32px; height: 32px; border-radius: 10px; border: none; background: #f3f4f6; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 18px; }
+  .close-btn:hover { background: #e5e7eb; }
+  .search-box { padding: 0 20px; margin-bottom: 8px; flex-shrink: 0; }
+  .search-box input { width: 100%; padding: 10px 14px 10px 36px; border: 1.5px solid #e5e7eb; border-radius: 12px; font-size: 13px; outline: none; background: #f9fafb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'/%3E%3C/svg%3E") 10px center no-repeat; background-size: 18px; }
+  .search-box input:focus { border-color: #38bdf8; background-color: white; }
+  .toolbar { padding: 0 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-shrink: 0; }
+  .toolbar .count { font-size: 11px; color: #9ca3af; font-weight: 600; }
+  .toolbar .actions { display: flex; gap: 8px; }
+  .toolbar .actions button { border: none; background: none; font-size: 11px; font-weight: 700; color: #0ea5e9; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .toolbar .actions button:hover { background: #f0f9ff; }
+  .product-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 8px; }
+  .product-list::-webkit-scrollbar { width: 4px; }
+  .product-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+  .product-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid #f3f4f6; border-radius: 14px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
+  .product-item:hover { border-color: #e0f2fe; background: #f0f9ff; }
+  .product-item.selected { border-color: #7dd3fc; background: #f0f9ff; box-shadow: 0 1px 3px rgba(14,165,233,0.1); }
+  .checkbox { width: 20px; height: 20px; border-radius: 6px; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; background: white; }
+  .product-item.selected .checkbox { background: #0ea5e9; border-color: #0ea5e9; }
+  .checkbox svg { width: 12px; height: 12px; color: white; opacity: 0; transition: opacity 0.15s; }
+  .product-item.selected .checkbox svg { opacity: 1; }
+  .product-info { flex: 1; min-width: 0; }
+  .product-name { font-size: 12px; font-weight: 600; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .product-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+  .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
+  .badge-ready { background: #dcfce7; color: #16a34a; }
+  .badge-po { background: #fef3c7; color: #d97706; }
+  .stock-text { font-size: 10px; color: #9ca3af; }
+  .price-text { font-size: 11px; color: #6b7280; font-weight: 500; }
+  .variant-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+  .variant-chip { font-size: 9px; padding: 1px 6px; border-radius: 6px; background: #f3f4f6; color: #6b7280; }
+  .variant-chip.low { background: #fef2f2; color: #dc2626; }
+
+  .footer { padding: 12px 20px 16px; flex-shrink: 0; border-top: 1px solid #f3f4f6; }
+  .preview-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 8px 0; }
+  .preview-toggle span { font-size: 11px; font-weight: 600; color: #6b7280; }
+  .preview-toggle .arrow { font-size: 12px; color: #9ca3af; transition: transform 0.2s; }
+  .preview-toggle .arrow.open { transform: rotate(180deg); }
+  .preview-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 10px 12px; margin-top: 6px; font-size: 11px; color: #15803d; white-space: pre-wrap; line-height: 1.5; max-height: 120px; overflow-y: auto; display: none; }
+  .preview-box.show { display: block; }
+  .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+  .btn { flex: 1; padding: 12px; border-radius: 14px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-cancel { background: #f3f4f6; color: #6b7280; }
+  .btn-cancel:hover { background: #e5e7eb; }
+  .btn-send { background: #0ea5e9; color: white; box-shadow: 0 4px 14px rgba(14,165,233,0.3); }
+  .btn-send:hover { background: #0284c7; }
+  .btn-send:disabled { background: #d1d5db; box-shadow: none; cursor: not-allowed; }
+
+  /* WHATSAPP GROUP PREVIEW */
+  .wa-preview { width: 380px; max-height: 90vh; position: sticky; top: 24px; }
+  .wa-header { background: #075e54; color: white; padding: 12px 16px; border-radius: 16px 16px 0 0; display: flex; align-items: center; gap: 10px; }
+  .wa-header .group-icon { width: 40px; height: 40px; border-radius: 50%; background: #128c7e; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .wa-header .group-info { flex: 1; }
+  .wa-header .group-name { font-size: 14px; font-weight: 600; }
+  .wa-header .group-members { font-size: 11px; opacity: 0.8; }
+  .wa-chat { background: #ece5dd; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23ece5dd'/%3E%3Ccircle cx='20' cy='20' r='1.5' fill='%23d4cfc6' opacity='0.5'/%3E%3Ccircle cx='60' cy='40' r='1' fill='%23d4cfc6' opacity='0.4'/%3E%3Ccircle cx='100' cy='15' r='1.5' fill='%23d4cfc6' opacity='0.3'/%3E%3Ccircle cx='140' cy='50' r='1' fill='%23d4cfc6' opacity='0.5'/%3E%3Ccircle cx='180' cy='25' r='1.5' fill='%23d4cfc6' opacity='0.4'/%3E%3Ccircle cx='30' cy='80' r='1' fill='%23d4cfc6' opacity='0.3'/%3E%3Ccircle cx='70' cy='100' r='1.5' fill='%23d4cfc6' opacity='0.5'/%3E%3Ccircle cx='110' cy='75' r='1' fill='%23d4cfc6' opacity='0.4'/%3E%3Ccircle cx='150' cy='90' r='1.5' fill='%23d4cfc6' opacity='0.3'/%3E%3Ccircle cx='190' cy='85' r='1' fill='%23d4cfc6' opacity='0.5'/%3E%3Ccircle cx='40' cy='130' r='1.5' fill='%23d4cfc6' opacity='0.4'/%3E%3Ccircle cx='80' cy='150' r='1' fill='%23d4cfc6' opacity='0.3'/%3E%3Ccircle cx='120' cy='125' r='1.5' fill='%23d4cfc6' opacity='0.5'/%3E%3Ccircle cx='160' cy='140' r='1' fill='%23d4cfc6' opacity='0.4'/%3E%3Ccircle cx='50' cy='170' r='1.5' fill='%23d4cfc6' opacity='0.3'/%3E%3Ccircle cx='90' cy='190' r='1' fill='%23d4cfc6' opacity='0.5'/%3E%3Ccircle cx='130' cy='175' r='1.5' fill='%23d4cfc6' opacity='0.4'/%3E%3Ccircle cx='170' cy='180' r='1' fill='%23d4cfc6' opacity='0.3'/%3E%3C/svg%3E"); padding: 12px; min-height: 400px; max-height: 70vh; overflow-y: auto; border-radius: 0 0 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .wa-chat::-webkit-scrollbar { width: 4px; }
+  .wa-chat::-webkit-scrollbar-thumb { background: #c5bdb3; border-radius: 4px; }
+  .wa-empty { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #999; text-align: center; line-height: 1.6; }
+  .wa-bubble { max-width: 85%; padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; position: relative; word-wrap: break-word; }
+  .wa-bubble.incoming { background: white; align-self: flex-start; border-top-left-radius: 2px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); }
+  .wa-bubble.outgoing { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); }
+  .wa-sender { font-size: 11px; font-weight: 600; color: #0795dc; margin-bottom: 2px; }
+  .wa-time { font-size: 9px; color: #999; text-align: right; margin-top: 4px; }
+  .wa-bubble .wa-msg { white-space: pre-wrap; }
+  .wa-bubble .wa-msg b { font-weight: 700; }
+  .wa-date { text-align: center; font-size: 11px; color: #666; background: #e1f3fb; padding: 4px 12px; border-radius: 8px; align-self: center; margin: 4px 0; }
+
+  @media (max-width: 860px) {
+    body { flex-direction: column; align-items: center; }
+    .wa-preview { width: 100%; max-width: 400px; position: static; max-height: none; }
+    .modal { position: static; }
+  }
+</style>
+</head>
+<body>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="header">
+    <div class="header-top">
+      <h3>Info Ready Stock</h3>
+      <button class="close-btn">&times;</button>
+    </div>
+    <p>Pilih produk untuk di-info ke grup</p>
+  </div>
+  <div class="search-box">
+    <input type="text" placeholder="Cari produk..." id="searchInput" oninput="filterProducts()">
+  </div>
+  <div class="toolbar">
+    <span class="count" id="countLabel">0 dipilih</span>
+    <div class="actions">
+      <button onclick="selectAll()">Pilih Semua</button>
+      <button onclick="deselectAll()">Batal Pilih</button>
+    </div>
+  </div>
+  <div class="product-list" id="productList"></div>
+  <div class="footer">
+    <div class="preview-toggle" onclick="togglePreview()">
+      <span>Preview Pesan (<span id="previewCount">0</span> produk)</span>
+      <span class="arrow" id="previewArrow">&#9660;</span>
+    </div>
+    <div class="preview-box" id="previewBox"></div>
+    <div class="btn-row">
+      <button class="btn btn-cancel">Batal</button>
+      <button class="btn btn-send" id="sendBtn" disabled onclick="send()">Kirim (0)</button>
+    </div>
+  </div>
+</div>
+
+<!-- WA GROUP PREVIEW -->
+<div class="wa-preview">
+  <div class="wa-header">
+    <div class="group-icon">👥</div>
+    <div class="group-info">
+      <div class="group-name">jastip_mamanay</div>
+      <div class="group-members">128 anggota</div>
+    </div>
+  </div>
+  <div class="wa-chat" id="waChat">
+    <div class="wa-date">3 September 2026</div>
+    <div class="wa-bubble incoming">
+      <div class="wa-sender">Mama</div>
+      <div class="wa-msg">Apa aja yang ready stock kak?</div>
+      <div class="wa-time">14:21</div>
+    </div>
+    <div class="wa-bubble incoming">
+      <div class="wa-sender">Ratih</div>
+      <div class="wa-msg">Bisa info ready stock?</div>
+      <div class="wa-time">14:23</div>
+    </div>
+    <div class="wa-empty" id="waEmpty">Pilih produk di sebelah kiri,<br>pesan akan muncul di sini</div>
+  </div>
+</div>
+
+<script>
+const products = [
+  { id: 1, name: "BATH & BUFF KIDS PROTECTION SUNSCREEN", stock: 3, price: 89000, type: "ready", variants: [] },
+  { id: 2, name: "BUSYBOARD MONTESSORI GIRL", stock: 2, price: 135000, type: "po", variants: [{name:"Pink",stock:1},{name:"Blue",stock:1}] },
+  { id: 3, name: "BUY1GET1 SERENA CHOCOLATE SHORT CAKE", stock: 5, price: 45000, type: "ready", variants: [] },
+  { id: 4, name: "BUY1GET1 TRIPLEJOY", stock: 4, price: 38000, type: "ready", variants: [] },
+  { id: 5, name: "CEKO TUMBLER BY PERO", stock: 6, price: 94000, type: "po", variants: [{name:"Pink",stock:2},{name:"Rose Gold",stock:2},{name:"Lilac",stock:2}] },
+  { id: 6, name: "CRY BABY WBC", stock: 2, price: 125000, type: "ready", variants: [] },
+  { id: 7, name: "FOOD CONTAINER 850 ML DEFECT (LECET)", stock: 8, price: 25000, type: "ready", variants: [] },
+  { id: 8, name: "GANCI STITCH UNGU", stock: 4, price: 15000, type: "ready", variants: [] },
+  { id: 9, name: "GBRAS BRA GRENEY NUDE", stock: 3, price: 35000, type: "ready", variants: [] },
+  { id: 10, name: "HANDUK ANAK GEMAS", stock: 10, price: 23000, type: "ready", variants: [{name:"Bear",stock:4},{name:"Rabbit",stock:3},{name:"Cat",stock:3}] },
+  { id: 11, name: "KERANJANG PLASTIK 3 IN1", stock: 5, price: 45000, type: "ready", variants: [] },
+  { id: 12, name: "KESET DIATOMITE RANDOM ANIMAL", stock: 7, price: 32000, type: "ready", variants: [] },
+  { id: 13, name: "LEARNING CARD WITH CAT", stock: 3, price: 28000, type: "po", variants: [] },
+  { id: 14, name: "MOELL BODY LOTION 185 GR", stock: 6, price: 42000, type: "ready", variants: [] },
+  { id: 15, name: "MOELL BODY LOTION 80 GR", stock: 4, price: 28000, type: "ready", variants: [] },
+  { id: 16, name: "MOELL BODY WASH", stock: 5, price: 35000, type: "ready", variants: [] },
+  { id: 17, name: "MOELL FACE CREAM 40 GR", stock: 3, price: 55000, type: "ready", variants: [] },
+  { id: 18, name: "MOELL HAIR LOTION TRAVEL SIZE 50 ML", stock: 8, price: 18000, type: "ready", variants: [] },
+  { id: 19, name: "MOELL SHAMPOO", stock: 4, price: 32000, type: "ready", variants: [] },
+  { id: 20, name: "MOELL SUNSCREEN", stock: 5, price: 48000, type: "ready", variants: [] },
+];
+
+const selected = new Set();
+let previewOpen = false;
+
+function renderProducts(filter = '') {
+  const list = document.getElementById('productList');
+  const f = filter.toLowerCase();
+  const filtered = products.filter(p => p.name.toLowerCase().includes(f));
+  list.innerHTML = filtered.map(p => {
+    const sel = selected.has(p.id);
+    const badge = p.type === 'po'
+      ? '<span class="badge badge-po">PO</span>'
+      : '<span class="badge badge-ready">Ready</span>';
+    const variants = p.variants.length > 0
+      ? `<div class="variant-chips">${p.variants.map(v => `<span class="variant-chip${v.stock <= 2 ? ' low' : ''}">${v.name}: ${v.stock}</span>`).join('')}</div>`
+      : `<span class="stock-text">Stok: ${p.stock}</span>`;
+    return `
+      <div class="product-item${sel ? ' selected' : ''}" onclick="toggle(${p.id})">
+        <div class="checkbox">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        </div>
+        <div class="product-info">
+          <div class="product-name">${p.name}</div>
+          <div class="product-meta">
+            ${badge}
+            ${variants}
+          </div>
+        </div>
+        <div class="price-text">Rp${p.price.toLocaleString('id-ID')}</div>
+      </div>`;
+  }).join('');
+  updateUI();
+}
+
+function toggle(id) {
+  if (selected.has(id)) selected.delete(id); else selected.add(id);
+  filterProducts();
+}
+
+function selectAll() {
+  products.forEach(p => selected.add(p.id));
+  filterProducts();
+}
+
+function deselectAll() {
+  selected.clear();
+  filterProducts();
+}
+
+function filterProducts() {
+  renderProducts(document.getElementById('searchInput').value);
+}
+
+function updateUI() {
+  const n = selected.size;
+  document.getElementById('countLabel').textContent = `${n} dipilih`;
+  document.getElementById('previewCount').textContent = n;
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = n === 0;
+  btn.textContent = `Kirim (${n})`;
+  updatePreview();
+  updateWAPreview();
+}
+
+function updatePreview() {
+  const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const items = products.filter(p => selected.has(p.id));
+  if (items.length === 0) {
+    document.getElementById('previewBox').textContent = '';
+    return;
+  }
+  const lines = items.map((p, i) => `${i + 1}. ${p.name.toUpperCase()}`);
+  document.getElementById('previewBox').textContent =
+    `📢 INFO BARANG READY STOCK TANGGAL ${today} :\n\n${lines.join('\n')}\n\n🛒 Order: https://mamanay.vercel.app/customer.html\n📋 Cek invoice/pembayaran: https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
+}
+
+function updateWAPreview() {
+  const chat = document.getElementById('waChat');
+  const empty = document.getElementById('waEmpty');
+  const items = products.filter(p => selected.has(p.id));
+
+  // Remove old outgoing bubbles
+  chat.querySelectorAll('.wa-outgoing-wrap').forEach(el => el.remove());
+
+  if (items.length === 0) {
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const lines = items.map((p, i) => `${i + 1}. *${p.name.toUpperCase()}*`);
+  const msg = `📢 *INFO BARANG READY STOCK TANGGAL ${today} :*\n\n${lines.join('\n')}\n\n🛒 *Order:* https://mamanay.vercel.app/customer.html\n📋 *Cek invoice/pembayaran:* https://mamanay.vercel.app/customer.html\n\nSelamat berbelanja 😊`;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'wa-outgoing-wrap';
+  wrap.style.cssText = 'display:flex;flex-direction:column;align-self:flex-end;width:100%;';
+  wrap.innerHTML = `
+    <div class="wa-bubble outgoing" style="align-self:flex-end;max-width:88%;">
+      <div class="wa-msg">${msg.replace(/\*(.*?)\*/g, '<b>$1</b>').replace(/\n/g, '<br>')}</div>
+      <div class="wa-time">14:30 <span style="color:#4fc3f7;">✓✓</span></div>
+    </div>`;
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function togglePreview() {
+  previewOpen = !previewOpen;
+  document.getElementById('previewBox').classList.toggle('show', previewOpen);
+  document.getElementById('previewArrow').classList.toggle('open', previewOpen);
+}
+
+function send() { alert(`Mengirim ${selected.size} produk ke grup! (preview only)`); }
+
+renderProducts();
+</script>
+</body>
+</html>
