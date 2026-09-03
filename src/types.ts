@@ -73,6 +73,8 @@ export interface Product {
   image: string;
   images: string[];
   weight: number;
+  shopee_item_id?: string;
+  shopee_synced_at?: string;
   created_at: string;
 }
 
@@ -98,6 +100,7 @@ export interface ProductVariant {
   image: string;
   stock: number;
   stock_type: "ready" | "po" | null;
+  shopee_model_id?: string;
   created_at: string;
 }
 

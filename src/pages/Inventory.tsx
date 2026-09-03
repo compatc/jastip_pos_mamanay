@@ -24,6 +24,7 @@ import {
   Flame,
   Percent,
   Sparkles,
+  Store,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -165,6 +166,11 @@ export default function Inventory() {
   const [infoReadyProducts, setInfoReadyProducts] = useState<any[]>([]);
   const [infoReadySelected, setInfoReadySelected] = useState<Set<string>>(new Set());
   const [infoReadySending, setInfoReadySending] = useState(false);
+  const [shopeeOpen, setShopeeOpen] = useState(false);
+  const [shopeeStatus, setShopeeStatus] = useState<any>(null);
+  const [shopeeLoading, setShopeeLoading] = useState(false);
+  const [shopeeAction, setShopeeAction] = useState<string>("");
+  const [shopeeResults, setShopeeResults] = useState<any[]>([]);
 
   useEffect(() => {
     loadProducts();
@@ -869,6 +875,97 @@ export default function Inventory() {
     }
   }
 
+  async function loadShopeeStatus() {
+    setShopeeLoading(true);
+    try {
+      const resp = await fetch("/api/shopee?action=status");
+      const data = await resp.json();
+      setShopeeStatus(data);
+    } catch (e) {
+      setShopeeStatus({ configured: false, synced_count: 0, products: [], token: null });
+    } finally {
+      setShopeeLoading(false);
+    }
+  }
+
+  async function shopeeUploadProducts(productIds: string[]) {
+    setShopeeAction("upload");
+    setShopeeResults([]);
+    setShopeeLoading(true);
+    try {
+      const resp = await fetch("/api/shopee", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "upload_products", product_ids: productIds }),
+      });
+      const data = await resp.json();
+      setShopeeResults(data.results || []);
+      loadShopeeStatus();
+    } catch (e) {
+      setShopeeResults([{ error: e instanceof Error ? e.message : "Upload failed" }]);
+    } finally {
+      setShopeeLoading(false);
+    }
+  }
+
+  async function shopeeSyncStock(productIds: string[]) {
+    setShopeeAction("sync_stock");
+    setShopeeResults([]);
+    setShopeeLoading(true);
+    try {
+      const resp = await fetch("/api/shopee", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_stock", product_ids: productIds }),
+      });
+      const data = await resp.json();
+      setShopeeResults(data.results || []);
+    } catch (e) {
+      setShopeeResults([{ error: e instanceof Error ? e.message : "Sync failed" }]);
+    } finally {
+      setShopeeLoading(false);
+    }
+  }
+
+  async function shopeeSyncPrice(productIds: string[]) {
+    setShopeeAction("sync_price");
+    setShopeeResults([]);
+    setShopeeLoading(true);
+    try {
+      const resp = await fetch("/api/shopee", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_price", product_ids: productIds }),
+      });
+      const data = await resp.json();
+      setShopeeResults(data.results || []);
+    } catch (e) {
+      setShopeeResults([{ error: e instanceof Error ? e.message : "Sync failed" }]);
+    } finally {
+      setShopeeLoading(false);
+    }
+  }
+
+  async function shopeeSyncAll(productIds: string[]) {
+    setShopeeAction("sync_all");
+    setShopeeResults([]);
+    setShopeeLoading(true);
+    try {
+      const resp = await fetch("/api/shopee", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_all", product_ids: productIds }),
+      });
+      const data = await resp.json();
+      setShopeeResults(data.results || []);
+      loadShopeeStatus();
+    } catch (e) {
+      setShopeeResults([{ error: e instanceof Error ? e.message : "Sync failed" }]);
+    } finally {
+      setShopeeLoading(false);
+    }
+  }
+
   function openInfoReady() {
     try {
       const items = products.map(p => {
@@ -1002,6 +1099,16 @@ export default function Inventory() {
           >
             <CheckCircle className="w-3.5 h-3.5" />
             Info Ready
+          </button>
+          <button
+            onClick={() => {
+              setShopeeOpen(true);
+              loadShopeeStatus();
+            }}
+            className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100"
+          >
+            <Store className="w-3.5 h-3.5" />
+            Shopee
           </button>
           {products.some((p) => (p as any).stock_type === "po") && (
             <button
@@ -3005,6 +3112,130 @@ export default function Inventory() {
           </div>
         );
       })()}
+
+      {shopeeOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-orange-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-orange-100/50 max-h-[85dvh] flex flex-col">
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-gray-800">Shopee Sync</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Sinkron produk ke Shopee</p>
+              </div>
+              <button onClick={() => setShopeeOpen(false)} className="p-2 hover:bg-orange-50 rounded-xl transition-all">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto mb-3">
+              {!shopeeStatus?.configured ? (
+                <div className="text-center py-8 text-sm text-gray-400">
+                  <Store className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                  <p className="font-semibold text-gray-500">Shopee belum dikonfigurasi</p>
+                  <p className="text-xs mt-1">Tambahkan SHOPEE_PARTNER_ID dan SHOPEE_SECRET_KEY di .env</p>
+                </div>
+              ) : shopeeLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-6 h-6 text-orange-400 mx-auto mb-2 animate-spin" />
+                  <p className="text-xs text-gray-400">{shopeeAction === "upload" ? "Upload..." : shopeeAction === "sync_stock" ? "Sync stok..." : shopeeAction === "sync_price" ? "Sync harga..." : "Memuat..."}</p>
+                </div>
+              ) : shopeeResults.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-gray-400 font-semibold mb-2">Hasil {shopeeAction}:</p>
+                  {shopeeResults.map((r, i) => (
+                    <div key={i} className={`p-2.5 rounded-lg text-xs ${r.ok ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+                      <p className="font-semibold">{r.id?.slice(0, 8) || `#${i + 1}`}</p>
+                      {r.ok && <p className="text-green-600 mt-1">✓ {r.shopee_item_id ? `item_id: ${r.shopee_item_id}` : "Synced"}</p>}
+                      {r.warning && <p className="text-amber-600 mt-1">⚠ {r.warning}</p>}
+                      {r.error && <p className="text-red-600 mt-1">✗ {r.error}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {shopeeStatus.token ? (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-green-700">✓ Terhubung</p>
+                      <p className="text-[10px] text-green-600 mt-0.5">Shop ID: {shopeeStatus.token.shop_id} • Expires: {new Date(shopeeStatus.token.expires_at).toLocaleDateString("id-ID")}</p>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-amber-700">⚠ Belum authorize</p>
+                      <p className="text-[10px] text-amber-600 mt-0.5">Lakukan OAuth authorization di Shopee Open Platform</p>
+                    </div>
+                  )}
+
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">{shopeeStatus.synced_count} produk synced</p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {(shopeeStatus.products || []).slice(0, 10).map((p: any) => (
+                        <div key={p.id} className="flex items-center justify-between text-[10px] text-gray-500">
+                          <span className="truncate">{p.name}</span>
+                          <span className="text-green-600 shrink-0 ml-2">#{p.shopee_item_id}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-gray-400 font-semibold">Upload produk baru ke Shopee:</p>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {products.filter(p => !(p as any).shopee_item_id).slice(0, 20).map(p => (
+                        <div key={p.id} className="flex items-center gap-2 text-xs">
+                          <span className="truncate flex-1">{p.name}</span>
+                          <span className="text-gray-400 shrink-0">{(p as any).cost_price ? `→ Rp${Math.ceil((p as any).cost_price * 1.26 / 500) * 500}` : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const ids = products.filter(p => !(p as any).shopee_item_id).map(p => p.id);
+                        if (ids.length > 0) shopeeUploadProducts(ids.slice(0, 10));
+                      }}
+                      disabled={products.filter(p => !(p as any).shopee_item_id).length === 0}
+                      className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
+                    >
+                      Upload Semua ({products.filter(p => !(p as any).shopee_item_id).length})
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const ids = products.filter(p => (p as any).shopee_item_id).map(p => p.id);
+                        if (ids.length > 0) shopeeSyncStock(ids);
+                      }}
+                      disabled={products.filter(p => (p as any).shopee_item_id).length === 0}
+                      className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
+                    >
+                      Sync Stok
+                    </button>
+                    <button
+                      onClick={() => {
+                        const ids = products.filter(p => (p as any).shopee_item_id).map(p => p.id);
+                        if (ids.length > 0) shopeeSyncPrice(ids);
+                      }}
+                      disabled={products.filter(p => (p as any).shopee_item_id).length === 0}
+                      className="flex-1 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
+                    >
+                      Sync Harga
+                    </button>
+                    <button
+                      onClick={() => {
+                        const ids = products.filter(p => (p as any).shopee_item_id).map(p => p.id);
+                        if (ids.length > 0) shopeeSyncAll(ids);
+                      }}
+                      disabled={products.filter(p => (p as any).shopee_item_id).length === 0}
+                      className="flex-1 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
+                    >
+                      Sync All
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {infoReadyOpen && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
