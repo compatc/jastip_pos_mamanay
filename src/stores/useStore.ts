@@ -1178,6 +1178,7 @@ export const useStore = create<PosStore>((set, get) => ({
   addProduct: async (name, costPrice, sellPrice, stock, unit, image, weight = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
     const id = uuid();
     const created_at = new Date().toISOString();
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("products")
       .insert({
@@ -1193,6 +1194,7 @@ export const useStore = create<PosStore>((set, get) => ({
         images: images.length > 0 ? images : (image ? [image] : []),
         weight: weight,
         supplier: supplier || "",
+        user_id: user?.id || null,
         created_at,
       });
     if (error) throw error;
@@ -1201,6 +1203,7 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, weight = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("products")
       .update({
@@ -1215,6 +1218,7 @@ export const useStore = create<PosStore>((set, get) => ({
         images: images.length > 0 ? images : (image ? [image] : []),
         weight: weight,
         supplier: supplier || "",
+        user_id: user?.id || null,
       })
       .eq("id", id);
     if (error) throw error;
