@@ -91,7 +91,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const isSubPage =
-    location.pathname.startsWith("/customer/") ||
     location.pathname.startsWith("/order/") ||
     location.pathname.startsWith("/orders/new") ||
     (location.pathname.startsWith("/orders/") && !["/orders", "/orders/upload", "/orders/bulk"].includes(location.pathname));
