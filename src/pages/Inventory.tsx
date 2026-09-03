@@ -532,12 +532,15 @@ export default function Inventory() {
     } catch (err: any) {
       console.error("Submit error:", err);
       let errMsg = "Unknown error";
-      if (err?.message) errMsg = err.message;
-      else if (err?.error?.message) errMsg = err.error.message;
-      else if (err?.details) errMsg = err.details;
-      else if (err?.code) errMsg = `Code: ${err.code} - ${err.hint || err.message || ''}`;
-      else if (typeof err === 'string') errMsg = err;
-      else try { errMsg = JSON.stringify(err); } catch { errMsg = String(err); }
+      try {
+        if (err?.message) errMsg = err.message;
+        else if (err?.error?.message) errMsg = err.error.message;
+        else if (err?.details) errMsg = err.details;
+        else if (err?.code) errMsg = `Code: ${err.code} ${err.hint || ''}`;
+        else if (typeof err === 'string') errMsg = err;
+        else if (err instanceof Error) errMsg = err.message;
+        else errMsg = JSON.stringify(err, Object.getOwnPropertyNames(err));
+      } catch { errMsg = String(err); }
       alert("Gagal menyimpan produk: " + errMsg);
     }
   }
