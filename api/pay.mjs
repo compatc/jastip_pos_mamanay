@@ -112,8 +112,9 @@ export async function sendPushNotification(sb, { title, body, url, type, orderId
       );
     }
     try {
-      const { data: { user } } = await sb.auth.getUser();
-      await sb.from("notifications").insert({
+      const admin = await getAdmin();
+      const { data: { user } } = await admin.auth.getUser();
+      const { error: insErr } = await admin.from("notifications").insert({
         user_id: user?.id,
         title: title || "QRIS Lunas",
         body: body || "",
@@ -122,8 +123,9 @@ export async function sendPushNotification(sb, { title, body, url, type, orderId
         order_ids: orderIds || [],
         amount: amount || 0,
       });
-    } catch {
-      // simpan riwayat gagal, jangan mengganggu alur pembayaran
+      if (insErr) console.error("[PAY] notifications insert failed:", insErr.message);
+    } catch (e) {
+      console.error("[PAY] notifications error:", e.message);
     }
   } catch {
     // push gagal, jangan mengganggu alur pembayaran
@@ -141,17 +143,23 @@ export async function getAdmin() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_EMAIL || !SUPABASE_PASSWORD) {
     throw new Error("SUPABASE_EMAIL/PASSWORD belum di-set");
   }
-  if (!adminPromise) {
-    adminPromise = (async () => {
-      const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const { error } = await sb.auth.signInWithPassword({
-        email: SUPABASE_EMAIL,
-        password: SUPABASE_PASSWORD,
-      });
-      if (error) throw new Error("Login Supabase gagal: " + error.message);
-      return sb;
-    })();
+  if (adminPromise) {
+    try {
+      const sb = await adminPromise;
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) return sb;
+    } catch {}
+    adminPromise = null;
   }
+  adminPromise = (async () => {
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { error } = await sb.auth.signInWithPassword({
+      email: SUPABASE_EMAIL,
+      password: SUPABASE_PASSWORD,
+    });
+    if (error) throw new Error("Login Supabase gagal: " + error.message);
+    return sb;
+  })();
   return adminPromise;
 }
 function json(res, status, body) {
