@@ -157,22 +157,30 @@ export default function Orders() {
   }, [search, tab, productFilter]);
 
   useEffect(() => {
-    if (allOrders.length === 0) return;
     async function loadItems() {
-      const ids = allOrders.map((o) => o.id);
-      if (ids.length === 0) { setItemsByOrder({}); return; }
-      const { data } = await supabase
-        .from("order_items")
-        .select("order_id, product_name, quantity, product_id, variant")
-        .in("order_id", ids);
-      const map: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
-      if (data) {
-        for (const row of data) {
-          if (!map[row.order_id]) map[row.order_id] = [];
-          map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, product_id: row.product_id, variant: row.variant });
+      if (allOrders.length === 0) { setItemsByOrder({}); return; }
+      try {
+        const ids = allOrders.map((o) => o.id);
+        const BATCH = 200;
+        const map: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
+        for (let i = 0; i < ids.length; i += BATCH) {
+          const chunk = ids.slice(i, i + BATCH);
+          const { data } = await supabase
+            .from("order_items")
+            .select("order_id, product_name, quantity, product_id, variant")
+            .in("order_id", chunk);
+          if (data) {
+            for (const row of data) {
+              if (!map[row.order_id]) map[row.order_id] = [];
+              map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, product_id: row.product_id, variant: row.variant });
+            }
+          }
         }
+        setItemsByOrder(map);
+      } catch (e) {
+        console.error("loadItems error:", e);
+        setItemsByOrder({});
       }
-      setItemsByOrder(map);
     }
     loadItems();
   }, [allOrders]);
