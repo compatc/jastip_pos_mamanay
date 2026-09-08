@@ -4,6 +4,18 @@ import { uuid } from "../lib/uuid";
 import { awardPoints } from "../lib/loyalty";
 import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductBundleItem, ProductDiscount, ProductVariant, StockMovement } from "../types";
 
+const CACHE_TTL = 5 * 60 * 1000;
+const _cacheTs: Record<string, number> = {};
+function isFresh(key: string): boolean {
+  return Date.now() - (_cacheTs[key] || 0) < CACHE_TTL;
+}
+function markFresh(key: string): void {
+  _cacheTs[key] = Date.now();
+}
+function invalidateCache(...keys: string[]): void {
+  for (const k of keys) delete _cacheTs[k];
+}
+
 interface PosStore {
   user: { id: string; email: string; name: string; auth_source?: "supabase" | "offline" } | null;
   setUser: (
@@ -158,6 +170,7 @@ interface PosStore {
   addTag: (name: string) => Promise<string>;
   deleteTag: (id: string) => Promise<void>;
   productTags: Record<string, string[]>;
+  loadAllProductTags: () => Promise<void>;
   loadProductTags: (productId: string) => Promise<void>;
   setProductTags: (productId: string, tagIds: string[]) => Promise<void>;
 
@@ -207,11 +220,13 @@ export const useStore = create<PosStore>((set, get) => ({
 
   customers: [],
   loadCustomers: async () => {
+    if (isFresh("customers")) return;
     const { data, error } = await supabase
       .from("customers")
       .select("*")
       .order("created_at", { ascending: false });
     if (error) { console.error("loadCustomers:", error); return; }
+    markFresh("customers");
     set({ customers: (data || []) as Customer[] });
   },
 
@@ -222,6 +237,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .from("customers")
       .insert({ id, name, phone, address, category: category || "pelanggan", created_at });
     if (error) throw error;
+    invalidateCache("customers");
     await get().loadCustomers();
     return id;
   },
@@ -234,6 +250,7 @@ export const useStore = create<PosStore>((set, get) => ({
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Gagal update");
+    invalidateCache("customers");
     await get().loadCustomers();
   },
 
@@ -246,11 +263,14 @@ export const useStore = create<PosStore>((set, get) => ({
     }
     const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) throw error;
+    invalidateCache("customers", "allOrders");
     await get().loadCustomers();
   },
 
   orders: [],
   loadOrders: async (customerId) => {
+    const cacheKey = `orders_${customerId}`;
+    if (isFresh(cacheKey)) return;
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -258,6 +278,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .neq("status", "deleted")
       .order("created_at", { ascending: false });
     if (error) { console.error("loadOrders:", error); return; }
+    markFresh(cacheKey);
     set({ orders: (data || []) as Order[] });
   },
 
@@ -391,6 +412,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
+    invalidateCache("products", "allOrders", `orders_${customerId}`);
     await get().loadOrders(customerId);
     await get().loadProducts();
     return orderId;
@@ -398,6 +420,7 @@ export const useStore = create<PosStore>((set, get) => ({
 
   allOrders: [],
   loadAllOrders: async () => {
+    if (isFresh("allOrders")) return;
     const [ordersRes, customersRes] = await Promise.all([
       supabase
         .from("orders")
@@ -420,6 +443,7 @@ export const useStore = create<PosStore>((set, get) => ({
       ...o,
       customer_name: customerMap.get(o.customer_id) || "",
     })) as (Order & { customer_name: string })[];
+    markFresh("allOrders");
     set({ allOrders });
   },
 
@@ -605,6 +629,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
+    invalidateCache("allOrders", "products", "customers");
     await get().loadAllOrders();
     await get().loadProducts();
     return orderId;
@@ -612,6 +637,8 @@ export const useStore = create<PosStore>((set, get) => ({
 
   orderItems: [],
   loadOrderItems: async (orderId) => {
+    const cacheKey = `orderItems_${orderId}`;
+    if (isFresh(cacheKey)) { return get().orderItems; }
     set({ orderItems: [] });
     const { data, error } = await supabase
       .from("order_items")
@@ -619,6 +646,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .eq("order_id", orderId);
     if (error) { console.error("loadOrderItems:", error); set({ orderItems: [] }); return []; }
     const items = (data || []) as OrderItem[];
+    markFresh(cacheKey);
     set({ orderItems: items });
     return items;
   },
@@ -822,6 +850,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
+    invalidateCache("allOrders", "products", "customers");
     await get().loadAllOrders();
     await get().loadProducts();
   },
@@ -914,6 +943,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
+    invalidateCache("allOrders", "customers");
     await get().loadAllOrders();
   },
 
@@ -1015,6 +1045,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
+    invalidateCache("products", "allOrders");
     await get().loadProducts();
   },
 
@@ -1068,6 +1099,7 @@ export const useStore = create<PosStore>((set, get) => ({
           .update({ balance: (acc.balance || 0) + txAmount })
           .eq("id", existing.account_id);
       }
+      invalidateCache("accounts", `accountTransactions_${existing.account_id}`);
       await get().loadAccounts();
     }
 
@@ -1161,17 +1193,20 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
+    invalidateCache("products", "accounts", "allOrders", `orderItems_${orderId}`);
     await get().loadProducts();
     await get().loadAccounts();
   },
 
   products: [],
   loadProducts: async () => {
+    if (isFresh("products")) return;
     const { data, error } = await supabase
       .from("products")
       .select("*")
       .order("name", { ascending: true });
     if (error) { console.error("loadProducts:", error); return; }
+    markFresh("products");
     set({ products: (data || []) as Product[] });
   },
 
@@ -1198,6 +1233,7 @@ export const useStore = create<PosStore>((set, get) => ({
         created_at,
       });
     if (error) throw error;
+    invalidateCache("products");
     await get().loadProducts();
     return id;
   },
@@ -1229,6 +1265,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .update({ price: sellPrice })
       .eq("product_id", id);
 
+    invalidateCache("products");
     await get().loadProducts();
   },
 
@@ -1238,6 +1275,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .update({ po_closed: closed })
       .eq("id", productId);
     if (error) throw error;
+    invalidateCache("products");
     await get().loadProducts();
   },
 
@@ -1247,11 +1285,14 @@ export const useStore = create<PosStore>((set, get) => ({
       .delete()
       .eq("id", id);
     if (error) throw error;
+    invalidateCache("products");
     await get().loadProducts();
   },
 
   stockMovements: [],
   loadStockMovements: async (productId) => {
+    const cacheKey = `stockMovements_${productId}`;
+    if (isFresh(cacheKey)) return;
     const { data, error } = await supabase
       .from("stock_movements")
       .select("*")
@@ -1286,6 +1327,7 @@ export const useStore = create<PosStore>((set, get) => ({
       ...row,
       party_name: row.party_name || nameMap[row.order_id] || "",
     }));
+    markFresh(cacheKey);
     set({ stockMovements: mapped });
   },
 
@@ -1308,15 +1350,19 @@ export const useStore = create<PosStore>((set, get) => ({
         created_at,
       });
     if (error) throw error;
+    invalidateCache(`stockMovements_${productId}`, "products", "variantStock");
     await get().loadStockMovements(productId);
   },
 
   productVariants: [],
   loadProductVariants: async (productId?: string) => {
+    const cacheKey = productId ? `productVariants_${productId}` : "productVariants_all";
+    if (isFresh(cacheKey)) return;
     let query = supabase.from("product_variants").select("*").order("created_at", { ascending: true });
     if (productId) query = query.eq("product_id", productId);
     const { data, error } = await query;
     if (error) { console.error("loadProductVariants:", error); return; }
+    markFresh(cacheKey);
     set({ productVariants: (data || []) as ProductVariant[] });
   },
 
@@ -1334,6 +1380,7 @@ export const useStore = create<PosStore>((set, get) => ({
         created_at: new Date().toISOString(),
       });
     if (error) throw error;
+    invalidateCache("variantStock", `productVariants_${productId}`);
     return id;
   },
 
@@ -1343,6 +1390,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .update({ name, image, stock, stock_type: stockType })
       .eq("id", id);
     if (error) throw error;
+    invalidateCache("variantStock");
   },
 
   deleteProductVariant: async (id) => {
@@ -1351,10 +1399,12 @@ export const useStore = create<PosStore>((set, get) => ({
       .delete()
       .eq("id", id);
     if (error) throw error;
+    invalidateCache("variantStock");
   },
 
   variantStock: {},
   loadVariantStock: async () => {
+    if (isFresh("variantStock")) return;
     const [movementsRes, variantsRes] = await Promise.all([
       supabase.from("stock_movements").select("product_id, variant, qty"),
       supabase.from("product_variants").select("product_id, name, stock"),
@@ -1380,27 +1430,33 @@ export const useStore = create<PosStore>((set, get) => ({
       result[pid][v] = (result[pid][v] || 0) + row.qty;
     }
 
+    markFresh("variantStock");
     set({ variantStock: result });
   },
 
   productDiscounts: [],
   loadProductDiscounts: async (productId) => {
+    const cacheKey = `productDiscounts_${productId}`;
+    if (isFresh(cacheKey)) return;
     const { data, error } = await supabase
       .from("product_discounts")
       .select("*")
       .eq("product_id", productId)
       .order("min_qty", { ascending: true });
     if (error) { console.error("loadProductDiscounts:", error); return; }
+    markFresh(cacheKey);
     set({ productDiscounts: (data || []) as ProductDiscount[] });
   },
 
   loadAllProductDiscounts: async () => {
+    if (isFresh("allProductDiscounts")) return;
     const { data, error } = await supabase
       .from("product_discounts")
       .select("*")
       .order("product_id")
       .order("min_qty", { ascending: true });
     if (error) { console.error("loadAllProductDiscounts:", error); return; }
+    markFresh("allProductDiscounts");
     set({ productDiscounts: (data || []) as ProductDiscount[] });
   },
 
@@ -1415,6 +1471,7 @@ export const useStore = create<PosStore>((set, get) => ({
         created_at: new Date().toISOString(),
       });
     if (error) throw error;
+    invalidateCache("allProductDiscounts");
     await get().loadAllProductDiscounts();
   },
 
@@ -1424,16 +1481,19 @@ export const useStore = create<PosStore>((set, get) => ({
       .delete()
       .eq("id", id);
     if (error) throw error;
+    invalidateCache("allProductDiscounts");
     await get().loadAllProductDiscounts();
   },
 
   accounts: [],
   loadAccounts: async () => {
+    if (isFresh("accounts")) return;
     const { data, error } = await supabase
       .from("accounts")
       .select("*")
       .order("created_at", { ascending: true });
     if (error) { console.error("loadAccounts:", error); return; }
+    markFresh("accounts");
     set({ accounts: (data || []) as Account[] });
   },
 
@@ -1443,6 +1503,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .from("accounts")
       .insert({ id, name, type, balance: 0, icon, account_number: accountNumber || "", created_at: new Date().toISOString() });
     if (error) throw error;
+    invalidateCache("accounts");
     await get().loadAccounts();
   },
 
@@ -1452,6 +1513,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .update({ name, type, icon, account_number: accountNumber, balance })
       .eq("id", id);
     if (error) throw error;
+    invalidateCache("accounts");
     await get().loadAccounts();
   },
 
@@ -1459,11 +1521,14 @@ export const useStore = create<PosStore>((set, get) => ({
     await supabase.from("account_transactions").delete().eq("account_id", id);
     const { error } = await supabase.from("accounts").delete().eq("id", id);
     if (error) throw error;
+    invalidateCache("accounts", `accountTransactions_${id}`);
     await get().loadAccounts();
   },
 
   accountTransactions: [],
   loadAccountTransactions: async (accountId) => {
+    const cacheKey = `accountTransactions_${accountId}`;
+    if (isFresh(cacheKey)) return;
     const { data, error } = await supabase
       .from("account_transactions")
       .select("*")
@@ -1471,6 +1536,7 @@ export const useStore = create<PosStore>((set, get) => ({
       .order("date", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) { console.error("loadAccountTransactions:", error); return; }
+    markFresh(cacheKey);
     set({ accountTransactions: (data || []) as AccountTransaction[] });
   },
 
@@ -1502,6 +1568,7 @@ export const useStore = create<PosStore>((set, get) => ({
         .update({ balance: (acc.balance || 0) + amount })
         .eq("id", accountId);
     }
+    invalidateCache("accounts", `accountTransactions_${accountId}`);
     await get().loadAccounts();
   },
 
@@ -1618,25 +1685,43 @@ export const useStore = create<PosStore>((set, get) => ({
 
   tags: [],
   loadTags: async () => {
+    if (isFresh("tags")) return;
     const { data, error } = await supabase.from("tags").select("*").order("name");
     if (error) { console.error("loadTags:", error); return; }
+    markFresh("tags");
     set({ tags: (data || []) as Tag[] });
   },
   addTag: async (name: string) => {
     const id = crypto.randomUUID();
     const { error } = await supabase.from("tags").insert({ id, name, created_at: new Date().toISOString() });
     if (error) { console.error("addTag:", error); return ""; }
+    invalidateCache("tags");
     await get().loadTags();
     return id;
   },
   deleteTag: async (id: string) => {
     await supabase.from("product_tags").delete().eq("tag_id", id);
     await supabase.from("tags").delete().eq("id", id);
+    invalidateCache("tags");
     await get().loadTags();
   },
   productTags: {},
+  loadAllProductTags: async () => {
+    if (isFresh("allProductTags")) return;
+    const { data } = await supabase.from("product_tags").select("product_id, tag_id");
+    markFresh("allProductTags");
+    const map: Record<string, string[]> = {};
+    for (const r of (data || []) as { product_id: string; tag_id: string }[]) {
+      if (!map[r.product_id]) map[r.product_id] = [];
+      map[r.product_id].push(r.tag_id);
+    }
+    set((s) => ({ productTags: { ...s.productTags, ...map } }));
+  },
   loadProductTags: async (productId: string) => {
+    const cacheKey = `productTags_${productId}`;
+    if (isFresh(cacheKey)) return;
     const { data } = await supabase.from("product_tags").select("tag_id").eq("product_id", productId);
+    markFresh(cacheKey);
     set((s) => ({ productTags: { ...s.productTags, [productId]: (data || []).map((r: any) => r.tag_id) } }));
   },
   setProductTags: async (productId: string, tagIds: string[]) => {
@@ -1644,16 +1729,20 @@ export const useStore = create<PosStore>((set, get) => ({
     if (tagIds.length > 0) {
       await supabase.from("product_tags").insert(tagIds.map((tag_id) => ({ product_id: productId, tag_id })));
     }
+    invalidateCache(`productTags_${productId}`);
     set((s) => ({ productTags: { ...s.productTags, [productId]: tagIds } }));
   },
 
   bundleItems: [],
   loadBundleItems: async (bundleId: string) => {
+    const cacheKey = `bundleItems_${bundleId}`;
+    if (isFresh(cacheKey)) return;
     const { data, error } = await supabase
       .from("product_bundles")
       .select("*")
       .eq("bundle_id", bundleId);
     if (error) { console.error("loadBundleItems:", error); return; }
+    markFresh(cacheKey);
     set({ bundleItems: (data || []) as ProductBundleItem[] });
   },
   addBundleItem: async (bundleId: string, productId: string, quantity: number) => {

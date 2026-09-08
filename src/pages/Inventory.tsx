@@ -94,7 +94,7 @@ export default function Inventory() {
     addTag,
     deleteTag,
     productTags,
-    loadProductTags,
+    loadAllProductTags,
     setProductTags,
     bundleItems,
     loadBundleItems,
@@ -193,10 +193,8 @@ export default function Inventory() {
   }, []);
 
   useEffect(() => {
-    for (const p of products) {
-      loadProductTags(p.id);
-    }
-  }, [products]);
+    loadAllProductTags();
+  }, []);
 
   useEffect(() => {
     if (variantProductId) loadProductVariants(variantProductId);
