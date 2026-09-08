@@ -98,7 +98,7 @@ type CustomerGroup = {
 };
 
 export default function Orders() {
-  const { allOrders, loadAllOrders, deleteOrder, customers, loadCustomers, products, loadProducts, markOrdersPaid } = useStore();
+  const { allOrders, allOrderItems, loadAllOrders, deleteOrder, customers, loadCustomers, products, loadProducts, markOrdersPaid } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -106,7 +106,7 @@ export default function Orders() {
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [showProductSuggest, setShowProductSuggest] = useState(false);
-  const [itemsByOrder, setItemsByOrder] = useState<Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>>({});
+  const itemsByOrder = allOrderItems;
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -155,45 +155,6 @@ export default function Orders() {
     if (productFilter) params.product = productFilter;
     setSearchParams(params, { replace: true });
   }, [search, tab, productFilter]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadItems() {
-      if (allOrders.length === 0) { setItemsByOrder({}); return; }
-      try {
-        const ids = allOrders.map((o) => o.id);
-        const BATCH = 50;
-        const chunks: string[][] = [];
-        for (let i = 0; i < ids.length; i += BATCH) {
-          chunks.push(ids.slice(i, i + BATCH));
-        }
-        const map: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
-        const results = await Promise.all(
-          chunks.map((chunk) =>
-            supabase
-              .from("order_items")
-              .select("order_id, product_name, quantity, product_id, variant")
-              .in("order_id", chunk)
-              .then(({ data }) => data || [])
-              .catch((e) => { console.error("loadItems batch error:", e); return []; })
-          )
-        );
-        if (cancelled) return;
-        for (const batch of results) {
-          for (const row of batch) {
-            if (!map[row.order_id]) map[row.order_id] = [];
-            map[row.order_id].push({ product_name: row.product_name, quantity: row.quantity, product_id: row.product_id, variant: row.variant });
-          }
-        }
-        setItemsByOrder(map);
-      } catch (e) {
-        console.error("loadItems error:", e);
-        if (!cancelled) setItemsByOrder({});
-      }
-    }
-    loadItems();
-    return () => { cancelled = true; };
-  }, [allOrders]);
 
   const allProductNames = [...new Set(Object.values(itemsByOrder).flat().map((i) => i.product_name))].sort();
 

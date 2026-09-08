@@ -53,6 +53,7 @@ interface PosStore {
   ) => Promise<string>;
 
   allOrders: Order[];
+  allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>;
   loadAllOrders: () => Promise<void>;
   addStandaloneOrder: (params: {
     orderType: OrderType;
@@ -419,6 +420,7 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   allOrders: [],
+  allOrderItems: {},
   loadAllOrders: async () => {
     if (isFresh("allOrders")) return;
     const [ordersRes, customersRes] = await Promise.all([
@@ -443,8 +445,41 @@ export const useStore = create<PosStore>((set, get) => ({
       ...o,
       customer_name: customerMap.get(o.customer_id) || "",
     })) as (Order & { customer_name: string })[];
+
+    // Load all order items in parallel batches
+    const allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
+    if (allOrders.length > 0) {
+      const ids = allOrders.map((o) => o.id);
+      const BATCH = 50;
+      const chunks: string[][] = [];
+      for (let i = 0; i < ids.length; i += BATCH) {
+        chunks.push(ids.slice(i, i + BATCH));
+      }
+      const results = await Promise.all(
+        chunks.map((chunk) =>
+          supabase
+            .from("order_items")
+            .select("order_id, product_name, quantity, product_id, variant")
+            .in("order_id", chunk)
+            .then(({ data }) => data || [])
+            .catch(() => [])
+        )
+      );
+      for (const batch of results) {
+        for (const row of batch) {
+          if (!allOrderItems[row.order_id]) allOrderItems[row.order_id] = [];
+          allOrderItems[row.order_id].push({
+            product_name: row.product_name,
+            quantity: row.quantity,
+            product_id: row.product_id,
+            variant: row.variant,
+          });
+        }
+      }
+    }
+
     markFresh("allOrders");
-    set({ allOrders });
+    set({ allOrders, allOrderItems });
   },
 
   addStandaloneOrder: async ({ orderType, paymentType, contactName, items, paidTotal, ongkir, diskon, notes, accountId }) => {
