@@ -55,6 +55,7 @@ interface PosStore {
   allOrders: Order[];
   allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>;
   loadAllOrders: () => Promise<void>;
+  loadAllOrderItems: () => Promise<void>;
   addStandaloneOrder: (params: {
     orderType: OrderType;
     paymentType: PaymentType;
@@ -420,14 +421,13 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   allOrders: [],
-  allOrderItems: {},
+  allOrderItems: {} as Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>,
   loadAllOrders: async () => {
-    if (isFresh("allOrders")) return;
     try {
       const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
-          .select("*")
+          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
           .neq("status", "deleted")
           .order("created_at", { ascending: false }),
         supabase
@@ -452,48 +452,54 @@ export const useStore = create<PosStore>((set, get) => ({
         customer_name: customerMap.get(o.customer_id) || "",
       })) as (Order & { customer_name: string })[];
 
-      // Load all order items in parallel batches
-      const allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
-      if (allOrders.length > 0) {
-        const ids = allOrders.map((o) => o.id);
-        const BATCH = 30;
-        const chunks: string[][] = [];
-        for (let i = 0; i < ids.length; i += BATCH) {
-          chunks.push(ids.slice(i, i + BATCH));
-        }
-        const results = await Promise.all(
-          chunks.map((chunk) =>
-            supabase
-              .from("order_items")
-              .select("order_id, product_name, quantity, product_id, variant")
-              .in("order_id", chunk)
-              .then(({ data, error }) => {
-                if (error) console.error("order_items batch error:", error.message);
-                return data || [];
-              })
-              .catch((e) => { console.error("order_items fetch error:", e); return []; })
-          )
-        );
-        let totalItems = 0;
-        for (const batch of results) {
-          for (const row of batch) {
-            if (!allOrderItems[row.order_id]) allOrderItems[row.order_id] = [];
-            allOrderItems[row.order_id].push({
-              product_name: row.product_name,
-              quantity: row.quantity,
-              product_id: row.product_id,
-              variant: row.variant,
-            });
-            totalItems++;
-          }
-        }
-        console.log("loadAllOrders:", allOrders.length, "orders,", totalItems, "items");
-      }
-
       markFresh("allOrders");
-      set({ allOrders, allOrderItems });
+      set({ allOrders });
     } catch (e) {
       console.error("loadAllOrders error:", e);
+    }
+  },
+
+  loadAllOrderItems: async () => {
+    const { allOrders } = get();
+    if (allOrders.length === 0) return;
+    try {
+      const ids = allOrders.map((o) => o.id);
+      const BATCH = 30;
+      const chunks: string[][] = [];
+      for (let i = 0; i < ids.length; i += BATCH) {
+        chunks.push(ids.slice(i, i + BATCH));
+      }
+      const results = await Promise.all(
+        chunks.map((chunk) =>
+          supabase
+            .from("order_items")
+            .select("order_id, product_name, quantity, product_id, variant")
+            .in("order_id", chunk)
+            .then(({ data, error }) => {
+              if (error) console.error("order_items batch error:", error.message);
+              return data || [];
+            })
+            .catch((e) => { console.error("order_items fetch error:", e); return []; })
+        )
+      );
+      const allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
+      let totalItems = 0;
+      for (const batch of results) {
+        for (const row of batch) {
+          if (!allOrderItems[row.order_id]) allOrderItems[row.order_id] = [];
+          allOrderItems[row.order_id].push({
+            product_name: row.product_name,
+            quantity: row.quantity,
+            product_id: row.product_id,
+            variant: row.variant,
+          });
+          totalItems++;
+        }
+      }
+      console.log("loadAllOrderItems:", totalItems, "items for", allOrders.length, "orders");
+      set({ allOrderItems });
+    } catch (e) {
+      console.error("loadAllOrderItems error:", e);
     }
   },
 

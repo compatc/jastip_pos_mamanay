@@ -98,7 +98,7 @@ type CustomerGroup = {
 };
 
 export default function Orders() {
-  const { allOrders, allOrderItems, loadAllOrders, deleteOrder, customers, loadCustomers, products, loadProducts, markOrdersPaid } = useStore();
+  const { allOrders, allOrderItems, loadAllOrders, loadAllOrderItems, deleteOrder, customers, loadCustomers, products, loadProducts, markOrdersPaid } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -144,7 +144,7 @@ export default function Orders() {
   }
 
   useEffect(() => {
-    loadAllOrders();
+    loadAllOrders().then(() => loadAllOrderItems());
     loadCustomers();
   }, []);
 
