@@ -160,39 +160,50 @@ export default function Shipments() {
   }, []);
 
   useEffect(() => {
-    if (allOrders.length === 0) return;
     async function loadAllItems() {
-      const ids = allOrders.map((o) => o.id);
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("order_id, product_name, quantity, price, variant")
-        .in("order_id", ids);
+      if (allOrders.length === 0) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const ids = allOrders.map((o) => o.id);
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("order_id, product_name, quantity, price, variant")
+          .in("order_id", ids);
 
-      const { data: products } = await supabase
-        .from("products")
-        .select("name, stock");
+        const { data: products } = await supabase
+          .from("products")
+          .select("name, stock");
 
-      const stockMap: Record<string, number> = {};
-      if (products) {
-        for (const p of products) {
-          stockMap[p.name] = p.stock || 0;
+        const stockMap: Record<string, number> = {};
+        if (products) {
+          for (const p of products) {
+            stockMap[p.name] = p.stock || 0;
+          }
         }
-      }
 
-      if (!items) return;
-      const map: Record<string, OrderItemData[]> = {};
-      for (const row of items) {
-        if (!map[row.order_id]) map[row.order_id] = [];
-        map[row.order_id].push({
-          product_name: row.product_name,
-          variant: row.variant,
-          quantity: row.quantity,
-          price: row.price,
-          stock: stockMap[row.product_name] || 0,
-        });
+        if (!items) {
+          setLoading(false);
+          return;
+        }
+        const map: Record<string, OrderItemData[]> = {};
+        for (const row of items) {
+          if (!map[row.order_id]) map[row.order_id] = [];
+          map[row.order_id].push({
+            product_name: row.product_name,
+            variant: row.variant,
+            quantity: row.quantity,
+            price: row.price,
+            stock: stockMap[row.product_name] || 0,
+          });
+        }
+        setItemsByOrder(map);
+      } catch (e) {
+        console.error("loadAllItems error:", e);
+      } finally {
+        setLoading(false);
       }
-      setItemsByOrder(map);
-      setLoading(false);
     }
     loadAllItems();
   }, [allOrders]);
