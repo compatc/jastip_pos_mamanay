@@ -174,11 +174,11 @@ for (const x of [...supaItems, ...localList]) {
 }
 ```
 
-## Product Images — Supabase Storage
+## Product Images — Cloudflare R2
 
 ### Setup
-- **Bucket**: `products` (public, Supabase Storage)
-- **URL format**: `https://tmnykmpdqdavspmirspw.supabase.co/storage/v1/object/public/products/products/{id}.jpg`
+- **Bucket**: `mamanay-images` (Cloudflare R2, public)
+- **URL format**: `https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/products/{id}.jpg`
 - **Cache-Control**: `public, max-age=31536000, immutable` (browser caches 1 year, egress ~zero)
 
 ### File structure
@@ -191,14 +191,15 @@ variants/
 ```
 
 ### Rules
-- Images stored in Supabase Storage, NOT base64 in DB
-- `products.image` and `product_variants.image` store Storage URL
-- Cache-Control immutable = browser caches forever = minimal egress
-- R2 bucket `mamanay-images` exists as backup (blocked by internet positif for r2.dev)
+- Images stored in Cloudflare R2, NOT base64 in DB
+- `products.image` and `product_variants.image` store R2 URL
+- R2 egress is FREE (no Supabase egress charges)
+- Supabase Storage bucket `products` still exists as backup
 
 ### Migration history
 - 2026-08-24: Migrated 28 product images from base64 to Supabase Storage
-- 2026-09-08: Attempted migration to Cloudflare R2 (132 files) — r2.dev blocked by internet positif/Cloudflare challenge on mobile, reverted back to Supabase Storage with aggressive cache headers
+- 2026-09-08: Migrated 135 images to Cloudflare R2 (free egress)
+- 2026-09-09: R2 confirmed accessible from mobile browsers, reverted from Supabase Storage back to R2
 
 ### Example scenario
 Promo: `🏷️ PERO QIBY TUMBLER 739 ML 94000`
