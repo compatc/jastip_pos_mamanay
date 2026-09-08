@@ -1264,7 +1264,7 @@ export default function Inventory() {
                 return (
                   <div key={promo.id} className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl p-2 min-w-[200px] max-w-[220px] shrink-0 hover:border-pink-200 transition-all">
                     {promo.image ? (
-                      <img src={promo.image} alt={promo.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100 shrink-0" />
+                      <img src={promo.image} alt={promo.name} loading="lazy" className="w-10 h-10 rounded-lg object-cover border border-gray-100 shrink-0" />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
                         <ShoppingBag className="w-4 h-4" />
@@ -1408,7 +1408,7 @@ export default function Inventory() {
                   )}
                   <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-2xl shrink-0`}>
                     {product.image ? (
-                      <img src={product.image} alt={product.name} className="w-12 h-12 rounded-xl object-cover" />
+                      <img src={product.image} alt={product.name} loading="lazy" className="w-12 h-12 rounded-xl object-cover" />
                     ) : (
                       <ShoppingBag className="w-5 h-5 text-pink-400" />
                     )}
@@ -1799,7 +1799,7 @@ export default function Inventory() {
                     <div className="flex gap-2 mb-2 flex-wrap">
                       {form.images.map((img, idx) => (
                         <div key={idx} className="relative group cursor-pointer" onClick={() => setMainImage(idx)}>
-                          <img src={img} alt={`#${idx + 1}`} className={`w-16 h-16 object-cover rounded-xl border-2 transition-all ${idx === 0 ? "border-pink-500 ring-2 ring-pink-200" : "border-gray-200 hover:border-pink-300"}`} />
+                          <img src={img} alt={`#${idx + 1}`} loading="lazy" className={`w-16 h-16 object-cover rounded-xl border-2 transition-all ${idx === 0 ? "border-pink-500 ring-2 ring-pink-200" : "border-gray-200 hover:border-pink-300"}`} />
                           {idx === 0 && <span className="absolute -bottom-1 -left-1 bg-pink-500 text-white text-[8px] px-1 rounded-full font-bold">UTAMA</span>}
                           {idx !== 0 && <span className="absolute -bottom-1 -left-1 bg-gray-400 text-white text-[8px] px-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity">Jadikan Utama</span>}
                           <button
@@ -1831,7 +1831,7 @@ export default function Inventory() {
                       {productVariants.map((v) => (
                         <div key={v.id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
                           {v.image ? (
-                            <img src={v.image} alt={v.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
+                            <img src={v.image} alt={v.name} loading="lazy" className="w-7 h-7 rounded-lg object-cover shrink-0" />
                           ) : (
                             <div className="w-7 h-7 rounded-lg bg-pink-100 flex items-center justify-center shrink-0">
                               <ShoppingBag className="w-3.5 h-3.5 text-pink-400" />
@@ -1855,7 +1855,7 @@ export default function Inventory() {
                       {formVariants.map((v, idx) => (
                         <div key={idx} className="flex items-center gap-2 bg-pink-50 border border-pink-100 rounded-lg px-3 py-2">
                           {v.image ? (
-                            <img src={v.image} alt={v.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
+                            <img src={v.image} alt={v.name} loading="lazy" className="w-7 h-7 rounded-lg object-cover shrink-0" />
                           ) : (
                             <div className="w-7 h-7 rounded-lg bg-pink-100 flex items-center justify-center shrink-0">
                               <ShoppingBag className="w-3.5 h-3.5 text-pink-400" />
@@ -1930,7 +1930,7 @@ export default function Inventory() {
                   </div>
                   {formVariantImage && (
                     <div className="relative inline-block mt-2">
-                      <img src={formVariantImage} alt="Preview" className="w-10 h-10 rounded-lg object-cover" />
+                      <img src={formVariantImage} alt="Preview" loading="lazy" className="w-10 h-10 rounded-lg object-cover" />
                       <button
                         type="button"
                         onClick={() => setFormVariantImage("")}
@@ -2306,7 +2306,7 @@ export default function Inventory() {
 
               {shareImage && (
                 <div className="mb-3 flex justify-center">
-                  <img src={shareImage} alt={displayName} className="w-20 h-20 rounded-xl object-cover border border-gray-100" />
+                  <img src={shareImage} alt={displayName} loading="lazy" className="w-20 h-20 rounded-xl object-cover border border-gray-100" />
                 </div>
               )}
 
@@ -2326,7 +2326,7 @@ export default function Inventory() {
                 <div className="bg-[#e5ddd5] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9InAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMS41IiBmaWxsPSJyZ2JhKDAsMCwwLDAuMDMpIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI3ApIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiLz48L3N2Zz4=')] rounded-xl p-3 min-h-[120px] max-h-[300px] overflow-y-auto">
                   <div className="bg-white rounded-xl shadow-sm max-w-[85%] ml-auto overflow-hidden">
                     {shareImage && (
-                      <img src={shareImage} alt={displayName} className="w-full h-32 object-cover" />
+                      <img src={shareImage} alt={displayName} loading="lazy" className="w-full h-32 object-cover" />
                     )}
                     <div className="px-2.5 py-1.5">
                       <p className="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: previewMsg.replace(/_([^_]+)_/g, '<em>$1</em>') }} />
@@ -2493,7 +2493,7 @@ export default function Inventory() {
                   productVariants.map((v) => (
                     <div key={v.id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
                       {v.image ? (
-                        <img src={v.image} alt={v.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                        <img src={v.image} alt={v.name} loading="lazy" className="w-8 h-8 rounded-lg object-cover shrink-0" />
                       ) : (
                         <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center shrink-0">
                           <ShoppingBag className="w-4 h-4 text-pink-400" />
@@ -2561,7 +2561,7 @@ export default function Inventory() {
                   </div>
                   {variantImage && (
                     <div className="relative inline-block">
-                      <img src={variantImage} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                      <img src={variantImage} alt="Preview" loading="lazy" className="w-12 h-12 rounded-lg object-cover" />
                       <button
                         onClick={() => setVariantImage("")}
                         className="absolute -top-1 -right-1 bg-red-400 text-white rounded-full p-0.5 hover:bg-red-500"
@@ -2902,7 +2902,7 @@ export default function Inventory() {
 
               {img && (
                 <div className="mb-3 flex justify-center">
-                  <img src={img} alt={promo.name} className="w-20 h-20 rounded-xl object-cover border border-gray-100" />
+                  <img src={img} alt={promo.name} loading="lazy" className="w-20 h-20 rounded-xl object-cover border border-gray-100" />
                 </div>
               )}
 
@@ -2911,7 +2911,7 @@ export default function Inventory() {
                 <div className="bg-[#e5ddd5] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9InAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMS41IiBmaWxsPSJyZ2JhKDAsMCwwLDAuMDMpIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI3ApIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiLz48L3N2Zz4=')] rounded-xl p-3 min-h-[120px] max-h-[300px] overflow-y-auto">
                   <div className="bg-white rounded-xl shadow-sm max-w-[85%] ml-auto overflow-hidden">
                     {img && (
-                      <img src={img} alt={promo.name} className="w-full h-32 object-cover" />
+                      <img src={img} alt={promo.name} loading="lazy" className="w-full h-32 object-cover" />
                     )}
                     <div className="px-2.5 py-1.5">
                       <p className="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: previewMsg.replace(/_([^_]+)_/g, '<em>$1</em>') }} />
@@ -3355,7 +3355,7 @@ export default function Inventory() {
                   {diskonProducts.map(p => (
                     <div key={p.id} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
                       <div className="w-8 h-8 rounded-lg bg-gray-200 overflow-hidden shrink-0">
-                        {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-gray-400 m-auto mt-2" />}
+                        {p.image ? <img src={p.image} loading="lazy" className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-gray-400 m-auto mt-2" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-700 truncate">{p.name}</p>

@@ -346,7 +346,7 @@ export default function Catalog() {
                   {/* Image */}
                   {p.image ? (
                     <div className="relative w-full aspect-square bg-slate-50 overflow-hidden">
-                      <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={p.image} alt={p.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       {(p.images && p.images.length > 1) && (
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                           {p.images.slice(0, 5).map((_: string, i: number) => (
@@ -518,7 +518,7 @@ export default function Catalog() {
                   const imgSrc = allImages[carouselIdx] || allImages[0];
                   return (
                     <>
-                      <img src={imgSrc} alt={selected.name} className="w-full object-contain max-h-80 lg:max-h-96" />
+                      <img src={imgSrc} alt={selected.name} loading="lazy" className="w-full object-contain max-h-80 lg:max-h-96" />
                       {allImages.length > 1 && (
                         <>
                           <button onClick={() => setCarouselIdx((carouselIdx - 1 + allImages.length) % allImages.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg">‹</button>
@@ -622,7 +622,7 @@ export default function Catalog() {
                           }`}
                           disabled={v.stock <= 0 && selected.stock_type !== "po"}
                         >
-                          {v.image && <img src={v.image} alt="" className="w-5 h-5 rounded-full object-cover ring-2 ring-white" />}
+                          {v.image && <img src={v.image} alt="" loading="lazy" className="w-5 h-5 rounded-full object-cover ring-2 ring-white" />}
                           <span>{v.name}</span>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isSelected ? "bg-rose-100 text-rose-600" : selected.stock_type === "po" ? "bg-amber-50 text-amber-600" : vStock.color}`}>{selected.stock_type === "po" ? "PO" : v.stock}</span>
                         </button>
@@ -725,7 +725,7 @@ export default function Catalog() {
                     <div key={`${c.product.id}-${c.variant?.id || ""}`} className="flex items-center gap-3 bg-slate-50 rounded-2xl p-3">
                       <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getGradient(c.product.name)} flex items-center justify-center shrink-0`}>
                         {c.variant?.image || c.product.image ? (
-                          <img src={c.variant?.image || c.product.image} alt="" className="w-full h-full object-cover rounded-xl" />
+                          <img src={c.variant?.image || c.product.image} alt="" loading="lazy" className="w-full h-full object-cover rounded-xl" />
                         ) : (
                           <span className="text-2xl">{getEmoji(c.product.name)}</span>
                         )}
