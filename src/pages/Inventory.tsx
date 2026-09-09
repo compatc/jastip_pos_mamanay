@@ -95,6 +95,7 @@ export default function Inventory() {
     addTag,
     deleteTag,
     productTags,
+    loadProductTags,
     loadAllProductTags,
     setProductTags,
     bundleItems,
