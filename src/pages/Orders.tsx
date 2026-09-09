@@ -107,6 +107,8 @@ export default function Orders() {
   const [sortBy, setSortBy] = useState<string>("newest");
   const [showProductSuggest, setShowProductSuggest] = useState(false);
   const itemsByOrder = allOrderItems;
+  const [itemsLoading, setItemsLoading] = useState(true);
+  const [itemsError, setItemsError] = useState<string | null>(null);
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -144,8 +146,23 @@ export default function Orders() {
   }
 
   useEffect(() => {
-    loadAllOrders();
+    let cancelled = false;
+    async function init() {
+      try {
+        setItemsLoading(true);
+        setItemsError(null);
+        await loadAllOrders();
+        if (!cancelled) setItemsLoading(false);
+      } catch (e) {
+        if (!cancelled) {
+          setItemsError(String(e));
+          setItemsLoading(false);
+        }
+      }
+    }
+    init();
     loadCustomers();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -916,6 +933,18 @@ export default function Orders() {
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola dan pantau semua transaksi jastip & penjualan</p>
             </div>
+
+            {itemsError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600 flex items-center gap-2">
+                <span>Error: {itemsError}</span>
+                <button onClick={() => { setItemsError(null); loadAllOrders(); }} className="underline font-bold">Retry</button>
+              </div>
+            )}
+            {itemsLoading && Object.keys(itemsByOrder).length === 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-600">
+                Memuat items... ({allOrders.length} orders)
+              </div>
+            )}
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="relative flex-1 sm:w-72">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
