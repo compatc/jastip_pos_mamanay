@@ -23,6 +23,13 @@ export default async function handler(req, res) {
 
     if (req.method === "GET") {
       const url = new URL(req.url, "http://localhost");
+
+      // Warm-up ping: return small response
+      if (url.searchParams.get("warm") === "1") {
+        json(res, 200, { ok: true });
+        return;
+      }
+
       const ogId = url.searchParams.get("og");
 
       if (ogId) {
