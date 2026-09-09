@@ -422,11 +422,12 @@ export const useStore = create<PosStore>((set, get) => ({
   allOrders: [],
   allOrderItems: {} as Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>,
   loadAllOrders: async () => {
+    if (isFresh("allOrders")) return;
     try {
       const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
-          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
+          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at")
           .neq("status", "deleted")
           .order("created_at", { ascending: false }),
         supabase
@@ -480,9 +481,12 @@ export const useStore = create<PosStore>((set, get) => ({
               });
             }
           }
-          // Update store progressively so UI shows items as they load
-          set({ allOrderItems: { ...allOrderItems } });
         }
+
+        markFresh("allOrders");
+        set({ allOrderItems });
+      } else {
+        markFresh("allOrders");
       }
     } catch (e) {
       console.error("loadAllOrders error:", e);
