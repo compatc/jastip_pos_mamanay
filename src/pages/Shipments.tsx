@@ -131,63 +131,20 @@ export default function Shipments() {
     try {
       const compressed = await compressPhoto(file);
       const fileName = `${orderId}-${Date.now()}.jpg`;
-      const r2Key = `packing/${fileName}`;
 
       const arrayBuf = await compressed.arrayBuffer();
-      const body = new Uint8Array(arrayBuf);
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
 
-      const now = new Date();
-      const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-      const dateStamp = amzDate.slice(0, 8);
-      const payloadHash = await (async () => {
-        const buf = await crypto.subtle.digest("SHA-256", body);
-        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-      })();
-
-      const R2_ACCOUNT_ID = "3ba62fa119ee4f295a5655776bfdb386";
-      const R2_ACCESS_KEY = "c48ccbe4d8ccd5f902cf9b9746807ecb";
-      const R2_SECRET_KEY = "7e5edf36506903caa3f7efcf179217d8adba3f8d841fee1c6c6ca211f0122911";
-      const R2_BUCKET = "mamanay-images";
-      const R2_PUBLIC = "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev";
-
-      const canonicalHeaders = `content-type:image/jpeg\nhost:${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}`;
-      const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
-      const canonicalRequest = `PUT\n/${R2_BUCKET}/${r2Key}\n\n${canonicalHeaders}\n\n${signedHeaders}\n${payloadHash}`;
-      const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${dateStamp}/auto/s3/aws4_request\n${await (async () => {
-        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalRequest));
-        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-      })()}`;
-
-      const hmac = async (key: ArrayBuffer | Uint8Array | string, data: string) => {
-        const k = typeof key === "string" ? new TextEncoder().encode(key) : key;
-        const d = new TextEncoder().encode(data);
-        const sig = await crypto.subtle.importKey("raw", k, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-        const hash = await crypto.subtle.sign("HMAC", sig, d);
-        return new Uint8Array(hash);
-      };
-
-      const kDate = await hmac(new TextEncoder().encode(`AWS4${R2_SECRET_KEY}`), dateStamp);
-      const kRegion = await hmac(kDate, "auto");
-      const kService = await hmac(kRegion, "s3");
-      const kSigning = await hmac(kService, "aws4_request");
-      const signatureArr = await hmac(kSigning, stringToSign);
-      const signature = Array.from(signatureArr).map(b => b.toString(16).padStart(2, "0")).join("");
-      const auth = `AWS4-HMAC-SHA256 Credential=${R2_ACCESS_KEY}/${dateStamp}/auto/s3/aws4_request, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-      const res = await fetch(`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/${r2Key}`, {
-        method: "PUT",
-        headers: {
-          Authorization: auth,
-          "Content-Type": "image/jpeg",
-          "x-amz-content-sha256": payloadHash,
-          "x-amz-date": amzDate,
-        },
-        body,
+      const res = await fetch("/api/upload-packing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName, contentType: "image/jpeg", body: base64 }),
       });
-      if (!res.ok) throw new Error(`R2 upload failed ${res.status}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Upload gagal");
 
       setUploadingPhoto(null);
-      return `${R2_PUBLIC}/${r2Key}`;
+      return data.url;
     } catch (e) {
       console.error("Upload error:", e);
       alert("Gagal upload foto: " + (e as Error).message);
