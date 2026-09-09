@@ -87,6 +87,7 @@ export default function Shipments() {
   const [photoPreview, setPhotoPreview] = useState<Record<string, string | null>>({});
   const [photoFile, setPhotoFile] = useState<Record<string, File | null>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -451,14 +452,30 @@ export default function Shipments() {
   }
 
   async function markShipped(orderIds: string[], photoUrl?: string) {
-    const now = new Date().toISOString();
-    const update: Record<string, unknown> = { status: "shipped", fulfillment_status: "shipped", shipped_at: now, updated_at: now };
-    if (photoUrl) update.packing_photo = photoUrl;
-    await supabase
-      .from("orders")
-      .update(update)
-      .in("id", orderIds);
-    loadAllOrders();
+    const orderId = orderIds[0];
+    setSendingId(orderId);
+    try {
+      const now = new Date().toISOString();
+      const update: Record<string, unknown> = { status: "shipped", fulfillment_status: "shipped", shipped_at: now, updated_at: now };
+      if (photoUrl) update.packing_photo = photoUrl;
+      const { error } = await supabase
+        .from("orders")
+        .update(update)
+        .in("id", orderIds);
+      if (error) {
+        console.error("markShipped error:", error);
+        alert("Gagal update status: " + error.message);
+        return;
+      }
+      setCheckedItems((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
+      await loadAllOrders();
+    } finally {
+      setSendingId(null);
+    }
   }
 
   function sendWhatsApp(phone: string, customerName: string, orders: ShipmentOrder[]) {
@@ -807,24 +824,25 @@ export default function Shipments() {
                           const checked = checkedItems[order.id]?.size || 0;
                           const allChecked = totalItems > 0 && checked === totalItems;
                           const isUploading = uploadingPhoto === order.id;
+                          const isSending = sendingId === order.id;
                           return (
                             <button
                               onClick={async () => {
-                                if (!allChecked) return;
+                                if (!allChecked || isSending) return;
                                 let photoUrl: string | null = null;
                                 if (photoFile[order.id]) {
                                   photoUrl = await uploadPhoto(order.id);
                                 }
                                 await markShipped([order.id], photoUrl || undefined);
                               }}
-                              disabled={!allChecked || isUploading}
+                              disabled={!allChecked || isUploading || isSending}
                               className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                                allChecked && !isUploading
+                                allChecked && !isUploading && !isSending
                                   ? "bg-pink-500 text-white hover:bg-pink-600"
                                   : "bg-slate-100 text-slate-400 cursor-not-allowed"
                               }`}
                             >
-                              {isUploading ? (
+                              {isUploading || isSending ? (
                                 <span className="flex items-center gap-1">
                                   <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                   Upload...
