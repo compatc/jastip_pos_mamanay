@@ -215,16 +215,12 @@ export default function Catalog() {
       });
       const data = await res.json();
       if (data.ok) {
-        setOrderSuccess(data.order_id);
         setCart([]);
         setCustName("");
         setCustPhone("");
         setCustAddress("");
         setCustNotes("");
-        // Reload products to update stock
-    fetch("/api/catalog-order")
-          .then((r) => r.json())
-          .then((d) => setProducts(d.data || []));
+        window.location.href = `/pay/${data.order_id}`;
       } else {
         alert(data.error || "Gagal mengirim pesanan");
       }
