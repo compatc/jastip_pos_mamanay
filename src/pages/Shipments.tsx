@@ -217,10 +217,16 @@ export default function Shipments() {
       }
       try {
         const ids = allOrders.map((o) => o.id);
-        const { data: items } = await supabase
-          .from("order_items")
-          .select("order_id, product_name, quantity, price, variant")
-          .in("order_id", ids);
+        const BATCH = 50;
+        const allItems: any[] = [];
+        for (let i = 0; i < ids.length; i += BATCH) {
+          const chunk = ids.slice(i, i + BATCH);
+          const { data } = await supabase
+            .from("order_items")
+            .select("order_id, product_name, quantity, price, variant")
+            .in("order_id", chunk);
+          if (data) allItems.push(...data);
+        }
 
         const { data: products } = await supabase
           .from("products")
@@ -233,12 +239,8 @@ export default function Shipments() {
           }
         }
 
-        if (!items) {
-          setLoading(false);
-          return;
-        }
         const map: Record<string, OrderItemData[]> = {};
-        for (const row of items) {
+        for (const row of allItems) {
           if (!map[row.order_id]) map[row.order_id] = [];
           map[row.order_id].push({
             product_name: row.product_name,
