@@ -2242,9 +2242,7 @@ export default function Inventory() {
         const displayStock = selectedVariant ? selectedVariant.stock : product.stock;
         const displayName = selectedVariant ? `${product.name} ${selectedVariant.name}` : product.name;
         const isAllSelected = !shareVariantId && variants.length > 0;
-        const shareImage = isAllSelected
-          ? (variants.some((v) => v.image) ? "" : product.image || "")
-          : (selectedVariant?.image || product.image || "");
+        const shareImage = selectedVariant?.image || product.image || "";
         const stockTypeBadge = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
         const footer = "\n\n_Fix, reply difoto_";
         const previewMsg = isAllSelected
@@ -2330,8 +2328,7 @@ export default function Inventory() {
                   setShareSending(true);
                   try {
                     const GROUP_ID = "120363404605912473@g.us";
-                    const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
-                    const r = await fetch(`${BOT_URL}/api/send-group`, {
+                    const r = await fetch("/api/send-group", {
                       method: "POST",
                       headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
                       body: JSON.stringify({ group_jid: GROUP_ID, message: previewMsg, image: shareImage || "" }),
