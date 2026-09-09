@@ -885,33 +885,10 @@ export default function Catalog() {
             </div>
             <h3 className="text-xl font-extrabold text-slate-900 mb-2">Pesanan Terkirim!</h3>
             <p className="text-sm text-slate-500 mb-1">Nomor pesanan:</p>
-            <p className="text-lg font-bold text-slate-800 mb-4">#{orderSuccess.slice(0, 8).toUpperCase()}</p>
-
-            <div className="bg-slate-50 rounded-xl p-3 mb-4">
-              <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Link Pembayaran</p>
-              <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={`https://mamanay.vercel.app/pay/${orderSuccess}`}
-                  className="flex-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1.5 truncate"
-                  onClick={(e) => (e.target as HTMLInputElement).select()}
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(`https://mamanay.vercel.app/pay/${orderSuccess}`);
-                    alert("Link pembayaran disalin!");
-                  }}
-                  className="shrink-0 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition-all"
-                >
-                  Salin
-                </button>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-400 mb-5">
-              Simpan link ini untuk pembayaran. Anda bisa menutup halaman ini dan membuka link di lain waktu.
+            <p className="text-lg font-bold text-slate-800 mb-3">#{orderSuccess.slice(0, 8).toUpperCase()}</p>
+            <p className="text-xs text-slate-400 mb-6">
+              Link pembayaran sudah dikirim ke WhatsApp Anda.<br/>Silakan cek pesan WhatsApp untuk melakukan pembayaran.
             </p>
-
             <div className="flex flex-col gap-2">
               <a
                 href={`/pay/${orderSuccess}`}
