@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import type { ProductDiscount } from "../types";
@@ -400,8 +401,9 @@ export default function Inventory() {
   }
 
   function openEdit(id: string) {
+    console.log("openEdit called with id:", id, "products count:", products.length);
     const product = products.find((p) => p.id === id);
-    if (!product) return;
+    if (!product) { console.warn("openEdit: product not found for id:", id); return; }
     setEditId(id);
     const existingImages = (product as any).images || (product.image ? [product.image] : []);
     setForm({
@@ -422,6 +424,7 @@ export default function Inventory() {
     loadProductTags(id).then(() => {
       setSelectedTagIds(useStore.getState().productTags[id] || []);
     });
+    console.log("openEdit: setting showForm=true");
     setShowForm(true);
   }
 
@@ -1531,8 +1534,8 @@ export default function Inventory() {
         )}
       </main>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/20 z-20 flex items-center justify-center">
+      {showForm && createPortal(
+        <div className="fixed inset-0 bg-black/20 z-[9999] flex items-center justify-center">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl shadow-pink-100/50 mx-4 max-h-[85dvh] flex flex-col">
             <div className="px-6 pt-5 pb-3 shrink-0">
               <div className="flex items-center justify-between">
@@ -2025,11 +2028,12 @@ export default function Inventory() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white border border-pink-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-pink-100/50">
             <h3 className="text-lg font-bold text-gray-800 mb-1">Hapus Produk?</h3>
             <p className="text-gray-400 text-sm mb-4">
