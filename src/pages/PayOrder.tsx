@@ -153,11 +153,12 @@ export default function PayOrder() {
         {!loading && !error && confirmed && (
           <div className="py-10 text-center">
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-            <h2 className="text-lg font-bold text-gray-800 mb-1">Pembayaran diterima</h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-1">Pembayaran Berhasil!</h2>
             <p className="text-sm text-gray-500 mb-1">{rupiah(amount)}</p>
             <p className="text-xs text-emerald-500 font-semibold mb-6">Order telah ditandai lunas</p>
-            <button onClick={() => window.close()} className="mt-2 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-sm">
-              Selesai
+            <p className="text-xs text-gray-400 mb-4">Admin akan segera memproses pesanan Anda.</p>
+            <button onClick={() => navigate("/catalog")} className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold text-sm">
+              Kembali Belanja
             </button>
           </div>
         )}

@@ -220,7 +220,7 @@ export default function Catalog() {
         setCustPhone("");
         setCustAddress("");
         setCustNotes("");
-        window.location.href = `/pay/${data.order_id}`;
+        setOrderSuccess(data.order_id);
       } else {
         alert(data.error || "Gagal mengirim pesanan");
       }
@@ -875,7 +875,6 @@ export default function Catalog() {
       {orderSuccess && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-5"
-          onClick={() => setOrderSuccess(null)}
         >
           <div
             className="bg-white w-full max-w-sm lg:max-w-md rounded-3xl overflow-hidden p-8 text-center animate-[slideUp_0.3s_ease]"
@@ -887,15 +886,46 @@ export default function Catalog() {
             <h3 className="text-xl font-extrabold text-slate-900 mb-2">Pesanan Terkirim!</h3>
             <p className="text-sm text-slate-500 mb-1">Nomor pesanan:</p>
             <p className="text-lg font-bold text-slate-800 mb-4">#{orderSuccess.slice(0, 8).toUpperCase()}</p>
-            <p className="text-xs text-slate-400 mb-6">
-              Admin akan menghubungi Anda via WhatsApp untuk konfirmasi dan pembayaran.
+
+            <div className="bg-slate-50 rounded-xl p-3 mb-4">
+              <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Link Pembayaran</p>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={`https://mamanay.vercel.app/pay/${orderSuccess}`}
+                  className="flex-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1.5 truncate"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://mamanay.vercel.app/pay/${orderSuccess}`);
+                    alert("Link pembayaran disalin!");
+                  }}
+                  className="shrink-0 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition-all"
+                >
+                  Salin
+                </button>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-5">
+              Simpan link ini untuk pembayaran. Anda bisa menutup halaman ini dan membuka link di lain waktu.
             </p>
-            <button
-              onClick={() => setOrderSuccess(null)}
-              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all active:scale-[0.98]"
-            >
-              Kembali ke Katalog
-            </button>
+
+            <div className="flex flex-col gap-2">
+              <a
+                href={`/pay/${orderSuccess}`}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] inline-block"
+              >
+                Bayar Sekarang
+              </a>
+              <button
+                onClick={() => setOrderSuccess(null)}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl transition-all active:scale-[0.98]"
+              >
+                Kembali ke Katalog
+              </button>
+            </div>
           </div>
         </div>
       )}
