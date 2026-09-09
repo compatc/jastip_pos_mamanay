@@ -402,9 +402,8 @@ export default function Inventory() {
   }
 
   function openEdit(id: string) {
-    console.log("openEdit called with id:", id, "products count:", products.length);
     const product = products.find((p) => p.id === id);
-    if (!product) { console.warn("openEdit: product not found for id:", id); return; }
+    if (!product) return;
     setEditId(id);
     const existingImages = (product as any).images || (product.image ? [product.image] : []);
     setForm({
@@ -425,7 +424,6 @@ export default function Inventory() {
     loadProductTags(id).then(() => {
       setSelectedTagIds(useStore.getState().productTags[id] || []);
     });
-    console.log("openEdit: setting showForm=true");
     setShowForm(true);
   }
 
