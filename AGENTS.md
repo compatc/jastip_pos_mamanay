@@ -188,18 +188,21 @@ products/
   {timestamp}-{id}.jpg → product images (uploaded via web app)
 variants/
   {variant_id}.jpg     → variant images
+packing/
+  {orderId}-{timestamp}.jpg → packing photos (uploaded from Shipments page)
 ```
 
 ### Rules
 - Images stored in Cloudflare R2, NOT base64 in DB
-- `products.image` and `product_variants.image` store R2 URL
+- `products.image`, `product_variants.image`, `orders.packing_photo` store R2 URL
 - R2 egress is FREE (no Supabase egress charges)
-- Supabase Storage bucket `products` still exists as backup
+- Supabase Storage buckets `products` and `packing-photos` still exist as backup
 
 ### Migration history
 - 2026-08-24: Migrated 28 product images from base64 to Supabase Storage
 - 2026-09-08: Migrated 135 images to Cloudflare R2 (free egress)
 - 2026-09-09: R2 confirmed accessible from mobile browsers, reverted from Supabase Storage back to R2
+- 2026-09-09: Migrated 69 packing photos from Supabase Storage `packing-photos` to R2 `packing/` folder
 
 ### Example scenario
 Promo: `🏷️ PERO QIBY TUMBLER 739 ML 94000`
