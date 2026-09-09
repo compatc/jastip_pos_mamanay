@@ -1016,17 +1016,11 @@ export default function Inventory() {
       const msg = `🔥 *DISKON* 🔥\n\n🏷️ *${p.name}*${stType}\n~Rp ${p.originalPrice.toLocaleString("id-ID")}~ → *Rp ${diskonNum.toLocaleString("id-ID")}*\n${footer}`;
 
       try {
-        if (p.image) {
-          const fd = new FormData();
-          fd.append("group_jid", GROUP_ID);
-          fd.append("message", msg);
-          const res = await fetch(p.image);
-          const blob = await res.blob();
-          fd.append("image", blob, "product.jpg");
-          await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { Authorization: "Bearer mamanay2026" }, body: fd });
-        } else {
-          await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" }, body: JSON.stringify({ group_jid: GROUP_ID, message: msg }) });
-        }
+        await fetch("/api/proxy-group", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group_jid: GROUP_ID, message: msg, image_url: p.image || undefined }),
+        });
         sent++;
         setDiskonProgress({ sent, total: selected.length });
       } catch (err) {
@@ -1112,31 +1106,19 @@ export default function Inventory() {
           const entries = Object.entries(vs).filter(([, qty]) => qty > 0);
           const lines = entries.map(([v, qty]) => `• ${v} [stok:${qty}]`).join("\n");
           const msg = `🏷️ ${product.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${desc ? "\n" + desc + "\n" : ""}${lines}${footer}`;
-          if (product.image) {
-            const fd = new FormData();
-            fd.append("group_jid", GROUP_ID);
-            fd.append("message", msg);
-            const res = await fetch(product.image);
-            const blob = await res.blob();
-            fd.append("image", blob, "product.jpg");
-            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { Authorization: "Bearer mamanay2026" }, body: fd });
-          } else {
-            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" }, body: JSON.stringify({ group_jid: GROUP_ID, message: msg }) });
-          }
+          await fetch("/api/proxy-group", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ group_jid: GROUP_ID, message: msg, image_url: product.image || undefined }),
+          });
         } else {
           const stockInfo = getStockStatus(product.stock);
           const msg = `🏷️ ${product.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${desc ? "\n" + desc + "\n" : ""}[stok:${product.stock}]${footer}`;
-          if (product.image) {
-            const fd = new FormData();
-            fd.append("group_jid", GROUP_ID);
-            fd.append("message", msg);
-            const res = await fetch(product.image);
-            const blob = await res.blob();
-            fd.append("image", blob, "product.jpg");
-            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { Authorization: "Bearer mamanay2026" }, body: fd });
-          } else {
-            await fetch(`${BOT_URL}/api/send-group`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" }, body: JSON.stringify({ group_jid: GROUP_ID, message: msg }) });
-          }
+          await fetch("/api/proxy-group", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ group_jid: GROUP_ID, message: msg, image_url: product.image || undefined }),
+          });
         }
         sent++;
         setBulkProgress({ sent, total: ids.length });
@@ -2344,42 +2326,19 @@ export default function Inventory() {
                   setShareSending(true);
                   try {
                     const GROUP_ID = "120363404605912473@g.us";
-                    const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
                     const hasImage = !!shareImage;
-                    if (hasImage) {
-                      const fd = new FormData();
-                      fd.append("group_jid", GROUP_ID);
-                      fd.append("message", previewMsg);
-                      const res = await fetch(shareImage);
-                      const blob = await res.blob();
-                      fd.append("image", blob, "variant.jpg");
-                      const r = await fetch(`${BOT_URL}/api/send-group`, {
-                        method: "POST",
-                        headers: { Authorization: "Bearer mamanay2026" },
-                        body: fd,
-                      });
-                      if (r.ok) {
-                        alert("Berhasil dikirim ke grup!");
-                        setShareProductId(null);
-                        setShareVariantId(null);
-                      } else {
-                        const d = await r.json();
-                        alert("Gagal: " + (d.error || "Unknown error"));
-                      }
+                    const r = await fetch("/api/proxy-group", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ group_jid: GROUP_ID, message: previewMsg, image_url: hasImage ? shareImage : undefined }),
+                    });
+                    if (r.ok) {
+                      alert("Berhasil dikirim ke grup!");
+                      setShareProductId(null);
+                      setShareVariantId(null);
                     } else {
-                      const res = await fetch(`${BOT_URL}/api/send-group`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
-                        body: JSON.stringify({ group_jid: GROUP_ID, message: previewMsg }),
-                      });
-                      if (res.ok) {
-                        alert("Berhasil dikirim ke grup!");
-                        setShareProductId(null);
-                        setShareVariantId(null);
-                      } else {
-                        const d = await res.json();
-                        alert("Gagal: " + (d.error || "Unknown error"));
-                      }
+                      const d = await r.json();
+                      alert("Gagal: " + (d.error || "Unknown error"));
                     }
                   } catch (err) {
                     alert("Gagal kirim: " + (err instanceof Error ? err.message : String(err)));
@@ -2397,56 +2356,33 @@ export default function Inventory() {
                     setShareSending(true);
                     try {
                       const GROUP_ID = "120363404605912473@g.us";
-                      const BOT_URL = import.meta.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
                       const hasAnyVariantImage = variants.some((v) => v.image);
 
                       if (hasAnyVariantImage) {
-                        // Ada varian yang punya foto → kirim terpisah per varian
                         const sendable = variants.filter((v) => v.image);
                         let sent = 0;
                         for (const v of sendable) {
                           const stType = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
                           const stockLabel = v.stock > 0 ? ` [stok:${v.stock}]` : "";
                           const msg = `🏷️ ${product.name} ${v.name}${stType} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}• ${v.name}${stockLabel}\n\n_Fix, reply difoto_`;
-                          const fd = new FormData();
-                          fd.append("group_jid", GROUP_ID);
-                          fd.append("message", msg);
-                          const res = await fetch(v.image);
-                          const blob = await res.blob();
-                          fd.append("image", blob, "variant.jpg");
-                          const r = await fetch(`${BOT_URL}/api/send-group`, {
+                          const r = await fetch("/api/proxy-group", {
                             method: "POST",
-                            headers: { Authorization: "Bearer mamanay2026" },
-                            body: fd,
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ group_jid: GROUP_ID, message: msg, image_url: v.image }),
                           });
                           if (r.ok) sent++;
                           await new Promise((r) => setTimeout(r, 1500));
                         }
                         alert(`Terkirim ${sent}/${sendable.length} varian ke grup!`);
                       } else {
-                        // Tidak ada foto varian → 1 bubble gabungan + foto produk
                         const lines = variants.map((v) => `• ${v.name}${v.stock > 0 ? ` [stok:${v.stock}]` : ""}`).join("\n");
                         const stType2 = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
                         const msg = `🏷️ ${product.name}${stType2} ${product.sell_price.toLocaleString("id-ID")}\n${shareDesc ? "\n" + shareDesc + "\n" : ""}${lines}\n\n_Fix, reply difoto_`;
-                        if (product.image) {
-                          const fd = new FormData();
-                          fd.append("group_jid", GROUP_ID);
-                          fd.append("message", msg);
-                          const res = await fetch(product.image);
-                          const blob = await res.blob();
-                          fd.append("image", blob, "product.jpg");
-                          await fetch(`${BOT_URL}/api/send-group`, {
-                            method: "POST",
-                            headers: { Authorization: "Bearer mamanay2026" },
-                            body: fd,
-                          });
-                        } else {
-                          await fetch(`${BOT_URL}/api/send-group`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
-                            body: JSON.stringify({ group_jid: GROUP_ID, message: msg }),
-                          });
-                        }
+                        await fetch("/api/proxy-group", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ group_jid: GROUP_ID, message: msg, image_url: product.image || undefined }),
+                        });
                         alert("Terkirim 1 pesan gabungan ke grup!");
                       }
                       setShareProductId(null);
