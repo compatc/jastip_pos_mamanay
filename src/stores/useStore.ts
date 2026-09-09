@@ -423,7 +423,7 @@ export const useStore = create<PosStore>((set, get) => ({
   allOrderItems: {} as Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>,
   loadAllOrders: async () => {
     try {
-      const [ordersRes, customersRes, itemsRes] = await Promise.all([
+      const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
           .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
@@ -432,10 +432,6 @@ export const useStore = create<PosStore>((set, get) => ({
         supabase
           .from("customers")
           .select("id, name"),
-        supabase
-          .from("order_items")
-          .select("order_id, product_name, quantity, product_id, variant")
-          .limit(5000),
       ]);
 
       if (ordersRes.error) {
@@ -450,27 +446,44 @@ export const useStore = create<PosStore>((set, get) => ({
         }
       }
 
-      const orderIds = new Set((ordersRes.data || []).map((o: any) => o.id));
       const allOrders = (ordersRes.data || []).map((o: any) => ({
         ...o,
         customer_name: customerMap.get(o.customer_id) || "",
       })) as (Order & { customer_name: string })[];
 
-      const allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
-      if (itemsRes.data) {
-        for (const row of itemsRes.data) {
-          if (!orderIds.has(row.order_id)) continue;
-          if (!allOrderItems[row.order_id]) allOrderItems[row.order_id] = [];
-          allOrderItems[row.order_id].push({
-            product_name: row.product_name,
-            quantity: row.quantity,
-            product_id: row.product_id,
-            variant: row.variant,
-          });
+      set({ allOrders, allOrderItems: {} });
+
+      // Load items in batches using POST to avoid URL length issues
+      if (allOrders.length > 0) {
+        const ids = allOrders.map((o) => o.id);
+        const BATCH = 50;
+        const allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
+
+        for (let i = 0; i < ids.length; i += BATCH) {
+          const chunk = ids.slice(i, i + BATCH);
+          const { data, error } = await supabase
+            .from("order_items")
+            .select("order_id, product_name, quantity, product_id, variant")
+            .in("order_id", chunk);
+          if (error) {
+            console.error("order_items batch error:", i, error.message);
+            continue;
+          }
+          if (data) {
+            for (const row of data) {
+              if (!allOrderItems[row.order_id]) allOrderItems[row.order_id] = [];
+              allOrderItems[row.order_id].push({
+                product_name: row.product_name,
+                quantity: row.quantity,
+                product_id: row.product_id,
+                variant: row.variant,
+              });
+            }
+          }
+          // Update store progressively so UI shows items as they load
+          set({ allOrderItems: { ...allOrderItems } });
         }
       }
-
-      set({ allOrders, allOrderItems });
     } catch (e) {
       console.error("loadAllOrders error:", e);
     }
