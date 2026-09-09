@@ -14,24 +14,17 @@ export default async function handler(req, res) {
       const imgRes = await fetch(image);
       if (!imgRes.ok) throw new Error(`Failed to fetch image: ${imgRes.status}`);
       const arrBuf = await imgRes.arrayBuffer();
-      const buf = Buffer.from(arrBuf);
+      const blob = new Blob([arrBuf], { type: "image/jpeg" });
 
-      const boundary = "----FormBoundary" + Date.now().toString(16);
-      const parts = [];
-      parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="group_jid"\r\n\r\n${group_jid}`);
-      parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="message"\r\n\r\n${message}`);
-      parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="image.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`);
-      const header = Buffer.from(parts.join("\r\n") + "\r\n");
-      const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
-      const body = Buffer.concat([header, buf, footer]);
+      const form = new FormData();
+      form.append("group_jid", group_jid);
+      form.append("message", message);
+      form.append("image", blob, "image.jpg");
 
       const r = await fetch(`${BOT_URL}/api/send-group`, {
         method: "POST",
-        headers: {
-          "Content-Type": `multipart/form-data; boundary=${boundary}`,
-          Authorization: "Bearer mamanay2026",
-        },
-        body,
+        headers: { Authorization: "Bearer mamanay2026" },
+        body: form,
       });
       const d = await r.json();
       return res.status(r.status).json(d);
