@@ -11,20 +11,12 @@ export default async function handler(req, res) {
 
   try {
     if (image) {
-      const imgRes = await fetch(image);
-      if (!imgRes.ok) throw new Error(`Failed to fetch image: ${imgRes.status}`);
-      const arrBuf = await imgRes.arrayBuffer();
-      const blob = new Blob([arrBuf], { type: "image/jpeg" });
-
-      const form = new FormData();
-      form.append("group_jid", group_jid);
-      form.append("message", message);
-      form.append("image", blob, "image.jpg");
+      const payload = { group_jid, message, image };
 
       const r = await fetch(`${BOT_URL}/api/send-group`, {
         method: "POST",
-        headers: { Authorization: "Bearer mamanay2026" },
-        body: form,
+        headers: { "Content-Type": "application/json", Authorization: "Bearer mamanay2026" },
+        body: JSON.stringify(payload),
       });
       const d = await r.json();
       return res.status(r.status).json(d);
