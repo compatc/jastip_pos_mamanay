@@ -3242,7 +3242,7 @@ export default function Inventory() {
                             className="w-3.5 h-3.5 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
                           />
                           <span className="truncate flex-1">{p.name}</span>
-                          <span className="text-gray-400 shrink-0">{(p as any).cost_price ? `→ Rp${Math.ceil((p as any).cost_price * 1.26 / 500) * 500}` : ""}</span>
+                          <span className="text-gray-400 shrink-0">{(p as any).cost_price ? `→ Rp${Math.ceil((p as any).cost_price * 1.28 / 500) * 500}` : ""}</span>
                         </label>
                       ))}
                     </div>

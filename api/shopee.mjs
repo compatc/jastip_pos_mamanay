@@ -5,7 +5,7 @@ const BASE_URL = "https://partner.shopeemobile.com/api/v2";
 const SHOPEE_PARTNER_ID = process.env.SHOPEE_PARTNER_ID || "";
 const SHOPEE_SECRET_KEY = process.env.SHOPEE_SECRET_KEY || "";
 const SHOPEE_SHOP_ID = process.env.SHOPEE_SHOP_ID || "";
-const SHOPEE_MARKUP = 0.26;
+const SHOPEE_MARKUP = 0.28;
 
 function json(res, status, body) {
   res.statusCode = status;
