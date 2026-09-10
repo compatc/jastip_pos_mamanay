@@ -176,6 +176,7 @@ export default function Inventory() {
   const [shopeeLoading, setShopeeLoading] = useState(false);
   const [shopeeAction, setShopeeAction] = useState<string>("");
   const [shopeeResults, setShopeeResults] = useState<any[]>([]);
+  const [shopeeSelected, setShopeeSelected] = useState<Set<string>>(new Set());
   const [diskonOpen, setDiskonOpen] = useState(false);
   const [diskonProducts, setDiskonProducts] = useState<{ id: string; name: string; image: string; originalPrice: number; diskonPrice: string; variants: { name: string; stock: number }[] }[]>([]);
   const [diskonSending, setDiskonSending] = useState(false);
@@ -3152,7 +3153,7 @@ export default function Inventory() {
                 <h3 className="text-base font-bold text-gray-800">Shopee Sync</h3>
                 <p className="text-xs text-gray-400 mt-0.5">Sinkron produk ke Shopee</p>
               </div>
-              <button onClick={() => setShopeeOpen(false)} className="p-2 hover:bg-orange-50 rounded-xl transition-all">
+              <button onClick={() => { setShopeeOpen(false); setShopeeResults([]); setShopeeSelected(new Set()); }} className="p-2 hover:bg-orange-50 rounded-xl transition-all">
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
@@ -3208,24 +3209,56 @@ export default function Inventory() {
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[10px] text-gray-400 font-semibold">Upload produk baru ke Shopee:</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-gray-400 font-semibold">Upload produk baru ke Shopee:</p>
+                      <button
+                        onClick={() => {
+                          const newIds = products.filter(p => !(p as any).shopee_item_id).map(p => p.id);
+                          if (shopeeSelected.size === newIds.length) {
+                            setShopeeSelected(new Set());
+                          } else {
+                            setShopeeSelected(new Set(newIds));
+                          }
+                        }}
+                        className="text-[10px] text-orange-500 font-semibold"
+                      >
+                        {shopeeSelected.size === products.filter(p => !(p as any).shopee_item_id).length && shopeeSelected.size > 0 ? "Batal Pilih" : "Pilih Semua"}
+                      </button>
+                    </div>
                     <div className="space-y-1 max-h-40 overflow-y-auto">
                       {products.filter(p => !(p as any).shopee_item_id).slice(0, 20).map(p => (
-                        <div key={p.id} className="flex items-center gap-2 text-xs">
+                        <label key={p.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-orange-50 rounded px-1 py-0.5 transition-all">
+                          <input
+                            type="checkbox"
+                            checked={shopeeSelected.has(p.id)}
+                            onChange={() => {
+                              setShopeeSelected(prev => {
+                                const next = new Set(prev);
+                                if (next.has(p.id)) next.delete(p.id);
+                                else next.add(p.id);
+                                return next;
+                              });
+                            }}
+                            className="w-3.5 h-3.5 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                          />
                           <span className="truncate flex-1">{p.name}</span>
                           <span className="text-gray-400 shrink-0">{(p as any).cost_price ? `→ Rp${Math.ceil((p as any).cost_price * 1.26 / 500) * 500}` : ""}</span>
-                        </div>
+                        </label>
                       ))}
                     </div>
                     <button
                       onClick={() => {
-                        const ids = products.filter(p => !(p as any).shopee_item_id).map(p => p.id);
+                        const ids = shopeeSelected.size > 0
+                          ? [...shopeeSelected]
+                          : products.filter(p => !(p as any).shopee_item_id).map(p => p.id);
                         if (ids.length > 0) shopeeUploadProducts(ids.slice(0, 10));
                       }}
                       disabled={products.filter(p => !(p as any).shopee_item_id).length === 0}
                       className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
                     >
-                      Upload Semua ({products.filter(p => !(p as any).shopee_item_id).length})
+                      {shopeeSelected.size > 0
+                        ? `Upload ${shopeeSelected.size} Produk`
+                        : `Upload Semua (${products.filter(p => !(p as any).shopee_item_id).length})`}
                     </button>
                   </div>
 
