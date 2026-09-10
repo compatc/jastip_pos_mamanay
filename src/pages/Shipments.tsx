@@ -75,7 +75,7 @@ function getHoldReason(notes: string): string {
 
 export default function Shipments() {
   const navigate = useNavigate();
-  const { allOrders, loadAllOrders, customers, loadCustomers } = useStore();
+  const { allOrders, loadAllOrders, customers, loadCustomers, allOrderItems } = useStore();
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, OrderItemData[]>>({});
   const [filter, setFilter] = useState<FilterType>("all");
   const [loading, setLoading] = useState(true);
@@ -168,24 +168,12 @@ export default function Shipments() {
   }, []);
 
   useEffect(() => {
-    async function loadAllItems() {
+    async function buildItemsByOrder() {
       if (allOrders.length === 0) {
         setLoading(false);
         return;
       }
       try {
-        const ids = allOrders.map((o) => o.id);
-        const BATCH = 50;
-        const allItems: any[] = [];
-        for (let i = 0; i < ids.length; i += BATCH) {
-          const chunk = ids.slice(i, i + BATCH);
-          const { data } = await supabase
-            .from("order_items")
-            .select("order_id, product_name, quantity, price, variant")
-            .in("order_id", chunk);
-          if (data) allItems.push(...data);
-        }
-
         const { data: products } = await supabase
           .from("products")
           .select("name, stock");
@@ -198,25 +186,24 @@ export default function Shipments() {
         }
 
         const map: Record<string, OrderItemData[]> = {};
-        for (const row of allItems) {
-          if (!map[row.order_id]) map[row.order_id] = [];
-          map[row.order_id].push({
+        for (const orderId of Object.keys(allOrderItems)) {
+          map[orderId] = allOrderItems[orderId].map((row) => ({
             product_name: row.product_name,
             variant: row.variant,
             quantity: row.quantity,
             price: row.price,
             stock: stockMap[row.product_name] || 0,
-          });
+          }));
         }
         setItemsByOrder(map);
       } catch (e) {
-        console.error("loadAllItems error:", e);
+        console.error("buildItemsByOrder error:", e);
       } finally {
         setLoading(false);
       }
     }
-    loadAllItems();
-  }, [allOrders]);
+    buildItemsByOrder();
+  }, [allOrderItems]);
 
   useEffect(() => {
     async function loadShipped() {
@@ -229,35 +216,9 @@ export default function Shipments() {
 
       if (!shipped) return;
 
-      const ids = shipped.map((o) => o.id);
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("order_id, product_name, quantity, price, variant")
-        .in("order_id", ids);
-
-      const { data: customersData } = await supabase
-        .from("customers")
-        .select("id, name, phone");
-
       const customerMapLocal: Record<string, { name: string; phone: string }> = {};
-      if (customersData) {
-        for (const c of customersData) {
-          customerMapLocal[c.id] = { name: c.name, phone: c.phone };
-        }
-      }
-
-      const map: Record<string, OrderItemData[]> = {};
-      if (items) {
-        for (const row of items) {
-          if (!map[row.order_id]) map[row.order_id] = [];
-          map[row.order_id].push({
-            product_name: row.product_name,
-            variant: row.variant,
-            quantity: row.quantity,
-            price: row.price,
-            stock: 0,
-          });
-        }
+      for (const c of customers) {
+        customerMapLocal[c.id] = { name: c.name, phone: c.phone };
       }
 
       setShippedOrders(
@@ -274,14 +235,20 @@ export default function Shipments() {
           created_at: o.created_at,
           shipped_at: o.shipped_at,
           packing_photo: o.packing_photo,
-          items: map[o.id] || [],
+          items: (allOrderItems[o.id] || []).map((row) => ({
+            product_name: row.product_name,
+            variant: row.variant,
+            quantity: row.quantity,
+            price: row.price,
+            stock: 0,
+          })),
           isHold: false,
           holdReason: "",
         }))
       );
     }
     loadShipped();
-  }, [allOrders]);
+  }, [allOrders, allOrderItems, customers]);
 
   const lunasOrders = allOrders.filter(
     (o) =>

@@ -53,7 +53,7 @@ interface PosStore {
   ) => Promise<string>;
 
   allOrders: Order[];
-  allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>;
+  allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null; price?: number }[]>;
   loadAllOrders: () => Promise<void>;
   addStandaloneOrder: (params: {
     orderType: OrderType;
@@ -420,7 +420,7 @@ export const useStore = create<PosStore>((set, get) => ({
   },
 
   allOrders: [],
-  allOrderItems: {} as Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]>,
+  allOrderItems: {} as Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null; price?: number }[]>,
   loadAllOrders: async () => {
     if (isFresh("allOrders")) return;
     try {
@@ -464,7 +464,7 @@ export const useStore = create<PosStore>((set, get) => ({
           const chunk = ids.slice(i, i + BATCH);
           const { data, error } = await supabase
             .from("order_items")
-            .select("order_id, product_name, quantity, product_id, variant")
+            .select("order_id, product_name, quantity, product_id, variant, price")
             .in("order_id", chunk);
           if (error) {
             console.error("order_items batch error:", i, error.message);
@@ -478,6 +478,7 @@ export const useStore = create<PosStore>((set, get) => ({
                 quantity: row.quantity,
                 product_id: row.product_id,
                 variant: row.variant,
+                price: row.price,
               });
             }
           }
