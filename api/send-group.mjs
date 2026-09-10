@@ -11,7 +11,26 @@ export default async function handler(req, res) {
 
   try {
     const payload = { group_jid, message };
-    if (image) payload.image_url = image;
+
+    if (image) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        const imgRes = await fetch(image, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (imgRes.ok) {
+          const arrBuf = await imgRes.arrayBuffer();
+          const b64 = Buffer.from(arrBuf).toString("base64");
+          const ct = imgRes.headers.get("content-type") || "image/jpeg";
+          payload.image_url = `data:${ct};base64,${b64}`;
+        } else {
+          console.error("[send-group] Image fetch HTTP", imgRes.status, image);
+        }
+      } catch (imgErr) {
+        console.error("[send-group] Image fetch failed:", imgErr.message, image);
+      }
+    }
 
     const r = await fetch(`${BOT_URL}/api/send-group`, {
       method: "POST",
