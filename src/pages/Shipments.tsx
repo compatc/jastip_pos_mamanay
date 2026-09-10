@@ -135,10 +135,10 @@ export default function Shipments() {
       const arrayBuf = await compressed.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
 
-      const res = await fetch("/api/upload-packing", {
+      const res = await fetch("/api/order-update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName, contentType: "image/jpeg", body: base64 }),
+        body: JSON.stringify({ action: "upload-packing", fileName, contentType: "image/jpeg", body: base64 }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "Upload gagal");
