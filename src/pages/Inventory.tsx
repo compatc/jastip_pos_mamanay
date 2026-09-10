@@ -3226,7 +3226,7 @@ export default function Inventory() {
                       </button>
                     </div>
                     <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {products.filter(p => !(p as any).shopee_item_id).slice(0, 20).map(p => (
+                      {products.filter(p => !(p as any).shopee_item_id).map(p => (
                         <label key={p.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-orange-50 rounded px-1 py-0.5 transition-all">
                           <input
                             type="checkbox"
