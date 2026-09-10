@@ -75,12 +75,12 @@ function getHoldReason(notes: string): string {
 
 export default function Shipments() {
   const navigate = useNavigate();
-  const { allOrders, loadAllOrders, customers, loadCustomers, allOrderItems } = useStore();
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, OrderItemData[]>>({});
   const [filter, setFilter] = useState<FilterType>("all");
   const [loading, setLoading] = useState(true);
   const [checkedItems, setCheckedItems] = useState<Record<string, Set<number>>>({});
   const [search, setSearch] = useState("");
+  const [lunasOrders, setLunasOrders] = useState<ShipmentOrder[]>([]);
   const [shippedOrders, setShippedOrders] = useState<ShipmentOrder[]>([]);
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month" | "custom">("all");
   const [customDate, setCustomDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -163,70 +163,140 @@ export default function Shipments() {
   }
 
   useEffect(() => {
-    loadAllOrders();
-    loadCustomers();
-  }, []);
-
-  useEffect(() => {
-    async function buildItemsByOrder() {
-      if (allOrders.length === 0) {
-        setLoading(false);
-        return;
-      }
+    async function loadData() {
+      setLoading(true);
       try {
-        const { data: products } = await supabase
-          .from("products")
-          .select("name, stock");
+        const [ordersRes, customersRes, productsRes] = await Promise.all([
+          supabase
+            .from("orders")
+            .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
+            .eq("order_type", "penjualan")
+            .neq("status", "deleted")
+            .order("created_at", { ascending: false }),
+          supabase.from("customers").select("id, name, phone"),
+          supabase.from("products").select("name, stock"),
+        ]);
+
+        const allOrders = ordersRes.data || [];
+        const customerList = customersRes.data || [];
+        const customerMap: Record<string, { name: string; phone: string }> = {};
+        for (const c of customerList) customerMap[c.id] = { name: c.name, phone: c.phone };
 
         const stockMap: Record<string, number> = {};
-        if (products) {
-          for (const p of products) {
-            stockMap[p.name] = p.stock || 0;
+        for (const p of productsRes.data || []) stockMap[p.name] = p.stock || 0;
+
+        const lunasList = allOrders.filter(
+          (o) => isOrderLunas(o) && !["shipped", "diterima", "completed", "cancelled"].includes(o.fulfillment_status)
+        );
+        const shippedList = allOrders.filter((o) => o.fulfillment_status === "shipped");
+
+        const allIds = [...new Set([...lunasList.map((o) => o.id), ...shippedList.map((o) => o.id)])];
+
+        const itemMap: Record<string, OrderItemData[]> = {};
+        const BATCH = 50;
+        for (let i = 0; i < allIds.length; i += BATCH) {
+          const chunk = allIds.slice(i, i + BATCH);
+          const { data } = await supabase
+            .from("order_items")
+            .select("order_id, product_name, variant, quantity, price")
+            .in("order_id", chunk);
+          if (data) {
+            for (const row of data) {
+              if (!itemMap[row.order_id]) itemMap[row.order_id] = [];
+              itemMap[row.order_id].push({
+                product_name: row.product_name,
+                variant: row.variant,
+                quantity: row.quantity,
+                price: row.price,
+                stock: stockMap[row.product_name] || 0,
+              });
+            }
           }
         }
 
-        const map: Record<string, OrderItemData[]> = {};
-        for (const orderId of Object.keys(allOrderItems)) {
-          map[orderId] = allOrderItems[orderId].map((row) => ({
-            product_name: row.product_name,
-            variant: row.variant,
-            quantity: row.quantity,
-            price: row.price,
-            stock: stockMap[row.product_name] || 0,
+        const mapOrders = (orders: any[]) =>
+          orders.map((o) => ({
+            id: o.id,
+            customer_id: o.customer_id,
+            customer_name: customerMap[o.customer_id]?.name || "Tanpa Nama",
+            customer_phone: customerMap[o.customer_id]?.phone || "",
+            status: o.status,
+            total: o.total,
+            paid_total: o.paid_total,
+            notes: o.notes,
+            qris_notes: o.qris_notes || "",
+            created_at: o.created_at,
+            shipped_at: o.shipped_at,
+            packing_photo: o.packing_photo,
+            items: itemMap[o.id] || [],
+            isHold: isHold(o.notes),
+            holdReason: getHoldReason(o.notes),
           }));
-        }
-        setItemsByOrder(map);
+
+        setLunasOrders(mapOrders(lunasList));
+        setShippedOrders(mapOrders(shippedList));
+        setItemsByOrder(itemMap);
       } catch (e) {
-        console.error("buildItemsByOrder error:", e);
+        console.error("loadData error:", e);
       } finally {
         setLoading(false);
       }
     }
-    buildItemsByOrder();
-  }, [allOrderItems]);
+    loadData();
+  }, []);
 
-  useEffect(() => {
-    async function loadShipped() {
-      const { data: shipped } = await supabase
+  async function refreshData() {
+    setLoading(true);
+    try {
+      const ordersRes = await supabase
         .from("orders")
-        .select("id, customer_id, status, total, paid_total, notes, created_at, shipped_at, packing_photo, order_type")
+        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
         .eq("order_type", "penjualan")
-        .eq("fulfillment_status", "shipped")
-        .order("shipped_at", { ascending: false, nullsFirst: false });
+        .neq("status", "deleted")
+        .order("created_at", { ascending: false });
+      const allOrders = ordersRes.data || [];
+      const lunasList = allOrders.filter(
+        (o) => isOrderLunas(o) && !["shipped", "diterima", "completed", "cancelled"].includes(o.fulfillment_status)
+      );
+      const shippedList = allOrders.filter((o) => o.fulfillment_status === "shipped");
 
-      if (!shipped) return;
+      const customersRes = await supabase.from("customers").select("id, name, phone");
+      const customerMap: Record<string, { name: string; phone: string }> = {};
+      for (const c of customersRes.data || []) customerMap[c.id] = { name: c.name, phone: c.phone };
 
-      const customerMapLocal: Record<string, { name: string; phone: string }> = {};
-      for (const c of customers) {
-        customerMapLocal[c.id] = { name: c.name, phone: c.phone };
+      const productsRes = await supabase.from("products").select("name, stock");
+      const stockMap: Record<string, number> = {};
+      for (const p of productsRes.data || []) stockMap[p.name] = p.stock || 0;
+
+      const allIds = [...new Set([...lunasList.map((o) => o.id), ...shippedList.map((o) => o.id)])];
+      const itemMap: Record<string, OrderItemData[]> = {};
+      const BATCH = 50;
+      for (let i = 0; i < allIds.length; i += BATCH) {
+        const chunk = allIds.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("order_items")
+          .select("order_id, product_name, variant, quantity, price")
+          .in("order_id", chunk);
+        if (data) {
+          for (const row of data) {
+            if (!itemMap[row.order_id]) itemMap[row.order_id] = [];
+            itemMap[row.order_id].push({
+              product_name: row.product_name,
+              variant: row.variant,
+              quantity: row.quantity,
+              price: row.price,
+              stock: stockMap[row.product_name] || 0,
+            });
+          }
+        }
       }
 
-      setShippedOrders(
-        shipped.map((o) => ({
+      const mapOrders = (orders: any[]) =>
+        orders.map((o) => ({
           id: o.id,
           customer_id: o.customer_id,
-          customer_name: customerMapLocal[o.customer_id]?.name || "Tanpa Nama",
-          customer_phone: customerMapLocal[o.customer_id]?.phone || "",
+          customer_name: customerMap[o.customer_id]?.name || "Tanpa Nama",
+          customer_phone: customerMap[o.customer_id]?.phone || "",
           status: o.status,
           total: o.total,
           paid_total: o.paid_total,
@@ -235,31 +305,19 @@ export default function Shipments() {
           created_at: o.created_at,
           shipped_at: o.shipped_at,
           packing_photo: o.packing_photo,
-          items: (allOrderItems[o.id] || []).map((row) => ({
-            product_name: row.product_name,
-            variant: row.variant,
-            quantity: row.quantity,
-            price: row.price,
-            stock: 0,
-          })),
-          isHold: false,
-          holdReason: "",
-        }))
-      );
+          items: itemMap[o.id] || [],
+          isHold: isHold(o.notes),
+          holdReason: getHoldReason(o.notes),
+        }));
+
+      setLunasOrders(mapOrders(lunasList));
+      setShippedOrders(mapOrders(shippedList));
+      setItemsByOrder(itemMap);
+    } catch (e) {
+      console.error("refreshData error:", e);
+    } finally {
+      setLoading(false);
     }
-    loadShipped();
-  }, [allOrders, allOrderItems, customers]);
-
-  const lunasOrders = allOrders.filter(
-    (o) =>
-      o.order_type === "penjualan" &&
-      isOrderLunas(o) &&
-      !["shipped", "diterima", "completed", "cancelled"].includes(o.fulfillment_status)
-  );
-
-  const customerMap: Record<string, { name: string; phone: string }> = {};
-  for (const c of customers) {
-    customerMap[c.id] = { name: c.name, phone: c.phone };
   }
 
   const grouped: Record<string, ShipmentOrder[]> = {};
@@ -270,8 +328,6 @@ export default function Shipments() {
     const hold = isHold(o.notes);
     grouped[custId].push({
       ...o,
-      customer_name: customerMap[custId]?.name || "Tanpa Nama",
-      customer_phone: customerMap[custId]?.phone || "",
       items,
       isHold: hold,
       holdReason: getHoldReason(o.notes),
@@ -372,7 +428,7 @@ export default function Shipments() {
       .from("orders")
       .update({ notes: newNotes, updated_at: new Date().toISOString() })
       .eq("id", order.id);
-    loadAllOrders();
+    refreshData();
   }
 
   async function markShipped(orderIds: string[], photoUrl?: string) {
@@ -396,7 +452,7 @@ export default function Shipments() {
         delete next[orderId];
         return next;
       });
-      await loadAllOrders();
+      await refreshData();
     } finally {
       setSendingId(null);
     }
