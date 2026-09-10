@@ -177,6 +177,8 @@ export default function Inventory() {
   const [shopeeAction, setShopeeAction] = useState<string>("");
   const [shopeeResults, setShopeeResults] = useState<any[]>([]);
   const [shopeeSelected, setShopeeSelected] = useState<Set<string>>(new Set());
+  const [shopeeTab, setShopeeTab] = useState<"upload" | "synced">("upload");
+  const [shopeeSearch, setShopeeSearch] = useState("");
   const [diskonOpen, setDiskonOpen] = useState(false);
   const [diskonProducts, setDiskonProducts] = useState<{ id: string; name: string; image: string; originalPrice: number; diskonPrice: string; variants: { name: string; stock: number }[] }[]>([]);
   const [diskonSending, setDiskonSending] = useState(false);
@@ -3145,161 +3147,291 @@ export default function Inventory() {
         );
       })()}
 
-      {shopeeOpen && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-orange-100 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-orange-100/50 max-h-[85dvh] flex flex-col">
-            <div className="flex items-center justify-between mb-3 shrink-0">
-              <div>
-                <h3 className="text-base font-bold text-gray-800">Shopee Sync</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Sinkron produk ke Shopee</p>
+      {shopeeOpen && (() => {
+        const unsyncedProducts = products.filter(p => !(p as any).shopee_item_id);
+        const syncedProducts = products.filter(p => (p as any).shopee_item_id);
+        const filteredUnsynced = shopeeSearch
+          ? unsyncedProducts.filter(p => p.name.toLowerCase().includes(shopeeSearch.toLowerCase()))
+          : unsyncedProducts;
+        const allUnsyncedIds = unsyncedProducts.map(p => p.id);
+        const isAllSelected = shopeeSelected.size === allUnsyncedIds.length && allUnsyncedIds.length > 0;
+
+        return (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-orange-100 rounded-2xl max-w-[440px] w-full shadow-2xl shadow-orange-100/50 max-h-[85dvh] flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="px-5 pt-4 pb-3 border-b border-gray-100 shrink-0">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-800">Shopee Sync</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Sinkron produk ke Shopee</p>
+                  </div>
+                  <button onClick={() => { setShopeeOpen(false); setShopeeResults([]); setShopeeSelected(new Set()); setShopeeTab("upload"); setShopeeSearch(""); }} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-all">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                {/* Connection status */}
+                {shopeeStatus?.configured && (
+                  <div className={`mt-3 px-3 py-2 rounded-lg flex items-center gap-2 text-xs ${shopeeStatus.token ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${shopeeStatus.token ? "bg-green-500" : "bg-amber-500"}`} />
+                    <span className={`font-semibold ${shopeeStatus.token ? "text-green-700" : "text-amber-700"}`}>
+                      {shopeeStatus.token ? "Terhubung" : "Belum authorize"}
+                    </span>
+                    {shopeeStatus.token && (
+                      <span className="text-[10px] text-gray-500 ml-auto">
+                        Shop #{shopeeStatus.token.shop_id} &bull; Exp {new Date(shopeeStatus.token.expires_at).toLocaleDateString("id-ID")}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              <button onClick={() => { setShopeeOpen(false); setShopeeResults([]); setShopeeSelected(new Set()); }} className="p-2 hover:bg-orange-50 rounded-xl transition-all">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto mb-3">
-              {!shopeeStatus?.configured ? (
-                <div className="text-center py-8 text-sm text-gray-400">
-                  <Store className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="font-semibold text-gray-500">Shopee belum dikonfigurasi</p>
-                  <p className="text-xs mt-1">Tambahkan SHOPEE_PARTNER_ID dan SHOPEE_SECRET_KEY di .env</p>
-                </div>
-              ) : shopeeLoading ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-6 h-6 text-orange-400 mx-auto mb-2 animate-spin" />
-                  <p className="text-xs text-gray-400">{shopeeAction === "upload" ? "Upload..." : shopeeAction === "sync_stock" ? "Sync stok..." : shopeeAction === "sync_price" ? "Sync harga..." : "Memuat..."}</p>
-                </div>
-              ) : shopeeResults.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-[10px] text-gray-400 font-semibold mb-2">Hasil {shopeeAction}:</p>
-                  {shopeeResults.map((r, i) => (
-                    <div key={i} className={`p-2.5 rounded-lg text-xs ${r.ok ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
-                      <p className="font-semibold">{r.id?.slice(0, 8) || `#${i + 1}`}</p>
-                      {r.ok && <p className="text-green-600 mt-1">✓ {r.shopee_item_id ? `item_id: ${r.shopee_item_id}` : "Synced"}</p>}
-                      {r.warning && <p className="text-amber-600 mt-1">⚠ {r.warning}</p>}
-                      {r.error && <p className="text-red-600 mt-1">✗ {r.error}</p>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {shopeeStatus.token ? (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                      <p className="text-xs font-semibold text-green-700">✓ Terhubung</p>
-                      <p className="text-[10px] text-green-600 mt-0.5">Shop ID: {shopeeStatus.token.shop_id} • Expires: {new Date(shopeeStatus.token.expires_at).toLocaleDateString("id-ID")}</p>
-                    </div>
-                  ) : (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                      <p className="text-xs font-semibold text-amber-700">⚠ Belum authorize</p>
-                      <p className="text-[10px] text-amber-600 mt-0.5">Lakukan OAuth authorization di Shopee Open Platform</p>
-                    </div>
+              {/* Tabs */}
+              <div className="flex px-5 pt-3 gap-1 shrink-0">
+                <button
+                  onClick={() => { setShopeeTab("upload"); setShopeeResults([]); }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-t-lg transition-all relative ${shopeeTab === "upload" ? "bg-white text-orange-500 border-b-2 border-orange-500" : "bg-gray-50 text-gray-400 hover:text-gray-600"}`}
+                >
+                  Upload Baru
+                  {unsyncedProducts.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold rounded-full bg-orange-500 text-white">{unsyncedProducts.length}</span>
                   )}
+                </button>
+                <button
+                  onClick={() => { setShopeeTab("synced"); setShopeeResults([]); }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-t-lg transition-all relative ${shopeeTab === "synced" ? "bg-white text-green-600 border-b-2 border-green-500" : "bg-gray-50 text-gray-400 hover:text-gray-600"}`}
+                >
+                  Sudah Sync
+                  {syncedProducts.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold rounded-full bg-green-500 text-white">{syncedProducts.length}</span>
+                  )}
+                </button>
+              </div>
 
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-gray-700 mb-1">{shopeeStatus.synced_count} produk synced</p>
-                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                      {(shopeeStatus.products || []).slice(0, 10).map((p: any) => (
-                        <div key={p.id} className="flex items-center justify-between text-[10px] text-gray-500">
-                          <span className="truncate">{p.name}</span>
-                          <span className="text-green-600 shrink-0 ml-2">#{p.shopee_item_id}</span>
+              {/* Content */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3">
+                {!shopeeStatus?.configured ? (
+                  <div className="text-center py-8 text-sm text-gray-400">
+                    <Store className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                    <p className="font-semibold text-gray-500">Shopee belum dikonfigurasi</p>
+                    <p className="text-xs mt-1">Tambahkan SHOPEE_PARTNER_ID dan SHOPEE_SECRET_KEY di .env</p>
+                  </div>
+                ) : shopeeLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-6 h-6 text-orange-400 mx-auto mb-2 animate-spin" />
+                    <p className="text-xs text-gray-400">
+                      {shopeeAction === "upload" ? "Upload..." : shopeeAction === "sync_stock" ? "Sync stok..." : shopeeAction === "sync_price" ? "Sync harga..." : "Memuat..."}
+                    </p>
+                    {shopeeResults.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all" style={{ width: `${(shopeeResults.filter(r => r.ok !== undefined).length / Math.max(shopeeResults.length, 1)) * 100}%` }} />
+                        </div>
+                        <p className="text-[10px] text-gray-400">{shopeeResults.filter(r => r.ok).length} berhasil &bull; {shopeeResults.filter(r => !r.ok && r.ok !== undefined).length} gagal</p>
+                      </div>
+                    )}
+                  </div>
+                ) : shopeeResults.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-gray-400 font-semibold mb-2">Hasil {shopeeAction}:</p>
+                    {shopeeResults.map((r, i) => (
+                      <div key={i} className={`flex items-center gap-2 p-2.5 rounded-lg text-xs ${r.ok ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+                        {r.ok ? (
+                          <span className="text-green-500 shrink-0">&#10003;</span>
+                        ) : (
+                          <span className="text-red-500 shrink-0">&#10007;</span>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{r.id?.slice(0, 8) || `#${i + 1}`}</p>
+                          {r.ok && r.shopee_item_id && <p className="text-green-600 text-[10px]">#{r.shopee_item_id}</p>}
+                          {r.warning && <p className="text-amber-600 text-[10px]">⚠ {r.warning}</p>}
+                          {r.error && <p className="text-red-600 text-[10px]">{r.error}</p>}
+                        </div>
+                        {!r.ok && r.ok !== undefined && (
+                          <button onClick={() => shopeeUploadProducts([r.id])} className="text-[10px] text-orange-500 border border-orange-200 px-2 py-0.5 rounded shrink-0 hover:bg-orange-50">Retry</button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={() => { setShopeeResults([]); setShopeeTab("upload"); }} className="w-full mt-2 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl text-xs transition-all">
+                      Kembali
+                    </button>
+                  </div>
+                ) : shopeeTab === "upload" ? (
+                  <div className="space-y-2">
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
+                      <input
+                        type="text"
+                        value={shopeeSearch}
+                        onChange={e => setShopeeSearch(e.target.value)}
+                        placeholder="Cari nama produk..."
+                        className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all"
+                      />
+                      {shopeeSearch && (
+                        <button onClick={() => setShopeeSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-gray-400 text-[10px]">&times;</button>
+                      )}
+                    </div>
+
+                    {/* List header */}
+                    <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                      <span className="text-[11px] text-gray-500">
+                        Menampilkan <strong className="text-gray-700">{filteredUnsynced.length}</strong> produk
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {shopeeSelected.size > 0 && (
+                          <span className="text-[10px] text-orange-500 font-semibold">{shopeeSelected.size} dipilih</span>
+                        )}
+                        <button onClick={() => { if (isAllSelected) setShopeeSelected(new Set()); else setShopeeSelected(new Set(allUnsyncedIds)); }} className="text-[11px] text-orange-500 font-semibold hover:text-orange-600">
+                          {isAllSelected ? "Batal Pilih" : "Pilih Semua"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Product list */}
+                    <div className="space-y-0.5 max-h-[300px] overflow-y-auto">
+                      {filteredUnsynced.length === 0 ? (
+                        <p className="text-center text-xs text-gray-400 py-6">
+                          {shopeeSearch ? "Tidak ditemukan" : "Semua produk sudah di-sync!"}
+                        </p>
+                      ) : filteredUnsynced.map(p => {
+                        const cost = (p as any).cost_price || 0;
+                        const shopeePrice = cost ? Math.ceil(cost * 1.28 / 500) * 500 : 0;
+                        const variantCount = (p as any).variant_count || 0;
+                        const stockType = (p as any).stock_type || "ready";
+                        return (
+                          <label key={p.id} className={`flex items-center gap-2.5 p-2.5 rounded-lg cursor-pointer transition-all border ${shopeeSelected.has(p.id) ? "bg-orange-50 border-orange-300" : "border-transparent hover:bg-gray-50"}`}>
+                            <input
+                              type="checkbox"
+                              checked={shopeeSelected.has(p.id)}
+                              onChange={() => {
+                                setShopeeSelected(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                                  return next;
+                                });
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400 shrink-0"
+                            />
+                            <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center text-sm shrink-0 overflow-hidden">
+                              {(p as any).image ? <img src={(p as any).image} alt="" className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-gray-300" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-800 truncate">{p.name}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {variantCount > 0 && <span className="text-[10px] text-indigo-500 font-medium">{variantCount} varian</span>}
+                                {stockType === "po" ? (
+                                  <span className="text-[10px] text-orange-500 font-semibold">PO</span>
+                                ) : (
+                                  <span className="text-[10px] text-green-500">Stok: {(p as any).stock ?? "-"}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {cost > 0 ? (
+                                <>
+                                  <p className="text-[10px] text-gray-400">Rp{cost.toLocaleString("id-ID")}</p>
+                                  <p className="text-[11px] text-orange-600 font-semibold">Rp{shopeePrice.toLocaleString("id-ID")}</p>
+                                  <p className="text-[9px] text-green-500 font-medium">+28%</p>
+                                </>
+                              ) : (
+                                <p className="text-[10px] text-gray-300">-</p>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  /* Synced Tab */
+                  <div className="space-y-3">
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                        <p className="text-lg font-bold text-green-700">{syncedProducts.length}</p>
+                        <p className="text-[10px] text-green-600">Synced</p>
+                      </div>
+                      <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                        <p className="text-lg font-bold text-orange-600">{unsyncedProducts.length}</p>
+                        <p className="text-[10px] text-orange-500">Belum Sync</p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                        <p className="text-lg font-bold text-gray-700">{products.length}</p>
+                        <p className="text-[10px] text-gray-500">Total</p>
+                      </div>
+                    </div>
+
+                    {/* Synced list */}
+                    <div className="space-y-0.5 max-h-[300px] overflow-y-auto">
+                      {syncedProducts.length === 0 ? (
+                        <p className="text-center text-xs text-gray-400 py-6">Belum ada produk yang di-sync</p>
+                      ) : syncedProducts.map(p => (
+                        <div key={p.id} className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-gray-50 transition-all">
+                          <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center text-sm shrink-0 overflow-hidden">
+                            {(p as any).image ? <img src={(p as any).image} alt="" className="w-full h-full object-cover" /> : <CheckCircle className="w-4 h-4 text-green-400" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-800 truncate">{p.name}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              {(p as any).cost_price ? `Rp${(p as any).cost_price.toLocaleString("id-ID")}` : ""}
+                            </p>
+                          </div>
+                          <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded font-semibold shrink-0">
+                            #{(p as any).shopee_item_id}
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
+                )}
+              </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] text-gray-400 font-semibold">Upload produk baru ke Shopee:</p>
-                      <button
-                        onClick={() => {
-                          const newIds = products.filter(p => !(p as any).shopee_item_id).map(p => p.id);
-                          if (shopeeSelected.size === newIds.length) {
-                            setShopeeSelected(new Set());
-                          } else {
-                            setShopeeSelected(new Set(newIds));
-                          }
-                        }}
-                        className="text-[10px] text-orange-500 font-semibold"
-                      >
-                        {shopeeSelected.size === products.filter(p => !(p as any).shopee_item_id).length && shopeeSelected.size > 0 ? "Batal Pilih" : "Pilih Semua"}
-                      </button>
-                    </div>
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {products.filter(p => !(p as any).shopee_item_id).map(p => (
-                        <label key={p.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-orange-50 rounded px-1 py-0.5 transition-all">
-                          <input
-                            type="checkbox"
-                            checked={shopeeSelected.has(p.id)}
-                            onChange={() => {
-                              setShopeeSelected(prev => {
-                                const next = new Set(prev);
-                                if (next.has(p.id)) next.delete(p.id);
-                                else next.add(p.id);
-                                return next;
-                              });
-                            }}
-                            className="w-3.5 h-3.5 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                          />
-                          <span className="truncate flex-1">{p.name}</span>
-                          <span className="text-gray-400 shrink-0">{(p as any).cost_price ? `→ Rp${Math.ceil((p as any).cost_price * 1.28 / 500) * 500}` : ""}</span>
-                        </label>
-                      ))}
-                    </div>
+              {/* Actions */}
+              {!shopeeLoading && shopeeResults.length === 0 && shopeeStatus?.configured && (
+                <div className="px-5 pb-4 pt-3 border-t border-gray-100 shrink-0 flex gap-2">
+                  {shopeeTab === "upload" ? (
                     <button
                       onClick={() => {
-                        const ids = shopeeSelected.size > 0
-                          ? [...shopeeSelected]
-                          : products.filter(p => !(p as any).shopee_item_id).map(p => p.id);
+                        const ids = shopeeSelected.size > 0 ? [...shopeeSelected] : allUnsyncedIds;
                         if (ids.length > 0) shopeeUploadProducts(ids.slice(0, 10));
                       }}
-                      disabled={products.filter(p => !(p as any).shopee_item_id).length === 0}
-                      className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
+                      disabled={allUnsyncedIds.length === 0}
+                      className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl text-xs transition-all"
                     >
-                      {shopeeSelected.size > 0
-                        ? `Upload ${shopeeSelected.size} Produk`
-                        : `Upload Semua (${products.filter(p => !(p as any).shopee_item_id).length})`}
+                      {shopeeSelected.size > 0 ? `Upload ${shopeeSelected.size} Produk` : `Upload Semua (${allUnsyncedIds.length})`}
                     </button>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        const ids = products.filter(p => (p as any).shopee_item_id).map(p => p.id);
-                        if (ids.length > 0) shopeeSyncStock(ids);
-                      }}
-                      disabled={products.filter(p => (p as any).shopee_item_id).length === 0}
-                      className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
-                    >
-                      Sync Stok
-                    </button>
-                    <button
-                      onClick={() => {
-                        const ids = products.filter(p => (p as any).shopee_item_id).map(p => p.id);
-                        if (ids.length > 0) shopeeSyncPrice(ids);
-                      }}
-                      disabled={products.filter(p => (p as any).shopee_item_id).length === 0}
-                      className="flex-1 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
-                    >
-                      Sync Harga
-                    </button>
-                    <button
-                      onClick={() => {
-                        const ids = products.filter(p => (p as any).shopee_item_id).map(p => p.id);
-                        if (ids.length > 0) shopeeSyncAll(ids);
-                      }}
-                      disabled={products.filter(p => (p as any).shopee_item_id).length === 0}
-                      className="flex-1 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-all"
-                    >
-                      Sync All
-                    </button>
-                  </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { if (syncedProducts.length > 0) shopeeSyncStock(syncedProducts.map(p => p.id)); }}
+                        disabled={syncedProducts.length === 0}
+                        className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl text-xs transition-all"
+                      >
+                        Sync Stok
+                      </button>
+                      <button
+                        onClick={() => { if (syncedProducts.length > 0) shopeeSyncPrice(syncedProducts.map(p => p.id)); }}
+                        disabled={syncedProducts.length === 0}
+                        className="flex-1 py-2.5 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl text-xs transition-all"
+                      >
+                        Sync Harga
+                      </button>
+                      <button
+                        onClick={() => { if (syncedProducts.length > 0) shopeeSyncAll(syncedProducts.map(p => p.id)); }}
+                        disabled={syncedProducts.length === 0}
+                        className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl text-xs transition-all"
+                      >
+                        Sync All
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {diskonOpen && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
