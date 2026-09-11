@@ -250,15 +250,14 @@ export default async function handler(req, res) {
         let logisticInfo = null;
         try {
           const channelsResp = await getChannelList();
-          if ((channelsResp.error === 0 || channelsResp.error === "") && channelsResp.response?.channel_list) {
-            logisticInfo = channelsResp.response.channel_list
-              .filter((ch) => ch.enabled)
-              .map((ch) => ({
-                logistic_id: ch.logistic_id,
-                enabled: true,
-                is_free: true,
-                shipping_fee: 0,
-              }));
+          const chList = channelsResp.response?.logistics_channel_list || channelsResp.response?.channel_list || [];
+          if (chList.length > 0) {
+            logisticInfo = chList.map((ch) => ({
+              logistic_id: ch.logistics_channel_id || ch.logistic_id,
+              enabled: true,
+              is_free: true,
+              shipping_fee: 0,
+            }));
           }
         } catch (e) { /* ignore, proceed without */ }
         for (const pid of product_ids) {
