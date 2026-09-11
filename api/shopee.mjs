@@ -143,7 +143,7 @@ export async function getChannelList() {
   const token = await ensureToken();
   const path = "/logistics/get_channel_list";
   const qs = buildQueryString(path, token);
-  const url = `https://partner.shopeemobile.com${path}${qs}`;
+  const url = `${BASE_URL}${path}${qs}`;
   const resp = await fetch(url);
   return resp.json();
 }
