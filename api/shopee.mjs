@@ -270,7 +270,9 @@ export default async function handler(req, res) {
               shipping_fee: 0,
             }));
           }
-        } catch (e) { channelDebug = { err: e.message }; }
+        } catch (e) {
+          channelDebug = { err: e.message };
+        }
         for (const pid of product_ids) {
           const { data: product } = await sb
             .from("products")
@@ -500,9 +502,9 @@ export default async function handler(req, res) {
           }).eq("id", product.id);
           results.push({ id: product.id, stock: stockOk, price: priceOk, ok: true });
         }
-        return json(res, 200, { results, channelDebug, logisticCount: logisticInfo?.length || 0 });
+        return json(res, 200, { results });
       }
-
+    }
 
     if (req.method === "GET") {
       const code = url.searchParams.get("code");
