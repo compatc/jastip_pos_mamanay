@@ -2239,7 +2239,10 @@ export default function Inventory() {
       {shareProductId && (() => {
         const product = products.find((p) => p.id === shareProductId);
         if (!product) return null;
-        const variants = productVariants.filter((v) => v.product_id === shareProductId);
+        const productVs = (variantStock || {})[shareProductId] || {};
+        const variants = productVariants
+          .filter((v) => v.product_id === shareProductId)
+          .map((v) => ({ ...v, stock: productVs[v.name] ?? v.stock }));
         const selectedVariant = shareVariantId ? variants.find((v) => v.id === shareVariantId) : null;
         const displayStock = selectedVariant ? selectedVariant.stock : product.stock;
         const displayName = selectedVariant ? `${product.name} ${selectedVariant.name}` : product.name;
