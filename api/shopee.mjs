@@ -20,7 +20,7 @@ function generateSign(path, accessToken) {
   const timestamp = Math.floor(Date.now() / 1000);
   const apiPath = path.startsWith("/api/v2") ? path : `/api/v2${path}`;
   const str = `${SHOPEE_PARTNER_ID}${apiPath}${timestamp}`;
-  const baseString = str + (accessToken ? `&access_token=${accessToken}` : "");
+  const baseString = str + (accessToken ? accessToken : "");
   const sign = createHmac("sha256", SHOPEE_SECRET_KEY)
     .update(baseString)
     .digest("hex");
