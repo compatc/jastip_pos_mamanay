@@ -171,9 +171,9 @@ export async function getCategoryRecommend(itemName) {
 
 export async function getAttributeTree(categoryId) {
   const token = await ensureToken();
-  const path = `/product/get_attribute_tree?category_id=${categoryId}`;
+  const path = "/product/get_attribute_tree";
   const qs = buildQueryString(path, token);
-  const url = `${BASE_URL}${path}${qs}`;
+  const url = `${BASE_URL}${path}${qs}&category_id_list=${categoryId}`;
   const resp = await fetch(url);
   return resp.json();
 }
@@ -329,8 +329,8 @@ export default async function handler(req, res) {
           if (categoryId) {
             try {
               const attrResp = await getAttributeTree(categoryId);
-              const attrs = attrResp.response?.attribute_list || [];
-              const mandatory = attrs.filter((a) => a.is_mandatory);
+              const catTree = attrResp.response?.list?.[0]?.attribute_tree || [];
+              const mandatory = catTree.filter((a) => a.mandatory);
               attributeList = mandatory.map((a) => {
                 const vals = a.attribute_value_list || [];
                 const defaultVal = vals.length > 0 ? vals[0] : null;
