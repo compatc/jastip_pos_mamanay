@@ -139,6 +139,15 @@ export async function addItem(itemData) {
   return shopeeApiPost("/product/add_item", itemData, token);
 }
 
+export async function getChannelList() {
+  const token = await ensureToken();
+  const path = "/logistics/get_channel_list";
+  const qs = buildQueryString(path, token);
+  const url = `https://partner.shopeemobile.com${path}${qs}`;
+  const resp = await fetch(url);
+  return resp.json();
+}
+
 export async function initTierVariation(itemId, tierVariation) {
   const token = await ensureToken();
   return shopeeApiPost(
@@ -238,6 +247,20 @@ export default async function handler(req, res) {
         const { product_ids } = body;
         const sb = await getAdmin();
         const results = [];
+        let logisticInfo = null;
+        try {
+          const channelsResp = await getChannelList();
+          if ((channelsResp.error === 0 || channelsResp.error === "") && channelsResp.response?.channel_list) {
+            logisticInfo = channelsResp.response.channel_list
+              .filter((ch) => ch.enabled)
+              .map((ch) => ({
+                logistic_id: ch.logistic_id,
+                enabled: true,
+                is_free: true,
+                shipping_fee: 0,
+              }));
+          }
+        } catch (e) { /* ignore, proceed without */ }
         for (const pid of product_ids) {
           const { data: product } = await sb
             .from("products")
@@ -273,7 +296,14 @@ export default async function handler(req, res) {
             item_sku: product.id,
             is_mortal: false,
             brand: { brand_id: 0, original_brand_name: "No Brand" },
+            package_length: product.package_length || 30,
+            package_width: product.package_width || 20,
+            package_height: product.package_height || 10,
+            days_to_ship: 2,
           };
+          if (logisticInfo && logisticInfo.length > 0) {
+            addItemBody.logistic_info = logisticInfo;
+          }
           if (shopeeImageId) {
             addItemBody.image = { image_id_list: [shopeeImageId] };
           }
