@@ -108,8 +108,12 @@ export async function ensureToken() {
 
 export async function uploadImage(imageUrl, scene = "normal") {
   const token = await ensureToken();
+  console.log("[Shopee] uploadImage fetching:", imageUrl);
   const imgResp = await fetch(imageUrl);
+  console.log("[Shopee] image fetch status:", imgResp.status);
+  if (!imgResp.ok) throw new Error(`Image fetch failed: ${imgResp.status}`);
   const buffer = await imgResp.arrayBuffer();
+  console.log("[Shopee] image size:", buffer.byteLength, "bytes");
   const ext = imageUrl.split(".").pop().toLowerCase().replace(/\?.*$/, "");
   const mime = ext === "png" ? "image/png" : "image/jpeg";
   const filename = `${randomUUID()}.${ext}`;
@@ -122,6 +126,7 @@ export async function uploadImage(imageUrl, scene = "normal") {
     body: formData,
   });
   const data = await resp.json();
+  console.log("[Shopee] image upload response:", JSON.stringify(data).slice(0, 200));
   if (data.error === 0 && data.response) {
     return data.response.image_info;
   }
