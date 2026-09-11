@@ -156,6 +156,28 @@ export async function updateChannel(channelId, enabled) {
   }, token);
 }
 
+export async function getCategoryRecommend(itemName) {
+  const token = await ensureToken();
+  const path = "/product/category_recommend";
+  const qs = buildQueryString(path, token);
+  const url = `${BASE_URL}${path}${qs}`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item_name: itemName }),
+  });
+  return resp.json();
+}
+
+export async function getAttributeTree(categoryId) {
+  const token = await ensureToken();
+  const path = `/product/get_attribute_tree?category_id=${categoryId}`;
+  const qs = buildQueryString(path, token);
+  const url = `${BASE_URL}${path}${qs}`;
+  const resp = await fetch(url);
+  return resp.json();
+}
+
 export async function initTierVariation(itemId, tierVariation) {
   const token = await ensureToken();
   return shopeeApiPost(
@@ -295,8 +317,34 @@ export default async function handler(req, res) {
               continue;
             }
           }
+          let categoryId = Number(product.shopee_category_id || 0);
+          if (!categoryId) {
+            try {
+              const catResp = await getCategoryRecommend(product.name);
+              const cats = catResp.response?.category_list || [];
+              if (cats.length > 0) categoryId = cats[0].category_id;
+            } catch (e) { /* ignore */ }
+          }
+          let attributeList = [];
+          if (categoryId) {
+            try {
+              const attrResp = await getAttributeTree(categoryId);
+              const attrs = attrResp.response?.attribute_list || [];
+              const mandatory = attrs.filter((a) => a.is_mandatory);
+              attributeList = mandatory.map((a) => {
+                const vals = a.attribute_value_list || [];
+                const defaultVal = vals.length > 0 ? vals[0] : null;
+                return {
+                  attribute_id: a.attribute_id,
+                  attribute_value_list: defaultVal
+                    ? [{ value_id: defaultVal.value_id || 0, original_value_name: defaultVal.name || "Lainnya" }]
+                    : [{ value_id: 0, original_value_name: "Lainnya" }],
+                };
+              });
+            } catch (e) { /* ignore */ }
+          }
           const addItemBody = {
-            category_id: Number(product.shopee_category_id || 0),
+            category_id: categoryId,
             item_name: product.name,
             description: product.description || product.name,
             price: shopeePrice,
@@ -312,6 +360,7 @@ export default async function handler(req, res) {
             package_width: product.package_width || 20,
             package_height: product.package_height || 10,
             days_to_ship: 2,
+            attribute_list: attributeList,
           };
           if (logisticInfo && logisticInfo.length > 0) {
             addItemBody.logistic_info = logisticInfo;
@@ -365,6 +414,7 @@ export default async function handler(req, res) {
             await sb.from("products").update({
               shopee_item_id: String(itemId),
               shopee_synced_at: new Date().toISOString(),
+              ...(categoryId && !product.shopee_category_id ? { shopee_category_id: categoryId } : {}),
             }).eq("id", pid);
             for (const v of variants) {
               if (v.id) {
