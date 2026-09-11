@@ -278,12 +278,10 @@ export default async function handler(req, res) {
         const sb = await getAdmin();
         const results = [];
         let logisticInfo = null;
-        let channelDebug = null;
         try {
           const channelsResp = await getChannelList();
           const chList = channelsResp.response?.logistics_channel_list || channelsResp.response?.channel_list || [];
           const enabledChannels = chList.filter((ch) => ch.enabled);
-          channelDebug = { total: chList.length, enabled: enabledChannels.length, error: channelsResp.error, msg: channelsResp.message };
           if (enabledChannels.length > 0) {
             logisticInfo = enabledChannels.map((ch) => ({
               logistic_id: ch.logistics_channel_id || ch.logistic_id,
@@ -292,9 +290,7 @@ export default async function handler(req, res) {
               shipping_fee: 0,
             }));
           }
-        } catch (e) {
-          channelDebug = { err: e.message };
-        }
+        } catch (e) { /* ignore */ }
         for (const pid of product_ids) {
           const { data: product } = await sb
             .from("products")
@@ -428,7 +424,7 @@ export default async function handler(req, res) {
             results.push({ id: pid, error: e.message });
           }
         }
-        return json(res, 200, { results, channelDebug, logisticCount: logisticInfo?.length || 0 });
+        return json(res, 200, { results });
       }
 
       if (action === "sync_stock") {
