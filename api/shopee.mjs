@@ -148,6 +148,14 @@ export async function getChannelList() {
   return resp.json();
 }
 
+export async function updateChannel(channelId, enabled) {
+  const token = await ensureToken();
+  return shopeeApiPost("/logistics/update_channel", {
+    logistics_channel_id: channelId,
+    enabled,
+  }, token);
+}
+
 export async function initTierVariation(itemId, tierVariation) {
   const token = await ensureToken();
   return shopeeApiPost(
@@ -258,6 +266,17 @@ export default async function handler(req, res) {
               is_free: true,
               shipping_fee: 0,
             }));
+            const enabledChannels = chList.filter((ch) => ch.enabled);
+            if (enabledChannels.length === 0 && chList.length > 0) {
+              const firstCh = chList[0];
+              const chId = firstCh.logistics_channel_id || firstCh.logistic_id;
+              try {
+                await updateChannel(chId, true);
+                logisticInfo = logisticInfo.map((l) =>
+                  l.logistic_id === chId ? { ...l, enabled: true } : l
+                );
+              } catch (e) { /* channel enable failed, continue */ }
+            }
           }
         } catch (e) { /* ignore, proceed without */ }
         for (const pid of product_ids) {
