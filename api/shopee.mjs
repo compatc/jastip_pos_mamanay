@@ -200,7 +200,7 @@ export default async function handler(req, res) {
 
   try {
     const url = new URL(req.url, "http://localhost");
-    const action = url.searchParams.get("action");
+    let action = url.searchParams.get("action");
 
     if (req.method === "POST") {
       const body = await new Promise((resolve) => {
@@ -208,6 +208,8 @@ export default async function handler(req, res) {
         req.on("data", (chunk) => (data += chunk));
         req.on("end", () => resolve(JSON.parse(data)));
       });
+
+      if (!action && body.action) action = body.action;
 
       if (action === "save_token") {
         const sb = await getAdmin();
