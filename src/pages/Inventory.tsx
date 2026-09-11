@@ -3487,6 +3487,7 @@ export default function Inventory() {
                 <p className="text-[10px] text-gray-400 font-semibold mb-1">Preview:</p>
                 {diskonProducts.filter(p => p.diskonPrice && Number(p.diskonPrice) > 0).map(p => (
                   <div key={p.id} className="bg-[#dcf8c6] rounded-lg p-2 text-[11px] text-gray-800 mb-1">
+                    {p.image && <img src={p.image} className="w-full h-32 object-cover rounded-lg mb-2" loading="lazy" />}
                     🔥 <strong>DISKON</strong> 🔥<br/><br/>
                     🏷️ <strong>{p.name}</strong><br/>
                     <s>Rp {p.originalPrice.toLocaleString("id-ID")}</s> → <strong>Rp {Number(p.diskonPrice).toLocaleString("id-ID")}</strong>
