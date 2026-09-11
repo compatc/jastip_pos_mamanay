@@ -422,7 +422,6 @@ export default function OrderDetail() {
                     .from("orders")
                     .update({ fulfillment_status: opt.value, status: newStatus, updated_at: new Date().toISOString() })
                     .eq("id", order.id);
-                  setOrder((prev) => prev ? { ...prev, fulfillment_status: opt.value, status: newStatus } : prev);
                   useStore.setState((state) => ({
                     allOrders: state.allOrders.map((o) =>
                       o.id === order.id ? { ...o, fulfillment_status: opt.value, status: newStatus } : o
