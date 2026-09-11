@@ -456,6 +456,39 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "GET") {
+      const code = url.searchParams.get("code");
+      const shopId = url.searchParams.get("shop_id");
+      if (code && shopId) {
+        const path = "/auth/access_token/get";
+        const ts = Math.floor(Date.now() / 1000);
+        const sig = createHmac("sha256", SHOPEE_SECRET_KEY)
+          .update(`${SHOPEE_PARTNER_ID}${path}${ts}`)
+          .digest("hex");
+        const qs = `?partner_id=${SHOPEE_PARTNER_ID}&timestamp=${ts}&sign=${sig}`;
+        const resp = await fetch(`${BASE_URL}${path}${qs}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            partner_id: Number(SHOPEE_PARTNER_ID),
+            shop_id: Number(shopId),
+            code,
+          }),
+        });
+        const data = await resp.json();
+        if (data.error === 0 && data.response) {
+          const sb = await getAdmin();
+          const { error } = await sb.from("shopee_tokens").insert({
+            access_token: data.response.access_token,
+            refresh_token: data.response.refresh_token,
+            expires_at: new Date(Date.now() + (data.response.expire_in || 31536000) * 1000).toISOString(),
+            shop_id: shopId,
+          });
+          if (error) throw error;
+          return json(res, 200, { ok: true, shop_id: shopId, message: "Token saved" });
+        }
+        return json(res, 400, { error: data.message || "Exchange failed", raw: data });
+      }
+
       if (action === "status") {
         const sb = await getAdmin();
         const { data: products } = await sb
