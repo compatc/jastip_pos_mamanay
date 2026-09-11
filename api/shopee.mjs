@@ -473,6 +473,8 @@ export default async function handler(req, res) {
           code,
         });
         console.log("[Shopee callback] PARTNER_ID:", SHOPEE_PARTNER_ID?.length, "SECRET_KEY:", SHOPEE_SECRET_KEY?.length, "ts:", ts);
+        console.log("[Shopee callback] SECRET_HEX:", Buffer.from(SHOPEE_SECRET_KEY || '').toString('hex').slice(0, 40));
+        console.log("[Shopee callback] SIGN_BASE:", `${SHOPEE_PARTNER_ID}${apiPath}${ts}`);
         const resp = await fetch(`${BASE_URL}${path}${qs}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
