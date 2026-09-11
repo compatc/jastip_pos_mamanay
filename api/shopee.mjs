@@ -19,8 +19,9 @@ function json(res, status, body) {
 function generateSign(path, accessToken) {
   const timestamp = Math.floor(Date.now() / 1000);
   const apiPath = path.startsWith("/api/v2") ? path : `/api/v2${path}`;
-  const str = `${SHOPEE_PARTNER_ID}${apiPath}${timestamp}`;
-  const baseString = str + (accessToken ? accessToken : "");
+  let baseString = `${SHOPEE_PARTNER_ID}${apiPath}${timestamp}`;
+  if (accessToken) baseString += accessToken;
+  if (accessToken && SHOPEE_SHOP_ID) baseString += SHOPEE_SHOP_ID;
   const sign = createHmac("sha256", SHOPEE_SECRET_KEY)
     .update(baseString)
     .digest("hex");
