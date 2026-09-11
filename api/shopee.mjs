@@ -273,7 +273,7 @@ export default async function handler(req, res) {
             brand: { brand_id: 0, original_brand_name: "No Brand" },
           };
           if (shopeeImageId) {
-            addItemBody.image_info = { image_id_list: [shopeeImageId] };
+            addItemBody.image = { image_id_list: [shopeeImageId] };
           }
           try {
             const addResp = await addItem(addItemBody);
