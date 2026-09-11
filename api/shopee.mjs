@@ -266,7 +266,7 @@ export default async function handler(req, res) {
             description: product.description || product.name,
             price: shopeePrice,
             stock: Number(product.stock || 0),
-            seller_stock: [{ location_id: 0, stock: Number(product.stock || 0) }],
+            seller_stock: [{ location_id: "", stock: Number(product.stock || 0) }],
             weight: Number(shopeeWeight) / 1000,
             condition: "NEW",
             item_sku: product.id,
