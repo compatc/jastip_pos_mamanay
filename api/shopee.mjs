@@ -59,7 +59,7 @@ export async function refreshAccessToken(refreshToken) {
     shop_id: Number(SHOPEE_SHOP_ID),
     refresh_token: refreshToken,
   });
-  if (resp.error === 0 && resp.response) {
+  if ((resp.error === 0 || resp.error === "") && resp.response) {
     return {
       access_token: resp.response.access_token,
       refresh_token: resp.response.refresh_token,
@@ -127,7 +127,7 @@ export async function uploadImage(imageUrl, scene = "normal") {
   });
   const data = await resp.json();
   console.log("[Shopee] image upload response:", JSON.stringify(data).slice(0, 200));
-  if (data.error === 0 && data.response) {
+  if ((data.error === 0 || data.error === "") && data.response) {
     return data.response.image_info;
   }
   throw new Error(data.message || "Failed to upload image");
@@ -276,7 +276,7 @@ export default async function handler(req, res) {
           }
           try {
             const addResp = await addItem(addItemBody);
-            if (addResp.error !== 0) {
+            if (addResp.error !== 0 && addResp.error !== "") {
               results.push({ id: pid, error: addResp.message });
               continue;
             }
@@ -290,7 +290,7 @@ export default async function handler(req, res) {
                 },
               ];
               const initResp = await initTierVariation(itemId, tierVariation);
-              if (initResp.error !== 0) {
+              if (initResp.error !== 0 && initResp.error !== "") {
                 results.push({
                   id: pid,
                   shopee_item_id: itemId,
@@ -357,7 +357,7 @@ export default async function handler(req, res) {
             if (stockList.length > 0) {
               try {
                 const resp = await updateStock(itemId, stockList);
-                results.push({ id: product.id, ok: resp.error === 0, message: resp.message });
+                results.push({ id: product.id, ok: resp.error === 0 || resp.error === "", message: resp.message });
               } catch (e) {
                 results.push({ id: product.id, error: e.message });
               }
@@ -369,7 +369,7 @@ export default async function handler(req, res) {
                 stock: product.stock || 0,
                 seller_sku: product.id,
               }]);
-              results.push({ id: product.id, ok: resp.error === 0, message: resp.message });
+              results.push({ id: product.id, ok: resp.error === 0 || resp.error === "", message: resp.message });
             } catch (e) {
               results.push({ id: product.id, error: e.message });
             }
@@ -399,7 +399,7 @@ export default async function handler(req, res) {
             if (priceList.length > 0) {
               try {
                 const resp = await updatePrice(itemId, priceList);
-                results.push({ id: product.id, ok: resp.error === 0, message: resp.message });
+                results.push({ id: product.id, ok: resp.error === 0 || resp.error === "", message: resp.message });
               } catch (e) {
                 results.push({ id: product.id, error: e.message });
               }
@@ -410,7 +410,7 @@ export default async function handler(req, res) {
                 model_id: 0,
                 price: shopeePrice,
               }]);
-              results.push({ id: product.id, ok: resp.error === 0, message: resp.message });
+              results.push({ id: product.id, ok: resp.error === 0 || resp.error === "", message: resp.message });
             } catch (e) {
               results.push({ id: product.id, error: e.message });
             }
