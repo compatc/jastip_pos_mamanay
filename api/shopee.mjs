@@ -460,7 +460,7 @@ export default async function handler(req, res) {
       const code = url.searchParams.get("code");
       const shopId = url.searchParams.get("shop_id");
       if (code && shopId) {
-        const path = "/auth/access_token/get";
+        const path = "/auth/token/get";
         const ts = Math.floor(Date.now() / 1000);
         const apiPath = `/api/v2${path}`;
         const sig = createHmac("sha256", SHOPEE_SECRET_KEY)
