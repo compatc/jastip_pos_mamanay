@@ -256,29 +256,21 @@ export default async function handler(req, res) {
         const sb = await getAdmin();
         const results = [];
         let logisticInfo = null;
+        let channelDebug = null;
         try {
           const channelsResp = await getChannelList();
           const chList = channelsResp.response?.logistics_channel_list || channelsResp.response?.channel_list || [];
-          if (chList.length > 0) {
-            logisticInfo = chList.map((ch) => ({
+          const enabledChannels = chList.filter((ch) => ch.enabled);
+          channelDebug = { total: chList.length, enabled: enabledChannels.length, error: channelsResp.error, msg: channelsResp.message };
+          if (enabledChannels.length > 0) {
+            logisticInfo = enabledChannels.map((ch) => ({
               logistic_id: ch.logistics_channel_id || ch.logistic_id,
               enabled: true,
               is_free: true,
               shipping_fee: 0,
             }));
-            const enabledChannels = chList.filter((ch) => ch.enabled);
-            if (enabledChannels.length === 0 && chList.length > 0) {
-              const firstCh = chList[0];
-              const chId = firstCh.logistics_channel_id || firstCh.logistic_id;
-              try {
-                await updateChannel(chId, true);
-                logisticInfo = logisticInfo.map((l) =>
-                  l.logistic_id === chId ? { ...l, enabled: true } : l
-                );
-              } catch (e) { /* channel enable failed, continue */ }
-            }
           }
-        } catch (e) { /* ignore, proceed without */ }
+        } catch (e) { channelDebug = { err: e.message }; }
         for (const pid of product_ids) {
           const { data: product } = await sb
             .from("products")
@@ -384,7 +376,7 @@ export default async function handler(req, res) {
             results.push({ id: pid, error: e.message });
           }
         }
-        return json(res, 200, { results });
+        return json(res, 200, { results, channelDebug, logisticCount: logisticInfo?.length || 0 });
       }
 
       if (action === "sync_stock") {
@@ -508,9 +500,9 @@ export default async function handler(req, res) {
           }).eq("id", product.id);
           results.push({ id: product.id, stock: stockOk, price: priceOk, ok: true });
         }
-        return json(res, 200, { results });
+        return json(res, 200, { results, channelDebug, logisticCount: logisticInfo?.length || 0 });
       }
-    }
+
 
     if (req.method === "GET") {
       const code = url.searchParams.get("code");
