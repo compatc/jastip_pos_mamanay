@@ -18,7 +18,8 @@ function json(res, status, body) {
 
 function generateSign(path, accessToken) {
   const timestamp = Math.floor(Date.now() / 1000);
-  const str = `${SHOPEE_PARTNER_ID}${path}${timestamp}`;
+  const apiPath = path.startsWith("/api/v2") ? path : `/api/v2${path}`;
+  const str = `${SHOPEE_PARTNER_ID}${apiPath}${timestamp}`;
   const baseString = str + (accessToken ? `&access_token=${accessToken}` : "");
   const sign = createHmac("sha256", SHOPEE_SECRET_KEY)
     .update(baseString)
@@ -461,18 +462,21 @@ export default async function handler(req, res) {
       if (code && shopId) {
         const path = "/auth/access_token/get";
         const ts = Math.floor(Date.now() / 1000);
+        const apiPath = `/api/v2${path}`;
         const sig = createHmac("sha256", SHOPEE_SECRET_KEY)
-          .update(`${SHOPEE_PARTNER_ID}${path}${ts}`)
+          .update(`${SHOPEE_PARTNER_ID}${apiPath}${ts}`)
           .digest("hex");
         const qs = `?partner_id=${SHOPEE_PARTNER_ID}&timestamp=${ts}&sign=${sig}`;
+        const body = JSON.stringify({
+          partner_id: Number(SHOPEE_PARTNER_ID),
+          shop_id: Number(shopId),
+          code,
+        });
+        console.log("[Shopee callback] PARTNER_ID:", SHOPEE_PARTNER_ID?.length, "SECRET_KEY:", SHOPEE_SECRET_KEY?.length, "ts:", ts);
         const resp = await fetch(`${BASE_URL}${path}${qs}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            partner_id: Number(SHOPEE_PARTNER_ID),
-            shop_id: Number(shopId),
-            code,
-          }),
+          body,
         });
         const data = await resp.json();
         if (data.error === 0 && data.response) {
