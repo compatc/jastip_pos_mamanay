@@ -265,6 +265,7 @@ export default async function handler(req, res) {
             item_name: product.name,
             description: product.description || product.name,
             price: shopeePrice,
+            original_price: shopeePrice,
             stock: Number(product.stock || 0),
             seller_stock: [{ location_id: "", stock: Number(product.stock || 0) }],
             weight: Number(shopeeWeight) / 1000,
