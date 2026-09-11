@@ -481,12 +481,15 @@ export default async function handler(req, res) {
           body,
         });
         const data = await resp.json();
-        if (data.error === 0 && data.response) {
+        if ((data.error === 0 || data.error === "") && (data.response || data.access_token)) {
+          const rt = data.response?.refresh_token || data.refresh_token;
+          const at = data.response?.access_token || data.access_token;
+          const ei = data.response?.expire_in || data.expire_in || 31536000;
           const sb = await getAdmin();
           const { error } = await sb.from("shopee_tokens").insert({
-            access_token: data.response.access_token,
-            refresh_token: data.response.refresh_token,
-            expires_at: new Date(Date.now() + (data.response.expire_in || 31536000) * 1000).toISOString(),
+            access_token: at,
+            refresh_token: rt,
+            expires_at: new Date(Date.now() + ei * 1000).toISOString(),
             shop_id: shopId,
           });
           if (error) throw error;
