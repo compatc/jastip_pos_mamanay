@@ -261,12 +261,12 @@ export default async function handler(req, res) {
             }
           }
           const addItemBody = {
-            category_id: product.shopee_category_id || 0,
+            category_id: Number(product.shopee_category_id || 0),
             item_name: product.name,
             description: product.description || product.name,
             price: shopeePrice,
-            stock: product.stock || 0,
-            weight: shopeeWeight / 1000,
+            stock: Number(product.stock || 0),
+            weight: Number(shopeeWeight) / 1000,
             condition: "NEW",
             item_sku: product.id,
             is_mortal: false,
