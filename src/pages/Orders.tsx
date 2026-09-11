@@ -129,11 +129,25 @@ export default function Orders() {
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingStatus(orderId);
+    const fulfillmentMap: Record<string, string> = {
+      "new": "belum_ready",
+      "belum-ready": "belum_ready",
+      "ready": "ready",
+      "paid": "ready",
+      "shipped": "shipped",
+      "delivered": "diterima",
+      "completed": "completed",
+    };
+    const fulfillmentStatus = fulfillmentMap[newStatus] || newStatus;
     await supabase
       .from("orders")
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update({ status: newStatus, fulfillment_status: fulfillmentStatus, updated_at: new Date().toISOString() })
       .eq("id", orderId);
-    await loadAllOrders();
+    useStore.setState((state) => ({
+      allOrders: state.allOrders.map(o =>
+        o.id === orderId ? { ...o, status: newStatus, fulfillment_status: fulfillmentStatus } : o
+      ),
+    }));
     setUpdatingStatus(null);
   }
 
