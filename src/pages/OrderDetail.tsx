@@ -410,11 +410,24 @@ export default function OrderDetail() {
               <button
                 key={opt.value}
                 onClick={async () => {
+                  const statusMap: Record<string, string> = {
+                    "belum_ready": "belum-ready",
+                    "ready": "ready",
+                    "shipped": "shipped",
+                    "diterima": "delivered",
+                    "completed": "completed",
+                  };
+                  const newStatus = statusMap[opt.value] || opt.value;
                   await supabase
                     .from("orders")
-                    .update({ fulfillment_status: opt.value, updated_at: new Date().toISOString() })
+                    .update({ fulfillment_status: opt.value, status: newStatus, updated_at: new Date().toISOString() })
                     .eq("id", order.id);
-                  await loadAllOrders();
+                  setOrder((prev) => prev ? { ...prev, fulfillment_status: opt.value, status: newStatus } : prev);
+                  useStore.setState((state) => ({
+                    allOrders: state.allOrders.map((o) =>
+                      o.id === order.id ? { ...o, fulfillment_status: opt.value, status: newStatus } : o
+                    ),
+                  }));
                 }}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all ${
                   isActive
