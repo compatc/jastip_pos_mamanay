@@ -225,7 +225,7 @@ export default function OrderDetail() {
     setRefundLoading(false);
     if (result.error) { setRefundError(result.error); return; }
     setShowRefund(false);
-    await loadAllOrders();
+    // createRefund already calls refreshOrder() — no need for loadAllOrders()
   }
 
   function buildInvoiceMsg(): string {

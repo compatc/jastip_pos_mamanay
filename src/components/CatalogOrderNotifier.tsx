@@ -13,6 +13,7 @@ interface ToastItem {
 const NOTIFIED_KEY = "catalog_order_notified_v2";
 const NOTIFIED_WINDOW_MS = 30 * 60 * 1000;
 const POLL_MS = 5000;
+const WATERMARK_KEY = "catalog_order_watermark";
 
 function rupiah(n: number): string {
   return "Rp " + (n || 0).toLocaleString("id-ID");
@@ -120,17 +121,22 @@ export default function CatalogOrderNotifier() {
   }
 
   useEffect(() => {
-    // First poll: load ALL current "new" orders and mark them as seen (don't notify old ones)
+    // First poll: load ALL current "new" orders, mark seen, set watermark cursor
     async function initSeen() {
       try {
         const { data } = await supabase
           .from("orders")
-          .select("id")
-          .eq("status", "new");
+          .select("id, created_at")
+          .eq("status", "new")
+          .order("created_at", { ascending: false });
         if (data) {
           for (const row of data) {
             seenOrders.current.add(row.id);
             if (!alreadyNotified(row.id)) markNotified(row.id);
+          }
+          // Set watermark to the most recent order's created_at
+          if (data.length > 0 && data[0].created_at) {
+            localStorage.setItem(WATERMARK_KEY, data[0].created_at);
           }
         }
       } catch {}
@@ -138,15 +144,21 @@ export default function CatalogOrderNotifier() {
     }
     initSeen();
 
-    // Polling for new orders
+    // Polling for new orders — uses watermark to only fetch since last check
     const poll = window.setInterval(async () => {
       if (!initialized.current) return;
       try {
-        const { data, error } = await supabase
+        const watermark = localStorage.getItem(WATERMARK_KEY);
+        let query = supabase
           .from("orders")
           .select("id, total, customer_id, status, created_at")
           .eq("status", "new")
           .order("created_at", { ascending: true });
+        if (watermark) {
+          query = query.gt("created_at", watermark);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.error("[CatalogNotif] poll error:", error.message);
@@ -154,11 +166,19 @@ export default function CatalogOrderNotifier() {
         }
 
         if (data) {
+          let maxTs = watermark;
           for (const row of data) {
             if (!seenOrders.current.has(row.id) && !alreadyNotified(row.id)) {
               console.log("[CatalogNotif] new order detected:", row.id);
               await notifyOrder(row);
             }
+            seenOrders.current.add(row.id);
+            if (!maxTs || row.created_at > maxTs) {
+              maxTs = row.created_at;
+            }
+          }
+          if (maxTs) {
+            localStorage.setItem(WATERMARK_KEY, maxTs);
           }
         }
       } catch (e) {

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { useStore } from "../stores/useStore";
 import { CheckCircle2, BellRing, X } from "lucide-react";
 
 interface ToastItem {
@@ -91,10 +90,22 @@ export default function QrisNotifier() {
     const items = Array.from(pending.current.values());
     pending.current.clear();
     if (items.length === 0) return;
-    await useStore.getState().loadAllOrders();
-    const orderList = useStore.getState().allOrders;
-    const nameMap = new Map<string, string>(orderList.map((o) => [o.id, o.customer_name || ""]));
-    const named = items.map((it) => ({ ...it, customer_name: nameMap.get(it.id) || "" }));
+
+    // Fetch only the specific orders + their customers (2 requests vs 14)
+    const ids = items.map((i) => i.id);
+    const [{ data: orderRows }, { data: custRows }] = await Promise.all([
+      supabase.from("orders").select("id, customer_id").in("id", ids),
+      supabase.from("customers").select("id, name").in("id",
+        (await supabase.from("orders").select("customer_id").in("id", ids)).data?.map((o: any) => o.customer_id).filter(Boolean) || []
+      ),
+    ]);
+
+    const custMap = new Map<string, string>();
+    (custRows || []).forEach((c: any) => custMap.set(c.id, c.name));
+    const orderIdToCust = new Map<string, string>();
+    (orderRows || []).forEach((o: any) => orderIdToCust.set(o.id, custMap.get(o.customer_id) || ""));
+
+    const named = items.map((it) => ({ ...it, customer_name: orderIdToCust.get(it.id) || "" }));
     const total = named.reduce((s, i) => s + (i.total || 0), 0);
     const names = named.map((i) => i.customer_name).filter(Boolean);
     const title = "QRIS Lunas";
@@ -170,15 +181,13 @@ export default function QrisNotifier() {
   useEffect(() => {
     const reconcile = window.setInterval(async () => {
       try {
-        const res = await fetch("/api/pay", {
+        await fetch("/api/pay", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "reconcile" }),
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.processed > 0) await useStore.getState().loadAllOrders();
-        }
+        // Realtime events from confirmOrder already update the UI
+        // No need to call loadAllOrders() here
       } catch {}
     }, 30000);
 

@@ -55,6 +55,7 @@ interface PosStore {
   allOrders: Order[];
   allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null; price?: number }[]>;
   loadAllOrders: () => Promise<void>;
+  refreshOrder: (orderId: string) => Promise<void>;
   addStandaloneOrder: (params: {
     orderType: OrderType;
     paymentType: PaymentType;
@@ -494,6 +495,55 @@ export const useStore = create<PosStore>((set, get) => ({
     }
   },
 
+  refreshOrder: async (orderId: string) => {
+    try {
+      const { data: order, error: orderErr } = await supabase
+        .from("orders")
+        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, payment_type, created_at, updated_at, account_id, courier, resi, shopee_order_no")
+        .eq("id", orderId)
+        .single();
+      if (orderErr || !order) return;
+
+      let customerName = "";
+      if (order.customer_id) {
+        const { data: c } = await supabase.from("customers").select("name").eq("id", order.customer_id).single();
+        customerName = c?.name || "";
+      }
+
+      const { data: itemsData } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, quantity, product_id, variant, price")
+        .eq("order_id", orderId);
+
+      const orderWithCustomer = { ...order, customer_name: customerName } as Order & { customer_name: string };
+      const orderItemsMap = get().allOrderItems;
+      const newItemsMap = { ...orderItemsMap };
+      if (itemsData && itemsData.length > 0) {
+        newItemsMap[orderId] = itemsData.map((row: any) => ({
+          product_name: row.product_name,
+          quantity: row.quantity,
+          product_id: row.product_id,
+          variant: row.variant,
+          price: row.price,
+        }));
+      } else {
+        delete newItemsMap[orderId];
+      }
+
+      const currentOrders = get().allOrders;
+      const idx = currentOrders.findIndex((o) => o.id === orderId);
+      if (idx >= 0) {
+        const updated = [...currentOrders];
+        updated[idx] = orderWithCustomer;
+        set({ allOrders: updated, allOrderItems: newItemsMap });
+      } else {
+        set({ allOrders: [orderWithCustomer, ...currentOrders], allOrderItems: newItemsMap });
+      }
+    } catch (e) {
+      console.error("refreshOrder error:", e);
+    }
+  },
+
   addStandaloneOrder: async ({ orderType, paymentType, contactName, items, paidTotal, ongkir, diskon, notes, accountId }) => {
     const user = get().user;
     if (!user?.id || user.auth_source === "offline") {
@@ -676,9 +726,53 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    invalidateCache("allOrders", "products", "customers");
-    await get().loadAllOrders();
-    await get().loadProducts();
+    // Local state update instead of full reload
+    const newOrder: Order & { customer_name: string } = {
+      id: orderId,
+      customer_id: customerId,
+      user_id: user?.id || "",
+      status: initialStatus,
+      payment_status: initialStatus === "paid" ? "paid" : "unpaid",
+      fulfillment_status: "belum_ready",
+      total: orderTotal,
+      paid_total: paidTotal,
+      diskon: diskon || 0,
+      order_type: orderType,
+      payment_type: paymentType,
+      ongkir: ongkir || 0,
+      notes: notes || "",
+      qris_notes: "",
+      account_id: accountId || null,
+      created_at: now,
+      updated_at: now,
+      customer_name: contactName.trim(),
+    };
+
+    const newItems = items.map((i) => ({
+      product_name: i.product_name,
+      quantity: i.quantity,
+      product_id: i.product_id,
+      variant: i.variant || null,
+      price: i.price,
+    }));
+
+    // Update products stock locally
+    const currentProducts = get().products;
+    const updatedProducts = [...currentProducts];
+    for (const item of items) {
+      const idx = updatedProducts.findIndex((p) => p.id === item.product_id);
+      if (idx >= 0) {
+        const stockDelta = orderType === "penjualan" ? -item.quantity : item.quantity;
+        updatedProducts[idx] = { ...updatedProducts[idx], stock: updatedProducts[idx].stock + stockDelta };
+      }
+    }
+
+    set({
+      allOrders: [newOrder, ...get().allOrders],
+      allOrderItems: { ...get().allOrderItems, [orderId]: newItems },
+      products: updatedProducts,
+    });
+    invalidateCache("products");
     return orderId;
   },
 
@@ -897,9 +991,38 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    invalidateCache("allOrders", "products", "customers");
-    await get().loadAllOrders();
-    await get().loadProducts();
+    // Refresh only this order instead of full reload
+    await get().refreshOrder(orderId);
+
+    // Update product stocks locally — compute NET delta (old restore + new deduct)
+    const stockDeltas = new Map<string, number>();
+    if (oldItems && oldItems.length > 0) {
+      for (const row of oldItems) {
+        const pid = row.product_id || "";
+        if (pid) {
+          const delta = oldOrderType === "penjualan" ? row.quantity : -row.quantity;
+          stockDeltas.set(pid, (stockDeltas.get(pid) || 0) + delta);
+        }
+      }
+    }
+    for (const item of items) {
+      if (item.product_id) {
+        const delta = orderType === "penjualan" ? -item.quantity : item.quantity;
+        stockDeltas.set(item.product_id, (stockDeltas.get(item.product_id) || 0) + delta);
+      }
+    }
+    if (stockDeltas.size > 0) {
+      const currentProducts = get().products;
+      const updatedProducts = [...currentProducts];
+      for (const [pid, delta] of stockDeltas) {
+        const idx = updatedProducts.findIndex((p) => p.id === pid);
+        if (idx >= 0) {
+          updatedProducts[idx] = { ...updatedProducts[idx], stock: updatedProducts[idx].stock + delta };
+        }
+      }
+      set({ products: updatedProducts });
+      invalidateCache("products");
+    }
   },
 
   markOrdersPaid: async (orderIds) => {
@@ -990,8 +1113,10 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    invalidateCache("allOrders", "customers");
-    await get().loadAllOrders();
+    // Refresh only affected orders instead of full reload
+    for (const id of orderIds) {
+      await get().refreshOrder(id);
+    }
   },
 
   updateItemStatus: async (itemId, status) => {
@@ -1706,7 +1831,8 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    await get().loadAllOrders();
+    // Refresh only this order instead of full reload
+    await get().refreshOrder(orderId);
     return {};
   },
 

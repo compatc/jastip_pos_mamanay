@@ -522,7 +522,8 @@ export default function Orders() {
       .from("orders")
       .update({ invoice_sent_at: new Date().toISOString() })
       .in("id", ids);
-    await loadAllOrders();
+    const { refreshOrder } = useStore.getState();
+    for (const id of ids) await refreshOrder(id);
   }
 
   async function buildQrisLinks(
@@ -1119,7 +1120,8 @@ export default function Orders() {
                     .from("orders")
                     .update({ status: "ready", fulfillment_status: "ready", updated_at: new Date().toISOString() })
                     .in("id", ids);
-                  await loadAllOrders();
+                  const { refreshOrder } = useStore.getState();
+                  for (const id of ids) await refreshOrder(id);
                 },
                 "Tandai Ready"
               )
@@ -1350,7 +1352,6 @@ export default function Orders() {
                                 `Tandai order ${order.customer_name || ""} sebagai lunas (TF BCA)?\nSisa tagihan: Rp ${sisa.toLocaleString("id-ID")}`,
                                 async () => {
                                   await markOrdersPaid([order.id]);
-                                  await loadAllOrders();
                                 },
                                 "Ya, Lunas"
                               );
@@ -1399,7 +1400,7 @@ export default function Orders() {
                                       .from("orders")
                                       .update({ status: "completed", fulfillment_status: "completed", updated_at: new Date().toISOString() })
                                       .eq("id", order.id);
-                                    await loadAllOrders();
+                                    await useStore.getState().refreshOrder(order.id);
                                   },
                                   "Tandai Diambil"
                                 );
@@ -1432,7 +1433,14 @@ export default function Orders() {
                                 "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
                                 async () => {
                                   await deleteOrder(order.id);
-                                  await loadAllOrders();
+                                  // Remove from local store (status='deleted' is filtered out by loadAllOrders)
+                                  const { allOrders, allOrderItems } = useStore.getState();
+                                  const newItems = { ...allOrderItems };
+                                  delete newItems[order.id];
+                                  useStore.setState({
+                                    allOrders: allOrders.filter((o) => o.id !== order.id),
+                                    allOrderItems: newItems,
+                                  });
                                 }
                               );
                             }}
