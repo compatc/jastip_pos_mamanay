@@ -12,7 +12,7 @@ interface ToastItem {
 
 const NOTIFIED_KEY = "catalog_order_notified_v2";
 const NOTIFIED_WINDOW_MS = 30 * 60 * 1000;
-const POLL_MS = 5000;
+const POLL_MS = 15000;
 const WATERMARK_KEY = "catalog_order_watermark";
 
 function rupiah(n: number): string {
@@ -120,6 +120,14 @@ export default function CatalogOrderNotifier() {
     ].filter(Boolean), id);
   }
 
+  const visibleRef = useRef(document.visibilityState !== "hidden");
+
+  useEffect(() => {
+    const onVis = () => { visibleRef.current = document.visibilityState !== "hidden"; };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
   useEffect(() => {
     // First poll: load ALL current "new" orders, mark seen, set watermark cursor
     async function initSeen() {
@@ -146,7 +154,7 @@ export default function CatalogOrderNotifier() {
 
     // Polling for new orders — uses watermark to only fetch since last check
     const poll = window.setInterval(async () => {
-      if (!initialized.current) return;
+      if (!initialized.current || !visibleRef.current) return;
       try {
         const watermark = localStorage.getItem(WATERMARK_KEY);
         let query = supabase

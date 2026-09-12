@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
+import { supabase } from "../lib/supabase";
 import { ArrowLeft, MessageCircle, Clock, AlertTriangle, CheckCircle } from "lucide-react";
 
 function rupiah(n: number): string {
@@ -46,14 +47,29 @@ export default function Piutang() {
 
   useEffect(() => {
     async function loadItems() {
+      const unpaidOrders = allOrders.filter((o) => o.payment_status !== "paid");
+      if (unpaidOrders.length === 0) { setItemsByOrder({}); return; }
+
+      const customerIds = [...new Set(unpaidOrders.map((o) => o.customer_id).filter(Boolean))];
+      if (customerIds.length === 0) { setItemsByOrder({}); return; }
+
+      const { data: custOrders } = await supabase
+        .from("orders")
+        .select("id, customer_id")
+        .in("customer_id", customerIds);
+
+      const orderIds = (custOrders || []).map((o) => o.id);
+      if (orderIds.length === 0) { setItemsByOrder({}); return; }
+
+      const { data: allItems } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, variant")
+        .in("order_id", orderIds);
+
       const map: Record<string, { product_name: string; variant?: string | null }[]> = {};
-      for (const order of allOrders) {
-        if (order.payment_status === "paid") continue;
-        const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/customer-orders?customer_id=${order.customer_id}`);
-        const data = await res.json();
-        if (data.itemsByOrder) {
-          Object.assign(map, data.itemsByOrder);
-        }
+      for (const item of allItems || []) {
+        if (!map[item.order_id]) map[item.order_id] = [];
+        map[item.order_id].push({ product_name: item.product_name, variant: item.variant });
       }
       setItemsByOrder(map);
     }

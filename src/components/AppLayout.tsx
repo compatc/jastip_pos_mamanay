@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
@@ -26,6 +26,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, setUser, isOnline, setOnline, fontSize } = useStore();
   const [showQrisHistory, setShowQrisHistory] = useState(false);
   const [pendingConfCount, setPendingConfCount] = useState(0);
+  const badgeVisibleRef = useRef(document.visibilityState !== "hidden");
+
+  useEffect(() => {
+    const onVis = () => { badgeVisibleRef.current = document.visibilityState !== "hidden"; };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-fs", fontSize);
@@ -66,6 +73,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function checkPending() {
+      if (!badgeVisibleRef.current) return;
       try {
         const res = await fetch("/api/payment-confirm?action=list&status=pending");
         const json = await res.json();
@@ -73,7 +81,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       } catch {}
     }
     checkPending();
-    const interval = setInterval(checkPending, 30000);
+    const interval = setInterval(checkPending, 60000);
     return () => clearInterval(interval);
   }, []);
 

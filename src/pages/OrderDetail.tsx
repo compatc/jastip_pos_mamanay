@@ -97,6 +97,7 @@ export default function OrderDetail() {
   const {
     allOrders,
     loadAllOrders,
+    refreshOrder,
     orderItems,
     loadOrderItems,
     customers,
@@ -118,8 +119,7 @@ export default function OrderDetail() {
 
   useEffect(() => {
     async function load() {
-      await Promise.all([loadAllOrders(), loadCustomers()]);
-      if (orderId) await loadOrderItems(orderId);
+      if (orderId) await Promise.all([refreshOrder(orderId), loadOrderItems(orderId)]);
       setLoading(false);
     }
     load();
