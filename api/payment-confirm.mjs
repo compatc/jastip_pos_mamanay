@@ -1,5 +1,6 @@
 import { getAdmin } from "./pay.mjs";
 import { logAudit } from "./_audit.mjs";
+import { createHmac, createHash } from "node:crypto";
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -284,15 +285,58 @@ export default async function handler(req, res) {
       let buktiUrl = '';
       if (buktiBase64) {
         const ext = buktiMime.includes('png') ? 'png' : 'jpg';
-        const filePath = 'bukti-bayar/' + orderId + '_' + Date.now() + '.' + ext;
+        const r2Key = 'bukti-bayar/' + orderId + '_' + Date.now() + '.' + ext;
         const fileData = Buffer.from(buktiBase64.split(',')[1] || '', 'base64');
-        const { error: uploadErr } = await sb.storage
-          .from('public')
-          .upload(filePath, fileData, { contentType: buktiMime });
-        if (!uploadErr) {
-          const { data: urlData } = sb.storage.from('public').getPublicUrl(filePath);
-          buktiUrl = urlData?.publicUrl || '';
+
+        const MAX_SIZE = 4 * 1024 * 1024;
+        if (fileData.length > MAX_SIZE) {
+          json(res, 413, { error: 'File terlalu besar (' + Math.round(fileData.length / 1024 / 1024) + ' MB). Max 4 MB.' });
+          return;
         }
+
+        const R2_ACCOUNT_ID = '3ba62fa119ee4f295a5655776bfdb386';
+        const R2_ACCESS_KEY = 'c48ccbe4d8ccd5f902cf9b9746807ecb';
+        const R2_SECRET_KEY = '7e5edf36506903caa3f7efcf179217d8adba3f8d841fee1c6c6ca211f0122911';
+        const R2_BUCKET = 'mamanay-images';
+        const R2_PUBLIC = 'https://pub-383108e3bad04ba994957fa1155847a8.r2.dev';
+
+        const payloadHash = createHash('sha256').update(fileData).digest('hex');
+        const now = new Date();
+        const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+        const dateStamp = amzDate.slice(0, 8);
+
+        const canonicalRequest = 'PUT\n/' + R2_BUCKET + '/' + r2Key + '\n\ncontent-type:' + buktiMime + '\nhost:' + R2_ACCOUNT_ID + '.r2.cloudflarestorage.com\nx-amz-content-sha256:' + payloadHash + '\nx-amz-date:' + amzDate + '\n\ncontent-type;host;x-amz-content-sha256;x-amz-date\n' + payloadHash;
+        const canonicalRequestHash = createHash('sha256').update(canonicalRequest).digest('hex');
+        const stringToSign = 'AWS4-HMAC-SHA256\n' + amzDate + '\n' + dateStamp + '/auto/s3/aws4_request\n' + canonicalRequestHash;
+
+        const hmac = (key, data) => createHmac('sha256', key).update(data).digest();
+        const kDate = hmac('AWS4' + R2_SECRET_KEY, dateStamp);
+        const kRegion = hmac(kDate, 'auto');
+        const kService = hmac(kRegion, 's3');
+        const kSigning = hmac(kService, 'aws4_request');
+        const signature = hmac(kSigning, stringToSign).toString('hex');
+
+        const auth = 'AWS4-HMAC-SHA256 Credential=' + R2_ACCESS_KEY + '/' + dateStamp + '/auto/s3/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=' + signature;
+
+        const r2Res = await fetch('https://' + R2_ACCOUNT_ID + '.r2.cloudflarestorage.com/' + R2_BUCKET + '/' + r2Key, {
+          method: 'PUT',
+          headers: {
+            Authorization: auth,
+            'Content-Type': buktiMime,
+            'x-amz-content-sha256': payloadHash,
+            'x-amz-date': amzDate,
+          },
+          body: fileData,
+        });
+
+        if (!r2Res.ok) {
+          const errText = await r2Res.text();
+          console.error('R2 bukti-bayar upload failed:', r2Res.status, errText);
+          json(res, 500, { error: 'Gagal upload bukti transfer ke storage.' });
+          return;
+        }
+
+        buktiUrl = R2_PUBLIC + '/' + r2Key;
       }
 
       let insertOk = false;
