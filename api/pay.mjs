@@ -134,14 +134,15 @@ export async function sendPushNotification(sb, { title, body, url, type, orderId
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_EMAIL = process.env.SUPABASE_EMAIL || process.env.BOT_EMAIL;
 const SUPABASE_PASSWORD = process.env.SUPABASE_PASSWORD || process.env.BOT_PASSWORD;
 
 let adminPromise = null;
 
 export async function getAdmin() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_EMAIL || !SUPABASE_PASSWORD) {
-    throw new Error("SUPABASE_EMAIL/PASSWORD belum di-set");
+  if (!SUPABASE_URL) {
+    throw new Error("SUPABASE_URL belum di-set");
   }
   if (adminPromise) {
     try {
@@ -152,12 +153,19 @@ export async function getAdmin() {
     adminPromise = null;
   }
   adminPromise = (async () => {
+    if (SUPABASE_SERVICE_ROLE_KEY) {
+      const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      return sb;
+    }
+    if (!SUPABASE_ANON_KEY || !SUPABASE_EMAIL || !SUPABASE_PASSWORD) {
+      throw new Error("SUPABASE_EMAIL/PASSWORD atau SERVICE_ROLE_KEY belum di-set");
+    }
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { error } = await sb.auth.signInWithPassword({
       email: SUPABASE_EMAIL,
       password: SUPABASE_PASSWORD,
     });
-    if (error) throw new Error("Login Supabase gagal: " + error.message);
+    if (error) throw new Error("Login Supabase gagal: " + (error.message || JSON.stringify(error)));
     return sb;
   })();
   return adminPromise;
