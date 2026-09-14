@@ -3402,7 +3402,7 @@ export default function Inventory() {
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-gray-800 truncate">{p.name}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5">
-                              {(p as any).cost_price ? `Rp${(p as any).cost_price.toLocaleString("id-ID")}` : ""}
+                              {(p as any).cost_price ? `Rp${(Math.ceil((p as any).cost_price * 1.28 / 500) * 500 || (p as any).cost_price).toLocaleString("id-ID")}` : ""}
                             </p>
                           </div>
                           <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded font-semibold shrink-0">
