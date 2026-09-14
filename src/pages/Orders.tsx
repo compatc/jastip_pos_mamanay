@@ -98,7 +98,7 @@ type CustomerGroup = {
 };
 
 export default function Orders() {
-  const { allOrders, allOrderItems, loadAllOrders, deleteOrder, customers, loadCustomers, products, loadProducts, markOrdersPaid } = useStore();
+  const { allOrders, allOrderItems, loadAllOrders, loadItemsForOrders, deleteOrder, customers, loadCustomers, products, loadProducts, markOrdersPaid } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -166,6 +166,8 @@ export default function Orders() {
         setItemsLoading(true);
         setItemsError(null);
         await loadAllOrders();
+        const orderIds = useStore.getState().allOrders.map((o) => o.id);
+        await loadItemsForOrders(orderIds);
         if (!cancelled) setItemsLoading(false);
       } catch (e) {
         if (!cancelled) {

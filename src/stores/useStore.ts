@@ -55,6 +55,7 @@ interface PosStore {
   allOrders: Order[];
   allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null; price?: number }[]>;
   loadAllOrders: () => Promise<void>;
+  loadItemsForOrders: (orderIds: string[]) => Promise<void>;
   refreshOrder: (orderId: string) => Promise<void>;
   addStandaloneOrder: (params: {
     orderType: OrderType;
@@ -265,7 +266,7 @@ export const useStore = create<PosStore>((set, get) => ({
     }
     const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) throw error;
-    invalidateCache("customers", "allOrders");
+    invalidateCache("customers", "allOrders", "allOrderItems");
     await get().loadCustomers();
   },
 
@@ -414,7 +415,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    invalidateCache("products", "allOrders", `orders_${customerId}`);
+    invalidateCache("products", "allOrders", "allOrderItems", `orders_${customerId}`);
     await get().loadOrders(customerId);
     await get().loadProducts();
     return orderId;
@@ -428,7 +429,7 @@ export const useStore = create<PosStore>((set, get) => ({
       const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
-          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at")
+          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, order_type, created_at, updated_at")
           .neq("status", "deleted")
           .order("created_at", { ascending: false }),
         supabase
@@ -453,46 +454,45 @@ export const useStore = create<PosStore>((set, get) => ({
         customer_name: customerMap.get(o.customer_id) || "",
       })) as (Order & { customer_name: string })[];
 
-      set({ allOrders, allOrderItems: {} });
-
-      // Load items in batches using POST to avoid URL length issues
-      if (allOrders.length > 0) {
-        const ids = allOrders.map((o) => o.id);
-        const BATCH = 50;
-        const allOrderItems: Record<string, { product_name: string; quantity: number; product_id: string; variant?: string | null }[]> = {};
-
-        for (let i = 0; i < ids.length; i += BATCH) {
-          const chunk = ids.slice(i, i + BATCH);
-          const { data, error } = await supabase
-            .from("order_items")
-            .select("order_id, product_name, quantity, product_id, variant, price")
-            .in("order_id", chunk);
-          if (error) {
-            console.error("order_items batch error:", i, error.message);
-            continue;
-          }
-          if (data) {
-            for (const row of data) {
-              if (!allOrderItems[row.order_id]) allOrderItems[row.order_id] = [];
-              allOrderItems[row.order_id].push({
-                product_name: row.product_name,
-                quantity: row.quantity,
-                product_id: row.product_id,
-                variant: row.variant,
-                price: row.price,
-              });
-            }
-          }
-        }
-
-        markFresh("allOrders");
-        set({ allOrderItems });
-      } else {
-        markFresh("allOrders");
-      }
+      set({ allOrders });
+      markFresh("allOrders");
     } catch (e) {
       console.error("loadAllOrders error:", e);
     }
+  },
+
+  loadItemsForOrders: async (orderIds: string[]) => {
+    if (orderIds.length === 0) return;
+    if (isFresh("allOrderItems")) return;
+    const BATCH = 50;
+    const items = get().allOrderItems;
+    const newItems: typeof items = {};
+
+    for (let i = 0; i < orderIds.length; i += BATCH) {
+      const chunk = orderIds.slice(i, i + BATCH);
+      const { data, error } = await supabase
+        .from("order_items")
+        .select("order_id, product_name, quantity, product_id, variant, price")
+        .in("order_id", chunk);
+      if (error) {
+        console.error("loadItemsForOrders batch error:", i, error.message);
+        continue;
+      }
+      if (data) {
+        for (const row of data) {
+          if (!newItems[row.order_id]) newItems[row.order_id] = [];
+          newItems[row.order_id].push({
+            product_name: row.product_name,
+            quantity: row.quantity,
+            product_id: row.product_id,
+            variant: row.variant,
+            price: row.price,
+          });
+        }
+      }
+    }
+    set({ allOrderItems: newItems });
+    markFresh("allOrderItems");
   },
 
   refreshOrder: async (orderId: string) => {
@@ -1217,7 +1217,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    invalidateCache("products", "allOrders");
+    invalidateCache("products", "allOrders", "allOrderItems");
     await get().loadProducts();
   },
 
@@ -1365,7 +1365,7 @@ export const useStore = create<PosStore>((set, get) => ({
       }
     }
 
-    invalidateCache("products", "accounts", "allOrders", `orderItems_${orderId}`);
+    invalidateCache("products", "accounts", "allOrders", "allOrderItems", `orderItems_${orderId}`);
     await get().loadProducts();
     await get().loadAccounts();
   },
