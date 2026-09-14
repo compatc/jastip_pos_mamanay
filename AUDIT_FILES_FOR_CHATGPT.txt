@@ -1,0 +1,7 @@
+# AUDIT FILES FOR POSTGREST EGRESS OPTIMIZATION
+# Total files: 13
+# Context: Supabase Free Plan, PostgREST egress 695MB/day, need to reduce to under 5GB/month
+
+---
+
+## FILE 1: src/stores/useStore.ts

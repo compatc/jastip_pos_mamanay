@@ -232,9 +232,9 @@ export async function shipOrder(orderSn, addressId) {
   );
 }
 
-export function calculateShopeePrice(costPrice) {
-  if (!costPrice || costPrice <= 0) return 0;
-  return Math.ceil(costPrice * (1 + SHOPEE_MARKUP) / 500) * 500;
+export function calculateShopeePrice(sellPrice) {
+  if (!sellPrice || sellPrice <= 0) return 0;
+  return Math.ceil(sellPrice * (1 + SHOPEE_MARKUP) / 500) * 500;
 }
 
 export default async function handler(req, res) {
@@ -301,7 +301,7 @@ export default async function handler(req, res) {
             results.push({ id: pid, error: "Product not found" });
             continue;
           }
-          const shopeePrice = calculateShopeePrice(product.cost_price || 0);
+          const shopeePrice = calculateShopeePrice(product.sell_price || 0);
           const shopeeWeight = product.weight || 250;
           let shopeeImageId = null;
           if (product.image) {
@@ -480,7 +480,7 @@ export default async function handler(req, res) {
         for (const product of products || []) {
           const itemId = Number(product.shopee_item_id);
           if (!itemId) continue;
-          const shopeePrice = calculateShopeePrice(product.cost_price || 0);
+          const shopeePrice = calculateShopeePrice(product.sell_price || 0);
           const variants = product.product_variants || [];
           if (variants.length > 0) {
             const priceList = variants.map((v) => ({
@@ -521,7 +521,7 @@ export default async function handler(req, res) {
         for (const product of products || []) {
           const itemId = Number(product.shopee_item_id);
           if (!itemId) continue;
-          const shopeePrice = calculateShopeePrice(product.cost_price || 0);
+          const shopeePrice = calculateShopeePrice(product.sell_price || 0);
           const variants = product.product_variants || [];
           let stockOk = false, priceOk = false;
           try {

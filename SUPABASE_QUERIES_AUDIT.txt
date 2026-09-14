@@ -1,0 +1,682 @@
+# POSTGREST EGRESS AUDIT - Supabase Query Extract
+# Only Supabase query logic extracted from each file (no UI/JSX)
+# Supabase Free Plan - PostgREST 695MB/day - need optimization
+
+==================================================
+FILE: src/stores/useStore.ts (1829 lines total)
+==================================================
+
+--- CACHE SYSTEM (lines 7-17) ---
+const CACHE_TTL = 5 * 60 * 1000;
+const _cacheTs: Record<string, number> = {};
+function isFresh(key: string): boolean {
+  return Date.now() - (_cacheTs[key] || 0) < CACHE_TTL;
+}
+function markFresh(key: string): void {
+  _cacheTs[key] = Date.now();
+}
+function invalidateCache(...keys: string[]): void {
+  for (const k of keys) delete _cacheTs[k];
+}
+
+--- loadCustomers (line 223) ---
+// Called on: mount of Inventory, NewOrderForm, BulkOrder, CustomerOrders, etc.
+// Cache: YES (5 min TTL)
+loadCustomers: async () => {
+  if (isFresh("customers")) return;
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*")   // <-- FETCHES ALL COLUMNS including address, tags, points, etc.
+    .order("created_at", { ascending: false });
+  if (error) { console.error("loadCustomers:", error); return; }
+  markFresh("customers");
+  set({ customers: (data || []) as Customer[] });
+},
+
+--- loadOrders (line 272) ---
+// Called on: CustomerOrders page mount per customer
+// Cache: YES per customerId
+loadOrders: async (customerId) => {
+  const cacheKey = `orders_${customerId}`;
+  if (isFresh(cacheKey)) return;
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")  // <-- ALL COLUMNS
+    .eq("customer_id", customerId)
+    .neq("status", "deleted")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("loadOrders:", error); return; }
+  markFresh(cacheKey);
+  set({ orders: (data || []) as Order[] });
+},
+
+--- addOrder (line 286) ---
+// Called on: NewOrderForm submit
+// N+1 pattern: loops items, each does multiple queries
+addOrder: async (customerId, items) => {
+  // ... insert order ...
+  for (const item of items) {
+    // Insert order_item
+    await supabase.from("order_items").insert({...});
+    
+    // Check bundle
+    const { data: bundleItems } = await supabase
+      .from("product_bundles").select("product_id, quantity").eq("bundle_id", item.product_id);
+    
+    if (bundleItems && bundleItems.length > 0) {
+      for (const bi of bundleItems) {
+        const { data: product } = await supabase
+          .from("products").select("id, stock, unit").eq("id", bi.product_id).single();
+        // Update stock, get max invoice, insert stock_movement...
+        await supabase.from("products").update({stock: newStock}).eq("id", product.id);
+        const maxInvoice = await supabase.from("stock_movements").select("invoice_no").order("invoice_no", {ascending:false}).limit(1).maybeSingle();
+        await supabase.from("stock_movements").insert({...});
+      }
+    } else {
+      const { data: product } = await supabase
+        .from("products").select("id, stock, unit").eq("id", item.product_id).single();
+      // Same pattern: update stock, get max invoice, insert movement
+      await supabase.from("products").update({stock: newStock}).eq("id", product.id);
+      const maxInvoice = await supabase.from("stock_movements").select("invoice_no").order("invoice_no", {ascending:false}).limit(1).maybeSingle();
+      await supabase.from("stock_movements").insert({...});
+    }
+  }
+  // After all items:
+  invalidateCache("products", "allOrders", `orders_${customerId}`);
+  await get().loadOrders(customerId);  // <-- FULL RELOAD
+  await get().loadProducts();          // <-- FULL RELOAD
+},
+
+--- loadAllOrders (line 424) ---
+// Called from: 21 different locations (5 useEffect, 8 onClick, 4 store actions, 2 polling, 2 other)
+// This is the MOST CALLED function
+loadAllOrders: async () => {
+  if (isFresh("allOrders")) return;
+  try {
+    const [ordersRes, customersRes] = await Promise.all([
+      supabase.from("orders")
+        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at")
+        .neq("status", "deleted")
+        .order("created_at", { ascending: false }),
+      supabase.from("customers")
+        .select("id, name"),
+    ]);
+    // ... merge customer names ...
+    const allOrders = (ordersRes.data || []).map((o) => ({
+      ...o, customer_name: customerMap.get(o.customer_id) || "",
+    }));
+    set({ allOrders, allOrderItems: {} });
+    
+    // Load items in BATCHES of 50
+    if (allOrders.length > 0) {
+      const ids = allOrders.map((o) => o.id);
+      const BATCH = 50;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        const chunk = ids.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("order_items")
+          .select("order_id, product_name, quantity, product_id, variant, price")
+          .in("order_id", chunk);
+        // ... process data ...
+      }
+    }
+    markFresh("allOrders");
+  } catch (e) { console.error("loadAllOrders error:", e); }
+},
+
+--- addStandaloneOrder (line 497) ---
+// Called on: NewOrderForm, BulkOrder submit
+// N+1 pattern: 25+ queries per order
+addStandaloneOrder: async ({...}) => {
+  // Find or create customer
+  const { data: existing } = await supabase.from("customers").select("id").ilike("name", contactName.trim()).limit(1).single();
+  // Insert order
+  await supabase.from("orders").insert({...});
+  
+  for (const item of items) {
+    // Insert order_item
+    await supabase.from("order_items").insert({...});
+    
+    // Get product stock
+    const { data: product } = await supabase.from("products").select("id, stock, unit").eq("id", item.product_id).single();
+    
+    // Update stock
+    await supabase.from("products").update({stock: newStock}).eq("id", product.id);
+    
+    // Get max invoice
+    const maxInvoice = await supabase.from("stock_movements").select("invoice_no").order("invoice_no", {ascending:false}).limit(1).maybeSingle();
+    
+    // Insert stock movement
+    await supabase.from("stock_movements").insert({...});
+    
+    // For pembelian: recalculate average cost
+    if (orderType === "pembelian" && item.unit_cost) {
+      const { data: allPurchases } = await supabase
+        .from("stock_movements").select("qty, unit_cost")
+        .eq("product_id", product.id).eq("transaction_type", "Pembelian").not("unit_cost", "is", null);
+      // Calculate avg, update cost_price
+      await supabase.from("products").update({cost_price: avgCost}).eq("id", product.id);
+    }
+  }
+  
+  // Create account transaction if needed
+  if (accountId && paidTotal > 0) {
+    await get().createAccountTransaction(...);
+  }
+  
+  // Create notification
+  await supabase.from("notifications").insert({...});
+  
+  // Award loyalty points
+  await awardPoints(customerId, orderId, paidTotal);
+  
+  invalidateCache("allOrders", "products", "customers");
+  await get().loadAllOrders();  // <-- FULL RELOAD
+  await get().loadProducts();   // <-- FULL RELOAD
+},
+
+--- loadOrderItems (line 686) ---
+loadOrderItems: async (orderId) => {
+  const cacheKey = `orderItems_${orderId}`;
+  if (isFresh(cacheKey)) { return get().orderItems; }
+  set({ orderItems: [] });
+  const { data, error } = await supabase
+    .from("order_items")
+    .select("*")  // <-- ALL COLUMNS
+    .eq("order_id", orderId);
+  // ...
+},
+
+--- updateOrder (line 701) ---
+// N+1 pattern similar to addStandaloneOrder
+updateOrder: async (orderId, {...}) => {
+  // Get existing order info
+  const { data: existingOrder } = await supabase.from("orders").select("order_type, account_id, paid_total").eq("id", orderId).single();
+  
+  // Get old items
+  const { data: oldItems } = await supabase.from("order_items").select("product_id, product_name, quantity").eq("order_id", orderId);
+  
+  // Restore stock for old items (N+1)
+  for (const row of oldItems) {
+    const { data: product } = await supabase.from("products").select("id, stock").eq("id", row.product_id).single();
+    await supabase.from("products").update({stock: newStock}).eq("id", product.id);
+  }
+  
+  // Delete old items and movements
+  await supabase.from("order_items").delete().eq("order_id", orderId);
+  await supabase.from("stock_movements").delete().eq("order_id", orderId);
+  
+  // Find or create customer
+  const { data: existing } = await supabase.from("customers").select("id").ilike("name", contactName.trim()).limit(1).single();
+  
+  // Update order
+  await supabase.from("orders").update({...}).eq("id", orderId);
+  
+  // Insert new items + stock changes (N+1 per item)
+  for (const item of items) {
+    await supabase.from("order_items").insert({...});
+    const { data: product } = await supabase.from("products").select("id, stock, unit").eq("id", item.product_id).single();
+    await supabase.from("products").update({stock: newStock}).eq("id", product.id);
+    const maxInvoice = await supabase.from("stock_movements").select("invoice_no").order("invoice_no", {ascending:false}).limit(1).maybeSingle();
+    await supabase.from("stock_movements").insert({...});
+  }
+  
+  invalidateCache("allOrders", "products", "customers");
+  await get().loadAllOrders();  // <-- FULL RELOAD
+  await get().loadProducts();   // <-- FULL RELOAD
+},
+
+--- markOrdersPaid (line 905) ---
+// N+1: loops each orderId
+markOrdersPaid: async (orderIds) => {
+  for (const orderId of orderIds) {
+    const { data: order } = await supabase.from("orders").select("id, total, paid_total, account_id, order_type, payment_type, customer_id, status").eq("id", orderId).single();
+    await supabase.from("orders").update({paid_total: order.total, status: newStatus, payment_status: "paid"}).eq("id", orderId);
+    
+    // Get customer name
+    const { data: customer } = await supabase.from("customers").select("name").eq("id", order.customer_id).single();
+    
+    // Create account transaction
+    await get().createAccountTransaction(...);
+    
+    // Award loyalty points
+    await awardPoints(order.customer_id, orderId, payDelta);
+  }
+  
+  // Get items for notification
+  const { data: itemRows } = await supabase.from("order_items").select("order_id, product_name, quantity").in("order_id", ids);
+  
+  // Insert notifications
+  for (const n of notified) {
+    await supabase.from("notifications").insert({...});
+  }
+  
+  invalidateCache("allOrders", "customers");
+  await get().loadAllOrders();  // <-- FULL RELOAD
+},
+
+--- loadProducts (line 1249) ---
+loadProducts: async () => {
+  if (isFresh("products")) return;
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")   // <-- ALL COLUMNS: image, images[], description, supplier, shopee_*, etc.
+    .order("name", { ascending: true });
+  if (error) { console.error("loadProducts:", error); return; }
+  markFresh("products");
+  set({ products: (data || []) as Product[] });
+},
+
+--- loadStockMovements (line 1340) ---
+loadStockMovements: async (productId) => {
+  const cacheKey = `stockMovements_${productId}`;
+  if (isFresh(cacheKey)) return;
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select("*")  // <-- ALL COLUMNS
+    .eq("product_id", productId)
+    .order("date", { ascending: true })
+    .order("invoice_no", { ascending: true });
+  
+  // Then resolve party names (2 additional queries)
+  const orderIds = [...new Set(rows.map((r) => r.order_id).filter(Boolean))];
+  const { data: orders } = await supabase.from("orders").select("id, customer_id").in("id", orderIds);
+  const { data: custs } = await supabase.from("customers").select("id, name").in("id", custIds);
+  // ... merge names ...
+},
+
+--- loadProductVariants (line 1404) ---
+loadProductVariants: async (productId?: string) => {
+  const cacheKey = productId ? `productVariants_${productId}` : "productVariants_all";
+  if (isFresh(cacheKey)) return;
+  let query = supabase.from("product_variants").select("*").order("created_at", { ascending: true });  // <-- ALL COLUMNS
+  if (productId) query = query.eq("product_id", productId);
+  const { data, error } = await query;
+  // ...
+},
+
+--- loadVariantStock (line 1453) ---
+// Fetches ALL stock_movements + ALL product_variants
+loadVariantStock: async () => {
+  if (isFresh("variantStock")) return;
+  const [movementsRes, variantsRes] = await Promise.all([
+    supabase.from("stock_movements").select("product_id, variant, qty"),
+    supabase.from("product_variants").select("product_id, name, stock"),
+  ]);
+  // ... calculate variant stock from base + movements ...
+},
+
+--- loadProductDiscounts (line 1485) ---
+loadProductDiscounts: async (productId) => {
+  const { data } = await supabase.from("product_discounts").select("*").eq("product_id", productId).order("min_qty", { ascending: true });
+},
+
+--- loadAllProductDiscounts (line 1498) ---
+loadAllProductDiscounts: async () => {
+  const { data } = await supabase.from("product_discounts").select("*").order("product_id").order("min_qty", { ascending: true });
+},
+
+--- loadAccounts (line 1536) ---
+loadAccounts: async () => {
+  const { data } = await supabase.from("accounts").select("*").order("created_at", { ascending: true });
+},
+
+--- loadAccountTransactions (line 1576) ---
+loadAccountTransactions: async (accountId) => {
+  const { data } = await supabase.from("account_transactions").select("*").eq("account_id", accountId).order("date", { ascending: false }).order("created_at", { ascending: false });
+},
+
+--- createAccountTransaction (line 1590) ---
+createAccountTransaction: async (...) => {
+  await supabase.from("account_transactions").insert({...});
+  const { data: acc } = await supabase.from("accounts").select("balance").eq("id", accountId).single();
+  await supabase.from("accounts").update({balance: newBalance}).eq("id", accountId);
+},
+
+--- createRefund (line 1622) ---
+// N+1 pattern
+createRefund: async (orderId, items, reason) => {
+  const { data: order } = await supabase.from("orders").select("id, total, paid_total, refund_total, customer_id, user_id, status").eq("id", orderId).single();
+  const { data: cust } = await supabase.from("customers").select("name").eq("id", order.customer_id).single();
+  await supabase.from("refunds").insert({...});
+  for (const item of items) {
+    await supabase.from("refund_items").insert({...});
+  }
+  await supabase.from("orders").update({...}).eq("id", orderId);
+  for (const item of items) {
+    const { data: orderItem } = await supabase.from("order_items").select("product_id").eq("id", item.order_item_id).single();
+    const { data: prod } = await supabase.from("products").select("id, stock, unit").eq("id", orderItem.product_id).single();
+    await supabase.from("products").update({stock: newStock}).eq("id", prod.id);
+    await supabase.from("stock_movements").insert({...});
+  }
+  await get().loadAllOrders();  // <-- FULL RELOAD
+},
+
+--- deleteOrder (line 1163) ---
+// N+1 pattern
+deleteOrder: async (orderId) => {
+  const { data: orderInfo } = await supabase.from("orders").select("order_type, account_id, paid_total").eq("id", orderId).single();
+  const { data: items } = await supabase.from("order_items").select("product_id, product_name, quantity").eq("order_id", orderId);
+  for (const row of items) {
+    const { data: product } = await supabase.from("products").select("id, stock, unit").eq("id", row.product_id).single();
+    await supabase.from("products").update({stock: newStock}).eq("id", product.id);
+  }
+  await supabase.from("stock_movements").delete().eq("order_id", orderId);
+  await supabase.from("orders").update({status: "deleted"}).eq("id", orderId);
+  await supabase.from("order_items").update({status: "deleted"}).eq("order_id", orderId);
+  // Handle account transactions
+  const { data: txs } = await supabase.from("account_transactions").select("id, amount").eq("order_id", orderId);
+  for (const tx of txs) {
+    await supabase.from("account_transactions").delete().eq("id", tx.id);
+    const { data: acc } = await supabase.from("accounts").select("balance").eq("id", orderInfo.account_id).single();
+    await supabase.from("accounts").update({balance: newBalance}).eq("id", orderInfo.account_id);
+  }
+  await get().loadProducts();
+  await get().loadAccounts();
+},
+
+--- loadTags (line 1734) ---
+loadTags: async () => {
+  const { data } = await supabase.from("tags").select("*").order("name");
+},
+
+--- loadBundleItems (line 1784) ---
+loadBundleItems: async (bundleId) => {
+  const { data } = await supabase.from("product_bundles").select("*").eq("bundle_id", bundleId);
+},
+
+--- updateItemQuantity (line 1011) ---
+// N+1 pattern
+updateItemQuantity: async (itemId, newQty, orderId) => {
+  const { data: oldItem } = await supabase.from("order_items").select("product_id, product_name, quantity").eq("id", itemId).single();
+  await supabase.from("order_items").update({quantity: newQty}).eq("id", itemId);
+  const { data: order } = await supabase.from("orders").select("order_type").eq("id", orderId).single();
+  const { data: product } = await supabase.from("products").select("id, stock, unit").eq("id", oldItem.product_id).single();
+  await supabase.from("products").update({stock: newStock}).eq("id", product.id);
+  const maxInvoice = await supabase.from("stock_movements").select("invoice_no").order("invoice_no", {ascending:false}).limit(1).maybeSingle();
+  await supabase.from("stock_movements").insert({...});
+  // Recalculate order total
+  const { data: allItems } = await supabase.from("order_items").select("price, quantity").eq("order_id", orderId);
+  await supabase.from("orders").update({total: newTotal}).eq("id", orderId);
+},
+
+--- updateOrderPaidTotal (line 1099) ---
+updateOrderPaidTotal: async (orderId, paidTotal) => {
+  const { data: existing } = await supabase.from("orders").select("account_id, order_type, customer_id, paid_total, total").eq("id", orderId).single();
+  await supabase.from("orders").update({paid_total: paidTotal, payment_status: newPaymentStatus}).eq("id", orderId);
+  if (existing?.account_id && delta !== 0) {
+    const { data: cust } = await supabase.from("customers").select("name").eq("id", existing.customer_id).single();
+    await supabase.from("account_transactions").insert({...});
+    const { data: acc } = await supabase.from("accounts").select("balance").eq("id", existing.account_id).single();
+    await supabase.from("accounts").update({balance: newBalance}).eq("id", existing.account_id);
+  }
+},
+
+--- deleteCustomer (line 258) ---
+deleteCustomer: async (id) => {
+  const { data: orders } = await supabase.from("orders").select("id").eq("customer_id", id);
+  await supabase.from("order_items").delete().in("order_id", orderIds);
+  await supabase.from("orders").delete().in("id", orderIds);
+  await supabase.from("customers").delete().eq("id", id);
+},
+
+
+==================================================
+FILE: src/components/QrisNotifier.tsx (220 lines)
+==================================================
+
+--- POLLING: 8 second interval (line 144) ---
+const poll = window.setInterval(async () => {
+  const since = new Date(Date.now() - POLL_WINDOW_MS).toISOString();  // 2 min window
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, total, updated_at")
+    .eq("payment_type", "qris")
+    .eq("status", "paid")
+    .gte("updated_at", since)
+    .order("updated_at", { ascending: false })
+    .limit(10);
+  // ... process ...
+}, POLL_MS);  // POLL_MS = 8000 (8 seconds)
+
+--- REALTIME subscription (line 130) ---
+const channel = supabase
+  .channel("qris-paid-orders")
+  .on("postgres_changes", { event: "UPDATE", table: "orders" }, (payload) => {
+    // Handle QRIS paid orders
+  })
+  .subscribe();
+
+--- flush() calls loadAllOrders (line 94) ---
+async function flush() {
+  await useStore.getState().loadAllOrders();  // <-- FULL RELOAD on each QRIS notification
+}
+
+--- RECONCILE: 30 second interval (line 171) ---
+const reconcile = window.setInterval(async () => {
+  const res = await fetch("/api/pay", { method: "POST", body: JSON.stringify({ action: "reconcile" }) });
+  if (res.ok) {
+    const data = await res.json();
+    if (data.processed > 0) await useStore.getState().loadAllOrders();  // <-- FULL RELOAD
+  }
+}, 30000);
+
+
+==================================================
+FILE: src/components/CatalogOrderNotifier.tsx (231 lines)
+==================================================
+
+--- POLLING: 5 second interval (line 142) ---
+const poll = window.setInterval(async () => {
+  const { data } = await supabase
+    .from("orders")
+    .select("id, total, customer_id, status, created_at")
+    .eq("status", "new")
+    .order("created_at", { ascending: true });
+  
+  if (data) {
+    for (const row of data) {
+      if (!seenOrders.current.has(row.id)) {
+        await notifyOrder(row);  // <-- Each notify does 2 more queries
+      }
+    }
+  }
+}, POLL_MS);  // POLL_MS = 5000 (5 seconds)
+
+--- notifyOrder sub-queries (line 99) ---
+async function notifyOrder(row) {
+  // Query 1: customer name
+  const { data: cust } = await supabase.from("customers").select("name").eq("id", row.customer_id).single();
+  // Query 2: order items
+  const { data: items } = await supabase.from("order_items").select("product_name, quantity, price").eq("order_id", id);
+}
+
+--- initSeen (line 124) ---
+async function initSeen() {
+  const { data } = await supabase.from("orders").select("id").eq("status", "new");
+  // Marks all current "new" orders as seen
+}
+
+--- REALTIME subscription (line 170) ---
+const channel = supabase
+  .channel("catalog-new-orders-v2")
+  .on("postgres_changes", { event: "INSERT", table: "orders" }, async (payload) => {
+    await notifyOrder(row);
+  })
+  .subscribe();
+
+
+==================================================
+FILE: src/components/TransferConfirmNotifier.tsx (182 lines)
+==================================================
+
+--- POLLING: 8 second interval (line 132) ---
+const poll = window.setInterval(async () => {
+  const { data } = await supabase
+    .from("payment_confirmations")
+    .select("id, amount, customer_name, created_at")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  // ... process ...
+}, POLL_MS);  // POLL_MS = 8000 (8 seconds)
+
+--- REALTIME subscription (line 118) ---
+const channel = supabase
+  .channel("payment-confirmations-insert")
+  .on("postgres_changes", { event: "INSERT", table: "payment_confirmations" }, (payload) => {
+    // Handle new payment confirmations
+  })
+  .subscribe();
+
+
+==================================================
+FILE: src/components/AppLayout.tsx (221 lines)
+==================================================
+
+--- ONLINE CHECK: 15 second interval (line 55) ---
+const interval = setInterval(checkOnline, 15000);
+// Does: HEAD https://tmnykmpdqdavspmirspw.supabase.co/rest/v1/?select=1
+// Not a data query, just connectivity check
+
+--- PENDING CONFIRMATION BADGE: 30 second interval (line 76) ---
+const interval = setInterval(checkPending, 30000);
+// Does: GET /api/payment-confirm?action=list&status=pending
+// Server-side query, not direct Supabase
+
+
+==================================================
+FILE: src/pages/Orders.tsx (~1661 lines)
+==================================================
+
+--- useEffect mount (line 168) ---
+useEffect(() => {
+  async function init() {
+    await loadAllOrders();  // <-- FULL RELOAD on mount
+  }
+  init();
+  loadCustomers();          // <-- FULL RELOAD on mount
+}, []);
+
+--- Multiple onClick handlers that call loadAllOrders ---
+Line 525: await loadAllOrders();  // after markInvoiceSent
+Line 954: loadAllOrders();        // retry button
+Line 1122: await loadAllOrders(); // Tandai Ready
+Line 1353: await loadAllOrders(); // Tandai Lunas
+Line 1402: await loadAllOrders(); // Tandai Diambil
+Line 1435: await loadAllOrders(); // Hapus Order
+
+--- Search/filter (line ~184+) ---
+// Searches are filtered client-side from allOrders, no additional Supabase queries
+
+
+==================================================
+FILE: src/pages/OrderDetail.tsx (~737 lines)
+==================================================
+
+--- useEffect mount (line 121) ---
+useEffect(() => {
+  async function load() {
+    await Promise.all([loadAllOrders(), loadCustomers()]);  // <-- TWO FULL RELOADS
+    if (orderId) await loadOrderItems(orderId);
+  }
+  load();
+}, [orderId]);
+
+--- Refund handler (line 228) ---
+await loadAllOrders();  // <-- FULL RELOAD after refund
+
+
+==================================================
+FILE: src/pages/EditOrderForm.tsx
+==================================================
+
+--- useEffect mount (line 118) ---
+useEffect(() => {
+  loadAllOrders();  // <-- FULL RELOAD on mount
+}, [orderId]);
+
+
+==================================================
+FILE: src/pages/Piutang.tsx
+==================================================
+
+--- useEffect mount (line 42) ---
+useEffect(() => {
+  loadAllOrders();  // <-- FULL RELOAD on mount
+}, []);
+
+
+==================================================
+FILE: src/pages/Inventory.tsx (3699 lines)
+==================================================
+
+--- PO Summary: Fetches ALL order_items (line ~345) ---
+const { data: allItems } = await supabase
+  .from("order_items")
+  .select("product_name, variant, quantity, price, order_id, product_id");
+// NO filter - fetches EVERY order_item ever created
+
+--- Rekap: 3x fuzzy query on order_items (line ~812) ---
+// Query 1: exact match
+.from("order_items").select("order_id, product_name, variant, quantity, price").eq("product_name", productName);
+// Query 2: fuzzy match
+.from("order_items").select("order_id, product_name, variant, quantity, price").ilike("product_name", `%${cleanName}%`);
+// Query 3: base name match
+.from("order_items").select("order_id, product_name, variant, quantity, price").ilike("product_name", `%${baseName}%`);
+
+--- Multiple send-group calls to /api/send-group ---
+// These go through Vercel proxy, not direct Supabase
+
+
+==================================================
+FILE: src/pages/NewOrderForm.tsx
+==================================================
+
+--- Uses loadProducts(), loadCustomers(), loadProductVariants(), loadAllProductDiscounts() on mount ---
+// All from useStore with 5-min cache
+
+
+==================================================
+FILE: src/pages/BulkOrder.tsx
+==================================================
+
+--- Uses loadProducts(), loadCustomers(), loadProductVariants(), loadAllProductDiscounts() on mount ---
+// All from useStore with 5-min cache
+
+
+==================================================
+FILE: src/pages/Catalog.tsx
+==================================================
+
+--- Public catalog page, fetches products + variants ---
+// Uses loadProducts(), loadProductVariants() from useStore
+
+
+==================================================
+SUMMARY: ESTIMATED EGRESS PER QUERY
+==================================================
+
+HIGH IMPACT (called frequently, large payloads):
+1. loadAllOrders: ~50-70KB × 21 calls/day = ~1-1.5MB (but called from polling too)
+2. loadProducts select("*"): ~150-200KB × ~10 calls/day = ~1.5-2MB
+3. loadProductVariants select("*"): ~100KB × ~5 calls/day = ~500KB
+4. loadCustomers select("*"): ~75-100KB × ~5 calls/day = ~400KB
+5. QrisNotifier poll (8s): ~1KB × 10,800/day = ~10MB
+6. CatalogOrderNotifier poll (5s): ~2KB × 17,280/day = ~35MB (+ sub-queries)
+7. TransferConfirmNotifier poll (8s): ~1KB × 10,800/day = ~10MB
+8. QRIS reconcile (30s): server-side, ~3KB × 2,880/day = ~9MB
+
+N+1 QUERIES (per order operation):
+- addStandaloneOrder: ~10 queries per item × N items
+- updateOrder: ~10 queries per item × N items + restore old
+- deleteOrder: ~5 queries per item
+- markOrdersPaid: ~5 queries per order × N orders
+- createRefund: ~6 queries per item
+
+MOST CRITICAL ISSUES:
+1. CatalogOrderNotifier poll every 5s = 17,280 queries/day with sub-queries = ~35-50MB/day
+2. loadProducts select("*") = fetches image URLs, descriptions, shopee fields unnecessarily
+3. Inventory PO Summary fetches ALL order_items without any filter
+4. 3 notifiers all use BOTH realtime AND polling (redundant)
+5. loadAllOrders called from 21 locations including after every mutation
