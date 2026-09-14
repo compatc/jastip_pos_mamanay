@@ -280,6 +280,8 @@ export default function Inventory() {
             }
           }
         }
+        // Strip PO/ready tags leaked into variant
+        raw = raw.replace(/\s*\[?(po|ready)\]?\s*/gi, '').trim();
         if (!raw) return "";
         // ALWAYS normalize to canonical name from product_variants
         const normalized = raw.replace(/\s*\+\s*/g, '&').toLowerCase().trim();
