@@ -292,14 +292,21 @@ export default function Inventory() {
       }
 
       const orderIds = [...new Set(items.map((i: any) => i.order_id))];
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id, created_at, customer_id, order_type, fulfillment_status")
-        .in("id", orderIds)
-        .eq("order_type", "penjualan")
-        .not("fulfillment_status", "in", "(completed,cancelled,shipped,diterima)")
-        .neq("status", "deleted");
-      const customerIds = [...new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean))];
+      const BATCH = 50;
+      const allOrders: any[] = [];
+      for (let i = 0; i < orderIds.length; i += BATCH) {
+        const chunk = orderIds.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("orders")
+          .select("id, created_at, customer_id, order_type, fulfillment_status")
+          .in("id", chunk)
+          .eq("order_type", "penjualan")
+          .not("fulfillment_status", "in", "(completed,cancelled,shipped,diterima)")
+          .neq("status", "deleted");
+        if (data) allOrders.push(...data);
+      }
+      const orders = allOrders;
+      const customerIds = [...new Set(orders.map((o: any) => o.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length > 0
         ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
         : { data: [] };
@@ -348,10 +355,14 @@ export default function Inventory() {
       if (!allItems) { setPoSummaryItems([]); return; }
 
       const orderIds = [...new Set(allItems.map((i: any) => i.order_id).filter(Boolean))];
-      const { data: orders } = orderIds.length > 0
-        ? await supabase.from("orders").select("id, payment_status, fulfillment_status, order_type").in("id", orderIds)
-        : { data: [] };
-      const orderMap = new Map((orders || []).map((o: any) => [o.id, o]));
+      const BATCH = 50;
+      const allOrders: any[] = [];
+      for (let i = 0; i < orderIds.length; i += BATCH) {
+        const chunk = orderIds.slice(i, i + BATCH);
+        const { data } = await supabase.from("orders").select("id, payment_status, fulfillment_status, order_type").in("id", chunk);
+        if (data) allOrders.push(...data);
+      }
+      const orderMap = new Map(allOrders.map((o: any) => [o.id, o]));
 
       const grouped: Record<string, Record<string, { qty: number; total: number; price: number; supplier: string }>> = {};
       for (const item of allItems) {
@@ -730,11 +741,17 @@ export default function Inventory() {
         return;
       }
       const orderIds = [...new Set(items.map((i: any) => i.order_id))];
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id, customer_id, payment_status, fulfillment_status, created_at")
-        .in("id", orderIds);
-      const pendingOrders = (orders || []).filter((o: any) =>
+      const BATCH = 50;
+      const allOrders: any[] = [];
+      for (let i = 0; i < orderIds.length; i += BATCH) {
+        const chunk = orderIds.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("orders")
+          .select("id, customer_id, payment_status, fulfillment_status, created_at")
+          .in("id", chunk);
+        if (data) allOrders.push(...data);
+      }
+      const pendingOrders = allOrders.filter((o: any) =>
         o.fulfillment_status === "belum_ready" || o.fulfillment_status === "ready"
       );
       if (pendingOrders.length === 0) {
@@ -834,11 +851,17 @@ export default function Inventory() {
         return;
       }
       const orderIds = [...new Set(items.map((i: any) => i.order_id))];
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id, customer_id, payment_status, fulfillment_status, created_at")
-        .in("id", orderIds);
-      const pendingOrders = (orders || []).filter((o: any) =>
+      const BATCH = 50;
+      const allOrders: any[] = [];
+      for (let i = 0; i < orderIds.length; i += BATCH) {
+        const chunk = orderIds.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("orders")
+          .select("id, customer_id, payment_status, fulfillment_status, created_at")
+          .in("id", chunk);
+        if (data) allOrders.push(...data);
+      }
+      const pendingOrders = allOrders.filter((o: any) =>
         o.fulfillment_status === "belum_ready"
       );
       if (pendingOrders.length === 0) {
