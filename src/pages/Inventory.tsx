@@ -3356,9 +3356,9 @@ export default function Inventory() {
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              {cost > 0 ? (
+                              {sellP > 0 ? (
                                 <>
-                                  <p className="text-[10px] text-gray-400">Rp{cost.toLocaleString("id-ID")}</p>
+                                  <p className="text-[10px] text-gray-400">Rp{sellP.toLocaleString("id-ID")}</p>
                                   <p className="text-[11px] text-orange-600 font-semibold">Rp{shopeePrice.toLocaleString("id-ID")}</p>
                                   <p className="text-[9px] text-green-500 font-medium">+28%</p>
                                 </>
