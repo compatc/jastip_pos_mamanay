@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import {
   TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package,
   ChevronDown, ChevronUp, Download, AlertTriangle, Trophy, Receipt
 } from "lucide-react";
+
+const CACHE_KEY = "sales_dashboard_cache";
+const CACHE_TTL = 15 * 60 * 1000;
 
 type TabFilter = "all" | "penjualan" | "pembelian";
 
@@ -93,21 +96,43 @@ export default function SalesDashboard() {
   async function loadData() {
     setLoading(true);
 
+    // Check cache first
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { ts, orders, products, expenses, refunds } = JSON.parse(cached);
+        if (Date.now() - ts < CACHE_TTL && orders && orders.length > 0) {
+          setAllOrders(orders);
+          setProducts(products || []);
+          setExpenses(expenses || []);
+          setRefundList(refunds || []);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch {}
+
+    // Date range: last 90 days by default
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
     const [ordersRes, productsRes, expensesRes, refundsRes] = await Promise.all([
       supabase
         .from("orders")
         .select("id, status, total, paid_total, order_type, payment_type, ongkir, notes, created_at, customer_id")
         .neq("status", "deleted")
+        .gte("created_at", since)
         .order("created_at", { ascending: false }),
       supabase
         .from("products")
         .select("name, cost_price, sell_price, stock"),
       supabase
         .from("expenses")
-        .select("id, category, description, amount, expense_date"),
+        .select("id, category, description, amount, expense_date")
+        .gte("expense_date", since.split("T")[0]),
       supabase
         .from("refunds")
         .select("id, order_id, amount, reason, created_at")
+        .gte("created_at", since)
         .order("created_at", { ascending: false }),
     ]);
 
@@ -195,6 +220,17 @@ export default function SalesDashboard() {
         customer_name: refundCustomerMap[r.order_id] || "-",
       })));
     }
+
+    // Save cache
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        ts: Date.now(),
+        orders: rows,
+        products: productsRes.data,
+        expenses: expensesRes.data,
+        refunds: refundsRes.data,
+      }));
+    } catch {}
 
     setLoading(false);
   }
