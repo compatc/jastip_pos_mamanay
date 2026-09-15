@@ -242,33 +242,42 @@ export default function OrderDetail() {
     msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
     msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
 
-    const productNames = items.map((i) => `${i.product_name} x${i.quantity}`).join(", ");
-    const payMethod = PAYMENT_LABELS[order.payment_type] || order.payment_type;
-    const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
-
-    msg += `📦 Pesanan: ${productNames}\n`;
-    msg += `Status barang: ${statusLabel}\n`;
-    if (order.notes) msg += `📝 Catatan: ${order.notes}\n`;
-    if (order.qris_notes) msg += `📝 Catatan QRIS: ${order.qris_notes}\n`;
-    msg += `Metode: ${payMethod}\n`;
-    msg += `💰 Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
-    if (order.paid_total > 0) {
-      msg += `Sudah dibayar: Rp ${order.paid_total.toLocaleString("id-ID")}\n`;
-      msg += `Sisa: Rp ${(order.total - order.paid_total).toLocaleString("id-ID")}\n`;
-    }
+    // Product lines
+    msg += "📦 Pesanan:\n";
+    let itemGross = 0;
+    items.forEach((i) => {
+      const itemTotal = i.price * i.quantity - (i.discount || 0);
+      const label = i.variant ? `${i.product_name} ${i.variant}` : i.product_name;
+      msg += `• ${label} x${i.quantity} — Rp ${itemTotal.toLocaleString("id-ID")}\n`;
+      itemGross += i.price * i.quantity;
+    });
     msg += "\n";
 
-    if (qrisLink) {
-  const sisa = (order.total - (order.diskon || 0)) - order.paid_total;
-      msg += `💳 *Bayar QRIS sekarang:*\n`;
-      msg += `${productNames}\n`;
-      msg += `💰 Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
-      msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${qrisLink}\n\n`;
-    }
+    // Grand total
+    const diskon = order.diskon || 0;
+    const paid = order.paid_total || 0;
+    const sisa = itemGross - diskon - paid;
+    msg += "📈 Grand Total:\n";
+    msg += `Total harga: Rp ${itemGross.toLocaleString("id-ID")}\n`;
+    if (diskon > 0) msg += `Total diskon: -Rp ${diskon.toLocaleString("id-ID")}\n`;
+    if (paid > 0) msg += `Total dibayar: -Rp ${paid.toLocaleString("id-ID")}\n`;
+    msg += `*Total sisa: Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
 
-    msg += `💳 Metode Pembayaran: ${payMethod}\n`;
-    msg += `${BANK_INFO}\n`;
+    // Payment block
+    const payMethod = PAYMENT_LABELS[order.payment_type] || order.payment_type;
+    msg += "💳 Cara Pembayaran:\n";
+    let payIdx = 1;
+    if (qrisLink) {
+      msg += `${payIdx}. 📱 QRIS — Rp ${sisa.toLocaleString("id-ID")}: ${qrisLink}\n`;
+      payIdx++;
+    }
+    msg += `${payIdx}. 🏦 Transfer BCA: ${BANK_INFO}\n\n`;
+
     msg += `⏰ Batas Pembayaran: ${deadlineStr}\n\n`;
+
+    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
+    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
+    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
 
     const totalWeight = items.reduce((sum, i) => {
       const product = products.find((p) => p.id === i.product_id);
@@ -277,15 +286,11 @@ export default function OrderDetail() {
     }, 0);
     const pcsShopee = Math.ceil(totalWeight / 1000);
 
-    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
-    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
-    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
-
     if (pcsShopee > 0) {
-      msg += `🛒 *Checkout di Shopee:* ${pcsShopee} pcs\n`;
+      msg += `🛒 *Untuk checkout di Shopee:* ${pcsShopee} pcs\n`;
       msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
       msg += `📝 Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
-      msg += `⚠️ Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
+      msg += `⚠️ Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang atau rusak oleh ekspedisi.\n\n`;
     }
 
     msg += "Terima kasih atas kepercayaannya. 🙏";

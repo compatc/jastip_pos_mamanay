@@ -60,8 +60,6 @@ const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
   cancelled: "Dibatalkan",
 };
 
-const FULFILLMENT_STATUS_ORDER = ["belum_ready", "ready", "shipped", "diterima", "completed", "cancelled"];
-
 const OLD_STATUS_LABELS: Record<string, string> = {
   new: "Baru",
   "belum-ready": "Belum Ready",
@@ -76,14 +74,6 @@ const COURIER_LABELS: Record<string, string> = {
   jnt: "J&T",
   indopaket: "Indopaket",
   shopee: "Shopee",
-};
-
-const PAYMENT_LABELS_FULL: Record<string, string> = {
-  tf: "Transfer Bank",
-  qris: "QRIS",
-  split: "Split",
-  shopee: "Shopee",
-  cash: "Tunai",
 };
 
 const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
@@ -561,73 +551,64 @@ export default function Orders() {
     msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
     msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
 
-    let grandTotal = 0;
-    let grandPaid = 0;
     const unpaidOrders = group.orders.filter((o) => !isOrderLunas(o));
-    const grouped: Record<string, Order[]> = {};
+
+    // Aggregate items by product name+variant
+    const productMap = new Map<string, { name: string; qty: number; total: number }>();
+    let grandGross = 0;
+    let grandDiskon = 0;
+    let grandPaid = 0;
+
     unpaidOrders.forEach((order) => {
-      const key = order.fulfillment_status;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(order);
-    });
-    FULFILLMENT_STATUS_ORDER.forEach((status) => {
-      const list = grouped[status];
-      if (!list) return;
-      list.forEach((order) => {
-        const items = itemsByOrder[order.id] || [];
-        const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
-        const payMethod = PAYMENT_LABELS_FULL[order.payment_type] || order.payment_type;
-        const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
-        msg += `\u{1F4E6} Pesanan: ${productNames}\n`;
-        msg += `Status barang: ${statusLabel}\n`;
-        if (order.notes) msg += `\u{1F4DD} Catatan: ${order.notes}\n`;
-        if (order.qris_notes) msg += `\u{1F4DD} Catatan QRIS: ${order.qris_notes}\n`;
-        msg += `Metode: ${payMethod}\n`;
-        msg += `\u{1F4B0} Total Tagihan: *Rp ${order.total.toLocaleString("id-ID")}*\n`;
-        const paid = order.paid_total || 0;
-        if (paid > 0) {
-          msg += `Sudah dibayar: Rp ${paid.toLocaleString("id-ID")}\n`;
-          msg += `Sisa: Rp ${(order.total - paid).toLocaleString("id-ID")}\n`;
+      const items = itemsByOrder[order.id] || [];
+      items.forEach((item) => {
+        const key = `${item.product_name}|${item.variant || ""}`;
+        const itemTotal = item.price * item.quantity - (item.discount || 0);
+        const existing = productMap.get(key);
+        if (existing) {
+          existing.qty += item.quantity;
+          existing.total += itemTotal;
+        } else {
+          productMap.set(key, { name: itemLabel(item), qty: item.quantity, total: itemTotal });
         }
-        msg += "\n";
-        grandTotal += order.total;
-        grandPaid += paid;
+        grandGross += item.price * item.quantity;
       });
+      grandDiskon += order.diskon || 0;
+      grandPaid += order.paid_total || 0;
     });
 
-    if (unpaidOrders.length > 1) {
-      msg += `\u{1F4CA} *Grand Total: Rp ${grandTotal.toLocaleString("id-ID")}*\n`;
-      msg += `Total dibayar: Rp ${grandPaid.toLocaleString("id-ID")}\n`;
-      msg += `*Sisa: Rp ${(grandTotal - grandPaid).toLocaleString("id-ID")}*\n\n`;
+    // Product lines
+    msg += "\u{1F4E6} Pesanan:\n";
+    for (const [, prod] of productMap) {
+      msg += `\u2022 ${prod.name} x${prod.qty} \u2014 Rp ${prod.total.toLocaleString("id-ID")}\n`;
     }
+    msg += "\n";
 
+    // Grand total
+    const grandSisa = grandGross - grandDiskon - grandPaid;
+    msg += "\u{1F4CA} Grand Total:\n";
+    msg += `Total harga: Rp ${grandGross.toLocaleString("id-ID")}\n`;
+    if (grandDiskon > 0) msg += `Total diskon: -Rp ${grandDiskon.toLocaleString("id-ID")}\n`;
+    if (grandPaid > 0) msg += `Total dibayar: -Rp ${grandPaid.toLocaleString("id-ID")}\n`;
+    msg += `*Total sisa: Rp ${grandSisa.toLocaleString("id-ID")}*\n\n`;
+
+    // Payment block
+    msg += "\u{1F4B3} Cara Pembayaran:\n";
+    let payIdx = 1;
     if (qrisLinks && qrisLinks.length > 0) {
-      msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
-      qrisLinks.forEach((link, idx) => {
+      qrisLinks.forEach((link) => {
         if (link.combined) {
-          link.orders.forEach((order, i) => {
-            const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
-            const items = itemsByOrder[order.id] || [];
-            const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
-            msg += `${i + 1}. ${productNames}\n`;
-            msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
-          });
           const totalSisa = link.orders.reduce((s, o) => s + ((o.total - (o.diskon || 0)) - (o.paid_total || 0)), 0);
-          msg += `\u{1F9FE} Total sisa: *Rp ${totalSisa.toLocaleString("id-ID")}* (${link.orders.length} pesanan digabung dalam 1 QRIS)\n`;
-          msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${link.url}\n\n`;
-          return;
+          msg += `${payIdx}. \u{1F4F1} QRIS \u2014 Rp ${totalSisa.toLocaleString("id-ID")}: ${link.url}\n`;
+        } else {
+          const sisa = (link.order.total - (link.order.diskon || 0)) - (link.order.paid_total || 0);
+          msg += `${payIdx}. \u{1F4F1} QRIS \u2014 Rp ${sisa.toLocaleString("id-ID")}: ${link.url}\n`;
         }
-        const sisa = (link.order.total - (link.order.diskon || 0)) - (link.order.paid_total || 0);
-        const items = itemsByOrder[link.order.id] || [];
-        const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
-        msg += `${idx + 1}. ${productNames}\n`;
-        msg += `\u{1F4B0} Sisa: *Rp ${sisa.toLocaleString("id-ID")}*\n`;
-        msg += `Klik di sini untuk bayar pakai QRIS sekarang:\n${link.url}\n\n`;
+        payIdx++;
       });
     }
+    msg += `${payIdx}. \u{1F3E6} Transfer BCA: ${BANK_INFO}\n\n`;
 
-    msg += `\u{1F4B3} Metode Pembayaran: ${PAYMENT_LABELS_FULL[unpaidOrders[0]?.payment_type] || "Transfer Bank"}\n`;
-    msg += BANK_INFO + "\n";
     msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
 
     msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
@@ -646,8 +627,8 @@ export default function Orders() {
     if (pcsShopee > 0) {
       msg += `\u{1F6D2} *Untuk checkout di Shopee:* ${pcsShopee} pcs\n`;
       msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
-      msg += `📝 Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
-      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang oleh ekspedisi.\n\n`;
+      msg += `\u{1F4DD} Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
+      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang atau rusak oleh ekspedisi.\n\n`;
     }
 
     msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
