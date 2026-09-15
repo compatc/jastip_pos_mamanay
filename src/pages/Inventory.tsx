@@ -242,12 +242,37 @@ export default function Inventory() {
       const product = products.find(p => p.id === productId);
       const productName = product?.name || "";
       const cleanName = productName.replace(/\s*\[PO\]\s*/gi, "").trim();
-      const { data: items, error } = await supabase
-        .from("order_items")
-        .select("product_name, variant, quantity, price, discount, order_id, product_id")
-        .or(`product_id.eq.${productId},product_name.eq.${productName},product_name.ilike.%${cleanName}%`);
-      if (error) throw error;
-      if (!items || items.length === 0) {
+
+      // Step 1: Get recent active order IDs first (last 90 days)
+      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentOrders } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("order_type", "penjualan")
+        .not("fulfillment_status", "in", "(completed,cancelled,shipped,diterima)")
+        .neq("status", "deleted")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false });
+      const recentOrderIds = new Set((recentOrders || []).map((o: any) => o.id));
+      if (recentOrderIds.size === 0) {
+        setRekapItems([]);
+        return;
+      }
+
+      // Step 2: Fetch order_items only for recent orders + this product
+      const oidArr = [...recentOrderIds];
+      const BATCH = 50;
+      const allItems: any[] = [];
+      for (let i = 0; i < oidArr.length; i += BATCH) {
+        const chunk = oidArr.slice(i, i + BATCH);
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("product_name, variant, quantity, price, discount, order_id, product_id")
+          .in("order_id", chunk)
+          .or(`product_id.eq.${productId},product_name.eq.${productName},product_name.ilike.%${cleanName}%`);
+        if (items) allItems.push(...items);
+      }
+      if (allItems.length === 0) {
         setRekapItems([]);
         return;
       }
@@ -295,37 +320,25 @@ export default function Inventory() {
         return raw;
       }
 
-      const orderIds = [...new Set(items.map((i: any) => i.order_id))];
-      const BATCH = 50;
-      const allOrders: any[] = [];
-      for (let i = 0; i < orderIds.length; i += BATCH) {
-        const chunk = orderIds.slice(i, i + BATCH);
-        const { data } = await supabase
-          .from("orders")
-          .select("id, created_at, customer_id, order_type, fulfillment_status")
-          .in("id", chunk)
-          .eq("order_type", "penjualan")
-          .not("fulfillment_status", "in", "(completed,cancelled,shipped,diterima)")
-          .neq("status", "deleted");
-        if (data) allOrders.push(...data);
-      }
-      const orders = allOrders;
-      const customerIds = [...new Set(orders.map((o: any) => o.customer_id).filter(Boolean))];
+      // Step 3: Fetch orders + customers in one batch (already limited to recentOrderIds)
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, created_at, customer_id")
+        .in("id", oidArr)
+        .eq("order_type", "penjualan");
+      const orderMap = new Map((orders || []).map((o: any) => [o.id, o]));
+      const customerIds = [...new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length > 0
         ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
         : { data: [] };
       const customerMap = new Map((customers || []).map((c: any) => [c.id, { name: c.name, phone: c.phone || "" }]));
-      const orderMap = new Map((orders || []).map((o: any) => {
-        const c = customerMap.get(o.customer_id) || { name: "-", phone: "" };
-        return [o.id, { ...o, customer_name: c.name, customer_phone: c.phone, customer_id: o.customer_id }];
-      }));
-      const penjualanOrderIds = new Set((orders || []).map((o: any) => o.id));
-      const merged = items
-        .filter((i: any) => penjualanOrderIds.has(i.order_id))
+
+      const merged = allItems
         .map((i: any) => {
           const o = orderMap.get(i.order_id) || {};
+          const c = customerMap.get((o as any).customer_id) || { name: "-", phone: "" };
           const variant = extractVariant(i);
-          return { ...i, variant, created_at: (o as any).created_at, customer_name: (o as any).customer_name, customer_phone: (o as any).customer_phone || "", customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
+          return { ...i, variant, created_at: (o as any).created_at, customer_name: c.name, customer_phone: c.phone, customer_id: (o as any).customer_id || "", order_type: (o as any).order_type };
         });
       const customerProductMap = new Map<string, any>();
       for (const i of merged) {
@@ -353,20 +366,30 @@ export default function Inventory() {
       const poProducts = products.filter((p) => (p as any).stock_type === "po");
       if (poProducts.length === 0) { setPoSummaryItems([]); return; }
 
-      const { data: allItems } = await supabase
-        .from("order_items")
-        .select("product_name, variant, quantity, price, order_id, product_id");
-      if (!allItems) { setPoSummaryItems([]); return; }
+      // Step 1: Get only active orders (penjualan, not completed) — last 90 days
+      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: activeOrders } = await supabase
+        .from("orders")
+        .select("id, payment_status, fulfillment_status, order_type")
+        .eq("order_type", "penjualan")
+        .not("fulfillment_status", "in", "(completed,cancelled,shipped,diterima)")
+        .neq("status", "deleted")
+        .gte("created_at", since);
+      if (!activeOrders || activeOrders.length === 0) { setPoSummaryItems([]); return; }
+      const activeOrderIds = activeOrders.map((o: any) => o.id);
+      const orderMap = new Map(activeOrders.map((o: any) => [o.id, o]));
 
-      const orderIds = [...new Set(allItems.map((i: any) => i.order_id).filter(Boolean))];
+      // Step 2: Fetch order_items only for active orders
       const BATCH = 50;
-      const allOrders: any[] = [];
-      for (let i = 0; i < orderIds.length; i += BATCH) {
-        const chunk = orderIds.slice(i, i + BATCH);
-        const { data } = await supabase.from("orders").select("id, payment_status, fulfillment_status, order_type").in("id", chunk);
-        if (data) allOrders.push(...data);
+      const allItems: any[] = [];
+      for (let i = 0; i < activeOrderIds.length; i += BATCH) {
+        const chunk = activeOrderIds.slice(i, i + BATCH);
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("product_name, variant, quantity, price, order_id, product_id")
+          .in("order_id", chunk);
+        if (items) allItems.push(...items);
       }
-      const orderMap = new Map(allOrders.map((o: any) => [o.id, o]));
 
       const grouped: Record<string, Record<string, { qty: number; total: number; price: number; supplier: string }>> = {};
       for (const item of allItems) {
