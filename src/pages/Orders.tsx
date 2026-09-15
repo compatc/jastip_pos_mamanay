@@ -167,6 +167,7 @@ export default function Orders() {
     }
     init();
     loadCustomers();
+    loadProducts();
     return () => { cancelled = true; };
   }, []);
 
@@ -901,7 +902,8 @@ export default function Orders() {
     const items = itemsByOrder[orderId];
     if (!items || items.length === 0) return null;
     const item = items[0];
-    const product = products.find((p) => p.id === item.product_id);
+    const product = products.find((p) => p.id === item.product_id) ||
+      products.find((p) => p.name.toLowerCase() === item.product_name.toLowerCase());
     return product?.image || null;
   }
 
