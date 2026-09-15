@@ -135,7 +135,8 @@ interface PosStore {
     stockType?: string,
     description?: string,
     images?: string[],
-    supplier?: string
+    supplier?: string,
+    shopeeCategoryId?: string
   ) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
 
@@ -1410,7 +1411,7 @@ export const useStore = create<PosStore>((set, get) => ({
     return id;
   },
 
-  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, weight = 1, stockType = "ready", description = "", images: string[] = [], supplier = "") => {
+  updateProduct: async (id, name, costPrice, sellPrice, stock, unit, image, weight = 1, stockType = "ready", description = "", images: string[] = [], supplier = "", shopeeCategoryId = "") => {
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("products")
@@ -1426,6 +1427,7 @@ export const useStore = create<PosStore>((set, get) => ({
         images: images.length > 0 ? images : (image ? [image] : []),
         weight: weight,
         supplier: supplier || "",
+        shopee_category_id: shopeeCategoryId || null,
         user_id: user?.id || null,
       })
       .eq("id", id);

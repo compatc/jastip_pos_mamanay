@@ -45,6 +45,7 @@ interface ProductForm {
   images: string[];
   weight: string;
   supplier: string;
+  shopee_category_id: string;
 }
 
 const emptyForm: ProductForm = {
@@ -59,6 +60,7 @@ const emptyForm: ProductForm = {
   images: [],
   weight: "250",
   supplier: "",
+  shopee_category_id: "",
 };
 
 const avatarColors = [
@@ -435,6 +437,7 @@ export default function Inventory() {
       images: existingImages,
       weight: ((full as any)?.weight || 250).toString(),
       supplier: (product as any).supplier || "",
+      shopee_category_id: ((product as any).shopee_category_id || "").toString(),
     });
     setFormVariants([]);
     loadProductVariants(id);
@@ -506,7 +509,8 @@ export default function Inventory() {
           form.stock_type,
           form.description.trim(),
           form.images,
-          form.supplier.trim()
+          form.supplier.trim(),
+          form.shopee_category_id.trim()
         );
       } else {
         productId = await addProduct(
@@ -1766,6 +1770,18 @@ export default function Inventory() {
                       <option key={s} value={s} />
                     ))}
                   </datalist>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
+                    Shopee Category ID
+                  </label>
+                  <input
+                    type="number"
+                    value={form.shopee_category_id}
+                    onChange={(e) => setForm({ ...form, shopee_category_id: e.target.value })}
+                    placeholder="Contoh: 12345"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider font-semibold">
