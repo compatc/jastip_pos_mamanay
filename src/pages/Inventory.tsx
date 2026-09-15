@@ -417,14 +417,15 @@ export default function Inventory() {
     setShowForm(true);
   }
 
-  function openEdit(id: string) {
+  async function openEdit(id: string) {
     const product = products.find((p) => p.id === id);
     if (!product) return;
     setEditId(id);
     const existingImages = (product as any).images || (product.image ? [product.image] : []);
+    const { data: full } = await supabase.from("products").select("description,weight").eq("id", id).single();
     setForm({
       name: product.name,
-      description: (product as any).description || "",
+      description: (full as any)?.description || "",
       cost_price: product.cost_price.toString(),
       sell_price: product.sell_price.toString(),
       stock: product.stock.toString(),
@@ -432,7 +433,7 @@ export default function Inventory() {
       unit: product.unit || "PCS",
       image: product.image || "",
       images: existingImages,
-      weight: ((product as any).weight || 250).toString(),
+      weight: ((full as any)?.weight || 250).toString(),
       supplier: (product as any).supplier || "",
     });
     setFormVariants([]);

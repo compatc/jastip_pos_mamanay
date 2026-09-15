@@ -62,7 +62,7 @@ export interface OrderItem {
 export interface Product {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   cost_price: number;
   sell_price: number;
   stock: number;
@@ -72,7 +72,7 @@ export interface Product {
   unit: string;
   image: string;
   images: string[];
-  weight: number;
+  weight?: number;
   shopee_item_id?: string;
   shopee_synced_at?: string;
   created_at: string;
