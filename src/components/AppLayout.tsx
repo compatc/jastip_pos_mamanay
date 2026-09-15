@@ -59,7 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
 
     checkOnline();
-    const interval = setInterval(checkOnline, 15000);
+    const interval = setInterval(checkOnline, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -81,7 +81,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       } catch {}
     }
     checkPending();
-    const interval = setInterval(checkPending, 60000);
+    const interval = setInterval(checkPending, 120000);
     return () => clearInterval(interval);
   }, []);
 

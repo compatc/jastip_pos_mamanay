@@ -11,8 +11,8 @@ interface ToastItem {
 
 const NOTIFIED_KEY = "qris_notified_ids";
 const NOTIFIED_WINDOW_MS = 5 * 60 * 1000;
-const POLL_MS = 15000;
-const POLL_WINDOW_MS = 2 * 60 * 1000;
+const POLL_MS = 60000;
+const POLL_WINDOW_MS = 5 * 60 * 1000;
 
 function rupiah(n: number): string {
   return "Rp " + (n || 0).toLocaleString("id-ID");
@@ -198,7 +198,7 @@ export default function QrisNotifier() {
         // Realtime events from confirmOrder already update the UI
         // No need to call loadAllOrders() here
       } catch {}
-    }, 30000);
+    }, 120000);
 
     return () => {
       window.clearInterval(reconcile);

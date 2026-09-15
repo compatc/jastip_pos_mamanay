@@ -12,7 +12,7 @@ interface ToastItem {
 
 const NOTIFIED_KEY = "catalog_order_notified_v2";
 const NOTIFIED_WINDOW_MS = 30 * 60 * 1000;
-const POLL_MS = 15000;
+const POLL_MS = 60000;
 const WATERMARK_KEY = "catalog_order_watermark";
 
 function rupiah(n: number): string {

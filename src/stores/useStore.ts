@@ -4,7 +4,7 @@ import { uuid } from "../lib/uuid";
 import { awardPoints } from "../lib/loyalty";
 import type { Account, AccountTransaction, Customer, CustomerCategory, Order, OrderItem, OrderStatus, OrderType, PaymentType, Product, ProductBundleItem, ProductDiscount, ProductVariant, StockMovement } from "../types";
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 15 * 60 * 1000;
 const _cacheTs: Record<string, number> = {};
 function isFresh(key: string): boolean {
   return Date.now() - (_cacheTs[key] || 0) < CACHE_TTL;

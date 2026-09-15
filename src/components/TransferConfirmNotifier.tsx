@@ -11,7 +11,7 @@ interface ToastItem {
 
 const NOTIFIED_KEY = "transfer_conf_notified_ids";
 const NOTIFIED_WINDOW_MS = 5 * 60 * 1000;
-const POLL_MS = 15000;
+const POLL_MS = 60000;
 
 function rupiah(n: number): string {
   return "Rp " + (n || 0).toLocaleString("id-ID");
