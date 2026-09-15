@@ -189,12 +189,13 @@ export default async function handler(req, res) {
       }
 
       const productIds = (data || []).map(p => p.id);
+      const movSince = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
       const [{ data: allTags }, { data: allProductTags }, { data: variants }, { data: movements }] = await Promise.all([
         sb.from("tags").select("id, name"),
         sb.from("product_tags").select("product_id, tag_id"),
         sb.from("product_variants").select("id, product_id, name, image, stock, stock_type").in("product_id", productIds),
-        sb.from("stock_movements").select("product_id, variant, qty").in("product_id", productIds),
+        sb.from("stock_movements").select("product_id, variant, qty").in("product_id", productIds).gte("created_at", movSince),
       ]);
 
       const tagMap = {};
