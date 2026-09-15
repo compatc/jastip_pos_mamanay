@@ -348,7 +348,6 @@ export default function CustomerOrders() {
     const badge = getOrderStatusBadge(order);
     const paid = order.payment_status === "paid" || order.paid_total >= (order.total - (order.diskon || 0));
     const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
-    const productNames = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
     const dateStr = new Date(order.created_at).toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
@@ -361,7 +360,7 @@ export default function CustomerOrders() {
 
     const showPaidBadge = isCompletedTab ? false : paid;
     const statusLabel = isCompletedTab ? "Selesai" : badge.label;
-    const statusCls = isCompletedTab ? "bg-emerald-50 text-emerald-600" : badge.cls;
+    const statusCls = isCompletedTab ? "bg-emerald-50 text-emerald-600 border-emerald-200" : `${badge.cls} border-current/20`;
 
     return (
       <div
@@ -371,52 +370,94 @@ export default function CustomerOrders() {
             state: { returnTo: `/customer/${customerId}` },
           })
         }
-        className={`bg-white border border-slate-100 rounded-xl p-3.5 relative overflow-hidden cursor-pointer active:bg-slate-50 transition-colors ${isCompletedTab ? "opacity-70" : ""}`}
+        className={`bg-white border border-slate-200/80 rounded-2xl overflow-hidden cursor-pointer hover:border-slate-300 hover:shadow-md transition-all ${isCompletedTab ? "opacity-70" : ""}`}
       >
-        <div className={`absolute top-0 left-0 w-[3px] h-full ${isCompletedTab ? "bg-emerald-400" : badge.accent}`} />
-        <div className="flex justify-between items-start mb-2 pl-2">
-          <div>
-            <div className="text-base font-extrabold text-slate-800">{shortId(order.id)}</div>
-            <div className="text-xs text-slate-400">{dateStr} · {timeStr}</div>
+        {/* Top: Order ID + Status badge */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-0">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold text-slate-900">{shortId(order.id)}</span>
+            <span className="text-xs text-slate-300">·</span>
+            <span className="text-xs text-slate-400">{dateStr} · {timeStr}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${statusCls}`}>{statusLabel}</span>
-            {showPaidBadge && (
-              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-600">Lunas ✓</span>
-            )}
-          </div>
+          <span className={`text-[10px] px-2.5 py-1 font-semibold rounded-full border ${statusCls}`}>{statusLabel}</span>
         </div>
-        {productNames && (
-          <div className="text-sm text-slate-500 mb-2 pl-2 leading-relaxed">{productNames}</div>
-        )}
-        <div className="flex justify-between items-center pl-2">
-          <div className={`text-lg font-extrabold ${!paid && order.total > 0 ? "text-red-500" : "text-slate-800"}`}>
-            {rupiah(order.total)}
-          </div>
-          {paid ? (
-            <span className="text-sm text-emerald-500 font-semibold">Lunas ✓</span>
-          ) : (
-            <span className="text-sm text-amber-500 font-bold">Sisa: {rupiah(sisa)}</span>
+
+        {/* Items */}
+        <div className="px-4 space-y-3 mt-3">
+          {items.slice(0, 3).map((item: OrderItemData) => {
+            const product = products.find((p) => p.id === item.product_id) ||
+              products.find((p) => p.name.toLowerCase() === item.product_name.toLowerCase());
+            const imgSrc = product?.image || null;
+            const supplier = product?.supplier || null;
+            return (
+              <div key={item.product_id + (item.variant || "")} className="flex items-center gap-3">
+                {imgSrc ? (
+                  <img src={imgSrc} alt="" className="w-10 h-10 rounded-xl object-cover bg-slate-50 border border-slate-100 shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4 text-slate-300" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{item.product_name}</p>
+                  <p className="text-xs text-slate-400">
+                    {supplier && <span className="text-amber-600 font-medium">{supplier}</span>}
+                    {supplier && item.variant && <span> · </span>}
+                    {item.variant || ""}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Rp{item.price.toLocaleString("id-ID")} × {item.quantity}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          {items.length > 3 && (
+            <p className="text-xs text-slate-400 pl-13">+{items.length - 3} item lainnya</p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            showConfirm(
-              "Hapus Order?",
-              "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
-              async () => {
-                await deleteOrder(order.id);
-                await loadOrders(customerId!);
+
+        {/* Notes */}
+        {order.notes?.trim() && (
+          <div className="mx-4 mt-3 px-3 py-2 bg-slate-50 rounded-xl border-l-3 border-slate-200">
+            <p className="text-xs text-slate-400 italic">{order.notes.trim()}</p>
+          </div>
+        )}
+
+        {/* Bottom: Total + Payment + Actions */}
+        <div className="flex items-center justify-between px-4 py-3 mt-3 border-t border-slate-100">
+          <div>
+            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Total</p>
+            <p className={`text-base font-extrabold ${!paid && order.total > 0 ? "text-rose-600" : "text-slate-900"}`}>
+              {rupiah(order.total)}
+            </p>
+          </div>
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            {showPaidBadge && (
+              <span className="text-xs text-emerald-500 font-semibold">Lunas ✓</span>
+            )}
+            {!paid && order.total > 0 && (
+              <span className="text-xs text-amber-500 font-bold">Sisa: {rupiah(sisa)}</span>
+            )}
+            <button
+              type="button"
+              onClick={() =>
+                showConfirm(
+                  "Hapus Order?",
+                  "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
+                  async () => {
+                    await deleteOrder(order.id);
+                    await loadOrders(customerId!);
+                  }
+                )
               }
-            );
-          }}
-          className="absolute top-3 right-3 p-1.5 bg-red-50 hover:bg-red-100 text-red-400 rounded-lg transition-colors"
-          title="Hapus Order"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+              className="p-1.5 bg-red-50 hover:bg-red-100 text-red-400 rounded-full transition-all border border-red-100"
+              title="Hapus Order"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
