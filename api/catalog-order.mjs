@@ -1,4 +1,4 @@
-import { getAdmin } from "./pay.mjs";
+import { getAdmin, sendPushNotification } from "./pay.mjs";
 import { randomUUID } from "node:crypto";
 import { logAudit } from "./_audit.mjs";
 
@@ -404,6 +404,18 @@ export default async function handler(req, res) {
       }
 
       json(res, 200, { ok: true, orderId, total: subtotal });
+
+      // Send push notification to admin
+      const summary = items.map((i) => `${i.product_name || "Produk"} x${i.quantity || 1}`).join(", ");
+      sendPushNotification(sb, {
+        title: "Order Baru dari Bot",
+        body: `${customer_name || "Pelanggan"}: ${summary} — Rp ${subtotal.toLocaleString("id-ID")}`,
+        url: `/orders/${orderId}`,
+        type: "new_order",
+        orderIds: [orderId],
+        amount: subtotal,
+      }).catch(() => {});
+
       return;
     }
 
@@ -573,6 +585,18 @@ export default async function handler(req, res) {
     }
 
     json(res, 200, { ok: true, orderId, total: subtotal, customerName: customerDbName });
+
+    // Send push notification to admin
+    const summary = items.map((i) => `${i.product_name || "Produk"} x${i.quantity || 1}`).join(", ");
+    sendPushNotification(sb, {
+      title: "Order Baru dari Catalog",
+      body: `${customer_name}: ${summary} — Rp ${subtotal.toLocaleString("id-ID")}`,
+      url: `/orders/${orderId}`,
+      type: "new_order",
+      orderIds: [orderId],
+      amount: subtotal,
+    }).catch(() => {});
+
   } catch (e) {
     console.error("catalog-order error:", e.message);
     json(res, 500, { error: e.message });

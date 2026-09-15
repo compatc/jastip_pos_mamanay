@@ -1,4 +1,4 @@
-import { getAdmin } from "./pay.mjs";
+import { getAdmin, sendPushNotification } from "./pay.mjs";
 import { logAudit } from "./_audit.mjs";
 import { createHmac, createHash } from "node:crypto";
 
@@ -388,6 +388,19 @@ export default async function handler(req, res) {
 
       let msg = insertOk ? 'Konfirmasi terkirim' : 'Konfirmasi terkirim (catatan: table payment_confirmations belum ada)';
       json(res, 200, { ok: true, message: msg });
+
+      // Send push notification to admin
+      if (insertOk) {
+        sendPushNotification(sb, {
+          title: "Bukti Transfer Baru",
+          body: `${customerName}: Rp ${(parseFloat(amount) || sisa).toLocaleString("id-ID")}`,
+          url: `/payment-confirmations`,
+          type: "payment_confirm",
+          orderIds: orderIds ? orderIds.split(",") : [orderId],
+          amount: parseFloat(amount) || sisa,
+        }).catch(() => {});
+      }
+
       return;
     }
 
