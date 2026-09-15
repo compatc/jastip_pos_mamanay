@@ -163,7 +163,7 @@ export default async function handler(req, res) {
 
       let query = sb
         .from("products")
-        .select("id, name, description, sell_price, stock, stock_type, po_closed, unit, image, images")
+        .select("id, name, sell_price, stock, stock_type, po_closed, unit, image, images")
         .order("name", { ascending: true });
 
       if (tagFilter) {
