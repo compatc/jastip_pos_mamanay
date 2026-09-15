@@ -337,91 +337,62 @@ export default function Catalog() {
                 <div
                   key={p.id}
                   onClick={() => { setSelected(p); setCarouselIdx(0); window.history.pushState({}, "", "/catalog/" + p.id); }}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-100/80 shadow-sm transition-all hover:shadow-md active:scale-[0.98] cursor-pointer group"
+                  className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm transition-all hover:shadow-md hover:border-slate-300 active:scale-[0.98] cursor-pointer group"
                 >
                   {/* Image */}
-                  {p.image ? (
-                    <div className="relative w-full aspect-square bg-slate-50 overflow-hidden">
+                  <div className="relative w-full aspect-square bg-slate-50 overflow-hidden">
+                    {p.image ? (
                       <img src={p.image} alt={p.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      {(p.images && p.images.length > 1) && (
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                          {p.images.slice(0, 5).map((_: string, i: number) => (
-                            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-white" : "bg-white/50"}`} />
-                          ))}
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2">
-                        {isPoClosed ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-red-50 text-red-600 border-red-200">
-                            PO Ditutup
-                          </span>
-                        ) : p.stock_type === "po" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200">
-                            PO (Pre-Order)
-                          </span>
-                        ) : (
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm ${stock.color}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
-                            {stock.label}
-                          </span>
-                        )}
-                        {p.tags && p.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-0.5 mt-1">
-                            {p.tags.map((t) => {
-                              const tagName = typeof t === "string" ? t : t.name;
-                              return (
-                              <span key={tagName} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
-                                {tagName}
-                              </span>
-                            )})}
-                          </div>
-                        )}
+                    ) : (
+                      <div className={`w-full h-full bg-gradient-to-br ${getGradient(p.name)} flex items-center justify-center`}>
+                        <span className="text-5xl opacity-80">{getEmoji(p.name)}</span>
                       </div>
-                    </div>
-                  ) : (
-                    <div className={`relative w-full aspect-square bg-gradient-to-br ${getGradient(p.name)} flex items-center justify-center overflow-hidden`}>
-                      <span className="text-5xl opacity-80">{getEmoji(p.name)}</span>
-                      <div className="absolute top-2 right-2">
+                    )}
+                    {/* Badge overlay */}
+                    <div className="absolute top-2 right-2">
+                      {isPoClosed ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-red-50 text-red-600 border-red-200">
+                          PO Ditutup
+                        </span>
+                      ) : p.stock_type === "po" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200">
+                          PO
+                        </span>
+                      ) : p.stock > 0 ? (
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm ${stock.color}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
                           {stock.label}
                         </span>
-                        {p.stock_type === "po" && (
-                          <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm mt-1 ${
-                            p.po_closed ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200"
-                          }`}>
-                            {p.po_closed ? "PO Ditutup" : "PO (Pre-Order)"}
-                          </span>
-                        )}
-                        {p.tags && p.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-0.5 mt-1">
-                            {p.tags.map((t) => {
-                              const tagName = typeof t === "string" ? t : t.name;
-                              return (
-                              <span key={tagName} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-purple-50 text-purple-600 border border-purple-200">
-                                {tagName}
-                              </span>
-                            )})}
-                          </div>
-                        )}
-                      </div>
+                      ) : null}
                     </div>
-                  )}
+                    {p.tags && p.tags.length > 0 && (
+                      <div className="absolute top-2 left-2 flex flex-wrap gap-0.5">
+                        {p.tags.slice(0, 2).map((t) => {
+                          const tagName = typeof t === "string" ? t : t.name;
+                          return (
+                            <span key={tagName} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-white/90 text-purple-600 border border-purple-200 backdrop-blur-sm">
+                              {tagName}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Info */}
-                  <div className="p-2.5 sm:p-3">
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-1 min-h-[32px] sm:min-h-[36px]">
+                  <div className="p-3">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-1.5 min-h-[32px] sm:min-h-[36px]">
                       {p.name}
                     </h3>
                     {p.variants && p.variants.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-1.5">
+                      <div className="flex flex-wrap gap-1 mb-2">
                         {p.variants.slice(0, 3).map((v) => (
-                          <span key={v.id} className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-semibold">
+                          <span key={v.id} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md font-semibold">
                             {v.name}
                           </span>
                         ))}
                         {p.variants.length > 3 && (
-                          <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md font-semibold">
+                          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md font-semibold">
                             +{p.variants.length - 3}
                           </span>
                         )}
@@ -431,16 +402,6 @@ export default function Catalog() {
                       <span className="text-sm sm:text-base font-extrabold text-rose-500 leading-none">
                         {rupiah(p.sell_price)}
                       </span>
-                      <div className="flex items-center gap-1">
-                        {p.stock_type === "po" && (
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                            p.po_closed ? "text-red-600 bg-red-50 border-red-200" : "text-amber-600 bg-amber-50 border-amber-200"
-                          }`}>{p.po_closed ? "PO Ditutup" : "PO"}</span>
-                        )}
-                        {p.stock > 0 && p.stock_type !== "po" && (
-                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Ready</span>
-                        )}
-                      </div>
                     </div>
                   </div>
                 </div>

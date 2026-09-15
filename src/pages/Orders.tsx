@@ -1275,7 +1275,8 @@ export default function Orders() {
                   {/* Items */}
                   <div className="px-4 space-y-3">
                     {orderItems.slice(0, 3).map((item) => {
-                      const product = products.find((p) => p.id === item.product_id);
+                      const product = products.find((p) => p.id === item.product_id) ||
+                        products.find((p) => p.name.toLowerCase() === item.product_name.toLowerCase());
                       const imgSrc = product?.image || null;
                       const supplier = product?.supplier || null;
                       return (
