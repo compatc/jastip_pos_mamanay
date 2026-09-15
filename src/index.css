@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: clamp(15px, 3.8vw, 20px);
 }
 

@@ -32,7 +32,6 @@ import {
   ExternalLink,
   Eye,
   X,
-  ArrowUpDown,
 } from "lucide-react";
 
 type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil" | "lunas" | "ready";
@@ -94,7 +93,7 @@ export default function Orders() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
-  const [sortBy, setSortBy] = useState<string>("newest");
+
   const [showProductSuggest, setShowProductSuggest] = useState(false);
   const itemsByOrder = allOrderItems;
   const [itemsLoading, setItemsLoading] = useState(true);
@@ -266,25 +265,7 @@ export default function Orders() {
     return "bg-red-50 text-red-600 border-red-200";
   }
 
-  const sortedOrders = [...filtered].sort((a, b) => {
-    switch (sortBy) {
-      case "oldest":
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      case "name-asc":
-        return (a.customer_name || "").localeCompare(b.customer_name || "");
-      case "name-desc":
-        return (b.customer_name || "").localeCompare(a.customer_name || "");
-      case "total-desc":
-        return (b.total || 0) - (a.total || 0);
-      case "total-asc":
-        return (a.total || 0) - (b.total || 0);
-      case "unpaid":
-        return ((b.total - (b.diskon || 0)) - (b.paid_total || 0)) - ((a.total - (a.diskon || 0)) - (a.paid_total || 0));
-      case "newest":
-      default:
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    }
-  });
+
 
   const totalPiutang = filtered
     .filter((o) => !isOrderLunas(o))
@@ -893,20 +874,6 @@ export default function Orders() {
     await markInvoiceSent(sentIds);
   }
 
-  function getOrderAccentColor(order: Order): string {
-    if (!isOrderLunas(order) && order.total > 0) return "border-rose-500";
-    if (order.fulfillment_status === "ready") return "border-sky-500";
-    if (order.fulfillment_status === "shipped" || order.fulfillment_status === "diterima" || order.fulfillment_status === "completed") return "border-emerald-500";
-    return "border-slate-200/80";
-  }
-
-  function getOrderAvatarBg(order: Order): string {
-    if (!isOrderLunas(order) && order.total > 0) return "bg-rose-100 text-rose-600";
-    if (order.fulfillment_status === "ready") return "bg-sky-100 text-sky-600";
-    if (order.fulfillment_status === "shipped" || order.fulfillment_status === "diterima" || order.fulfillment_status === "completed") return "bg-emerald-100 text-emerald-600";
-    return "bg-slate-100 text-slate-600";
-  }
-
   function getOrderStatusBadge(order: Order): { text: string; className: string } {
     if (!isOrderLunas(order) && order.total > 0) return { text: "Belum Bayar", className: "bg-rose-50 border-rose-200 text-rose-600" };
     if (order.fulfillment_status === "belum_ready") return { text: "Belum Ready", className: "bg-orange-50 border-orange-200 text-orange-600" };
@@ -929,8 +896,13 @@ export default function Orders() {
     return `${days} hari yang lalu`;
   }
 
-  function getInitial(name: string): string {
-    return (name || "?").charAt(0).toUpperCase();
+
+  function getOrderFirstImage(orderId: string): string | null {
+    const items = itemsByOrder[orderId];
+    if (!items || items.length === 0) return null;
+    const item = items[0];
+    const product = products.find((p) => p.id === item.product_id);
+    return product?.image || null;
   }
 
   const countBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).length;
@@ -1017,22 +989,7 @@ export default function Orders() {
                   </div>
                 )}
               </div>
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="appearance-none pl-8 pr-6 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all cursor-pointer"
-                >
-                  <option value="newest">Terbaru</option>
-                  <option value="oldest">Terlama</option>
-                  <option value="name-asc">Nama A-Z</option>
-                  <option value="name-desc">Nama Z-A</option>
-                  <option value="total-desc">Nominal Besar</option>
-                  <option value="total-asc">Nominal Kecil</option>
-                  <option value="unpaid">Belum Bayar</option>
-                </select>
-                <ArrowUpDown className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
+
               <button
                 onClick={() => navigate("/orders/new")}
                 className="px-3.5 py-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm shadow-pink-500/20 transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-[0.97]"
@@ -1272,98 +1229,121 @@ export default function Orders() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {sortedOrders.map((order) => {
+          <div className="space-y-3">
+            {filtered.map((order) => {
               const badge = getOrderStatusBadge(order);
+              const firstImage = getOrderFirstImage(order.id);
+              const orderItems = itemsByOrder[order.id] || [];
               return (
                 <div
                   key={order.id}
-                  className={`bg-white rounded-xl border shadow-sm p-3.5 hover:shadow-md transition-all relative overflow-hidden cursor-pointer group ${getOrderAccentColor(order)}`}
+                  className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
                   onClick={() => navigate(`/orders/${order.id}`, { state: { returnTo: `/orders?${searchParams.toString()}` } })}
                 >
-                  {!isOrderLunas(order) && order.total > 0 && (
-                    <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
-                  )}
-
-                  <div className="flex items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 ${getOrderAvatarBg(order)}`}>
-                        {getInitial(order.customer_name)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="font-bold text-slate-900 text-sm">{order.customer_name || "Tanpa kontak"}</h3>
-                          <div className="relative" onClick={(e) => e.stopPropagation()}>
-                            <select
-                              value={order.status}
-                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                              disabled={updatingStatus === order.id}
-                              className={`text-[10px] px-1.5 py-0.5 font-bold rounded-full border appearance-none cursor-pointer pr-4 bg-no-repeat bg-[length:10px] bg-[right_4px_center] ${badge.className} disabled:opacity-50`}
-                              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
-                            >
-                              {Object.entries(OLD_STATUS_LABELS).map(([value, label]) => (
-                                <option key={value} value={value}>{label}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-slate-400">
-                          #{order.id.slice(0, 8).toUpperCase()} · {getTimeAgo(order.created_at)}
-                        </p>
-                        {(() => {
-                          const cust = customers.find((c) => c.id === order.customer_id);
-                          if (cust?.address) {
-                            return <p className="text-[10px] text-slate-400 mt-0.5 truncate">📍 {cust.address}</p>;
-                          }
-                          return null;
-                        })()}
-                      </div>
+                  {/* Top: Order ID + Status badge */}
+                  <div className="flex items-center justify-between px-4 pt-4 pb-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold text-slate-900">#{order.id.slice(0, 8).toUpperCase()}</span>
+                      <span className="text-xs text-slate-300">·</span>
+                      <span className="text-xs text-slate-400">{getTimeAgo(order.created_at)}</span>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-base font-black ${!isOrderLunas(order) && order.total > 0 ? "text-rose-600" : "text-slate-900"}`}>
-                        Rp {order.total.toLocaleString("id-ID")}
-                      </p>
+                    <div className="relative" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        value={order.status}
+                        onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                        disabled={updatingStatus === order.id}
+                        className={`text-[10px] px-2.5 py-1 font-semibold rounded-full border appearance-none cursor-pointer pr-5 bg-no-repeat bg-[length:9px] bg-[right_6px_center] disabled:opacity-50 ${badge.className}`}
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
+                      >
+                        {Object.entries(OLD_STATUS_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
-                  <div className="pt-2.5 flex items-center justify-between gap-2">
-                    <div className="text-slate-600 font-medium flex items-center gap-1.5 min-w-0 text-[11px]">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold shrink-0">
-                        {itemsByOrder[order.id]?.length || 0} Barang
-                      </span>
-                      <span className="truncate">
-                        {itemsByOrder[order.id]?.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ") || "Loading..."}
-                      </span>
-                    </div>
+                  {/* Customer name */}
+                  <div className="px-4 pt-1 pb-0">
+                    <span className={`text-xs ${order.customer_name ? 'text-slate-500 font-medium' : 'text-slate-300'}`}>
+                      {order.customer_name || "Tanpa kontak"}
+                    </span>
+                  </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Divider */}
+                  <div className="h-px bg-slate-100 mx-4 my-3" />
+
+                  {/* Items */}
+                  <div className="px-4 space-y-3">
+                    {orderItems.slice(0, 3).map((item) => {
+                      const product = products.find((p) => p.id === item.product_id);
+                      const imgSrc = product?.image || null;
+                      const supplier = product?.supplier || null;
+                      return (
+                        <div key={item.id} className="flex items-center gap-3">
+                          {imgSrc ? (
+                            <img src={imgSrc} alt="" className="w-12 h-12 rounded-xl object-cover bg-slate-50 border border-slate-100 shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                              <Package className="w-5 h-5 text-slate-300" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{item.product_name}</p>
+                            <p className="text-xs text-slate-400">
+                              {supplier && <span className="text-amber-600 font-medium">{supplier}</span>}
+                              {supplier && item.variant && <span> · </span>}
+                              {item.variant || ""}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              Rp{item.price.toLocaleString("id-ID")} × {item.quantity}
+                              {item.quantity > 1 && <span> · Rp{(item.price * item.quantity).toLocaleString("id-ID")}</span>}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {orderItems.length > 3 && (
+                      <p className="text-xs text-slate-400 pl-15">+{orderItems.length - 3} item lainnya</p>
+                    )}
+                  </div>
+
+                  {/* Catatan */}
+                  {order.notes?.trim() && (
+                    <div className="mx-4 mt-3 px-3 py-2 bg-slate-50 rounded-xl border-l-3 border-slate-200">
+                      <p className="text-xs text-slate-400 italic">{order.notes.trim()}</p>
+                    </div>
+                  )}
+
+                  {/* Bottom: Total + Actions */}
+                  <div className="flex items-center justify-between px-4 py-3 mt-3 border-t border-slate-100">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Total</p>
+                      <p className={`text-base font-extrabold ${!isOrderLunas(order) && order.total > 0 ? "text-rose-600" : "text-slate-900"}`}>
+                        Rp {order.total.toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       {!isOrderLunas(order) && order.total > 0 && (
                         <>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              sendInvoiceWA(order);
-                            }}
-                            className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-[10px] transition-all shadow-sm"
+                            onClick={() => sendInvoiceWA(order)}
+                            className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white font-bold rounded-full text-[10px] transition-all shadow-sm"
                           >
                             QRIS
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
                               showConfirm(
                                 "Tandai Lunas",
                                 `Tandai order ${order.customer_name || ""} sebagai lunas (TF BCA)?\nSisa tagihan: Rp ${sisa.toLocaleString("id-ID")}`,
-                                async () => {
-                                  await markOrdersPaid([order.id]);
-                                },
+                                async () => { await markOrdersPaid([order.id]); },
                                 "Ya, Lunas"
                               );
                             }}
-                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-emerald-500/20"
+                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full text-[10px] transition-all shadow-sm shadow-emerald-500/20"
                           >
                             Lunas
                           </button>
@@ -1372,34 +1352,26 @@ export default function Orders() {
                       {(isOrderLunas(order) || order.total === 0) && (
                         <>
                           {order.fulfillment_status === "ready" && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              sendShopeeMsg(order);
-                            }}
-                            className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-orange-500/20"
-                          >
-                            Shopee
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => sendShopeeMsg(order)}
+                              className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-full text-[10px] transition-all shadow-sm shadow-orange-500/20"
+                            >
+                              Shopee
+                            </button>
                           )}
                           {tab === "belum-diambil" && (
                             <>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                sendPickupReminder(order);
-                              }}
-                              className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-blue-500/20"
-                            >
-                              Ingatkan
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                showConfirm(
+                              <button
+                                type="button"
+                                onClick={() => sendPickupReminder(order)}
+                                className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full text-[10px] transition-all shadow-sm shadow-blue-500/20"
+                              >
+                                Ingatkan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => showConfirm(
                                   "Tandai Diambil?",
                                   `Tandai pesanan ${order.customer_name || "ini"} sebagai sudah diambil?`,
                                   async () => {
@@ -1410,52 +1382,44 @@ export default function Orders() {
                                     await useStore.getState().refreshOrder(order.id);
                                   },
                                   "Tandai Diambil"
-                                );
-                              }}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] transition-all shadow-sm shadow-emerald-600/20"
-                            >
-                              Diambil
-                            </button>
+                                )}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-full text-[10px] transition-all shadow-sm shadow-emerald-600/20"
+                              >
+                                Diambil
+                              </button>
                             </>
                           )}
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/orders/${order.id}`, { state: { returnTo: `/orders?${searchParams.toString()}` } });
-                            }}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] transition-all"
+                            onClick={() => navigate(`/orders/${order.id}`, { state: { returnTo: `/orders?${searchParams.toString()}` } })}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-full text-[10px] transition-all"
                           >
                             Detail
                           </button>
                         </>
                       )}
                       {!isOrderLunas(order) && order.total > 0 && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showConfirm(
-                                "Hapus Order?",
-                                "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
-                                async () => {
-                                  await deleteOrder(order.id);
-                                  // Remove from local store (status='deleted' is filtered out by loadAllOrders)
-                                  const { allOrders, allOrderItems } = useStore.getState();
-                                  const newItems = { ...allOrderItems };
-                                  delete newItems[order.id];
-                                  useStore.setState({
-                                    allOrders: allOrders.filter((o) => o.id !== order.id),
-                                    allOrderItems: newItems,
-                                  });
-                                }
-                              );
-                            }}
-                            className="p-1.5 bg-red-50 hover:bg-red-100 text-red-400 rounded-lg transition-all border border-red-100"
-                            title="Hapus Order"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                        <button
+                          type="button"
+                          onClick={() => showConfirm(
+                            "Hapus Order?",
+                            "Apakah kamu yakin ingin menghapus order ini? Stok produk akan dikembalikan.",
+                            async () => {
+                              await deleteOrder(order.id);
+                              const { allOrders, allOrderItems } = useStore.getState();
+                              const newItems = { ...allOrderItems };
+                              delete newItems[order.id];
+                              useStore.setState({
+                                allOrders: allOrders.filter((o) => o.id !== order.id),
+                                allOrderItems: newItems,
+                              });
+                            }
+                          )}
+                          className="p-1.5 bg-red-50 hover:bg-red-100 text-red-400 rounded-full transition-all border border-red-100"
+                          title="Hapus Order"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>
