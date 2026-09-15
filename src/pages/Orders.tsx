@@ -559,7 +559,15 @@ export default function Orders() {
     let grandDiskon = 0;
     let grandPaid = 0;
 
+    // Collect order-level info: status + catatan
+    const orderStatuses = new Map<string, string>();
+    const orderNotes: string[] = [];
+
     unpaidOrders.forEach((order) => {
+      const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status || "";
+      if (statusLabel) orderStatuses.set(order.id, statusLabel);
+      if (order.notes?.trim()) orderNotes.push(order.notes.trim());
+
       const items = itemsByOrder[order.id] || [];
       items.forEach((item) => {
         const key = `${item.product_name}|${item.variant || ""}`;
@@ -581,6 +589,22 @@ export default function Orders() {
     msg += "\u{1F4E6} Pesanan:\n";
     for (const [, prod] of productMap) {
       msg += `\u2022 ${prod.name} x${prod.qty} \u2014 Rp ${prod.total.toLocaleString("id-ID")}\n`;
+    }
+
+    // Status summary (if mixed or non-default)
+    const uniqueStatuses = [...new Set(orderStatuses.values())];
+    if (uniqueStatuses.length > 0) {
+      if (uniqueStatuses.length === 1) {
+        msg += `\nStatus: ${uniqueStatuses[0]}\n`;
+      } else {
+        const statusCounts = [...orderStatuses.values()].reduce((acc, s) => { acc[s] = (acc[s] || 0) + 1; return acc; }, {} as Record<string, number>);
+        msg += `\nStatus: ${Object.entries(statusCounts).map(([s, c]) => `${s} (${c})`).join(", ")}\n`;
+      }
+    }
+
+    // Catatan (only if exists)
+    if (orderNotes.length > 0) {
+      msg += `\nCatatan: ${orderNotes[0]}\n`;
     }
     msg += "\n";
 

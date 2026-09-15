@@ -251,6 +251,17 @@ export default function OrderDetail() {
       msg += `• ${label} x${i.quantity} — Rp ${itemTotal.toLocaleString("id-ID")}\n`;
       itemGross += i.price * i.quantity;
     });
+
+    // Status barang
+    const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status || "";
+    if (statusLabel) {
+      msg += `\nStatus: ${statusLabel}\n`;
+    }
+
+    // Catatan (only if exists)
+    if (order.notes?.trim()) {
+      msg += `Catatan: ${order.notes.trim()}\n`;
+    }
     msg += "\n";
 
     // Grand total
