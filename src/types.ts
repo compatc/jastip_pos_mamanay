@@ -72,7 +72,7 @@ export interface Product {
   unit: string;
   image: string;
   images: string[];
-  weight?: number;
+  weight: number;
   shopee_item_id?: string;
   shopee_synced_at?: string;
   created_at: string;

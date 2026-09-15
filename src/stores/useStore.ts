@@ -1375,7 +1375,7 @@ export const useStore = create<PosStore>((set, get) => ({
     if (isFresh("products")) return;
     const { data, error } = await supabase
       .from("products")
-      .select("id,name,cost_price,sell_price,stock,stock_type,po_closed,supplier,unit,image,images,shopee_item_id,shopee_synced_at,created_at")
+      .select("id,name,cost_price,sell_price,stock,stock_type,po_closed,supplier,unit,image,images,weight,shopee_item_id,shopee_synced_at,created_at")
       .order("name", { ascending: true });
     if (error) { console.error("loadProducts:", error); return; }
     markFresh("products");
