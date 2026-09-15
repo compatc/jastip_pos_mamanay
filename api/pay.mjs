@@ -153,12 +153,13 @@ export async function getAdmin() {
     adminPromise = null;
   }
   adminPromise = (async () => {
-    if (SUPABASE_SERVICE_ROLE_KEY) {
-      const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (svcKey) {
+      const sb = createClient(SUPABASE_URL, svcKey);
       return sb;
     }
     if (!SUPABASE_ANON_KEY || !SUPABASE_EMAIL || !SUPABASE_PASSWORD) {
-      throw new Error("SUPABASE_EMAIL/PASSWORD atau SERVICE_ROLE_KEY belum di-set");
+      throw new Error("Missing: URL=" + !!SUPABASE_URL + " KEY=" + !!SUPABASE_ANON_KEY + " SVC=" + !!svcKey + " EMAIL=" + !!SUPABASE_EMAIL + " PASS=" + !!SUPABASE_PASSWORD);
     }
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { error } = await sb.auth.signInWithPassword({

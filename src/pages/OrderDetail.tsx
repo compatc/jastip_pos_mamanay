@@ -418,15 +418,20 @@ export default function OrderDetail() {
                     "completed": "completed",
                   };
                   const newStatus = statusMap[opt.value] || opt.value;
-                  await supabase
+                  const { error } = await supabase
                     .from("orders")
                     .update({ fulfillment_status: opt.value, status: newStatus, updated_at: new Date().toISOString() })
                     .eq("id", order.id);
+                  if (error) {
+                    console.error("Status update error:", error);
+                    return;
+                  }
                   useStore.setState((state) => ({
                     allOrders: state.allOrders.map((o) =>
                       o.id === order.id ? { ...o, fulfillment_status: opt.value, status: newStatus } : o
                     ),
                   }));
+                  await refreshOrder(order.id);
                 }}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all ${
                   isActive
@@ -597,31 +602,15 @@ export default function OrderDetail() {
             </div>
           )}
 
-          {!isOrderLunas(order) && order.total > 0 && (
-            <div className="flex gap-2.5 pt-1">
+          <div className="flex gap-2.5 pt-1">
+              {!isOrderLunas(order) && order.total > 0 && (
               <button
                 onClick={sendWa}
                 className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
               >
                 <MessageCircle className="w-4 h-4" /> Kirim WA
               </button>
-              <button
-                onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: location.pathname } })}
-                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setDeleteConfirm(true)}
-                className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl text-sm transition-all border border-red-100"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {(isOrderLunas(order) || order.total === 0) && (
-            <div className="flex gap-2.5 pt-1">
+              )}
               {order.fulfillment_status === "ready" && (
               <button
                 onClick={sendShopeeMsg}
@@ -630,6 +619,12 @@ export default function OrderDetail() {
                 🛒 Kirim Pesan Shopee
               </button>
               )}
+              <button
+                onClick={() => navigate(`/orders/${order.id}/edit`, { state: { returnTo: location.pathname } })}
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all"
+              >
+                Edit
+              </button>
               {refundable > 0 && (
               <button
                 onClick={openRefundModal}
@@ -644,8 +639,7 @@ export default function OrderDetail() {
               >
                 <Trash2 className="w-4 h-4" />
               </button>
-            </div>
-          )}
+          </div>
 
         </div>
       </main>
