@@ -1579,21 +1579,32 @@ export const useStore = create<PosStore>((set, get) => ({
   variantStock: {},
   loadVariantStock: async () => {
     if (isFresh("variantStock")) return;
-    const [movementsRes, variantsRes] = await Promise.all([
+    const [movementsRes, variantsRes, productsRes] = await Promise.all([
       supabase.from("stock_movements").select("product_id, variant, qty"),
       supabase.from("product_variants").select("product_id, name, stock"),
+      supabase.from("products").select("id, stock"),
     ]);
     if (movementsRes.error) console.error("loadVariantStock movements:", movementsRes.error);
     if (variantsRes.error) console.error("loadVariantStock variants:", variantsRes.error);
+    if (productsRes.error) console.error("loadVariantStock products:", productsRes.error);
 
     const result: Record<string, Record<string, number>> = {};
 
-    // Start with product_variants.stock as base
+    // Start with product_variants.stock as base (for products WITH variants)
     for (const row of variantsRes.data || []) {
       const pid = row.product_id;
       const v = row.name;
       if (!result[pid]) result[pid] = {};
       result[pid][v] = row.stock || 0;
+    }
+
+    // For products WITHOUT variants, use products.stock as base
+    for (const row of productsRes.data || []) {
+      const pid = row.id;
+      if (!result[pid]) {
+        result[pid] = {};
+        result[pid]["(tanpa varian)"] = row.stock || 0;
+      }
     }
 
     // Add stock_movements delta on top
