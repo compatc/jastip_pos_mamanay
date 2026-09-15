@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <title>jastip_mamanay - Invoice Saya</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #f8fafc;
       color: #0f172a;
       min-height: 100dvh;
@@ -224,7 +227,8 @@
     .hist-search { width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 13px; background: white; outline: none; transition: border-color 0.2s; color: #1e293b; }
     .hist-search:focus { border-color: #ec4899; }
     .hist-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; pointer-events: none; }
-    .hist-card { background: white; border-radius: 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .hist-card { background: white; border-radius: 20px; margin-bottom: 12px; border: 1.5px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: all 0.2s; }
+    .hist-card:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .hist-card-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 8px; }
     .hist-card-id { font-size: 13px; font-weight: 700; color: #0f172a; }
     .hist-card-date { font-size: 11px; color: #94a3b8; font-weight: 500; }
@@ -422,57 +426,89 @@
     /* ===== ORDER CARD ===== */
     .card {
       background: white;
-      border-radius: 16px;
-      padding: 16px;
+      border-radius: 20px;
       margin-bottom: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-      border: 1px solid #f1f5f9;
+      border: 1.5px solid #e2e8f0;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
       transition: all 0.2s;
     }
+    .card:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .card.selected {
       border-color: #ec4899;
       box-shadow: 0 0 0 2px rgba(236,72,153,0.15), 0 2px 8px rgba(0,0,0,0.04);
     }
     .card-top {
       display: flex;
-      align-items: flex-start;
-      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 0;
+    }
+    .card-top-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .order-checkbox {
       width: 18px; height: 18px;
       accent-color: #ec4899;
-      margin-top: 2px;
       flex-shrink: 0;
       cursor: pointer;
     }
-    .card-info { flex: 1; min-width: 0; }
-    .card-id { font-size: 13px; font-weight: 800; color: #ec4899; }
-    .card-date { font-size: 12px; color: #94a3b8; margin-top: 1px; }
-    .card-items {
-      margin-top: 10px;
-      padding: 10px 12px;
-      background: #f8fafc;
-      border-radius: 10px;
+    .card-id-group { display: flex; align-items: center; gap: 6px; }
+    .card-id { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 700; color: #0f172a; letter-spacing: -0.2px; }
+    .card-date { font-size: 11px; color: #cbd5e1; }
+    .card-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 10px;
+      font-weight: 600;
+      border: 1.5px solid;
     }
+    .card-status .status-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .card-items { padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
     .card-item {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      font-size: 13px;
-      color: #475569;
-      padding: 3px 0;
+      gap: 10px;
     }
-    .card-item-name {
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 55%;
+    .card-item-img {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      flex-shrink: 0;
     }
-    .card-item-qty { color: #94a3b8; font-weight: 600; font-size: 12px; }
-    .card-item-price { font-weight: 700; color: #1e293b; font-size: 12px; white-space: nowrap; }
-    .card-divider { height: 1px; background: #f1f5f9; margin: 10px 0; }
-    .card-totals { display: flex; flex-direction: column; gap: 4px; }
+    .card-item-img-placeholder {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    .card-item-info { flex: 1; min-width: 0; }
+    .card-item-name { font-size: 13px; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-item-meta { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+    .card-item-meta .supplier { color: #d97706; font-weight: 500; }
+    .card-item-meta .variant { color: #7c3aed; }
+    .card-item-qty-price { font-size: 12px; color: #94a3b8; }
+    .card-divider { height: 1px; background: #f1f5f9; margin: 0 16px; }
+    .card-notes { padding: 8px 16px 0; }
+    .card-note-box { background: #f8fafc; border-left: 3px solid #e2e8f0; border-radius: 0 8px 8px 0; padding: 8px 10px; }
+    .card-note-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 2px; }
+    .card-note-text { font-size: 12px; color: #475569; word-wrap: break-word; white-space: pre-wrap; font-style: italic; }
+    .card-packing { padding: 8px 16px 0; }
+    .packing-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1.5px solid #e2e8f0; cursor: pointer; }
+    .card-totals { padding: 10px 16px 0; display: flex; flex-direction: column; gap: 4px; }
     .card-row { display: flex; justify-content: space-between; font-size: 13px; color: #64748b; }
     .card-row.total { font-weight: 800; font-size: 15px; color: #0f172a; }
     .card-row.paid { color: #059669; }
@@ -481,36 +517,30 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 10px 16px 14px;
       margin-top: 10px;
+      border-top: 1px solid #f8fafc;
     }
     .status-badge {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 10px;
+      font-weight: 600;
+      border: 1.5px solid;
     }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .status-unpaid { background: #fef2f2; color: #dc2626; }
-    .status-unpaid .status-dot { background: #dc2626; }
-    .status-new { background: #eff6ff; color: #2563eb; }
-    .status-new .status-dot { background: #2563eb; }
-    .status-belum-ready { background: #fff7ed; color: #ea580c; }
-    .status-belum-ready .status-dot { background: #ea580c; }
-    .status-ready { background: #ecfdf5; color: #059669; }
-    .status-ready .status-dot { background: #059669; }
-    .status-paid { background: #ecfdf5; color: #059669; }
-    .status-paid .status-dot { background: #059669; }
-    .status-sent { background: #f5f3ff; color: #7c3aed; }
-    .status-sent .status-dot { background: #7c3aed; }
-    .status-dp { background: #fefce8; color: #a16207; }
-    .status-dp .status-dot { background: #a16207; }
-    .status-cancelled { background: #fee2e2; color: #dc2626; }
-    .status-cancelled .status-dot { background: #dc2626; }
-    .status-waiting { background: #fefce8; color: #ca8a04; }
-    .status-waiting .status-dot { background: #ca8a04; }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .status-unpaid { background: #fef2f2; color: #dc2626; border-color: #fecaca; } .status-unpaid .status-dot { background: #dc2626; }
+    .status-new { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; } .status-new .status-dot { background: #2563eb; }
+    .status-belum-ready { background: #fff7ed; color: #ea580c; border-color: #fed7aa; } .status-belum-ready .status-dot { background: #ea580c; }
+    .status-ready { background: #ecfdf5; color: #059669; border-color: #a7f3d0; } .status-ready .status-dot { background: #059669; }
+    .status-paid { background: #ecfdf5; color: #059669; border-color: #a7f3d0; } .status-paid .status-dot { background: #059669; }
+    .status-sent { background: #f5f3ff; color: #7c3aed; border-color: #c4b5fd; } .status-sent .status-dot { background: #7c3aed; }
+    .status-dp { background: #fefce8; color: #a16207; border-color: #fde68a; } .status-dp .status-dot { background: #a16207; }
+    .status-cancelled { background: #fee2e2; color: #dc2626; border-color: #fecaca; } .status-cancelled .status-dot { background: #dc2626; }
+    .status-waiting { background: #fefce8; color: #ca8a04; border-color: #fde68a; } .status-waiting .status-dot { background: #ca8a04; }
     .btn-pay-sm {
       padding: 8px 16px;
       border: none;
@@ -1265,11 +1295,17 @@
         html += '<div class="hist-card-items">';
         items.forEach(function(item) {
           var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
+          var imgHtml = '';
+          if (item.image) {
+            imgHtml = '<img src="' + item.image + '" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">';
+          }
           html += '<div class="hist-item">';
-          html += '<span class="hist-item-qty">' + item.quantity + '×</span>';
-          html += '<div class="hist-item-info"><span class="hist-item-name">' + item.product_name;
-          if (item.variant) html += '<span class="hist-variant">' + item.variant + '</span>';
-          html += '</span></div>';
+          if (imgHtml) html += imgHtml;
+          html += '<div class="hist-item-info"><span class="hist-item-name">' + escHtml(item.product_name);
+          if (item.variant) html += '<span class="hist-variant">' + escHtml(item.variant) + '</span>';
+          html += '</span>';
+          if (item.supplier) html += '<div style="font-size:10px;color:#d97706;font-weight:500;">' + escHtml(item.supplier) + '</div>';
+          html += '</div>';
           html += '<span class="hist-item-price">' + fmt(itemTotal) + '</span>';
           html += '</div>';
         });
@@ -1381,27 +1417,51 @@
       if (fs === 'cancelled') { kirimLabel = ''; }
       else if (fs === 'shipped') { kirimLabel = 'Dikirim'; kirimCls = 'status-sent'; }
       else if (fs === 'completed') { kirimLabel = 'Selesai'; kirimCls = 'status-paid'; }
-      else if (fs === 'ready') { kirimLabel = 'Stok Ready'; kirimCls = 'status-ready'; }
+      else if (fs === 'ready') { kirimLabel = 'Ready'; kirimCls = 'status-ready'; }
       else { kirimLabel = 'Belum Ready'; kirimCls = 'status-belum-ready'; }
+
       var h = '<div class="card" data-card-id="' + order.id + '">';
-      h += '<div class="card-top">';
+
+      // Top: checkbox + order ID + status badges
+      h += '<div class="card-top"><div class="card-top-left">';
       if (showPay && sisa > 0) {
         h += '<input type="checkbox" class="order-checkbox" data-order-id="' + order.id + '" data-sisa="' + sisa + '">';
       }
-      h += '<div class="card-info">';
-      h += '<div class="card-id">#' + shortId(order.id) + '</div>';
-      h += '<div class="card-date">' + fmtDate(order.created_at) + '</div>';
+      h += '<div class="card-id-group">';
+      h += '<span class="card-id">#' + shortId(order.id) + '</span>';
+      h += '<span class="card-date">' + fmtDate(order.created_at) + '</span>';
       h += '</div></div>';
+      h += '<div style="display:flex;gap:4px;">';
+      h += '<span class="card-status ' + bayarCls + '"><span class="status-dot"></span>' + bayarLabel + '</span>';
+      if (kirimLabel) h += '<span class="card-status ' + kirimCls + '"><span class="status-dot"></span>' + kirimLabel + '</span>';
+      h += '</div></div>';
+
+      // Items with images
       h += '<div class="card-items">';
       items.forEach(function(item) {
         var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
+        var imgHtml = '';
+        if (item.image) {
+          imgHtml = '<img src="' + item.image + '" alt="" class="card-item-img">';
+        } else {
+          imgHtml = '<div class="card-item-img-placeholder">&#128230;</div>';
+        }
         h += '<div class="card-item">';
-        h += '<span class="card-item-name">' + item.product_name + (item.variant ? ' <span style="color:#a855f7;font-size:0.85em">(' + item.variant + ')</span>' : '') + '</span>';
-        h += '<span class="card-item-qty">x' + item.quantity + '</span>';
-        h += '<span class="card-item-price">' + fmt(itemTotal) + '</span>';
-        h += '</div>';
+        h += imgHtml;
+        h += '<div class="card-item-info">';
+        h += '<div class="card-item-name">' + escHtml(item.product_name) + '</div>';
+        var meta = [];
+        if (item.supplier) meta.push('<span class="supplier">' + escHtml(item.supplier) + '</span>');
+        if (item.variant) meta.push('<span class="variant">' + escHtml(item.variant) + '</span>');
+        if (meta.length > 0) h += '<div class="card-item-meta">' + meta.join(' · ') + '</div>';
+        h += '<div class="card-item-qty-price">Rp' + (item.price || 0).toLocaleString('id-ID') + ' &times; ' + item.quantity + '</div>';
+        h += '</div></div>';
       });
-      h += '</div><div class="card-divider"></div>';
+      h += '</div>';
+
+      h += '<div class="card-divider"></div>';
+
+      // Totals
       h += '<div class="card-totals">';
       h += '<div class="card-row total"><span>Total</span><span>' + fmt(order.total) + '</span></div>';
       if ((order.diskon || 0) > 0) {
@@ -1414,18 +1474,20 @@
         h += '<div class="card-row sisa"><span>Sisa</span><span>' + fmt(sisa) + '</span></div>';
       }
       h += '</div>';
+
+      // Notes
       if (order.notes) {
         h += '<div class="card-notes">';
         h += '<div class="card-note-box"><div class="card-note-label">Catatan</div><div class="card-note-text">' + escHtml(order.notes) + '</div></div>';
         h += '</div>';
       }
+
+      // Packing photo
       if (order.packing_photo) {
-        h += '<img src="' + order.packing_photo + '" alt="Foto packing" class="packing-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + order.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')">';
+        h += '<div class="card-packing"><img src="' + order.packing_photo + '" alt="Foto packing" class="packing-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + order.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')"></div>';
       }
-      h += '<div class="card-footer">';
-      h += '<span class="status-badge ' + bayarCls + '"><span class="status-dot"></span>' + bayarLabel + '</span>';
-      if (kirimLabel) h += ' <span class="status-badge ' + kirimCls + '"><span class="status-dot"></span>' + kirimLabel + '</span>';
-      h += '</div></div>';
+
+      h += '</div>';
       return h;
     }
 

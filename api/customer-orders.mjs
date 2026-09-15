@@ -46,15 +46,32 @@ export default async function handler(req, res) {
     if (orderIds.length > 0) {
       const { data: items } = await sb
         .from("order_items")
-        .select("order_id, product_name, quantity, price, discount, variant")
+        .select("order_id, product_name, product_id, quantity, price, discount, variant")
         .in("order_id", orderIds);
       allItems = items || [];
+    }
+
+    const productIds = [...new Set(allItems.map(i => i.product_id).filter(Boolean))];
+    let productMap = {};
+    if (productIds.length > 0) {
+      const { data: prods } = await sb
+        .from("products")
+        .select("id, image, supplier")
+        .in("id", productIds);
+      for (const p of (prods || [])) {
+        productMap[p.id] = { image: p.image, supplier: p.supplier };
+      }
     }
 
     const itemsByOrder = {};
     for (const item of allItems) {
       if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
-      itemsByOrder[item.order_id].push(item);
+      const prod = item.product_id ? productMap[item.product_id] : null;
+      itemsByOrder[item.order_id].push({
+        ...item,
+        image: prod?.image || null,
+        supplier: prod?.supplier || null,
+      });
     }
 
     json(res, 200, { orders: orders || [], itemsByOrder });
