@@ -1087,7 +1087,7 @@ export default function Orders() {
               <TrendingUp className="w-4 h-4" />
             </div>
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Unpaid</p>
-            <p className="text-sm sm:text-lg font-black text-rose-600 mt-0.5 leading-tight">Rp {totalBelumBayar < 1000 ? "0" : `${(totalBelumBayar / 1000).toFixed(0)}rb`}</p>
+            <p className="text-sm sm:text-lg font-black text-rose-600 mt-0.5 leading-tight">Rp {totalBelumBayar >= 1000000 ? `${(totalBelumBayar / 1000000).toFixed(1)}jt` : totalBelumBayar >= 1000 ? `${(totalBelumBayar / 1000).toFixed(0)}rb` : '0'}</p>
             <p className="text-[9px] sm:text-[10px] text-rose-400 font-semibold">{countBelumBayar} order</p>
           </div>
           <div className="bg-white p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm text-center">
@@ -1103,7 +1103,7 @@ export default function Orders() {
               <Check className="w-4 h-4" />
             </div>
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase leading-none">Lunas</p>
-            <p className="text-sm sm:text-lg font-black text-emerald-600 mt-0.5 leading-tight">Rp {todayLunasTotal < 1000 ? "0" : `${(todayLunasTotal / 1000).toFixed(0)}rb`}</p>
+            <p className="text-sm sm:text-lg font-black text-emerald-600 mt-0.5 leading-tight">Rp {todayLunasTotal >= 1000000 ? `${(todayLunasTotal / 1000000).toFixed(1)}jt` : todayLunasTotal >= 1000 ? `${(todayLunasTotal / 1000).toFixed(0)}rb` : '0'}</p>
             <p className="text-[9px] sm:text-[10px] text-emerald-400 font-semibold">{todayLunasCount} trx</p>
           </div>
         </div>
