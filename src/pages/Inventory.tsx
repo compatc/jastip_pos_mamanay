@@ -2127,60 +2127,66 @@ export default function Inventory() {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                {stockMovements.map((m) => (
-                  <div
-                    key={m.id}
-                    className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        {m.transaction_type === "Pembelian" ? (
-                          <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                            <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                {(() => {
+                  let running = 0;
+                  return stockMovements.map((m) => {
+                    running += m.qty;
+                    return (
+                      <div
+                        key={m.id}
+                        className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            {m.transaction_type === "Pembelian" ? (
+                              <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                              </div>
+                            ) : (
+                              <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center border border-red-100">
+                                <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {m.transaction_type === "Penyesuaian Stok"
+                                  ? "Penyesuaian Stok"
+                                  : m.transaction_type === "Pembelian"
+                                    ? `Supplier: ${m.party_name}`
+                                    : `Pelanggan: ${m.party_name}`}
+                              </p>
+                              <p className="text-[10px] text-gray-400">
+                                {m.transaction_type} · No. {m.invoice_no}
+                              </p>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center border border-red-100">
-                            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            {m.transaction_type === "Penyesuaian Stok"
-                              ? "Penyesuaian Stok"
-                              : m.transaction_type === "Pembelian"
-                                ? `Supplier: ${m.party_name}`
-                                : `Pelanggan: ${m.party_name}`}
-                          </p>
                           <p className="text-[10px] text-gray-400">
-                            {m.transaction_type} · No. {m.invoice_no}
+                            {new Date(m.date).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
                           </p>
                         </div>
-                      </div>
-                      <p className="text-[10px] text-gray-400">
-                        {new Date(m.date).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between ml-9">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-bold ${m.qty > 0 ? "text-emerald-500" : "text-red-500"}`}>
-                          {m.qty > 0 ? "+" : ""}{m.qty} {m.unit}
-                        </span>
-                        {m.variant ? (
-                          <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-semibold">
-                            {m.variant}
+                        <div className="flex items-center justify-between ml-9">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-bold ${m.qty > 0 ? "text-emerald-500" : "text-red-500"}`}>
+                              {m.qty > 0 ? "+" : ""}{m.qty} {m.unit}
+                            </span>
+                            {m.variant ? (
+                              <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-semibold">
+                                {m.variant}
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="text-[10px] text-gray-500">
+                            Sisa: <span className="font-semibold text-gray-700">{running}</span> {m.unit}
                           </span>
-                        ) : null}
+                        </div>
                       </div>
-                      <span className="text-[10px] text-gray-500">
-                        Sisa: <span className="font-semibold text-gray-700">{m.qty_after}</span> {m.unit}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
