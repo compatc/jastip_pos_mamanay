@@ -291,7 +291,7 @@ export default function OrderDetail() {
       msg += `2. Shopee — checkout ${pcsShopee} pcs:\n`;
       msg += `https://s.shopee.co.id/8pjZ07JBJe\n`;
       msg += `📝 Catatan: *nama* + *4 digit HP*\n`;
-      msg += `⚠️ Resiko kehilangan atau rusak oleh ekspedisi ditanggung pembeli`;
+      msg += `⚠️ Paket via Shopee ditanggung pembeli`;
     }
 
     return msg;
