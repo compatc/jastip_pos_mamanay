@@ -1303,9 +1303,7 @@
           if (imgHtml) html += imgHtml;
           html += '<div class="hist-item-info"><span class="hist-item-name">' + escHtml(item.product_name);
           if (item.variant) html += '<span class="hist-variant">' + escHtml(item.variant) + '</span>';
-          html += '</span>';
-          if (item.supplier) html += '<div style="font-size:10px;color:#d97706;font-weight:500;">' + escHtml(item.supplier) + '</div>';
-          html += '</div>';
+          html += '</span></div>';
           html += '<span class="hist-item-price">' + fmt(itemTotal) + '</span>';
           html += '</div>';
         });
@@ -1450,10 +1448,7 @@
         h += imgHtml;
         h += '<div class="card-item-info">';
         h += '<div class="card-item-name">' + escHtml(item.product_name) + '</div>';
-        var meta = [];
-        if (item.supplier) meta.push('<span class="supplier">' + escHtml(item.supplier) + '</span>');
-        if (item.variant) meta.push('<span class="variant">' + escHtml(item.variant) + '</span>');
-        if (meta.length > 0) h += '<div class="card-item-meta">' + meta.join(' · ') + '</div>';
+        if (item.variant) h += '<div class="card-item-meta"><span class="variant">' + escHtml(item.variant) + '</span></div>';
         h += '<div class="card-item-qty-price">Rp' + (item.price || 0).toLocaleString('id-ID') + ' &times; ' + item.quantity + '</div>';
         h += '</div></div>';
       });

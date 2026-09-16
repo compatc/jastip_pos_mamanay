@@ -1280,7 +1280,6 @@ export default function Orders() {
                       const product = products.find((p) => p.id === item.product_id) ||
                         products.find((p) => p.name.toLowerCase() === item.product_name.toLowerCase());
                       const imgSrc = product?.image || null;
-                      const supplier = product?.supplier || null;
                       return (
                         <div key={item.id} className="flex items-center gap-3">
                           {imgSrc ? (
@@ -1292,11 +1291,9 @@ export default function Orders() {
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-900 truncate">{item.product_name}</p>
-                            <p className="text-xs text-slate-400">
-                              {supplier && <span className="text-amber-600 font-medium">{supplier}</span>}
-                              {supplier && item.variant && <span> · </span>}
-                              {item.variant || ""}
-                            </p>
+                            {item.variant && (
+                              <p className="text-xs text-purple-500 font-medium">{item.variant}</p>
+                            )}
                             <p className="text-xs text-slate-400">
                               Rp{item.price.toLocaleString("id-ID")} × {item.quantity}
                               {item.quantity > 1 && <span> · Rp{(item.price * item.quantity).toLocaleString("id-ID")}</span>}
