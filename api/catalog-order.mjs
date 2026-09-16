@@ -33,10 +33,10 @@ export default async function handler(req, res) {
       const ogId = url.searchParams.get("og");
 
       if (ogId) {
-        const { data: product } = await sb.from("products").select("name, sell_price, description, image, images, stock_type").eq("id", ogId).single();
+        const { data: product } = await sb.from("products").select("name, sell_price, description, image, stock_type").eq("id", ogId).single();
         const name = product?.name || "Produk";
         const desc = product?.description ? product.description.slice(0, 160).replace(/\n/g, " ").replace(/<[^>]*>/g, "") : "Jastip produk import berkualitas";
-        const img = (product?.images && product.images.length > 0 ? product.images[0] : product?.image) || "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/products/f78b4d77-8db7-45bf-bd29-685b0db90ce4.jpg";
+        const img = product?.image || "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/products/f78b4d77-8db7-45bf-bd29-685b0db90ce4.jpg";
         const siteUrl = `https://mamanay.vercel.app/catalog/${ogId}`;
         const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>${name} - jastip_mamanay</title><meta property="og:type" content="product"><meta property="og:title" content="${name} - jastip_mamanay"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:url" content="${siteUrl}"><meta property="og:site_name" content="jastip_mamanay"><meta property="product:price:amount" content="${product?.sell_price || ""}"><meta property="product:price:currency" content="IDR"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${name} - jastip_mamanay"><meta name="twitter:description" content="${desc}"><meta name="twitter:image" content="${img}"><script>window.location.href="/catalog/${ogId}";</script></head><body><p>Membuka <a href="/catalog/${ogId}">${name}</a>...</p></body></html>`;
         res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -54,12 +54,12 @@ export default async function handler(req, res) {
           const { data: tagged } = await sb.from("product_tags").select("product_id").eq("tag_id", tagRow.id);
           const tagProductIds = (tagged || []).map((t) => t.product_id);
           if (tagProductIds.length > 0) {
-            const { data: prods } = await sb.from("products").select("name, sell_price, image, images").in("id", tagProductIds).order("name");
+            const { data: prods } = await sb.from("products").select("name, sell_price, image").in("id", tagProductIds).order("name");
             products = prods || [];
           }
         }
         const displayName = ogTag.charAt(0).toUpperCase() + ogTag.slice(1);
-        const firstImg = products.length > 0 ? ((products[0].images && products[0].images.length > 0) ? products[0].images[0] : products[0].image) || null : null;
+        const firstImg = products.length > 0 ? products[0].image || null : null;
         const img = firstImg || "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/products/f78b4d77-8db7-45bf-bd29-685b0db90ce4.jpg";
         const productList = products.slice(0, 5).map(p => `${p.name} Rp${p.sell_price?.toLocaleString("id-ID")}`).join(", ");
         const desc = products.length > 0 ? `${displayName}: ${productList}${products.length > 5 ? ` dan ${products.length - 5} produk lainnya` : ""}` : `Produk ${displayName} - jastip_mamanay`;
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
         const cutoffISO = cutoffDate.toISOString();
 
         const { data: prods } = await sb.from("products")
-          .select("id, name, sell_price, cost_price, stock, stock_type, image, images, supplier")
+          .select("id, name, sell_price, cost_price, stock, stock_type, image")
           .gt("stock", 0).order("name");
 
         const { data: rItems } = await sb.from("order_items")
@@ -147,7 +147,7 @@ export default async function handler(req, res) {
           recs.push({
             id: p.id, name: p.name, price: p.sell_price, stock: p.stock,
             soldLast30Days: sold, salesRatio: Math.round(ratio * 100),
-            supplier: p.supplier || "", image: (p.images?.[0]) || p.image || null,
+            image: p.image || null,
             promoType, promoValue, promoMsg,
           });
         }
@@ -163,7 +163,7 @@ export default async function handler(req, res) {
 
       let query = sb
         .from("products")
-        .select("id, name, sell_price, stock, stock_type, po_closed, unit, image, images")
+        .select("id, name, sell_price, stock, stock_type, po_closed, unit, image")
         .order("name", { ascending: true });
 
       if (tagFilter) {

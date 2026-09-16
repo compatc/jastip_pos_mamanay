@@ -56,10 +56,10 @@ export default async function handler(req, res) {
     if (productIds.length > 0) {
       const { data: prods } = await sb
         .from("products")
-        .select("id, image, supplier")
+        .select("id, image")
         .in("id", productIds);
       for (const p of (prods || [])) {
-        productMap[p.id] = { image: p.image, supplier: p.supplier };
+        productMap[p.id] = { image: p.image };
       }
     }
 
@@ -70,7 +70,6 @@ export default async function handler(req, res) {
       itemsByOrder[item.order_id].push({
         ...item,
         image: prod?.image || null,
-        supplier: prod?.supplier || null,
       });
     }
 
