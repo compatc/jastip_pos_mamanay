@@ -530,8 +530,7 @@ export default function Orders() {
     });
 
     let msg = `Halo Kak ${group.name} \u{1F64F}\n\n`;
-    msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
-    msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
+    msg += "Invoice *Jastip_mamanay*:\n\n";
 
     const unpaidOrders = group.orders.filter((o) => !isOrderLunas(o));
 
@@ -568,59 +567,52 @@ export default function Orders() {
     });
 
     // Product lines
-    msg += "\u{1F4E6} Pesanan:\n";
     for (const [, prod] of productMap) {
-      msg += `\u2022 ${prod.name} x${prod.qty} \u2014 Rp ${prod.total.toLocaleString("id-ID")}\n`;
+      msg += `\u{1F4E6} ${prod.name} x${prod.qty} \u2014 Rp ${prod.total.toLocaleString("id-ID")}\n`;
     }
 
     // Status summary (if mixed or non-default)
     const uniqueStatuses = [...new Set(orderStatuses.values())];
     if (uniqueStatuses.length > 0) {
       if (uniqueStatuses.length === 1) {
-        msg += `\nStatus: ${uniqueStatuses[0]}\n`;
+        msg += `Status: ${uniqueStatuses[0]}\n`;
       } else {
         const statusCounts = [...orderStatuses.values()].reduce((acc, s) => { acc[s] = (acc[s] || 0) + 1; return acc; }, {} as Record<string, number>);
-        msg += `\nStatus: ${Object.entries(statusCounts).map(([s, c]) => `${s} (${c})`).join(", ")}\n`;
+        msg += `Status: ${Object.entries(statusCounts).map(([s, c]) => `${s} (${c})`).join(", ")}\n`;
       }
     }
 
     // Catatan (only if exists)
     if (orderNotes.length > 0) {
-      msg += `\nCatatan: ${orderNotes[0]}\n`;
+      msg += `Catatan: ${orderNotes[0]}\n`;
     }
-    msg += "\n";
 
     // Grand total
     const grandSisa = grandGross - grandDiskon - grandPaid;
-    msg += "\u{1F4CA} Grand Total:\n";
-    msg += `Total harga: Rp ${grandGross.toLocaleString("id-ID")}\n`;
-    if (grandDiskon > 0) msg += `Total diskon: -Rp ${grandDiskon.toLocaleString("id-ID")}\n`;
-    if (grandPaid > 0) msg += `Total dibayar: -Rp ${grandPaid.toLocaleString("id-ID")}\n`;
-    msg += `*Total sisa: Rp ${grandSisa.toLocaleString("id-ID")}*\n\n`;
+    msg += `\n\u{1F4CA} *Sisa bayar: Rp ${grandSisa.toLocaleString("id-ID")}*`;
+    if (grandPaid > 0) msg += `\n(sudah bayar Rp ${grandPaid.toLocaleString("id-ID")})`;
+    if (grandDiskon > 0) msg += `\n(diskon -Rp ${grandDiskon.toLocaleString("id-ID")})`;
+    msg += "\n";
 
     // Payment block
-    msg += "\u{1F4B3} Cara Pembayaran:\n";
+    msg += "\n\u{1F4B3} Pembayaran:\n";
     let payIdx = 1;
     if (qrisLinks && qrisLinks.length > 0) {
       qrisLinks.forEach((link) => {
         if (link.combined) {
           const totalSisa = link.orders.reduce((s, o) => s + ((o.total - (o.diskon || 0)) - (o.paid_total || 0)), 0);
-          msg += `${payIdx}. \u{1F4F1} QRIS \u2014 Rp ${totalSisa.toLocaleString("id-ID")}: ${link.url}\n`;
+          msg += `${payIdx}. QRIS \u2014 Rp ${totalSisa.toLocaleString("id-ID")}: ${link.url}\n`;
         } else {
           const sisa = (link.order.total - (link.order.diskon || 0)) - (link.order.paid_total || 0);
-          msg += `${payIdx}. \u{1F4F1} QRIS \u2014 Rp ${sisa.toLocaleString("id-ID")}: ${link.url}\n`;
+          msg += `${payIdx}. QRIS \u2014 Rp ${sisa.toLocaleString("id-ID")}: ${link.url}\n`;
         }
         payIdx++;
       });
     }
-    msg += `${payIdx}. \u{1F3E6} Transfer BCA: ${BANK_INFO}\n\n`;
+    msg += `${payIdx}. BCA: ${BANK_INFO}\n`;
+    msg += `\u23F0 Bayar sebelum: ${deadlineStr}\n`;
 
-    msg += `\u{23F0} Batas Pembayaran: ${deadlineStr}\n\n`;
-
-    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
-    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
-    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
-
+    // Shopee checkout
     const totalWeight = unpaidOrders.reduce((sum, order) => {
       const items = itemsByOrder[order.id] || [];
       return sum + items.reduce((s, i) => {
@@ -631,13 +623,12 @@ export default function Orders() {
     }, 0);
     const pcsShopee = Math.ceil(totalWeight / 1000);
     if (pcsShopee > 0) {
-      msg += `\u{1F6D2} *Untuk checkout di Shopee:* ${pcsShopee} pcs\n`;
-      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
-      msg += `\u{1F4DD} Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
-      msg += `\u26A0\uFE0F Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang atau rusak oleh ekspedisi.\n\n`;
+      msg += `\n\u{1F6D2} Checkout Shopee: ${pcsShopee} pcs`;
+      msg += `\nhttps://s.shopee.co.id/8pjZ07JBJe`;
+      msg += `\n\u{1F4DD} Catatan: *nama* + *4 digit HP*`;
+      msg += `\n\u26A0\uFE0F Resiko ekspedisi ditanggung pembeli`;
     }
 
-    msg += "Terima kasih atas kepercayaannya. \u{1F64F}";
     return msg;
   }
 

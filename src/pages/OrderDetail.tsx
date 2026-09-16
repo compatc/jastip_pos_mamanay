@@ -239,57 +239,48 @@ export default function OrderDetail() {
     });
 
     let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
-    msg += "Terima kasih sudah berbelanja di *Jastip_mamanay*.\n\n";
-    msg += "Berikut kami kirimkan invoice untuk pesanan Kakak:\n\n";
+    msg += "Invoice *Jastip_mamanay*:\n\n";
 
     // Product lines
-    msg += "📦 Pesanan:\n";
     let itemGross = 0;
     items.forEach((i) => {
       const itemTotal = i.price * i.quantity - (i.discount || 0);
       const label = i.variant ? `${i.product_name} ${i.variant}` : i.product_name;
-      msg += `• ${label} x${i.quantity} — Rp ${itemTotal.toLocaleString("id-ID")}\n`;
+      msg += `📦 ${label} x${i.quantity} — Rp ${itemTotal.toLocaleString("id-ID")}\n`;
       itemGross += i.price * i.quantity;
     });
 
     // Status barang
     const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status || "";
     if (statusLabel) {
-      msg += `\nStatus: ${statusLabel}\n`;
+      msg += `Status: ${statusLabel}\n`;
     }
 
     // Catatan (only if exists)
     if (order.notes?.trim()) {
       msg += `Catatan: ${order.notes.trim()}\n`;
     }
-    msg += "\n";
 
     // Grand total
     const diskon = order.diskon || 0;
     const paid = order.paid_total || 0;
     const sisa = itemGross - diskon - paid;
-    msg += "📈 Grand Total:\n";
-    msg += `Total harga: Rp ${itemGross.toLocaleString("id-ID")}\n`;
-    if (diskon > 0) msg += `Total diskon: -Rp ${diskon.toLocaleString("id-ID")}\n`;
-    if (paid > 0) msg += `Total dibayar: -Rp ${paid.toLocaleString("id-ID")}\n`;
-    msg += `*Total sisa: Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
+    msg += `\n📈 *Sisa bayar: Rp ${sisa.toLocaleString("id-ID")}*`;
+    if (paid > 0) msg += `\n(sudah bayar Rp ${paid.toLocaleString("id-ID")})`;
+    if (diskon > 0) msg += `\n(diskon -Rp ${diskon.toLocaleString("id-ID")})`;
+    msg += "\n";
 
     // Payment block
-    const payMethod = PAYMENT_LABELS[order.payment_type] || order.payment_type;
-    msg += "💳 Cara Pembayaran:\n";
+    msg += "\n💳 Pembayaran:\n";
     let payIdx = 1;
     if (qrisLink) {
-      msg += `${payIdx}. 📱 QRIS — Rp ${sisa.toLocaleString("id-ID")}: ${qrisLink}\n`;
+      msg += `${payIdx}. QRIS — Rp ${sisa.toLocaleString("id-ID")}: ${qrisLink}\n`;
       payIdx++;
     }
-    msg += `${payIdx}. 🏦 Transfer BCA: ${BANK_INFO}\n\n`;
+    msg += `${payIdx}. BCA: ${BANK_INFO}\n`;
+    msg += `⏰ Bayar sebelum: ${deadlineStr}\n`;
 
-    msg += `⏰ Batas Pembayaran: ${deadlineStr}\n\n`;
-
-    msg += "Mohon melakukan pembayaran sebelum batas waktu yang ditentukan. ";
-    msg += "Setelah transfer, silakan kirim bukti pembayaran agar pesanan dapat segera kami proses.\n";
-    msg += "Mohon abaikan apabila sudah melakukan payment.\n\n";
-
+    // Shopee checkout
     const totalWeight = items.reduce((sum, i) => {
       const product = products.find((p) => p.id === i.product_id);
       const weight = product?.weight || 250;
@@ -298,13 +289,12 @@ export default function OrderDetail() {
     const pcsShopee = Math.ceil(totalWeight / 1000);
 
     if (pcsShopee > 0) {
-      msg += `🛒 *Untuk checkout di Shopee:* ${pcsShopee} pcs\n`;
-      msg += `Link: https://s.shopee.co.id/8pjZ07JBJe\n`;
-      msg += `📝 Cantumkan *nama* + *4 digit terakhir nomor HP* pada catatan pesanan.\n`;
-      msg += `⚠️ Apabila menggunakan Shopee, kami tidak menanggung resiko apabila paket dinyatakan hilang atau rusak oleh ekspedisi.\n\n`;
+      msg += `\n🛒 Checkout Shopee: ${pcsShopee} pcs`;
+      msg += `\nhttps://s.shopee.co.id/8pjZ07JBJe`;
+      msg += `\n📝 Catatan: *nama* + *4 digit HP*`;
+      msg += `\n⚠️ Resiko ekspedisi ditanggung pembeli`;
     }
 
-    msg += "Terima kasih atas kepercayaannya. 🙏";
     return msg;
   }
 
