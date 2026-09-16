@@ -626,7 +626,7 @@ export default function Orders() {
       msg += `\n\u{1F6D2} Checkout Shopee: ${pcsShopee} pcs`;
       msg += `\nhttps://s.shopee.co.id/8pjZ07JBJe`;
       msg += `\n\u{1F4DD} Catatan: *nama* + *4 digit HP*`;
-      msg += `\n\u26A0\uFE0F Resiko ekspedisi ditanggung pembeli`;
+      msg += `\n\u26A0\uFE0F Resiko kehilangan atau rusak oleh ekspedisi ditanggung pembeli`;
     }
 
     return msg;
