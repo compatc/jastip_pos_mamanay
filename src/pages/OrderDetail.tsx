@@ -232,10 +232,7 @@ export default function OrderDetail() {
     const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
     const deadlineStr = deadline.toLocaleDateString("id-ID", {
       day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      month: "short",
     });
 
     let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
@@ -278,7 +275,7 @@ export default function OrderDetail() {
       payIdx++;
     }
     msg += `${payIdx}. BCA: ${BANK_INFO}\n`;
-    msg += `⏰ Bayar sebelum: ${deadlineStr}\n`;
+    msg += `⏰ Sebelum ${deadlineStr}\n`;
 
     // Shopee checkout
     const totalWeight = items.reduce((sum, i) => {

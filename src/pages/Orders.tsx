@@ -523,10 +523,7 @@ export default function Orders() {
     const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
     const deadlineStr = deadline.toLocaleDateString("id-ID", {
       day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      month: "short",
     });
 
     let msg = `Halo Kak ${group.name} \u{1F64F}\n\n`;
@@ -610,7 +607,7 @@ export default function Orders() {
       });
     }
     msg += `${payIdx}. BCA: ${BANK_INFO}\n`;
-    msg += `\u23F0 Bayar sebelum: ${deadlineStr}\n`;
+    msg += `\u23F0 Sebelum ${deadlineStr}\n`;
 
     // Shopee checkout
     const totalWeight = unpaidOrders.reduce((sum, order) => {
