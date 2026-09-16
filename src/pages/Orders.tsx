@@ -623,10 +623,12 @@ export default function Orders() {
     }, 0);
     const pcsShopee = Math.ceil(totalWeight / 1000);
     if (pcsShopee > 0) {
-      msg += `\n\u{1F6D2} Checkout Shopee: ${pcsShopee} pcs`;
-      msg += `\nhttps://s.shopee.co.id/8pjZ07JBJe`;
-      msg += `\n\u{1F4DD} Catatan: *nama* + *4 digit HP*`;
-      msg += `\n\u26A0\uFE0F Resiko kehilangan atau rusak oleh ekspedisi ditanggung pembeli`;
+      msg += `\n\u{1F4E6} Pengiriman:\n`;
+      msg += `1. Manual (JNT/JNE/LION PARCEL) — hubungi admin\n`;
+      msg += `2. Shopee — checkout ${pcsShopee} pcs:\n`;
+      msg += `https://s.shopee.co.id/8pjZ07JBJe\n`;
+      msg += `\u{1F4DD} Catatan: *nama* + *4 digit HP*\n`;
+      msg += `\u26A0\uFE0F Resiko kehilangan atau rusak oleh ekspedisi ditanggung pembeli`;
     }
 
     return msg;

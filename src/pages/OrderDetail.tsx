@@ -289,10 +289,12 @@ export default function OrderDetail() {
     const pcsShopee = Math.ceil(totalWeight / 1000);
 
     if (pcsShopee > 0) {
-      msg += `\n🛒 Checkout Shopee: ${pcsShopee} pcs`;
-      msg += `\nhttps://s.shopee.co.id/8pjZ07JBJe`;
-      msg += `\n📝 Catatan: *nama* + *4 digit HP*`;
-      msg += `\n⚠️ Resiko kehilangan atau rusak oleh ekspedisi ditanggung pembeli`;
+      msg += `\n📦 Pengiriman:\n`;
+      msg += `1. Manual (JNT/JNE/LION PARCEL) — hubungi admin\n`;
+      msg += `2. Shopee — checkout ${pcsShopee} pcs:\n`;
+      msg += `https://s.shopee.co.id/8pjZ07JBJe\n`;
+      msg += `📝 Catatan: *nama* + *4 digit HP*\n`;
+      msg += `⚠️ Resiko kehilangan atau rusak oleh ekspedisi ditanggung pembeli`;
     }
 
     return msg;
