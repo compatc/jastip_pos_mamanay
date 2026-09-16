@@ -524,6 +524,7 @@ export default function Orders() {
     const deadlineStr = deadline.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
+      year: "numeric",
     });
 
     let msg = `Halo Kak ${group.name} \u{1F64F}\n\n`;

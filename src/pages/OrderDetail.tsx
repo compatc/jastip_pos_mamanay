@@ -233,6 +233,7 @@ export default function OrderDetail() {
     const deadlineStr = deadline.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
+      year: "numeric",
     });
 
     let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
