@@ -559,7 +559,7 @@ export default function Orders() {
         } else {
           productMap.set(key, { name: itemLabel(item), qty: item.quantity, total: itemTotal });
         }
-        grandGross += item.price * item.quantity;
+        grandGross += item.price * item.quantity - (item.discount || 0);
       });
       grandDiskon += order.diskon || 0;
       grandKodeUnik += (order as any).kode_unik || 0;
