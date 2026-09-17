@@ -356,7 +356,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   }
 
   const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
-  const sisaInvoice = (currentTotal || 0) - (currentPaidTotal || 0);
+  const sisaInvoice = (currentTotal || 0) - (order.diskon || 0) - (currentPaidTotal || 0);
 
   // Kode unik: hanya jika bayar KURANG dari sisa (potongan QRIS)
   const rawDiff = Number(sisaInvoice) - Number(shareOfPayment);
@@ -463,7 +463,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
 // tagihannya, lalu selisih (kode unik/rounding) dipotong mundur mulai order
 // TERAKHIR sehingga nominal order lain tetap persis harga barangnya.
 export function allocatePaymentShares(orders, totalPaid) {
-  const sisa = (orders || []).map((o) => Math.max(0, (o.total || 0) - (o.paid_total || 0)));
+  const sisa = (orders || []).map((o) => Math.max(0, (o.total || 0) - (o.diskon || 0) - (o.paid_total || 0)));
   const shares = sisa.map(() => 0);
   const totalSisa = sisa.reduce((a, b) => a + b, 0);
   if (!(totalSisa > 0) || !(totalPaid > 0)) return shares;
@@ -509,7 +509,7 @@ export async function reconcilePending(sb, limit = 30) {
       }
       const { data: grpOrders } = await sb
         .from("orders")
-        .select("id, total, paid_total")
+        .select("id, total, paid_total, diskon")
         .in("id", g.order_ids || []);
       const byId = new Map((grpOrders || []).map((o) => [o.id, o]));
       const orderedOrders = (g.order_ids || []).map((id) => byId.get(id)).filter(Boolean);
@@ -661,7 +661,7 @@ export default async function handler(req, res) {
         await sb.from("qris_payments").update({ status: "paid" }).eq("id", group.id);
         const { data: grpOrders } = await sb
           .from("orders")
-          .select("id, total, paid_total")
+          .select("id, total, paid_total, diskon")
           .in("id", group.order_ids);
         const byId = new Map((grpOrders || []).map((o) => [o.id, o]));
         const orderedOrders = group.order_ids
@@ -901,7 +901,7 @@ export default async function handler(req, res) {
       }
       const { data: confOrders } = await sb
         .from("orders")
-        .select("id, total, paid_total, customer_id")
+        .select("id, total, paid_total, diskon, customer_id")
         .in("id", orderIds);
       const byId = new Map((confOrders || []).map((o) => [o.id, o]));
       const orderedOrders = orderIds
