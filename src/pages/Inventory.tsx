@@ -1156,7 +1156,8 @@ export default function Inventory() {
       const realVars = vs ? Object.keys(vs).filter(k => k !== "(tanpa varian)") : [];
       const hasVariants = realVars.length > 0;
       const stType = (product as any).stock_type === "po" ? " [PO]" : " [Ready]";
-      const desc = (product as any).description || "";
+      const { data: fullProd } = await supabase.from("products").select("description").eq("id", pid).single();
+      const desc = (fullProd as any)?.description || "";
       const footer = "\n\n_Fix, reply difoto_";
 
       try {
@@ -1524,7 +1525,7 @@ export default function Inventory() {
                           <Trash2 className="w-3 h-3 text-gray-300 hover:text-red-400" />
                         </button>
                         <button
-                          onClick={() => { setShareProductId(product.id); setShareDesc((product as any).description || ""); setShareVariantId(null); loadProductVariants(product.id); }}
+                          onClick={async () => { setShareProductId(product.id); const { data: fp } = await supabase.from("products").select("description").eq("id", product.id).single(); setShareDesc((fp as any)?.description || ""); setShareVariantId(null); loadProductVariants(product.id); }}
                           className="p-1 rounded hover:bg-green-50 transition-all"
                           title="Share ke Grup"
                         >
