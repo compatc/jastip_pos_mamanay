@@ -591,8 +591,6 @@ export default function Orders() {
     const grandSisa = grandGross - grandDiskon - grandKodeUnik - grandPaid;
     msg += `\n\u{1F4CA} *Sisa bayar: Rp ${grandSisa.toLocaleString("id-ID")}*`;
     if (grandPaid > 0) msg += `\n(sudah bayar Rp ${grandPaid.toLocaleString("id-ID")})`;
-    if (grandDiskon > 0) msg += `\n(diskon -Rp ${grandDiskon.toLocaleString("id-ID")})`;
-    if (grandKodeUnik > 0) msg += `\n(kode unik -Rp ${grandKodeUnik.toLocaleString("id-ID")})`;
     msg += "\n";
 
     // Payment block

@@ -266,8 +266,6 @@ export default function OrderDetail() {
     const sisa = itemGross - diskon - kodeUnik - paid;
     msg += `\n📈 *Sisa bayar: Rp ${sisa.toLocaleString("id-ID")}*`;
     if (paid > 0) msg += `\n(sudah bayar Rp ${paid.toLocaleString("id-ID")})`;
-    if (diskon > 0) msg += `\n(diskon -Rp ${diskon.toLocaleString("id-ID")})`;
-    if (kodeUnik > 0) msg += `\n(kode unik -Rp ${kodeUnik.toLocaleString("id-ID")})`;
     msg += "\n";
 
     // Payment block
