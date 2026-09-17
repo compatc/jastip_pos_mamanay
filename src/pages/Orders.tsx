@@ -251,7 +251,7 @@ export default function Orders() {
   }
 
   function isOrderLunas(order: typeof allOrders[0]): boolean {
-    return order.paid_total >= (order.total - (order.diskon || 0)) && order.total > 0;
+    return order.paid_total >= (order.total - (order.diskon || 0) - (order.kode_unik || 0)) && order.total > 0;
   }
 
   function getAgeDays(createdAt: string): number {
@@ -270,7 +270,7 @@ export default function Orders() {
 
   const totalPiutang = filtered
     .filter((o) => !isOrderLunas(o))
-    .reduce((s, o) => s + ((o.total - (o.diskon || 0)) - o.paid_total), 0);
+    .reduce((s, o) => s + ((o.total - (o.diskon || 0) - (o.kode_unik || 0)) - o.paid_total), 0);
 
   const totalBelumDiambil = filtered.reduce((s, o) => s + o.total, 0);
 
@@ -286,7 +286,7 @@ export default function Orders() {
 
     const items = itemsByOrder[order.id] || [];
     const productText = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
-    const sisa = (order.total - (order.diskon || 0)) - order.paid_total;
+    const sisa = (order.total - (order.diskon || 0) - (order.kode_unik || 0)) - order.paid_total;
     const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status;
 
     const deadlineBase = order.invoice_sent_at || order.created_at;
@@ -351,7 +351,7 @@ export default function Orders() {
 
     const items = itemsByOrder[order.id] || [];
     const productText = items.map((i) => `${itemLabel(i)} x${i.quantity}`).join(", ");
-    const sisa = (order.total - (order.diskon || 0)) - order.paid_total;
+    const sisa = (order.total - (order.diskon || 0) - (order.kode_unik || 0)) - order.paid_total;
     const isLunas = sisa <= 0;
 
     let msg = `Halo Kak ${order.customer_name || ""} \u{1F64F}\n\n`;
@@ -503,7 +503,7 @@ export default function Orders() {
   async function buildQrisLinks(
     group: CustomerGroup
   ): Promise<{ order: Order; url: string }[] | { combined: true; url: string; orders: Order[] }[]> {
-    const unpaid = group.orders.filter((o) => (o.total - (o.diskon || 0)) - (o.paid_total || 0) > 0);
+    const unpaid = group.orders.filter((o) => (o.total - (o.diskon || 0) - (o.kode_unik || 0)) - (o.paid_total || 0) > 0);
     if (unpaid.length > 1) {
       return [
         {
@@ -536,6 +536,7 @@ export default function Orders() {
     const productMap = new Map<string, { name: string; qty: number; total: number }>();
     let grandGross = 0;
     let grandDiskon = 0;
+    let grandKodeUnik = 0;
     let grandPaid = 0;
 
     // Collect order-level info: status + catatan
@@ -561,6 +562,7 @@ export default function Orders() {
         grandGross += item.price * item.quantity;
       });
       grandDiskon += order.diskon || 0;
+      grandKodeUnik += (order as any).kode_unik || 0;
       grandPaid += order.paid_total || 0;
     });
 
@@ -586,10 +588,11 @@ export default function Orders() {
     }
 
     // Grand total
-    const grandSisa = grandGross - grandDiskon - grandPaid;
+    const grandSisa = grandGross - grandDiskon - grandKodeUnik - grandPaid;
     msg += `\n\u{1F4CA} *Sisa bayar: Rp ${grandSisa.toLocaleString("id-ID")}*`;
     if (grandPaid > 0) msg += `\n(sudah bayar Rp ${grandPaid.toLocaleString("id-ID")})`;
     if (grandDiskon > 0) msg += `\n(diskon -Rp ${grandDiskon.toLocaleString("id-ID")})`;
+    if (grandKodeUnik > 0) msg += `\n(kode unik -Rp ${grandKodeUnik.toLocaleString("id-ID")})`;
     msg += "\n";
 
     // Payment block
@@ -598,10 +601,10 @@ export default function Orders() {
     if (qrisLinks && qrisLinks.length > 0) {
       qrisLinks.forEach((link) => {
         if (link.combined) {
-          const totalSisa = link.orders.reduce((s, o) => s + ((o.total - (o.diskon || 0)) - (o.paid_total || 0)), 0);
+          const totalSisa = link.orders.reduce((s, o) => s + ((o.total - (o.diskon || 0) - (o.kode_unik || 0)) - (o.paid_total || 0)), 0);
           msg += `${payIdx}. QRIS \u2014 Rp ${totalSisa.toLocaleString("id-ID")}: ${link.url}\n`;
         } else {
-          const sisa = (link.order.total - (link.order.diskon || 0)) - (link.order.paid_total || 0);
+          const sisa = (link.order.total - (link.order.diskon || 0) - ((link.order as any).kode_unik || 0)) - (link.order.paid_total || 0);
           msg += `${payIdx}. QRIS \u2014 Rp ${sisa.toLocaleString("id-ID")}: ${link.url}\n`;
         }
         payIdx++;
@@ -899,7 +902,7 @@ export default function Orders() {
   }
 
   const countBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).length;
-  const totalBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + ((o.total - (o.diskon || 0)) - o.paid_total), 0);
+  const totalBelumBayar = baseFiltered.filter((o) => !isOrderLunas(o) && o.total > 0).reduce((s, o) => s + ((o.total - (o.diskon || 0) - (o.kode_unik || 0)) - o.paid_total), 0);
   const countReady = baseFiltered.filter((o) => o.fulfillment_status === "ready").length;
   const countLunas = baseFiltered.filter((o) => isOrderLunas(o)).length;
   const today = new Date().toISOString().slice(0, 10);
@@ -1326,7 +1329,7 @@ export default function Orders() {
                           <button
                             type="button"
                             onClick={() => {
-                              const sisa = (order.total - (order.diskon || 0)) - (order.paid_total || 0);
+                              const sisa = (order.total - (order.diskon || 0) - (order.kode_unik || 0)) - (order.paid_total || 0);
                               showConfirm(
                                 "Tandai Lunas",
                                 `Tandai order ${order.customer_name || ""} sebagai lunas (TF BCA)?\nSisa tagihan: Rp ${sisa.toLocaleString("id-ID")}`,

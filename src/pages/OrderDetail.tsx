@@ -85,8 +85,8 @@ function getStatusColor(fulfillmentStatus: string): string {
   return colors[fulfillmentStatus] || "bg-blue-100 text-blue-600";
 }
 
-function isOrderLunas(o: { payment_status: string; paid_total: number; total: number; diskon?: number }) {
-  return o.payment_status === "paid" || o.paid_total >= (o.total - (o.diskon || 0));
+function isOrderLunas(o: { payment_status: string; paid_total: number; total: number; diskon?: number; kode_unik?: number }) {
+  return o.payment_status === "paid" || o.paid_total >= (o.total - (o.diskon || 0) - (o.kode_unik || 0));
 }
 
 export default function OrderDetail() {
@@ -261,11 +261,13 @@ export default function OrderDetail() {
 
     // Grand total
     const diskon = order.diskon || 0;
+    const kodeUnik = (order as any).kode_unik || 0;
     const paid = order.paid_total || 0;
-    const sisa = itemGross - diskon - paid;
+    const sisa = itemGross - diskon - kodeUnik - paid;
     msg += `\n📈 *Sisa bayar: Rp ${sisa.toLocaleString("id-ID")}*`;
     if (paid > 0) msg += `\n(sudah bayar Rp ${paid.toLocaleString("id-ID")})`;
     if (diskon > 0) msg += `\n(diskon -Rp ${diskon.toLocaleString("id-ID")})`;
+    if (kodeUnik > 0) msg += `\n(kode unik -Rp ${kodeUnik.toLocaleString("id-ID")})`;
     msg += "\n";
 
     // Payment block
@@ -527,6 +529,12 @@ export default function OrderDetail() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Diskon</span>
                 <span className="text-red-400 font-semibold">-{rupiah(order.diskon)}</span>
+              </div>
+            )}
+            {(order as any).kode_unik > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Kode Unik</span>
+                <span className="text-red-400 font-semibold">-{rupiah((order as any).kode_unik)}</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-2 border-t border-gray-100">

@@ -270,14 +270,14 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
 
   const { data: order, error } = await sb
     .from("orders")
-    .select("id, customer_id, total, paid_total, diskon, order_type, account_id, status, notes, qris_notes")
+    .select("id, customer_id, total, paid_total, diskon, kode_unik, order_type, account_id, status, notes, qris_notes")
     .eq("id", orderId)
     .single();
   if (error || !order) {
     return { error: "Order tidak ditemukan" };
   }
 
-  if ((order.paid_total || 0) >= (order.total || 0)) {
+  if ((order.paid_total || 0) >= (order.total || 0) - (order.diskon || 0) - (order.kode_unik || 0)) {
     return { status: "paid", confirmed: true, already: true };
   }
 
@@ -289,7 +289,9 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
     .single();
   const currentPaidTotal = freshOrder?.paid_total ?? order.paid_total;
   const currentTotal = freshOrder?.total ?? order.total;
-  if ((currentPaidTotal || 0) >= (currentTotal || 0)) {
+  const currentDiskon = order.diskon || 0;
+  const currentKodeUnik = order.kode_unik || 0;
+  if ((currentPaidTotal || 0) >= (currentTotal || 0) - currentDiskon - currentKodeUnik) {
     return { status: "paid", confirmed: true, already: true };
   }
 
@@ -356,20 +358,21 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   }
 
   const noteAmount = amountOverride != null && amountOverride > 0 ? shareOfPayment : bo.amount;
-  const sisaInvoice = (currentTotal || 0) - (order.diskon || 0) - (currentPaidTotal || 0);
+  const sisaInvoice = (currentTotal || 0) - (order.diskon || 0) - (order.kode_unik || 0) - (currentPaidTotal || 0);
 
   // Kode unik: hanya jika bayar KURANG dari sisa (potongan QRIS)
   const rawDiff = Number(sisaInvoice) - Number(shareOfPayment);
-  const kodeUnik = rawDiff > 0 ? rawDiff : 0;
-  const isKodeUnik = Number(shareOfPayment) > 0 && kodeUnik > 0;
+  const newKodeUnik = rawDiff > 0 ? rawDiff : 0;
+  const isKodeUnik = Number(shareOfPayment) > 0 && newKodeUnik > 0;
 
   // Overpayment: bayar lebih dari sisa → cap di sisa, tidak ada diskon tambahan
   const effectivePayment = Math.min(shareOfPayment, sisaInvoice);
 
-  const finalDiskon = isKodeUnik ? (order.diskon || 0) + kodeUnik : (order.diskon || 0);
+  const finalDiskon = order.diskon || 0;
+  const finalKodeUnik = (order.kode_unik || 0) + newKodeUnik;
   const finalPaid = (currentPaidTotal || 0) + effectivePayment;
   const paidNote = isKodeUnik
-    ? `QRIS ${effectivePayment} (kode unik ${kodeUnik}) (${transactionId.slice(0, 8)})`
+    ? `QRIS ${effectivePayment} (kode unik ${newKodeUnik}) (${transactionId.slice(0, 8)})`
     : Number(sisaInvoice) !== Number(effectivePayment)
       ? `QRIS ${effectivePayment} (sisa ${sisaInvoice}) (${transactionId.slice(0, 8)})`
       : `QRIS ${noteAmount} (${transactionId.slice(0, 8)})`;
@@ -383,10 +386,11 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   let lockQuery = sb.from("orders").update({
     total: currentTotal,
     diskon: finalDiskon,
+    kode_unik: finalKodeUnik,
     paid_total: finalPaid,
     payment_type: "qris",
     status: newStatus,
-    payment_status: finalPaid >= (currentTotal - finalDiskon) ? "paid" : finalPaid > 0 ? "dp" : "unpaid",
+    payment_status: finalPaid >= (currentTotal - finalDiskon - finalKodeUnik) ? "paid" : finalPaid > 0 ? "dp" : "unpaid",
     notes: order.notes || "",
     qris_notes: order.qris_notes
       ? `${order.qris_notes}\n${paidNote}`
@@ -463,7 +467,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
 // tagihannya, lalu selisih (kode unik/rounding) dipotong mundur mulai order
 // TERAKHIR sehingga nominal order lain tetap persis harga barangnya.
 export function allocatePaymentShares(orders, totalPaid) {
-  const sisa = (orders || []).map((o) => Math.max(0, (o.total || 0) - (o.diskon || 0) - (o.paid_total || 0)));
+  const sisa = (orders || []).map((o) => Math.max(0, (o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0) - (o.paid_total || 0)));
   const shares = sisa.map(() => 0);
   const totalSisa = sisa.reduce((a, b) => a + b, 0);
   if (!(totalSisa > 0) || !(totalPaid > 0)) return shares;

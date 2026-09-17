@@ -430,7 +430,7 @@ export const useStore = create<PosStore>((set, get) => ({
       const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
-          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, order_type, created_at, updated_at")
+          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, order_type, created_at, updated_at")
           .neq("status", "deleted")
           .order("created_at", { ascending: false }),
         supabase
@@ -500,7 +500,7 @@ export const useStore = create<PosStore>((set, get) => ({
     try {
       const { data: order, error: orderErr } = await supabase
         .from("orders")
-        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, payment_type, created_at, updated_at, account_id, courier, resi, shopee_order_no")
+        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, notes, qris_notes, order_type, payment_type, created_at, updated_at, account_id, courier, resi, shopee_order_no")
         .eq("id", orderId)
         .single();
       if (orderErr || !order) return;
@@ -595,6 +595,7 @@ export const useStore = create<PosStore>((set, get) => ({
         total: orderTotal,
         paid_total: paidTotal,
         diskon: diskon || 0,
+        kode_unik: 0,
         order_type: orderType,
         payment_type: paymentType,
         ongkir: ongkir || 0,
@@ -738,6 +739,7 @@ export const useStore = create<PosStore>((set, get) => ({
       total: orderTotal,
       paid_total: paidTotal,
       diskon: diskon || 0,
+      kode_unik: 0,
       order_type: orderType,
       payment_type: paymentType,
       ongkir: ongkir || 0,

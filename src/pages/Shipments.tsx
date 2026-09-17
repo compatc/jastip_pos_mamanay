@@ -60,8 +60,8 @@ interface ShipmentOrder {
 
 type FilterType = "all" | "ready" | "hold" | "shipped";
 
-function isOrderLunas(o: { paid_total: number; total: number; diskon?: number }) {
-  return (o.paid_total || 0) >= ((o.total || 0) - (o.diskon || 0)) && o.total > 0;
+function isOrderLunas(o: { paid_total: number; total: number; diskon?: number; kode_unik?: number }) {
+  return (o.paid_total || 0) >= ((o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0)) && o.total > 0;
 }
 
 function isHold(notes: string): boolean {
@@ -169,7 +169,7 @@ export default function Shipments() {
         const [ordersRes, customersRes, productsRes] = await Promise.all([
           supabase
             .from("orders")
-            .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
+            .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
             .eq("order_type", "penjualan")
             .neq("status", "deleted")
             .order("created_at", { ascending: false }),
@@ -250,7 +250,7 @@ export default function Shipments() {
     try {
       const ordersRes = await supabase
         .from("orders")
-        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
+        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
         .eq("order_type", "penjualan")
         .neq("status", "deleted")
         .order("created_at", { ascending: false });

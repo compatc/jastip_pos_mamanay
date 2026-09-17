@@ -31,6 +31,7 @@ export interface Order {
   paid_total: number;
   refund_total: number;
   diskon: number;
+  kode_unik: number;
   order_type: OrderType;
   payment_type: PaymentType;
   ongkir: number;
