@@ -64,6 +64,10 @@ function itemLabel(i: { product_name: string; variant?: string | null }) {
   return i.variant ? `${i.product_name} ${i.variant}` : i.product_name;
 }
 
+function isOrderLunas(order: any): boolean {
+  return order.paid_total >= (order.total - (order.diskon || 0) - (order.kode_unik || 0)) && order.total > 0;
+}
+
 export default function CustomerOrders() {
   const { customerId } = useParams<{ customerId: string }>();
   const {
