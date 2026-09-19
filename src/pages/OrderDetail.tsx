@@ -166,7 +166,7 @@ export default function OrderDetail() {
   }
 
   const totalDiscount = items.reduce((sum, i) => sum + (i.discount || 0), 0);
-  const sisa = order.total - order.paid_total;
+  const sisa = (order.total - (order.diskon || 0) - ((order as any).kode_unik || 0)) - order.paid_total;
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   function copyToClipboard(text: string, id: string) {

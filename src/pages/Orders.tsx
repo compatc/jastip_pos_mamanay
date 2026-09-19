@@ -778,7 +778,7 @@ export default function Orders() {
         msg += `Terima kasih 🙏`;
       } else {
         // Ready + belum lunas → pengingat bayar
-        const sisa = total - paid;
+        const sisa = total - paid - g.orders.reduce((s, o) => s + (o.diskon || 0) + (((o as any).kode_unik) || 0), 0);
         msg = `Halo Kak ${g.name} 🙏\n\n`;
         msg += `Pesanan *${productNames}* sudah ready dari ${readyDate}.\n\n`;
         msg += `💰 Total: *Rp ${total.toLocaleString("id-ID")}*\n`;
