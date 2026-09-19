@@ -502,16 +502,42 @@ export default function Catalog() {
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-extrabold text-slate-900 leading-snug">{selected.name}</h2>
                 </div>
-                <button
-                  onClick={() => {
-                    const url = window.location.origin + "/api/catalog-order?og=" + selected.id;
-                    navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {});
-                  }}
-                  className="shrink-0 w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
-                  title="Share link"
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={() => {
+                      const url = window.location.origin + "/api/catalog-order?og=" + selected.id;
+                      const caption = `${selected.name}\nHarga: Rp ${selected.sell_price.toLocaleString("id-ID")}\n\n${selected.description || ""}\n\n${url}`;
+                      window.open("https://wa.me/?text=" + encodeURIComponent(caption), "_blank");
+                    }}
+                    className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center text-green-500 hover:bg-green-100 transition-colors"
+                    title="Share ke WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const url = window.location.origin + "/api/catalog-order?og=" + selected.id;
+                      navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {});
+                    }}
+                    className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+                    title="Copy link"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const caption = `🏷️ ${selected.name}\n💰 Rp ${selected.sell_price.toLocaleString("id-ID")}\n\n${selected.description || ""}\n\n🛒 Order: ${window.location.origin}/catalog`;
+                      navigator.clipboard.writeText(caption).then(() => {
+                        window.open("https://www.instagram.com/", "_blank");
+                        alert("Caption copied! Buka Instagram → New Post → Paste caption");
+                      }).catch(() => {});
+                    }}
+                    className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center text-white hover:opacity-90 transition-colors"
+                    title="Copy caption + buka Instagram"
+                  >
+                    <span className="text-xs font-bold">IG</span>
+                  </button>
+                </div>
               </div>
 
               {selected.description && (
