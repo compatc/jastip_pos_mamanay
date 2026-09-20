@@ -107,7 +107,7 @@ export default function Catalog() {
   useEffect(() => {
     if (!selected || selected.description) return;
     let cancelled = false;
-    fetch(`/api/catalog-order?desc=${selected.id}`)
+    fetch(`/api/catalog?desc=${selected.id}`)
       .then((r) => r.json())
       .then((d) => {
         if (cancelled || !d.description) return;
@@ -129,7 +129,7 @@ export default function Catalog() {
           const found = cached.data.find((p: Product) => p.id === id);
           if (found) setSelected(found);
         }
-        fetch("/api/catalog-order")
+    fetch("/api/catalog")
           .then((r) => r.json())
           .then((d) => {
             if (d.data?.length) {
