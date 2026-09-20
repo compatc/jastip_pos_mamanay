@@ -118,12 +118,40 @@ export default function Catalog() {
   }, [selected?.id]);
 
   useEffect(() => {
+    const cacheKey = "catalog_cache";
+    const cacheTTL = 5 * 60 * 1000;
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+      if (cached && Date.now() - cached.ts < cacheTTL && cached.data?.length) {
+        setProducts(cached.data);
+        setLoading(false);
+        if (id) {
+          const found = cached.data.find((p: Product) => p.id === id);
+          if (found) setSelected(found);
+        }
         fetch("/api/catalog-order")
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.data?.length) {
+              setProducts(d.data);
+              localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: d.data }));
+              if (id) {
+                const found = d.data.find((p: Product) => p.id === id);
+                if (found) setSelected(found);
+              }
+            }
+          })
+          .catch(() => {});
+        return;
+      }
+    } catch {}
+    fetch("/api/catalog-order")
       .then((r) => r.json())
       .then((d) => {
         const prods = d.data || [];
         setProducts(prods);
         setLoading(false);
+        try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: prods })); } catch {}
         if (id) {
           const found = prods.find((p: Product) => p.id === id);
           if (found) setSelected(found);
