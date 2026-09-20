@@ -118,47 +118,31 @@ export default function Catalog() {
   }, [selected?.id]);
 
   useEffect(() => {
+    const R2_URL = "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/catalog.json";
     const API_URL = "/api/catalog-order";
     const cacheKey = "catalog_cache";
-    const cacheTTL = 5 * 60 * 1000;
+    const cacheTTL = 30 * 60 * 1000;
     try {
       const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
       if (cached && Date.now() - cached.ts < cacheTTL && cached.data?.length) {
         setProducts(cached.data);
         setLoading(false);
-        if (id) {
-          const found = cached.data.find((p: Product) => p.id === id);
-          if (found) setSelected(found);
-        }
-        fetch(API_URL)
-          .then((r) => r.json())
-          .then((d) => {
-            if (d.data?.length) {
-              setProducts(d.data);
-              localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: d.data }));
-              if (id) {
-                const found = d.data.find((p: Product) => p.id === id);
-                if (found) setSelected(found);
-              }
-            }
-          })
-          .catch(() => {});
+        if (id) { const found = cached.data.find((p: Product) => p.id === id); if (found) setSelected(found); }
         return;
       }
     } catch {}
-    fetch(API_URL)
-      .then((r) => r.json())
-      .then((d) => {
-        const prods = d.data || [];
-        setProducts(prods);
-        setLoading(false);
+    fetch(R2_URL).then(r => r.json()).then(d => {
+      if (!d.data?.length) throw new Error("empty");
+      const prods = d.data; setProducts(prods); setLoading(false);
+      try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: prods })); } catch {}
+      if (id) { const found = prods.find((p: Product) => p.id === id); if (found) setSelected(found); }
+    }).catch(() => {
+      fetch(API_URL).then(r => r.json()).then(d => {
+        const prods = d.data || []; setProducts(prods); setLoading(false);
         try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: prods })); } catch {}
-        if (id) {
-          const found = prods.find((p: Product) => p.id === id);
-          if (found) setSelected(found);
-        }
-      })
-      .catch(() => setLoading(false));
+        if (id) { const found = prods.find((p: Product) => p.id === id); if (found) setSelected(found); }
+      }).catch(() => setLoading(false));
+    });
   }, [id]);
 
   const categories = useMemo(() => {
