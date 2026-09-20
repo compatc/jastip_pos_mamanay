@@ -113,9 +113,17 @@ export async function sendPushNotification(sb, { title, body, url, type, orderId
     }
     try {
       const admin = await getAdmin();
-      const { data: { user } } = await admin.auth.getUser();
+      let userId = null;
+      try {
+        const { data: { user } } = await admin.auth.getUser();
+        userId = user?.id || null;
+      } catch {}
+      if (!userId) {
+        const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1 });
+        userId = authUsers?.users?.[0]?.id || null;
+      }
       const { error: insErr } = await admin.from("notifications").insert({
-        user_id: user?.id,
+        user_id: userId,
         title: title || "QRIS Lunas",
         body: body || "",
         url: url || "/orders",
@@ -149,6 +157,8 @@ export async function getAdmin() {
       const sb = await adminPromise;
       const { data: { user } } = await sb.auth.getUser();
       if (user) return sb;
+      const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (svcKey) return sb;
     } catch {}
     adminPromise = null;
   }
