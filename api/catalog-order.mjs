@@ -164,7 +164,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      res.setHeader("Cache-Control", "public, max-age=60");
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600");
 
       const tagFilter = url.searchParams.get("tag");
 
