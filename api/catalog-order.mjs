@@ -157,13 +157,20 @@ export default async function handler(req, res) {
         return;
       }
 
+      const descId = url.searchParams.get("desc");
+      if (descId) {
+        const { data: prod } = await sb.from("products").select("description").eq("id", descId).single();
+        json(res, 200, { ok: true, description: prod?.description || "" });
+        return;
+      }
+
       res.setHeader("Cache-Control", "public, max-age=60");
 
       const tagFilter = url.searchParams.get("tag");
 
       let query = sb
         .from("products")
-        .select("id, name, description, sell_price, stock, stock_type, po_closed, unit, image")
+        .select("id, name, sell_price, stock, stock_type, po_closed, unit, image")
         .order("name", { ascending: true });
 
       if (tagFilter) {

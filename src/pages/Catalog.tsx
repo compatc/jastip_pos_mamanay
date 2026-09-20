@@ -105,6 +105,19 @@ export default function Catalog() {
   const toggleDesc = useCallback(() => setDescExpanded((v) => !v), []);
 
   useEffect(() => {
+    if (!selected || selected.description) return;
+    let cancelled = false;
+    fetch(`/api/catalog-order?desc=${selected.id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d.description) return;
+        setSelected((prev) => prev?.id === selected.id ? { ...prev, description: d.description } : prev);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [selected?.id]);
+
+  useEffect(() => {
         fetch("/api/catalog-order")
       .then((r) => r.json())
       .then((d) => {
