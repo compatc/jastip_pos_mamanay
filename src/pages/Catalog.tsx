@@ -118,7 +118,7 @@ export default function Catalog() {
   }, [selected?.id]);
 
   useEffect(() => {
-    const R2_CATALOG_URL = "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/catalog.json";
+    const API_URL = "/api/catalog-order";
     const cacheKey = "catalog_cache";
     const cacheTTL = 5 * 60 * 1000;
     try {
@@ -130,7 +130,7 @@ export default function Catalog() {
           const found = cached.data.find((p: Product) => p.id === id);
           if (found) setSelected(found);
         }
-        fetch(R2_CATALOG_URL)
+        fetch(API_URL)
           .then((r) => r.json())
           .then((d) => {
             if (d.data?.length) {
@@ -146,7 +146,7 @@ export default function Catalog() {
         return;
       }
     } catch {}
-    fetch(R2_CATALOG_URL)
+    fetch(API_URL)
       .then((r) => r.json())
       .then((d) => {
         const prods = d.data || [];

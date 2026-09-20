@@ -121,7 +121,6 @@ export default function Inventory() {
   const [discountMinQty, setDiscountMinQty] = useState("");
   const [discountPrice, setDiscountPrice] = useState("");
   const [shareProductId, setShareProductId] = useState<string | null>(null);
-  const [buildingCatalog, setBuildingCatalog] = useState(false);
   const [shareDesc, setShareDesc] = useState("");
   const [shareSending, setShareSending] = useState(false);
   const [shareVariantId, setShareVariantId] = useState<string | null>(null);
@@ -1253,22 +1252,6 @@ export default function Inventory() {
               Rekap PO
             </button>
           )}
-          <button
-            disabled={buildingCatalog}
-            onClick={async () => {
-              setBuildingCatalog(true);
-              try {
-                const res = await fetch("/api/catalog-order?action=build-catalog", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-                const d = await res.json();
-                if (d.ok) alert(`Catalog updated! ${d.products} products → R2`);
-                else alert("Error: " + (d.error || "unknown"));
-              } catch (e: any) { alert("Error: " + e.message); }
-              setBuildingCatalog(false);
-            }}
-            className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 disabled:opacity-50"
-          >
-            {buildingCatalog ? "Building..." : "Build Catalog"}
-          </button>
           <button
             onClick={openAdd}
             className="shrink-0 px-3 py-2 bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-all shadow-lg shadow-pink-200/40 active:scale-[0.97]"
