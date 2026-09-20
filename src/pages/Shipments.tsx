@@ -165,6 +165,7 @@ export default function Shipments() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
+      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       try {
         const [ordersRes, customersRes, productsRes] = await Promise.all([
           supabase
@@ -172,6 +173,7 @@ export default function Shipments() {
             .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
             .eq("order_type", "penjualan")
             .neq("status", "deleted")
+            .gte("created_at", since)
             .order("created_at", { ascending: false }),
           supabase.from("customers").select("id, name, phone"),
           supabase.from("products").select("name, stock"),
@@ -247,12 +249,14 @@ export default function Shipments() {
 
   async function refreshData() {
     setLoading(true);
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     try {
       const ordersRes = await supabase
         .from("orders")
         .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, notes, qris_notes, order_type, created_at, updated_at, shipped_at, packing_photo")
         .eq("order_type", "penjualan")
         .neq("status", "deleted")
+        .gte("created_at", since)
         .order("created_at", { ascending: false });
       const allOrders = ordersRes.data || [];
       const lunasList = allOrders.filter(
