@@ -147,24 +147,26 @@ const SUPABASE_EMAIL = process.env.SUPABASE_EMAIL || process.env.BOT_EMAIL;
 const SUPABASE_PASSWORD = process.env.SUPABASE_PASSWORD || process.env.BOT_PASSWORD;
 
 let adminPromise = null;
+let adminIsServiceRole = false;
 
 export async function getAdmin() {
   if (!SUPABASE_URL) {
     throw new Error("SUPABASE_URL belum di-set");
   }
   if (adminPromise) {
+    if (adminIsServiceRole) return adminPromise;
     try {
       const sb = await adminPromise;
       const { data: { user } } = await sb.auth.getUser();
       if (user) return sb;
-      const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (svcKey) return sb;
     } catch {}
     adminPromise = null;
+    adminIsServiceRole = false;
   }
   adminPromise = (async () => {
     const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (svcKey) {
+      adminIsServiceRole = true;
       const sb = createClient(SUPABASE_URL, svcKey);
       return sb;
     }
