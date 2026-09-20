@@ -254,6 +254,40 @@ export default async function handler(req, res) {
     }
 
     const url = new URL(req.url, "http://localhost");
+
+    if (url.searchParams.get("action") === "build-catalog") {
+      const { createHash: ch, createHmac } = await import("node:crypto");
+      const productIds = (data || []).map(p => p.id);
+      const movSince = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: bTags }, { data: bPt }, { data: bVar }, { data: bMov }] = await Promise.all([
+        sb.from("tags").select("id, name"),
+        sb.from("product_tags").select("product_id, tag_id").in("product_id", productIds),
+        sb.from("product_variants").select("id, product_id, name, image, stock, stock_type").in("product_id", productIds),
+        sb.from("stock_movements").select("product_id, variant, qty").in("product_id", productIds).gte("created_at", movSince),
+      ]);
+      const tMap = {}; for (const t of bTags || []) tMap[t.id] = t.name;
+      const ptMap = {}; for (const pt of bPt || []) { if (!ptMap[pt.product_id]) ptMap[pt.product_id] = []; const tn = tMap[pt.tag_id]; if (tn) ptMap[pt.product_id].push(tn); }
+      const vsMap = {}; const vdMap = {};
+      for (const v of bVar || []) { if (!vsMap[v.product_id]) vsMap[v.product_id] = {}; vsMap[v.product_id][v.name] = v.stock || 0; if (!vdMap[v.product_id]) vdMap[v.product_id] = []; vdMap[v.product_id].push({ id: v.id, name: v.name, image: v.image || "", stock: v.stock || 0, stock_type: v.stock_type || null }); }
+      for (const m of bMov || []) { const pid = m.product_id; const v = m.variant || "(tanpa varian)"; if (!vsMap[pid]) vsMap[pid] = {}; vsMap[pid][v] = (vsMap[pid][v] || 0) + m.qty; const d = vdMap[pid]; if (d) { const vd = d.find(x => x.name === v); if (vd) vd.stock = (vd.stock || 0) + m.qty; } }
+      const result = (data || []).map(p => { const vs = vsMap[p.id]; const hv = vs && Object.keys(vs).length > 0; const rs = hv ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0) : p.stock; return { ...p, stock: rs, variants: vdMap[p.id] || [], tags: ptMap[p.id] || [] }; });
+      const payload = JSON.stringify({ ok: true, data: result, built_at: new Date().toISOString() });
+      const bodyBuf = Buffer.from(payload, "utf8");
+      const pHash = ch("sha256").update(bodyBuf).digest("hex");
+      const now = new Date(); const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); const ds = amzDate.slice(0, 8); const r2Key = "catalog.json";
+      const cr = `PUT\n/${R2_BUCKET}/${r2Key}\n\ncontent-type:application/json\nhost:${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\nx-amz-content-sha256:${pHash}\nx-amz-date:${amzDate}\n\ncontent-type;host;x-amz-content-sha256;x-amz-date\n${pHash}`;
+      const crHash = ch("sha256").update(cr).digest("hex");
+      const sts = `AWS4-HMAC-SHA256\n${amzDate}\n${ds}/auto/s3/aws4_request\n${crHash}`;
+      const hmac2 = (k, d) => createHmac("sha256", k).update(d).digest();
+      const kD = hmac2(`AWS4${R2_SECRET_KEY}`, ds); const kR = hmac2(kD, "auto"); const kS = hmac2(kR, "s3"); const kSi = hmac2(kS, "aws4_request");
+      const sig = hmac2(kSi, sts).toString("hex");
+      const auth = `AWS4-HMAC-SHA256 Credential=${R2_ACCESS_KEY}/${ds}/auto/s3/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=${sig}`;
+      const r2Res = await fetch(`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/${r2Key}`, { method: "PUT", headers: { Authorization: auth, "Content-Type": "application/json", "x-amz-content-sha256": pHash, "x-amz-date": amzDate }, body: bodyBuf });
+      if (!r2Res.ok) { const e = await r2Res.text(); json(res, 500, { error: `R2: ${r2Res.status} ${e}` }); return; }
+      json(res, 200, { ok: true, products: result.length, url: `https://${R2_PUBLIC}/${r2Key}` });
+      return;
+    }
+
     const isBotOrder = url.searchParams.get("type") === "bot";
 
     if (isBotOrder) {
