@@ -1581,8 +1581,9 @@ export const useStore = create<PosStore>((set, get) => ({
   variantStock: {},
   loadVariantStock: async () => {
     if (isFresh("variantStock")) return;
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
     const [movementsRes, variantsRes, productsRes] = await Promise.all([
-      supabase.from("stock_movements").select("product_id, variant, qty"),
+      supabase.from("stock_movements").select("product_id, variant, qty").gte("created_at", twoWeeksAgo),
       supabase.from("product_variants").select("product_id, name, stock"),
       supabase.from("products").select("id, stock"),
     ]);
