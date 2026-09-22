@@ -12,7 +12,6 @@ interface ToastItem {
 
 const NOTIFIED_KEY = "catalog_order_notified_v2";
 const NOTIFIED_WINDOW_MS = 30 * 60 * 1000;
-const POLL_MS = 300000;
 const WATERMARK_KEY = "catalog_order_watermark";
 
 function rupiah(n: number): string {
@@ -120,16 +119,7 @@ export default function CatalogOrderNotifier() {
     ].filter(Boolean), id);
   }
 
-  const visibleRef = useRef(document.visibilityState !== "hidden");
-
   useEffect(() => {
-    const onVis = () => { visibleRef.current = document.visibilityState !== "hidden"; };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, []);
-
-  useEffect(() => {
-    // First poll: load ALL current "new" orders, mark seen, set watermark cursor
     async function initSeen() {
       try {
         const { data } = await supabase
@@ -152,49 +142,7 @@ export default function CatalogOrderNotifier() {
     }
     initSeen();
 
-    // Polling for new orders — uses watermark to only fetch since last check
-    const poll = window.setInterval(async () => {
-      if (!initialized.current || !visibleRef.current) return;
-      try {
-        const watermark = localStorage.getItem(WATERMARK_KEY);
-        let query = supabase
-          .from("orders")
-          .select("id, total, customer_id, status, created_at")
-          .eq("status", "new")
-          .order("created_at", { ascending: true });
-        if (watermark) {
-          query = query.gt("created_at", watermark);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          console.error("[CatalogNotif] poll error:", error.message);
-          return;
-        }
-
-        if (data) {
-          let maxTs = watermark;
-          for (const row of data) {
-            if (!seenOrders.current.has(row.id) && !alreadyNotified(row.id)) {
-              console.log("[CatalogNotif] new order detected:", row.id);
-              await notifyOrder(row);
-            }
-            seenOrders.current.add(row.id);
-            if (!maxTs || row.created_at > maxTs) {
-              maxTs = row.created_at;
-            }
-          }
-          if (maxTs) {
-            localStorage.setItem(WATERMARK_KEY, maxTs);
-          }
-        }
-      } catch (e) {
-        console.error("[CatalogNotif] poll exception:", e);
-      }
-    }, POLL_MS);
-
-    // Also try Realtime
+    // Realtime only — no polling to save egress
     const channel = supabase
       .channel("catalog-new-orders-v2")
       .on(
@@ -210,7 +158,6 @@ export default function CatalogOrderNotifier() {
       .subscribe();
 
     return () => {
-      window.clearInterval(poll);
       channel.unsubscribe();
     };
   }, []);
