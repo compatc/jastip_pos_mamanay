@@ -20,6 +20,7 @@ export default function PayOrder() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [expired, setExpired] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const txIdRef = useRef("");
@@ -79,7 +80,10 @@ export default function PayOrder() {
     const t = setInterval(() => {
       const left = Math.max(0, Math.floor((end - Date.now()) / 1000));
       setCountdown(left);
-      if (left <= 0) clearInterval(t);
+      if (left <= 0) {
+        clearInterval(t);
+        setExpired(true);
+      }
     }, 1000);
     return () => clearInterval(t);
   }, [qrImage]);
@@ -101,6 +105,9 @@ export default function PayOrder() {
         if (data.status === "paid" || data.confirmed) {
           setConfirmed(true);
           clearInterval(poll);
+        } else if (data.status === "expired") {
+          setExpired(true);
+          clearInterval(poll);
         }
       } catch {}
     }, 5000);
@@ -111,6 +118,7 @@ export default function PayOrder() {
     fetchedRef.current = false;
     setQrImage(null);
     setConfirmed(false);
+    setExpired(false);
     setError(null);
     setAmount(0);
     setKodeUnik(0);
@@ -163,7 +171,23 @@ export default function PayOrder() {
           </div>
         )}
 
-        {!loading && !error && qrImage && !confirmed && (
+        {!loading && !error && expired && !confirmed && (
+          <div className="py-10 text-center">
+            <Clock className="w-12 h-12 text-amber-400 mx-auto mb-3" />
+            <h2 className="text-lg font-bold text-gray-800 mb-1">QR Kedaluwarsa</h2>
+            <p className="text-sm text-gray-500 mb-4">QRIS hanya berlaku 15 menit. Silakan buat QR baru untuk melanjutkan pembayaran.</p>
+            <div className="flex gap-2 justify-center">
+              <button onClick={retry} className="px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
+                Buat QR Baru
+              </button>
+              <button onClick={() => navigate("/catalog")} className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm">
+                Beranda
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && qrImage && !confirmed && !expired && (
           <div className="text-center">
             <div className="mx-auto w-56 h-56 bg-white border-2 border-pink-100 rounded-2xl p-3 mb-4">
               {qrImage.startsWith("data:") ? (
