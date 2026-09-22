@@ -227,7 +227,7 @@ export const useStore = create<PosStore>((set, get) => ({
     if (isFresh("customers")) return;
     const { data, error } = await supabase
       .from("customers")
-      .select("*")
+      .select("id, name, phone, address, category, points, member_level, total_spent, created_at")
       .order("created_at", { ascending: false });
     if (error) { console.error("loadCustomers:", error); return; }
     markFresh("customers");
@@ -427,11 +427,13 @@ export const useStore = create<PosStore>((set, get) => ({
   loadAllOrders: async () => {
     if (isFresh("allOrders")) return;
     try {
+      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
           .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, order_type, created_at, updated_at")
           .neq("status", "deleted")
+          .gte("created_at", since)
           .order("created_at", { ascending: false }),
         supabase
           .from("customers")
