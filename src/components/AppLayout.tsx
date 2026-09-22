@@ -114,8 +114,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="px-4 sm:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 p-0.5 shadow-md shadow-pink-500/20 shrink-0">
-                <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 p-0.5 shadow-md shadow-pink-500/20 shrink-0">
+                <div className="w-full h-full bg-white rounded-full flex items-center justify-center overflow-hidden">
                   <img src="/logo.png" alt="M" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
               <button
                 onClick={handleLogout}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center transition-all"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 items-center justify-center transition-all hidden sm:flex"
                 title="Keluar"
               >
                 <LogOut className="w-4 h-4" />
