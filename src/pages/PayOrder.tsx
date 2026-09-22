@@ -172,11 +172,11 @@ export default function PayOrder() {
                 <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrImage }} />
               )}
             </div>
-            <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
-            <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(amount)}</p>
+            <p className="text-sm text-gray-500 mb-1">Scan & bayar</p>
+            <p className="text-2xl font-extrabold text-pink-600 mb-1">{rupiah(amount - kodeUnik)}</p>
             {kodeUnik > 0 && (
               <p className="text-[11px] text-gray-400 mb-1">
-                (termasuk kode unik {kodeUnik})
+                asli {rupiah(amount)} &middot; kode unik −{kodeUnik}
               </p>
             )}
             {countdown !== null && (
