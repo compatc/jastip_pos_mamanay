@@ -1501,7 +1501,7 @@
     }
 
     function pollDokuStatus(orderIds) {
-      var ids = orderIds.split(',');
+      var ids = Array.isArray(orderIds) ? orderIds : orderIds.split(',');
       var attempts = 0;
       var interval = setInterval(function() {
         attempts++;
