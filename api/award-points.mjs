@@ -1,4 +1,4 @@
-import { getAdmin } from "./pay.mjs";
+import { getAdmin } from "../lib/shared.mjs";
 
 function json(res, status, body) {
   res.statusCode = status;

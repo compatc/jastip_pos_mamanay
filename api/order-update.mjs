@@ -1,4 +1,4 @@
-import { getAdmin } from "./pay.mjs";
+import { getAdmin } from "../lib/shared.mjs";
 import { logAudit } from "./_audit.mjs";
 import { createHmac, createHash } from "node:crypto";
 

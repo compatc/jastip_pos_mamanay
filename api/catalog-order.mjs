@@ -1,4 +1,4 @@
-import { getAdmin, sendPushNotification } from "./pay.mjs";
+import { getAdmin, sendPushNotification } from "../lib/shared.mjs";
 import { randomUUID } from "node:crypto";
 import { logAudit } from "./_audit.mjs";
 

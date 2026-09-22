@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from "node:crypto";
-import { getAdmin } from "./pay.mjs";
+import { getAdmin } from "../lib/shared.mjs";
 
 const BASE_URL = "https://partner.shopeemobile.com/api/v2";
 const SHOPEE_PARTNER_ID = process.env.SHOPEE_PARTNER_ID || "";
