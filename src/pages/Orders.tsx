@@ -1098,40 +1098,40 @@ export default function Orders() {
           )}
 
           {/* Stats cards */}
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
-            <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-semibold text-slate-500">Belum Bayar</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Belum Bayar</span>
               </div>
-              <p className="text-xl sm:text-2xl font-extrabold text-rose-600 leading-tight">
+              <p className="text-lg sm:text-xl font-extrabold text-rose-600 leading-tight">
                 Rp {totalBelumBayar >= 1000000 ? `${(totalBelumBayar / 1000000).toFixed(1)}jt` : totalBelumBayar >= 1000 ? `${(totalBelumBayar / 1000).toFixed(0)}rb` : '0'}
               </p>
-              <p className="text-xs text-rose-300 font-medium mt-1">{countBelumBayar} order</p>
+              <p className="text-[10px] sm:text-[11px] text-rose-300 font-medium mt-0.5">{countBelumBayar} order</p>
             </div>
-            <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center text-sky-500">
+            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 flex items-center justify-center text-sky-500">
                   <PackageCheck className="w-4 h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-semibold text-slate-500">Ready</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Ready</span>
               </div>
-              <p className="text-xl sm:text-2xl font-extrabold text-sky-600 leading-tight">{countReady} order</p>
-              <p className="text-xs text-sky-300 font-medium mt-1">Siap dikirim/diambil</p>
+              <p className="text-lg sm:text-xl font-extrabold text-sky-600 leading-tight">{countReady} order</p>
+              <p className="text-[10px] sm:text-[11px] text-sky-300 font-medium mt-0.5">Siap dikirim/diambil</p>
             </div>
-            <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
                   <Check className="w-4 h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-semibold text-slate-500">Lunas</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Lunas</span>
               </div>
-              <p className="text-xl sm:text-2xl font-extrabold text-emerald-600 leading-tight">
+              <p className="text-lg sm:text-xl font-extrabold text-emerald-600 leading-tight">
                 Rp {todayLunasTotal >= 1000000 ? `${(todayLunasTotal / 1000000).toFixed(1)}jt` : todayLunasTotal >= 1000 ? `${(todayLunasTotal / 1000).toFixed(0)}rb` : '0'}
               </p>
-              <p className="text-xs text-emerald-300 font-medium mt-1">{todayLunasCount} order</p>
+              <p className="text-[10px] sm:text-[11px] text-emerald-300 font-medium mt-0.5">{todayLunasCount} order</p>
             </div>
           </div>
         </div>
