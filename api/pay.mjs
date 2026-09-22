@@ -820,6 +820,86 @@ export default async function handler(req, res) {
         return;
       }
 
+      const orderIdsSet = validOrders.map((o) => o.id);
+      const { data: existingPayments } = await sb
+        .from("qris_payments")
+        .select("id, order_ids, transaction_id, amount, requested_amount, status, created_at")
+        .eq("status", "pending")
+        .contains("order_ids", orderIdsSet)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const existing = existingPayments?.[0];
+      if (existing && existing.transaction_id) {
+        const boStatus = await checkBoqrisTransaction(existing.transaction_id);
+        if (boStatus.status === "pending") {
+          const sisaTotal = validOrders.reduce(
+            (sum, o) => sum + ((o.total || 0) - (o.paid_total || 0)),
+            0
+          );
+          const kodeUnik = existing.amount != null && existing.requested_amount != null
+            ? existing.requested_amount - existing.amount
+            : 0;
+
+          let qrSvg = null;
+          try {
+            const apiKey = process.env.BOQRIS_API_KEY;
+            const boDetail = await fetch(`${BOQRIS_BASE}/api/v1/transactions/${existing.transaction_id}`, {
+              headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            const boData = await boDetail.json();
+            const qrPayload = boData.qris_dynamic || boData.qr_url;
+            if (qrPayload) {
+              qrSvg = await QRCode.toString(qrPayload, { type: "svg", margin: 0, width: 200, color: { dark: "#ec4899", light: "#ffffff" } }).catch(() => null);
+            }
+          } catch (e) {
+            console.error("[PAY] Resume QR fetch failed:", e.message);
+          }
+
+          if (validOrders.length === 1) {
+            const info = await loadOrderInfo(sb, validOrders[0]);
+            json(res, 200, {
+              order: info,
+              tx: {
+                transaction_id: existing.transaction_id,
+                requested_amount: existing.requested_amount || existing.amount,
+                amount: existing.amount,
+                custom_unique_code: kodeUnik,
+                qr_svg: qrSvg,
+                created_at: existing.created_at,
+              },
+            });
+          } else {
+            const infoList = [];
+            for (const order of validOrders) {
+              infoList.push(await loadOrderInfo(sb, order));
+            }
+            json(res, 200, {
+              group: {
+                id: existing.id,
+                order_ids: orderIdsSet,
+                sisa_total: sisaTotal,
+              },
+              orders: infoList,
+              tx: {
+                transaction_id: existing.transaction_id,
+                requested_amount: existing.requested_amount || existing.amount,
+                amount: existing.amount,
+                custom_unique_code: kodeUnik,
+                qr_svg: qrSvg,
+                created_at: existing.created_at,
+              },
+            });
+          }
+          return;
+        }
+        if (boStatus.status === "paid") {
+          json(res, 200, { status: "paid", confirmed: true });
+          return;
+        }
+        await sb.from("qris_payments").update({ status: "expired" }).eq("id", existing.id);
+      }
+
       const sisaTotal = validOrders.reduce(
         (sum, o) => sum + ((o.total || 0) - (o.paid_total || 0)),
         0

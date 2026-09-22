@@ -21,6 +21,7 @@ export default function PayOrder() {
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [expired, setExpired] = useState(false);
+  const [qrCreatedAt, setQrCreatedAt] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const txIdRef = useRef("");
@@ -65,6 +66,7 @@ export default function PayOrder() {
 
         setAmount(tx.requested_amount || tx.amount || 0);
         setKodeUnik(tx.custom_unique_code || 0);
+        setQrCreatedAt(tx.created_at || null);
         setQrImage(qrSvg);
       } catch (e: any) {
         setError(e.message || "Gagal");
@@ -76,7 +78,10 @@ export default function PayOrder() {
 
   useEffect(() => {
     if (!qrImage) return;
-    const end = Date.now() + 15 * 60 * 1000;
+    const createdAtMs = qrCreatedAt
+      ? new Date(qrCreatedAt).getTime()
+      : Date.now();
+    const end = createdAtMs + 15 * 60 * 1000;
     const t = setInterval(() => {
       const left = Math.max(0, Math.floor((end - Date.now()) / 1000));
       setCountdown(left);
@@ -86,7 +91,7 @@ export default function PayOrder() {
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [qrImage]);
+  }, [qrImage, qrCreatedAt]);
 
   useEffect(() => {
     if (!txIdRef.current || !qrImage) return;
@@ -119,6 +124,7 @@ export default function PayOrder() {
     setQrImage(null);
     setConfirmed(false);
     setExpired(false);
+    setQrCreatedAt(null);
     setError(null);
     setAmount(0);
     setKodeUnik(0);
