@@ -1466,7 +1466,7 @@
       document.getElementById('dashboardScreen').style.display = 'none';
       document.getElementById('qrisScreen').style.display = '';
       document.getElementById('qrisContent').innerHTML = '<div class="loading"><div class="spinner"></div>Membuat pembayaran DOKU...</div>';
-      var ids = orderIds.split(',');
+      var ids = Array.isArray(orderIds) ? orderIds : (orderIds || '').split(',');
       var label = ids.length > 1 ? ids.length + ' invoice' : '#' + shortId(ids[0]);
       var body = multiOrderIds && multiOrderIds.length > 1
         ? { action: 'create', orderIds: ids }
