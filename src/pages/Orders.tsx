@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
@@ -33,6 +33,8 @@ import {
   Eye,
   X,
   CalendarDays,
+  ChevronDown,
+  MoreVertical,
 } from "lucide-react";
 
 type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil" | "lunas" | "ready";
@@ -117,6 +119,8 @@ export default function Orders() {
   const [sendingInvoice, setSendingInvoice] = useState(false);
   const [sendProgress, setSendProgress] = useState("");
   const [sendingReminder, setSendingReminder] = useState(false);
+  const [lainnyaOpen, setLainnyaOpen] = useState(false);
+  const lainnyaRef = useRef<HTMLDivElement>(null);
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingStatus(orderId);
@@ -180,6 +184,16 @@ export default function Orders() {
     if (productFilter) params.product = productFilter;
     setSearchParams(params, { replace: true });
   }, [search, tab, productFilter]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (lainnyaRef.current && !lainnyaRef.current.contains(e.target as Node)) {
+        setLainnyaOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const allProductNames = [...new Set(Object.values(itemsByOrder).flat().map((i) => i.product_name))].sort();
 
@@ -931,145 +945,156 @@ export default function Orders() {
     <div className="h-full flex flex-col overflow-hidden">
       <div className="shrink-0 px-4 sm:px-8 pt-4 pb-3 relative z-10 space-y-3">
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pesanan</h2>
-              <p className="text-[11px] sm:text-sm text-slate-400 mt-0.5">Kelola transaksi jastip & penjualan</p>
-            </div>
+        {/* Title row */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pesanan</h2>
+            <p className="text-[11px] sm:text-sm text-slate-400">Kelola transaksi jastip & penjualan</p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => navigate("/orders/new")}
-              className="px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm shadow-pink-500/20 transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-[0.97] shrink-0"
+              className="px-3 py-2 bg-pink-500 hover:bg-pink-600 text-white font-bold text-[11px] sm:text-sm rounded-xl shadow-sm shadow-pink-500/20 transition-all whitespace-nowrap active:scale-[0.97]"
             >
               + Order Baru
             </button>
-          </div>
-
-          {itemsError && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600 flex items-center gap-2">
-              <span>Error: {itemsError}</span>
-              <button onClick={() => { setItemsError(null); loadAllOrders(); }} className="underline font-bold">Retry</button>
-            </div>
-          )}
-          {itemsLoading && Object.keys(itemsByOrder).length === 0 && (
-            <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-600">
-              Memuat items... ({allOrders.length} orders)
-            </div>
-          )}
-
-          <div className="relative mt-3">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setShowProductSuggest(e.target.value.length > 0);
-                if (productFilter) setProductFilter("");
-              }}
-              onFocus={() => setShowProductSuggest(search.length > 0)}
-              onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
-              placeholder={productFilter || "Cari nama, produk, ID..."}
-              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
-            />
-            {productFilter && (
+            <div className="relative" ref={lainnyaRef}>
               <button
-                onClick={() => setProductFilter("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
+                onClick={() => setLainnyaOpen(!lainnyaOpen)}
+                className="px-3 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-[11px] sm:text-sm rounded-xl flex items-center gap-1 whitespace-nowrap shadow-sm hover:bg-slate-50 transition-all"
               >
-                <X className="w-3.5 h-3.5" />
+                Lainnya
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
-            )}
-            {!productFilter && (
-              <button
-                onClick={() => {/* TODO: open filter modal */}}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 hover:bg-slate-200 text-slate-400 rounded-lg transition-all"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M6 12h12M9 18h6"/></svg>
-              </button>
-            )}
-            {showProductSuggest && search && !productFilter && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-                {(() => {
-                  const matched = allProductNames.filter((n) =>
-                    n.toLowerCase().includes(search.toLowerCase())
-                  );
-                  return matched.length > 0 ? matched.slice(0, 8).map((name) => (
-                    <button
-                      key={name}
-                      onMouseDown={() => {
-                        setProductFilter(name);
-                        setSearch("");
-                        setShowProductSuggest(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-pink-50 text-left border-b border-slate-100 last:border-0"
-                    >
-                      <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                      {name}
-                    </button>
-                  )) : (
-                    <div className="px-4 py-3 text-sm text-slate-400">Produk tidak ditemukan</div>
-                  );
-                })()}
-              </div>
-            )}
+              {lainnyaOpen && (
+                <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-30 w-48 py-1.5">
+                  <button
+                    onClick={() => { setLainnyaOpen(false); navigate("/orders/bulk"); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 text-left transition-colors"
+                  >
+                    <span className="w-7 h-7 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
+                      <Package className="w-3.5 h-3.5 text-pink-500" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Order Massal</p>
+                      <p className="text-[10px] text-slate-400">Multi-customer</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { setLainnyaOpen(false); navigate("/orders/upload"); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 text-left transition-colors"
+                  >
+                    <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-purple-500" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Import CSV</p>
+                      <p className="text-[10px] text-slate-400">Upload template</p>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => navigate("/orders/bulk")}
-            className="flex flex-col items-center gap-1.5 p-3 bg-white hover:bg-pink-50/50 border border-slate-200/80 hover:border-pink-300 rounded-2xl transition-all shadow-sm group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <Package className="w-4 h-4" />
-            </div>
-            <span className="text-[10px] sm:text-xs font-bold text-slate-700">Order Massal</span>
-          </button>
-          <button
-            onClick={() => navigate("/orders/upload")}
-            className="flex flex-col items-center gap-1.5 p-3 bg-white hover:bg-purple-50/50 border border-slate-200/80 hover:border-purple-300 rounded-2xl transition-all shadow-sm group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <FileSpreadsheet className="w-4 h-4" />
-            </div>
-            <span className="text-[10px] sm:text-xs font-bold text-slate-700">Import CSV</span>
-          </button>
-          <button
-            onClick={openWaModal}
-            disabled={groupedCustomers.length === 0}
-            className="flex flex-col items-center gap-1.5 p-3 bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-700 rounded-2xl transition-all shadow-sm group disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm shadow-emerald-500/20">
-              <MessageCircle className="w-4 h-4" />
-            </div>
-            <span className="text-[10px] sm:text-xs font-bold text-emerald-800">Invoice WA</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {([
-            { key: "daily" as const, label: "Harian" },
-            { key: "weekly" as const, label: "Mingguan" },
-            { key: "monthly" as const, label: "Bulanan" },
-          ]).map(({ key, label }) => (
+        {/* Search */}
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setShowProductSuggest(e.target.value.length > 0);
+              if (productFilter) setProductFilter("");
+            }}
+            onFocus={() => setShowProductSuggest(search.length > 0)}
+            onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
+            placeholder={productFilter || "Cari nama, produk, ID..."}
+            className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all shadow-sm"
+          />
+          {productFilter && (
             <button
-              key={key}
-              onClick={() => setPeriod(key)}
-              className={`px-4 py-2 font-bold text-xs rounded-xl whitespace-nowrap transition-all shrink-0 ${
-                period === key
-                  ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
-                  : "bg-white text-slate-500 border border-slate-200"
-              }`}
+              onClick={() => setProductFilter("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
             >
-              {label}
+              <X className="w-3.5 h-3.5" />
             </button>
-          ))}
-          <div className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 font-semibold shrink-0">
-            <CalendarDays className="w-3.5 h-3.5" />
+          )}
+          {!productFilter && (
+            <button
+              onClick={() => {/* TODO: open filter modal */}}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 hover:bg-slate-200 text-slate-400 rounded-lg transition-all"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M6 12h12M9 18h6"/></svg>
+            </button>
+          )}
+          {showProductSuggest && search && !productFilter && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+              {(() => {
+                const matched = allProductNames.filter((n) =>
+                  n.toLowerCase().includes(search.toLowerCase())
+                );
+                return matched.length > 0 ? matched.slice(0, 8).map((name) => (
+                  <button
+                    key={name}
+                    onMouseDown={() => {
+                      setProductFilter(name);
+                      setSearch("");
+                      setShowProductSuggest(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-pink-50 text-left border-b border-slate-100 last:border-0"
+                  >
+                    <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                    {name}
+                  </button>
+                )) : (
+                  <div className="px-4 py-3 text-sm text-slate-400">Produk tidak ditemukan</div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Period filter: segmented pill + date */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-full border border-slate-200 bg-white overflow-hidden shadow-sm">
+            {([
+              { key: "daily" as const, label: "Harian" },
+              { key: "weekly" as const, label: "Mingguan" },
+              { key: "monthly" as const, label: "Bulanan" },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setPeriod(key)}
+                className={`px-3.5 py-[7px] text-[11px] font-bold whitespace-nowrap transition-all ${
+                  period === key
+                    ? "bg-pink-500 text-white"
+                    : "text-slate-400 border-l border-slate-200 first:border-l-0 hover:text-slate-600"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-1.5 px-3 py-[7px] bg-white border border-slate-200 rounded-full text-[11px] text-slate-600 font-semibold shadow-sm shrink-0">
+            <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
             <span>{periodRange.label}</span>
           </div>
         </div>
+
+        {itemsError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600 flex items-center gap-2">
+            <span>Error: {itemsError}</span>
+            <button onClick={() => { setItemsError(null); loadAllOrders(); }} className="underline font-bold">Retry</button>
+          </div>
+        )}
+        {itemsLoading && Object.keys(itemsByOrder).length === 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-600">
+            Memuat items... ({allOrders.length} orders)
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-2.5">
           <div className="bg-white p-3 rounded-2xl border border-rose-100 shadow-sm">
@@ -1667,6 +1692,23 @@ export default function Orders() {
         }}
         onCancel={() => setConfirmVisible(false)}
       />
+
+      {/* Invoice WA FAB */}
+      <button
+        onClick={openWaModal}
+        disabled={groupedCustomers.length === 0}
+        className="fixed bottom-20 right-4 sm:right-8 z-30 w-14 h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed sm:hidden"
+      >
+        <MessageCircle className="w-6 h-6" />
+      </button>
+      <button
+        onClick={openWaModal}
+        disabled={groupedCustomers.length === 0}
+        className="fixed bottom-8 right-4 sm:right-8 z-30 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-sm hidden sm:flex"
+      >
+        <MessageCircle className="w-4 h-4" />
+        Invoice WA
+      </button>
     </div>
   );
 }
