@@ -32,6 +32,7 @@ import {
   ExternalLink,
   Eye,
   X,
+  CalendarDays,
 } from "lucide-react";
 
 type TabFilter = "all" | "penjualan" | "pembelian" | "belum-dikirim" | "belum-lunas" | "belum-diambil" | "lunas" | "ready";
@@ -93,6 +94,7 @@ export default function Orders() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
+  const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
 
   const [showProductSuggest, setShowProductSuggest] = useState(false);
   const itemsByOrder = allOrderItems;
@@ -213,7 +215,24 @@ export default function Orders() {
     );
   }
 
+  const periodRange = useMemo(() => {
+    const now = new Date();
+    if (period === "daily") {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return { start: start.toISOString(), label: now.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) };
+    }
+    if (period === "weekly") {
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      const start = new Date(end);
+      start.setDate(end.getDate() - 6);
+      return { start: start.toISOString(), end: end.toISOString(), label: `${start.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}` };
+    }
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start: start.toISOString(), label: now.toLocaleDateString("id-ID", { month: "long", year: "numeric" }) };
+  }, [period]);
+
   const baseFiltered = allOrders.filter((o) => {
+    if (o.created_at && o.created_at < periodRange.start) return false;
     const q = search.toLowerCase();
     const matchSearch =
       !search ||
@@ -1091,6 +1110,30 @@ export default function Orders() {
             Tandai Semua Ready ({readyTargets.length}) — {productFilter}
           </button>
         )}
+
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {([
+            { key: "daily" as const, label: "Harian" },
+            { key: "weekly" as const, label: "Mingguan" },
+            { key: "monthly" as const, label: "Bulanan" },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setPeriod(key)}
+              className={`px-3.5 py-1.5 font-bold text-[11px] sm:text-xs rounded-lg whitespace-nowrap transition-all shrink-0 flex items-center gap-1 ${
+                period === key
+                  ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
+                  : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold ml-1 flex items-center gap-1 shrink-0">
+            <CalendarDays className="w-3 h-3" />
+            {periodRange.label}
+          </span>
+        </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           <button

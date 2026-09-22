@@ -113,35 +113,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <header className="shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200/80 relative z-10 sticky top-0">
         <div className="px-4 sm:px-8 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 p-0.5 shadow-md shadow-pink-500/20 shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 p-0.5 shadow-md shadow-pink-500/20 shrink-0">
                 <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
-                  <img src="/logo.png" alt="M" className="w-8 h-8 object-contain" />
+                  <img src="/logo.png" alt="M" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
                 </div>
               </div>
-              <div>
-                <h1 className="text-base sm:text-lg font-black bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent tracking-tight">
+              <div className="min-w-0">
+                <h1 className="text-sm sm:text-lg font-black bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent tracking-tight truncate">
                   Jastip_mamanay
                 </h1>
-                <p className="text-[11px] text-slate-400 font-semibold">{user?.name} · Admin</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-400 font-semibold truncate">{user?.email || user?.name}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               {!isOnline && (
-                <span className="px-2 py-1 bg-amber-50 text-amber-500 text-[10px] font-semibold rounded-lg border border-amber-200">
+                <span className="px-1.5 py-0.5 bg-amber-50 text-amber-500 text-[9px] font-semibold rounded-lg border border-amber-200 hidden sm:inline">
                   OFFLINE
                 </span>
               )}
               <button
                 onClick={() => navigate("/maintenance")}
-                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 items-center justify-center transition-all hidden sm:flex"
                 title="Perawatan"
               >
                 <Wrench className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowQrisHistory(true)}
-                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
                 title="QRIS"
               >
                 <BellRing className="w-4 h-4" />
@@ -149,7 +149,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
               <button
                 onClick={() => navigate("/payment-confirmations")}
-                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 items-center justify-center transition-all relative hidden sm:flex"
                 title="Konfirmasi Bayar"
               >
                 <CreditCard className="w-4 h-4" />
@@ -161,14 +161,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
               <button
                 onClick={() => navigate("/profile")}
-                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 items-center justify-center transition-all hidden sm:flex"
                 title="Profil"
               >
                 <User className="w-4 h-4" />
               </button>
               <button
                 onClick={handleLogout}
-                className="w-9 h-9 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center transition-all"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center transition-all"
                 title="Keluar"
               >
                 <LogOut className="w-4 h-4" />
