@@ -945,191 +945,194 @@ export default function Orders() {
     <div className="h-full flex flex-col overflow-hidden">
       <div className="shrink-0 px-4 sm:px-8 pt-4 pb-3 relative z-10 space-y-3">
 
-        {/* Title row */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pesanan</h2>
-            <p className="text-[11px] sm:text-sm text-slate-400">Kelola transaksi jastip & penjualan</p>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => navigate("/orders/new")}
-              className="px-3 py-2 bg-pink-500 hover:bg-pink-600 text-white font-bold text-[11px] sm:text-sm rounded-xl shadow-sm shadow-pink-500/20 transition-all whitespace-nowrap active:scale-[0.97]"
-            >
-              + Order Baru
-            </button>
-            <div className="relative" ref={lainnyaRef}>
+        <div className="bg-white sm:bg-white sm:p-5 sm:rounded-2xl sm:shadow-sm sm:border sm:border-slate-200/80 space-y-3">
+          {/* Title row */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pesanan</h2>
+              <p className="text-[11px] sm:text-sm text-slate-400">Kelola transaksi jastip & penjualan</p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
-                onClick={() => setLainnyaOpen(!lainnyaOpen)}
-                className="px-3 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-[11px] sm:text-sm rounded-xl flex items-center gap-1 whitespace-nowrap shadow-sm hover:bg-slate-50 transition-all"
+                onClick={() => navigate("/orders/new")}
+                className="px-3 py-2 bg-pink-500 hover:bg-pink-600 text-white font-bold text-[11px] sm:text-sm rounded-xl shadow-sm shadow-pink-500/20 transition-all whitespace-nowrap active:scale-[0.97]"
               >
-                Lainnya
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                + Order Baru
               </button>
-              {lainnyaOpen && (
-                <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-30 w-48 py-1.5">
-                  <button
-                    onClick={() => { setLainnyaOpen(false); navigate("/orders/bulk"); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 text-left transition-colors"
-                  >
-                    <span className="w-7 h-7 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
-                      <Package className="w-3.5 h-3.5 text-pink-500" />
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold text-slate-700">Order Massal</p>
-                      <p className="text-[10px] text-slate-400">Multi-customer</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => { setLainnyaOpen(false); navigate("/orders/upload"); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 text-left transition-colors"
-                  >
-                    <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-                      <FileSpreadsheet className="w-3.5 h-3.5 text-purple-500" />
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold text-slate-700">Import CSV</p>
-                      <p className="text-[10px] text-slate-400">Upload template</p>
-                    </div>
-                  </button>
+              <div className="relative" ref={lainnyaRef}>
+                <button
+                  onClick={() => setLainnyaOpen(!lainnyaOpen)}
+                  className="px-3 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-[11px] sm:text-sm rounded-xl flex items-center gap-1 whitespace-nowrap shadow-sm hover:bg-slate-50 transition-all"
+                >
+                  Lainnya
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+                {lainnyaOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-30 w-48 py-1.5">
+                    <button
+                      onClick={() => { setLainnyaOpen(false); navigate("/orders/bulk"); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 text-left transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
+                        <Package className="w-3.5 h-3.5 text-pink-500" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">Order Massal</p>
+                        <p className="text-[10px] text-slate-400">Multi-customer</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { setLainnyaOpen(false); navigate("/orders/upload"); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 text-left transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-purple-500" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">Import CSV</p>
+                        <p className="text-[10px] text-slate-400">Upload template</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setShowProductSuggest(e.target.value.length > 0);
+                if (productFilter) setProductFilter("");
+              }}
+              onFocus={() => setShowProductSuggest(search.length > 0)}
+              onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
+              placeholder={productFilter || "Cari nama, produk, ID..."}
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 sm:bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all shadow-sm"
+            />
+            {productFilter && (
+              <button
+                onClick={() => setProductFilter("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {!productFilter && (
+              <button
+                onClick={() => {/* TODO: open filter modal */}}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 hover:bg-slate-200 text-slate-400 rounded-lg transition-all"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M6 12h12M9 18h6"/></svg>
+              </button>
+            )}
+            {showProductSuggest && search && !productFilter && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                {(() => {
+                  const matched = allProductNames.filter((n) =>
+                    n.toLowerCase().includes(search.toLowerCase())
+                  );
+                  return matched.length > 0 ? matched.slice(0, 8).map((name) => (
+                    <button
+                      key={name}
+                      onMouseDown={() => {
+                        setProductFilter(name);
+                        setSearch("");
+                        setShowProductSuggest(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-pink-50 text-left border-b border-slate-100 last:border-0"
+                    >
+                      <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                      {name}
+                    </button>
+                  )) : (
+                    <div className="px-4 py-3 text-sm text-slate-400">Produk tidak ditemukan</div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Period filter: segmented pill + date */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-full border border-slate-200 bg-white overflow-hidden shadow-sm">
+              {([
+                { key: "daily" as const, label: "Harian" },
+                { key: "weekly" as const, label: "Mingguan" },
+                { key: "monthly" as const, label: "Bulanan" },
+              ]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setPeriod(key)}
+                  className={`px-3.5 py-[7px] text-[11px] font-bold whitespace-nowrap transition-all ${
+                    period === key
+                      ? "bg-pink-500 text-white"
+                      : "text-slate-400 border-l border-slate-200 first:border-l-0 hover:text-slate-600"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-1.5 px-3 py-[7px] bg-white border border-slate-200 rounded-full text-[11px] text-slate-600 font-semibold shadow-sm shrink-0">
+              <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+              <span>{periodRange.label}</span>
+            </div>
+          </div>
+
+          {itemsError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600 flex items-center gap-2">
+              <span>Error: {itemsError}</span>
+              <button onClick={() => { setItemsError(null); loadAllOrders(); }} className="underline font-bold">Retry</button>
+            </div>
+          )}
+          {itemsLoading && Object.keys(itemsByOrder).length === 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-600">
+              Memuat items... ({allOrders.length} orders)
+            </div>
+          )}
+
+          {/* Stats cards */}
+          <div className="grid grid-cols-3 gap-2.5">
+            <div className="bg-white sm:bg-slate-50 p-3 rounded-2xl border border-rose-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
+                  <TrendingUp className="w-3.5 h-3.5" />
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setShowProductSuggest(e.target.value.length > 0);
-              if (productFilter) setProductFilter("");
-            }}
-            onFocus={() => setShowProductSuggest(search.length > 0)}
-            onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
-            placeholder={productFilter || "Cari nama, produk, ID..."}
-            className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all shadow-sm"
-          />
-          {productFilter && (
-            <button
-              onClick={() => setProductFilter("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-pink-100 hover:bg-pink-200 text-pink-500 rounded-lg transition-all"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {!productFilter && (
-            <button
-              onClick={() => {/* TODO: open filter modal */}}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 hover:bg-slate-200 text-slate-400 rounded-lg transition-all"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M6 12h12M9 18h6"/></svg>
-            </button>
-          )}
-          {showProductSuggest && search && !productFilter && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-              {(() => {
-                const matched = allProductNames.filter((n) =>
-                  n.toLowerCase().includes(search.toLowerCase())
-                );
-                return matched.length > 0 ? matched.slice(0, 8).map((name) => (
-                  <button
-                    key={name}
-                    onMouseDown={() => {
-                      setProductFilter(name);
-                      setSearch("");
-                      setShowProductSuggest(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-pink-50 text-left border-b border-slate-100 last:border-0"
-                  >
-                    <Package className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                    {name}
-                  </button>
-                )) : (
-                  <div className="px-4 py-3 text-sm text-slate-400">Produk tidak ditemukan</div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* Period filter: segmented pill + date */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-full border border-slate-200 bg-white overflow-hidden shadow-sm">
-            {([
-              { key: "daily" as const, label: "Harian" },
-              { key: "weekly" as const, label: "Mingguan" },
-              { key: "monthly" as const, label: "Bulanan" },
-            ]).map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setPeriod(key)}
-                className={`px-3.5 py-[7px] text-[11px] font-bold whitespace-nowrap transition-all ${
-                  period === key
-                    ? "bg-pink-500 text-white"
-                    : "text-slate-400 border-l border-slate-200 first:border-l-0 hover:text-slate-600"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="ml-auto flex items-center gap-1.5 px-3 py-[7px] bg-white border border-slate-200 rounded-full text-[11px] text-slate-600 font-semibold shadow-sm shrink-0">
-            <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
-            <span>{periodRange.label}</span>
-          </div>
-        </div>
-
-        {itemsError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600 flex items-center gap-2">
-            <span>Error: {itemsError}</span>
-            <button onClick={() => { setItemsError(null); loadAllOrders(); }} className="underline font-bold">Retry</button>
-          </div>
-        )}
-        {itemsLoading && Object.keys(itemsByOrder).length === 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-600">
-            Memuat items... ({allOrders.length} orders)
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="bg-white p-3 rounded-2xl border border-rose-100 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
-                <TrendingUp className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-bold text-rose-400">Belum Bayar</span>
               </div>
-              <span className="text-[10px] font-bold text-rose-400">Belum Bayar</span>
+              <p className="text-base sm:text-lg font-black text-rose-600 leading-tight">
+                Rp {totalBelumBayar >= 1000000 ? `${(totalBelumBayar / 1000000).toFixed(1)}jt` : totalBelumBayar >= 1000 ? `${(totalBelumBayar / 1000).toFixed(0)}rb` : '0'}
+              </p>
+              <p className="text-[10px] text-rose-300 font-semibold">{countBelumBayar} order</p>
             </div>
-            <p className="text-base sm:text-lg font-black text-rose-600 leading-tight">
-              Rp {totalBelumBayar >= 1000000 ? `${(totalBelumBayar / 1000000).toFixed(1)}jt` : totalBelumBayar >= 1000 ? `${(totalBelumBayar / 1000).toFixed(0)}rb` : '0'}
-            </p>
-            <p className="text-[10px] text-rose-300 font-semibold">{countBelumBayar} order</p>
-          </div>
-          <div className="bg-white p-3 rounded-2xl border border-sky-100 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center text-sky-500">
-                <PackageCheck className="w-3.5 h-3.5" />
+            <div className="bg-white sm:bg-slate-50 p-3 rounded-2xl border border-sky-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center text-sky-500">
+                  <PackageCheck className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[10px] font-bold text-sky-400">Ready</span>
               </div>
-              <span className="text-[10px] font-bold text-sky-400">Ready</span>
+              <p className="text-base sm:text-lg font-black text-sky-600 leading-tight">{countReady} order</p>
+              <p className="text-[10px] text-sky-300 font-semibold">Siap dikirim/diambil</p>
             </div>
-            <p className="text-base sm:text-lg font-black text-sky-600 leading-tight">{countReady} order</p>
-            <p className="text-[10px] text-sky-300 font-semibold">Siap dikirim/diambil</p>
-          </div>
-          <div className="bg-white p-3 rounded-2xl border border-emerald-100 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-                <Check className="w-3.5 h-3.5" />
+            <div className="bg-white sm:bg-slate-50 p-3 rounded-2xl border border-emerald-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <Check className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[10px] font-bold text-emerald-400">Lunas</span>
               </div>
-              <span className="text-[10px] font-bold text-emerald-400">Lunas</span>
+              <p className="text-base sm:text-lg font-black text-emerald-600 leading-tight">
+                Rp {todayLunasTotal >= 1000000 ? `${(todayLunasTotal / 1000000).toFixed(1)}jt` : todayLunasTotal >= 1000 ? `${(todayLunasTotal / 1000).toFixed(0)}rb` : '0'}
+              </p>
+              <p className="text-[10px] text-emerald-300 font-semibold">{todayLunasCount} order</p>
             </div>
-            <p className="text-base sm:text-lg font-black text-emerald-600 leading-tight">
-              Rp {todayLunasTotal >= 1000000 ? `${(todayLunasTotal / 1000000).toFixed(1)}jt` : todayLunasTotal >= 1000 ? `${(todayLunasTotal / 1000).toFixed(0)}rb` : '0'}
-            </p>
-            <p className="text-[10px] text-emerald-300 font-semibold">{todayLunasCount} order</p>
           </div>
         </div>
 
