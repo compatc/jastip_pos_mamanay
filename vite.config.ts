@@ -7,14 +7,6 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
-      "/api/boqris": {
-        target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
-        changeOrigin: true,
-      },
-      "/api/pay": {
-        target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
-        changeOrigin: true,
-      },
       "/api": {
         target: "https://mamanay.vercel.app",
         changeOrigin: true,

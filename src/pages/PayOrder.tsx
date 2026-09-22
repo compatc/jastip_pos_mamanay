@@ -46,7 +46,7 @@ export default function PayOrder() {
           ? { action: "create", orderIds: actualOrderIds }
           : { action: "create", orderId: actualOrderIds[0] };
 
-        const res = await fetch("/api/doku-checkout", {
+        const res = await fetch("/api/doku", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),

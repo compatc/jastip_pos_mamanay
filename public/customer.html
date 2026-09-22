@@ -1471,7 +1471,7 @@
       var body = multiOrderIds && multiOrderIds.length > 1
         ? { action: 'create', orderIds: ids }
         : { action: 'create', orderId: ids[0] };
-      fetch('/api/doku-checkout', {
+      fetch('/api/doku', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
