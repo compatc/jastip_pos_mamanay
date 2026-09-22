@@ -943,13 +943,13 @@ export default function Orders() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="shrink-0 px-4 sm:px-10 pt-4 sm:pt-6 pb-3 relative z-10 space-y-3 sm:space-y-0 sm:bg-transparent">
+      <div className="shrink-0 px-4 sm:px-10 pt-4 sm:pt-8 pb-3 relative z-10 space-y-3 sm:space-y-0">
 
-        <div className="bg-white sm:bg-white sm:p-7 sm:rounded-2xl sm:shadow-sm sm:border sm:border-slate-200/80 space-y-3 sm:space-y-5">
+        <div className="bg-white sm:bg-white sm:p-7 sm:rounded-2xl sm:shadow-md sm:border sm:border-slate-200/60 space-y-3 sm:space-y-5">
           {/* Title row */}
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg sm:text-[1.5rem] font-extrabold text-slate-900 tracking-tight sm:leading-tight">Daftar Pesanan</h2>
+              <h2 className="text-lg sm:text-3xl font-extrabold text-slate-900 tracking-tight sm:leading-tight">Daftar Pesanan</h2>
               <p className="text-[11px] sm:text-sm text-slate-400 mt-0.5 sm:mt-1">Kelola transaksi jastip & penjualan</p>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
