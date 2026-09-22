@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { QrCode, Loader2, CheckCircle2, Clock, AlertCircle, ExternalLink } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 function rupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -14,7 +15,7 @@ export default function PayOrder() {
   const multiKey = searchParams.get("orders") || "";
   const isMulti = multiKey.split(",").filter(Boolean).length > 1;
 
-  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [amount, setAmount] = useState(0);
   const [kodeUnik, setKodeUnik] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -22,7 +23,6 @@ export default function PayOrder() {
   const [confirmed, setConfirmed] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const txIdRef = useRef("");
   const orderIdsRef = useRef<string[]>([]);
   const fetchedRef = useRef(false);
 
@@ -46,25 +46,20 @@ export default function PayOrder() {
           ? { action: "create", orderIds: actualOrderIds }
           : { action: "create", orderId: actualOrderIds[0] };
 
-        const res = await fetch("/api/pay", {
+        const res = await fetch("/api/doku-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Gagal membuat QR");
+        if (!res.ok) throw new Error(data.error || "Gagal membuat pembayaran");
 
-        const tx = data.tx || {};
-        const qrSvg = tx.qr_svg || null;
-
-        txIdRef.current = tx.transaction_id || "";
         orderIdsRef.current = isMulti
           ? (data.group?.order_ids || actualOrderIds)
           : [actualOrderIds[0]];
 
-        setAmount(tx.requested_amount || tx.amount || 0);
-        setKodeUnik(tx.custom_unique_code || 0);
-        setQrImage(qrSvg);
+        setAmount(data.group?.sisa_total || data.orders?.[0]?.sisa || 0);
+        setPaymentUrl(data.paymentUrl || null);
       } catch (e: any) {
         setError(e.message || "Gagal");
       } finally {
@@ -74,42 +69,41 @@ export default function PayOrder() {
   }, [orderId, multiKey, isMulti]);
 
   useEffect(() => {
-    if (!qrImage) return;
-    const end = Date.now() + 15 * 60 * 1000;
+    if (!paymentUrl) return;
+    const end = Date.now() + 30 * 60 * 1000;
     const t = setInterval(() => {
       const left = Math.max(0, Math.floor((end - Date.now()) / 1000));
       setCountdown(left);
       if (left <= 0) clearInterval(t);
     }, 1000);
     return () => clearInterval(t);
-  }, [qrImage]);
+  }, [paymentUrl]);
 
   useEffect(() => {
-    if (!txIdRef.current || !qrImage) return;
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch("/api/pay", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "confirm",
-            orderIds: orderIdsRef.current,
-            transactionId: txIdRef.current,
-          }),
-        });
-        const data = await res.json();
-        if (data.status === "paid" || data.confirmed) {
-          setConfirmed(true);
-          clearInterval(poll);
+    if (orderIdsRef.current.length === 0) return;
+
+    const channel = supabase
+      .channel("pay-order-status")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        (payload: { new?: { id?: string; payment_status?: string; payment_type?: string } }) => {
+          const row = payload.new || {};
+          if (orderIdsRef.current.includes(row.id || "") && (row.payment_status === "paid" || row.payment_type === "qris")) {
+            setConfirmed(true);
+          }
         }
-      } catch {}
-    }, 5000);
-    return () => clearInterval(poll);
-  }, [qrImage]);
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orderIdsRef.current.length]);
 
   function retry() {
     fetchedRef.current = false;
-    setQrImage(null);
+    setPaymentUrl(null);
     setConfirmed(false);
     setError(null);
     setAmount(0);
@@ -163,39 +157,37 @@ export default function PayOrder() {
           </div>
         )}
 
-        {!loading && !error && qrImage && !confirmed && (
+        {!loading && !error && paymentUrl && !confirmed && (
           <div className="text-center">
-            <div className="mx-auto w-56 h-56 bg-white border-2 border-pink-100 rounded-2xl p-3 mb-4">
-              {qrImage.startsWith("data:") ? (
-                <img src={qrImage} alt="QRIS" className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrImage }} />
-              )}
+            <div className="mx-auto w-56 h-56 bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-pink-100 rounded-2xl p-4 mb-4 flex flex-col items-center justify-center">
+              <QrCode className="w-16 h-16 text-pink-400 mb-3" />
+              <p className="text-sm font-semibold text-gray-700">DOKU QRIS</p>
+              <p className="text-xs text-gray-400 mt-1">Klik tombol di bawah untuk bayar</p>
             </div>
             <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
-            <p className="text-2xl font-extrabold text-gray-800 mb-1">{rupiah(amount)}</p>
-            {kodeUnik > 0 && (
-              <p className="text-[11px] text-gray-400 mb-1">
-                (termasuk kode unik {kodeUnik})
-              </p>
-            )}
-            {countdown !== null && (
+            <p className="text-2xl font-extrabold text-gray-800 mb-4">{rupiah(amount)}</p>
+            {countdown !== null && countdown > 0 && (
               <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-4">
                 <Clock className="w-3.5 h-3.5" />
                 <span>Kedaluwarsa dalam {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}</span>
               </div>
             )}
-            <div className="flex items-center justify-center gap-2 text-xs text-gray-400 animate-pulse">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Menunggu pembayaran...
-            </div>
+            <a
+              href={paymentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-pink-500 text-white rounded-xl font-bold text-sm hover:bg-pink-600 transition-colors shadow-lg shadow-pink-200"
+            >
+              Bayar Sekarang
+              <ExternalLink className="w-4 h-4" />
+            </a>
             <p className="text-[11px] text-gray-300 mt-4">
-              Buka aplikasi bank/e-wallet lalu pindai QR ini
+              Anda akan diarahkan ke halaman pembayaran DOKU
             </p>
           </div>
         )}
 
-        {!loading && !error && !qrImage && !confirmed && (
+        {!loading && !error && !paymentUrl && !confirmed && (
           <div className="py-8 text-center">
             <p className="text-sm text-gray-500">Tidak ada data QR</p>
             <button onClick={retry} className="mt-4 px-5 py-2.5 bg-pink-500 text-white rounded-xl font-semibold text-sm">
