@@ -943,14 +943,14 @@ export default function Orders() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="shrink-0 px-4 sm:px-10 pt-4 sm:pt-8 pb-3 relative z-10 space-y-3 sm:space-y-0">
+      <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-6 pb-3 relative z-10 space-y-3">
 
-        <div className="bg-white sm:bg-white sm:p-7 sm:rounded-2xl sm:shadow-md sm:border sm:border-slate-200/60 space-y-3 sm:space-y-5">
+        <div className="bg-white sm:bg-white sm:p-5 sm:rounded-2xl sm:shadow-sm sm:border sm:border-slate-200/60 space-y-3 sm:space-y-4">
           {/* Title row */}
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg sm:text-3xl font-extrabold text-slate-900 tracking-tight sm:leading-tight">Daftar Pesanan</h2>
-              <p className="text-[11px] sm:text-sm text-slate-400 mt-0.5 sm:mt-1">Kelola transaksi jastip & penjualan</p>
+              <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pesanan</h2>
+              <p className="text-[11px] sm:text-xs text-slate-400">Kelola transaksi jastip & penjualan</p>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               <button
@@ -1001,7 +1001,7 @@ export default function Orders() {
 
           {/* Search */}
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={search}
@@ -1013,7 +1013,7 @@ export default function Orders() {
               onFocus={() => setShowProductSuggest(search.length > 0)}
               onBlur={() => setTimeout(() => setShowProductSuggest(false), 200)}
               placeholder={productFilter || "Cari nama, produk, ID..."}
-              className="w-full pl-10 sm:pl-11 pr-10 sm:pr-12 py-2.5 sm:py-3 bg-slate-50 sm:bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-[0.9375rem] text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all shadow-sm"
+              className="w-full pl-10 pr-10 py-2 sm:py-2 bg-slate-50 sm:bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all shadow-sm"
             />
             {productFilter && (
               <button
@@ -1059,7 +1059,7 @@ export default function Orders() {
           </div>
 
           {/* Period filter: segmented pill + date */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
             <div className="flex items-center rounded-full border border-slate-200 bg-white overflow-hidden shadow-sm">
               {([
                 { key: "daily" as const, label: "Harian" },
@@ -1069,7 +1069,7 @@ export default function Orders() {
                 <button
                   key={key}
                   onClick={() => setPeriod(key)}
-                  className={`px-3.5 sm:px-5 py-[7px] sm:py-2 text-[11px] sm:text-sm font-bold whitespace-nowrap transition-all ${
+                  className={`px-3.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold whitespace-nowrap transition-all ${
                     period === key
                       ? "bg-pink-500 text-white"
                       : "text-slate-400 border-l border-slate-200 first:border-l-0 hover:text-slate-600"
@@ -1079,7 +1079,7 @@ export default function Orders() {
                 </button>
               ))}
             </div>
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-[7px] sm:py-2 bg-white border border-slate-200 rounded-full text-[11px] sm:text-sm text-slate-600 font-semibold shadow-sm shrink-0">
+            <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-full text-[11px] sm:text-xs text-slate-600 font-semibold shadow-sm shrink-0">
               <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
               <span>{periodRange.label}</span>
             </div>
@@ -1098,40 +1098,40 @@ export default function Orders() {
           )}
 
           {/* Stats cards */}
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
-                  <TrendingUp className="w-4 h-4" />
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
+                  <TrendingUp className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Belum Bayar</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500">Belum Bayar</span>
               </div>
-              <p className="text-lg sm:text-xl font-extrabold text-rose-600 leading-tight">
+              <p className="text-base sm:text-lg font-extrabold text-rose-600 leading-tight">
                 Rp {totalBelumBayar >= 1000000 ? `${(totalBelumBayar / 1000000).toFixed(1)}jt` : totalBelumBayar >= 1000 ? `${(totalBelumBayar / 1000).toFixed(0)}rb` : '0'}
               </p>
-              <p className="text-[10px] sm:text-[11px] text-rose-300 font-medium mt-0.5">{countBelumBayar} order</p>
+              <p className="text-[9px] sm:text-[10px] text-rose-300 font-medium">{countBelumBayar} order</p>
             </div>
-            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-xl bg-sky-50 flex items-center justify-center text-sky-500">
-                  <PackageCheck className="w-4 h-4" />
+            <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center text-sky-500">
+                  <PackageCheck className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Ready</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500">Ready</span>
               </div>
-              <p className="text-lg sm:text-xl font-extrabold text-sky-600 leading-tight">{countReady} order</p>
-              <p className="text-[10px] sm:text-[11px] text-sky-300 font-medium mt-0.5">Siap dikirim/diambil</p>
+              <p className="text-base sm:text-lg font-extrabold text-sky-600 leading-tight">{countReady} order</p>
+              <p className="text-[9px] sm:text-[10px] text-sky-300 font-medium">Siap dikirim/diambil</p>
             </div>
-            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                  <Check className="w-4 h-4" />
+            <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <Check className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Lunas</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500">Lunas</span>
               </div>
-              <p className="text-lg sm:text-xl font-extrabold text-emerald-600 leading-tight">
+              <p className="text-base sm:text-lg font-extrabold text-emerald-600 leading-tight">
                 Rp {todayLunasTotal >= 1000000 ? `${(todayLunasTotal / 1000000).toFixed(1)}jt` : todayLunasTotal >= 1000 ? `${(todayLunasTotal / 1000).toFixed(0)}rb` : '0'}
               </p>
-              <p className="text-[10px] sm:text-[11px] text-emerald-300 font-medium mt-0.5">{todayLunasCount} order</p>
+              <p className="text-[9px] sm:text-[10px] text-emerald-300 font-medium">{todayLunasCount} order</p>
             </div>
           </div>
         </div>
@@ -1164,52 +1164,52 @@ export default function Orders() {
           </button>
         )}
 
-        <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setTab("all")}
-            className={`px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 sm:gap-2 ${
+            className={`px-3.5 sm:px-4 py-1.5 sm:py-2 font-bold text-[11px] sm:text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
               tab === "all"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
-            Semua <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${tab === "all" ? "bg-pink-400 text-white" : "bg-slate-100 text-slate-500"}`}>{countTab("all")}</span>
+            Semua <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${tab === "all" ? "bg-pink-400 text-white" : "bg-slate-100 text-slate-500"}`}>{countTab("all")}</span>
           </button>
           <button
             onClick={() => setTab("belum-lunas")}
-            className={`px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 sm:gap-2 ${
+            className={`px-3.5 sm:px-4 py-1.5 sm:py-2 font-bold text-[11px] sm:text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
               tab === "belum-lunas"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
-            <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-rose-500 shrink-0" />
-            Belum Bayar <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${tab === "belum-lunas" ? "bg-pink-400 text-white" : "bg-rose-100 text-rose-600"}`}>{countBelumBayar}</span>
+            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+            Belum Bayar <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${tab === "belum-lunas" ? "bg-pink-400 text-white" : "bg-rose-100 text-rose-600"}`}>{countBelumBayar}</span>
           </button>
           <button
             onClick={() => setTab("ready")}
-            className={`px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 sm:gap-2 ${
+            className={`px-3.5 sm:px-4 py-1.5 sm:py-2 font-bold text-[11px] sm:text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
               tab === "ready"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
-            <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-sky-500 shrink-0" />
-            Ready <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${tab === "ready" ? "bg-pink-400 text-white" : "bg-sky-100 text-sky-600"}`}>{countReady}</span>
+            <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
+            Ready <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${tab === "ready" ? "bg-pink-400 text-white" : "bg-sky-100 text-sky-600"}`}>{countReady}</span>
           </button>
           <button
             onClick={() => setTab("lunas")}
-            className={`px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 sm:gap-2 ${
+            className={`px-3.5 sm:px-4 py-1.5 sm:py-2 font-bold text-[11px] sm:text-xs rounded-full whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
               tab === "lunas"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
-            Selesai <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${tab === "lunas" ? "bg-pink-400 text-white" : "bg-emerald-100 text-emerald-600"}`}>{countLunas}</span>
+            Selesai <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${tab === "lunas" ? "bg-pink-400 text-white" : "bg-emerald-100 text-emerald-600"}`}>{countLunas}</span>
           </button>
           <button
             onClick={() => setTab("belum-dikirim")}
-            className={`px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm rounded-full whitespace-nowrap transition-all shrink-0 ${
+            className={`px-3.5 sm:px-4 py-1.5 sm:py-2 font-bold text-[11px] sm:text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
               tab === "belum-dikirim"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
@@ -1219,7 +1219,7 @@ export default function Orders() {
           </button>
           <button
             onClick={() => setTab("pembelian")}
-            className={`px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm rounded-full whitespace-nowrap transition-all shrink-0 ${
+            className={`px-3.5 sm:px-4 py-1.5 sm:py-2 font-bold text-[11px] sm:text-xs rounded-full whitespace-nowrap transition-all shrink-0 ${
               tab === "pembelian"
                 ? "bg-pink-500 text-white shadow-sm shadow-pink-500/30"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
@@ -1230,7 +1230,7 @@ export default function Orders() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 sm:px-10 pb-4 relative z-10">
+      <main className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4 relative z-10">
         {tab === "belum-lunas" && filtered.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm">
             <div>
