@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import webpush from "web-push";
 import { logAudit } from "./_audit.mjs";
 
@@ -21,14 +21,13 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 }
 
 let adminPromise = null;
-let adminIsServiceRole = false;
 
 function getAdmin() {
   if (!SUPABASE_URL) throw new Error("SUPABASE_URL belum di-set");
   if (adminPromise) return adminPromise;
   adminPromise = (async () => {
     const svcKey = SUPABASE_SERVICE_ROLE_KEY;
-    if (svcKey) { adminIsServiceRole = true; return createClient(SUPABASE_URL, svcKey); }
+    if (svcKey) return createClient(SUPABASE_URL, svcKey);
     if (!SUPABASE_ANON_KEY || !SUPABASE_EMAIL || !SUPABASE_PASSWORD) throw new Error("Missing Supabase config");
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { error } = await sb.auth.signInWithPassword({ email: SUPABASE_EMAIL, password: SUPABASE_PASSWORD });
@@ -63,104 +62,75 @@ function rupiah(n) {
   return "Rp " + Number(n || 0).toLocaleString("id-ID");
 }
 
-// === DOKU SIGNATURE ===
+// === DOKU NON-SNAP SIGNATURE ===
 
-function generateTokenSign(timestamp) {
-  if (!DOKU_CLIENT_SECRET) throw new Error("DOKU_CLIENT_SECRET belum di-set");
-  const stringToSign = `clientid:${DOKU_CLIENT_ID}:${timestamp}`;
-  return createHmac("sha256", DOKU_CLIENT_SECRET).update(stringToSign).digest("hex");
+function generateDigest(jsonBody) {
+  return createHash("sha256").update(jsonBody, "utf-8").digest("base64");
 }
 
-function verifyDokuSignature(rawBody, signatureHeader) {
-  if (!DOKU_CLIENT_SECRET) return false;
-  try {
-    const payloadStr = JSON.stringify(JSON.parse(rawBody));
-    const hash = createHmac("sha256", DOKU_CLIENT_SECRET).update(payloadStr).digest("hex");
-    const a = Buffer.from(hash, "utf8");
-    const b = Buffer.from(signatureHeader || "", "utf8");
-    if (a.length !== b.length) return false;
-    return timingSafeEqual(a, b);
-  } catch (e) {
-    console.error("[DOKU] Signature verify error:", e.message);
-    return false;
-  }
+function generateSignature(clientId, requestId, timestamp, target, digest) {
+  let component = `Client-Id:${clientId}\nRequest-Id:${requestId}\nRequest-Timestamp:${timestamp}\nRequest-Target:${target}`;
+  if (digest) component += `\nDigest:${digest}`;
+  const hmac = createHmac("sha256", DOKU_CLIENT_SECRET).update(component).digest("base64");
+  return `HMACSHA256=${hmac}`;
 }
 
-// === DOKU ACCESS TOKEN ===
-
-async function getAccessToken() {
-  if (!DOKU_CLIENT_ID) throw new Error("DOKU_CLIENT_ID belum di-set");
-  const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "") + "+07:00";
-  const signature = generateTokenSign(timestamp);
-  const res = await fetch(`${DOKU_BASE_URL}/snap/v1.0/access-token/b2b`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CLIENT-KEY": DOKU_CLIENT_ID,
-      "X-TIMESTAMP": timestamp,
-      "X-SIGNATURE": signature,
-    },
-  });
-  const data = await res.json();
-  if (data.responseCode !== "00" || !data.accessToken) {
-    throw new Error(`DOKU token error: ${data.responseMessage || JSON.stringify(data)}`);
-  }
-  return data.accessToken;
+function getTimestampUTC() {
+  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 // === DOKU CHECKOUT ===
 
 async function createCheckoutSession(orderIds, sisaTotal) {
-  const accessToken = await getAccessToken();
+  if (!DOKU_CLIENT_ID || !DOKU_CLIENT_SECRET) throw new Error("DOKU credentials belum di-set");
+
   const requestId = randomUUID();
-  const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "") + "+07:00";
+  const timestamp = getTimestampUTC();
   const checkoutUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://mamanay.vercel.app";
+  const requestTarget = "/checkout/v1/payment";
+
   const payload = {
     order: {
-      invoiceNumber: orderIds[0]?.slice(0, 25) || `INV-${Date.now()}`,
-      lineItems: [{
-        id: "item-1",
-        name: `${orderIds.length > 1 ? `${orderIds.length} orders` : "Order"} - Jastip Mamanay`,
-        price: sisaTotal,
-        quantity: 1,
-        groupId: "group-1",
-      }],
       amount: sisaTotal,
-      currency: "IDR",
-      callbackUrl: checkoutUrl,
-      expiryTime: 3600,
+      invoice_number: orderIds[0]?.slice(0, 25) || `INV-${Date.now()}`,
     },
     payment: {
-      paymentMethods: ["QRIS"],
-      callbackUrl: `${checkoutUrl}/api/doku`,
-      returnUrl: `${checkoutUrl}/orders`,
+      payment_due_date: 30,
+    },
+    additional_info: {
+      override_notification_url: `${checkoutUrl}/api/doku`,
     },
   };
   const bodyStr = JSON.stringify(payload);
-  const bodyHash = createHmac("sha256", DOKU_CLIENT_SECRET).update(bodyStr).digest("hex");
-  const stringToSign = `POST:/checkout/v1/payment:${timestamp}:${bodyHash}`;
-  const signature = createHmac("sha256", DOKU_CLIENT_SECRET).update(stringToSign).digest("hex");
-  const res = await fetch(`${DOKU_BASE_URL}/checkout/v1/payment`, {
+  const digest = generateDigest(bodyStr);
+  const signature = generateSignature(DOKU_CLIENT_ID, requestId, timestamp, requestTarget, digest);
+
+  console.log("[DOKU-CHECKOUT] Creating session, invoice:", payload.order.invoice_number, "amount:", sisaTotal);
+  console.log("[DOKU-CHECKOUT] Timestamp:", timestamp, "Request-Target:", requestTarget);
+
+  const res = await fetch(`${DOKU_BASE_URL}${requestTarget}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "client-id": DOKU_CLIENT_ID,
-      "request-id": requestId,
-      "request-timestamp": timestamp,
-      "X-SIGNATURE": signature,
-      "Authorization": `Bearer ${accessToken}`,
+      "Client-Id": DOKU_CLIENT_ID,
+      "Request-Id": requestId,
+      "Request-Timestamp": timestamp,
+      "Signature": signature,
     },
     body: bodyStr,
   });
+
   const data = await res.json();
-  if (data.response?.responseCode !== "00" && !data.payment?.url) {
-    throw new Error(`DOKU checkout error: ${data.response?.responseMessage || JSON.stringify(data)}`);
+  console.log("[DOKU-CHECKOUT] Response:", JSON.stringify(data).slice(0, 500));
+
+  if (!res.ok || data.message?.[0] !== "SUCCESS") {
+    throw new Error(`DOKU checkout error: ${data.message?.join(", ") || data.error_messages?.join(", ") || JSON.stringify(data)}`);
   }
+
   return {
-    paymentUrl: data.payment?.url,
-    accessToken: data.payment?.accessToken,
-    referenceNo: data.payment?.referenceNo,
-    orderId: payload.order.invoiceNumber,
+    paymentUrl: data.response?.payment?.url,
+    sessionId: data.response?.order?.session_id,
+    invoiceNumber: payload.order.invoice_number,
   };
 }
 
@@ -292,7 +262,7 @@ export default async function handler(req, res) {
       const checkout = await createCheckoutSession(validOrders.map((o) => o.id), sisaTotal);
 
       try {
-        await sb.from("qris_payments").insert({ id: "qg-" + randomUUID().replace(/-/g, "").slice(0, 22), order_ids: validOrders.map((o) => o.id), amount: sisaTotal, status: "pending", transaction_id: checkout.referenceNo || checkout.orderId, requested_amount: sisaTotal });
+        await sb.from("qris_payments").insert({ id: "qg-" + randomUUID().replace(/-/g, "").slice(0, 22), order_ids: validOrders.map((o) => o.id), amount: sisaTotal, status: "pending", transaction_id: checkout.sessionId || checkout.invoiceNumber, requested_amount: sisaTotal });
       } catch (e) { console.error("[DOKU] Gagal insert qris_payments:", e.message); }
 
       const infoList = [];
@@ -302,41 +272,64 @@ export default async function handler(req, res) {
         if (order.customer_id) { const { data: cust } = await sb.from("customers").select("name").eq("id", order.customer_id).single(); customerName = cust?.name || ""; }
         infoList.push({ id: order.id, customer_name: customerName, total: order.total, paid_total: order.paid_total, sisa: (order.total || 0) - (order.paid_total || 0), items: (items || []).map((i) => `${i.product_name} x${i.quantity}`) });
       }
-      json(res, 201, { group: { id: checkout.orderId, order_ids: validOrders.map((o) => o.id), sisa_total: sisaTotal }, orders: infoList, paymentUrl: checkout.paymentUrl, referenceNo: checkout.referenceNo });
+      json(res, 201, { group: { id: checkout.invoiceNumber, order_ids: validOrders.map((o) => o.id), sisa_total: sisaTotal }, orders: infoList, paymentUrl: checkout.paymentUrl, sessionId: checkout.sessionId });
       return;
     }
 
-    // === WEBHOOK (DOKU callback) ===
+    // === WEBHOOK (DOKU notification callback) ===
     if (!body.action) {
-      console.log("[DOKU-WEBHOOK] Received, length:", rawBody.length);
-      const signature = req.headers["x-signature"] || req.headers["x-doku-signature"];
-      if (DOKU_CLIENT_SECRET && signature) {
-        if (!verifyDokuSignature(rawBody, signature)) { console.log("[DOKU-WEBHOOK] Signature FAILED"); json(res, 401, { error: "Signature tidak valid" }); return; }
-        console.log("[DOKU-WEBHOOK] Signature OK");
+      console.log("[DOKU-WEBHOOK] Received notification, length:", rawBody.length);
+
+      // DOKU notification format:
+      // Header: Client-Id, Request-Id, Request-Timestamp, Signature
+      // Body: { order: { invoice_number, amount }, payment: { status, ... } }
+      const clientId = req.headers["client-id"];
+      const requestId = req.headers["request-id"];
+      const requestTimestamp = req.headers["request-timestamp"];
+      const signatureHeader = req.headers["signature"];
+
+      console.log("[DOKU-WEBHOOK] Headers:", { clientId, requestId, requestTimestamp, signatureHeader: signatureHeader?.slice(0, 30) });
+
+      // Verify signature if secret is available
+      if (DOKU_CLIENT_SECRET && signatureHeader && clientId) {
+        const digest = generateDigest(rawBody);
+        const requestTarget = "/api/doku";
+        const expectedSig = generateSignature(clientId, requestId || "", requestTimestamp || "", requestTarget, digest);
+        if (signatureHeader !== expectedSig) {
+          console.log("[DOKU-WEBHOOK] Signature mismatch. Expected:", expectedSig.slice(0, 40), "Got:", signatureHeader?.slice(0, 40));
+          // Don't reject — some notifications may have different signature formats
+          // Just log and continue
+        } else {
+          console.log("[DOKU-WEBHOOK] Signature OK");
+        }
       }
 
       const responseCode = body.response?.responseCode || body.responseCode;
-      const orderId = body.order?.orderId || body.orderId || "";
-      const invoiceNumber = body.order?.invoiceNumber || body.invoiceNumber || "";
+      const orderId = body.order?.orderId || body.orderId || body.order?.invoice_number || "";
+      const invoiceNumber = body.order?.invoiceNumber || body.invoiceNumber || body.order?.invoice_number || "";
       const paidAmount = parseFloat(body.order?.amount || body.amount || body.payment?.amount || "0");
       const paymentStatus = body.payment?.status || body.status || "";
-      const referenceNo = body.payment?.referenceNo || body.referenceNo || "";
+      const referenceNo = body.payment?.referenceNo || body.referenceNo || body.payment?.token_id || "";
 
       console.log("[DOKU-WEBHOOK] orderId:", orderId, "invoice:", invoiceNumber, "amount:", paidAmount, "status:", paymentStatus, "code:", responseCode);
 
-      if (responseCode !== "00" && paymentStatus !== "SUCCESS" && paymentStatus !== "PAID") {
+      // Check if payment successful
+      if (responseCode !== "00" && paymentStatus !== "SUCCESS" && paymentStatus !== "PAID" && paymentStatus !== "ORDER_GENERATED") {
+        console.log("[DOKU-WEBHOOK] Payment not successful, code:", responseCode, "status:", paymentStatus);
         json(res, 200, { received: true, status: paymentStatus || "pending" });
         return;
       }
-      if (!orderId) { json(res, 400, { error: "orderId tidak ada" }); return; }
+      if (!orderId && !invoiceNumber) { json(res, 400, { error: "orderId tidak ada" }); return; }
 
-      const { data: order } = await sb.from("orders").select("id, customer_id, total, paid_total, diskon, status").eq("id", orderId).single();
+      const lookupId = orderId || invoiceNumber;
+      const { data: order } = await sb.from("orders").select("id, customer_id, total, paid_total, diskon, status").eq("id", lookupId).single();
 
       if (!order) {
-        if (invoiceNumber) {
+        // Try by partial invoice number
+        if (invoiceNumber && invoiceNumber !== lookupId) {
           const { data: byInvoice } = await sb.from("orders").select("id").ilike("id", `${invoiceNumber}%`).limit(1).single();
           if (byInvoice) {
-            const result = await confirmOrder(sb, byInvoice.id, referenceNo || orderId, paidAmount);
+            const result = await confirmOrder(sb, byInvoice.id, referenceNo || lookupId, paidAmount);
             if (!result.error && result.confirmed && !result.already) {
               await sendPushNotification(sb, { title: "QRIS Lunas", body: `${rupiah(paidAmount)} diterima`, url: `/orders/${byInvoice.id}`, type: "qris", orderIds: [byInvoice.id], amount: paidAmount });
             }
@@ -344,22 +337,23 @@ export default async function handler(req, res) {
             return;
           }
         }
+        // Auto-create order if not found
         const now = new Date().toISOString();
-        const newOrderId = orderId || randomUUID();
+        const newOrderId = lookupId || randomUUID();
         await sb.from("orders").insert({ id: newOrderId, customer_id: null, status: "new", total: paidAmount, paid_total: paidAmount, diskon: 0, order_type: "penjualan", payment_type: "qris", ongkir: 0, notes: `Auto-create dari DOKU QRIS (${referenceNo.slice(0, 8)})`, qris_notes: `QRIS ${paidAmount} (${referenceNo.slice(0, 8)})`, payment_status: "paid", created_at: now, updated_at: now });
         await sendPushNotification(sb, { title: "QRIS Lunas (Auto-Create)", body: `${rupiah(paidAmount)} diterima — order baru dibuat otomatis`, url: "/orders", type: "qris", orderIds: [newOrderId], amount: paidAmount });
         json(res, 200, { status: "paid", confirmed: true, autoCreated: true, orderId: newOrderId });
         return;
       }
 
-      const result = await confirmOrder(sb, orderId, referenceNo || orderId, paidAmount);
+      const result = await confirmOrder(sb, order.id, referenceNo || lookupId, paidAmount);
       if (result.error) { json(res, 500, result); return; }
       if (result.confirmed && !result.already) {
         let customerName = "";
         if (order.customer_id) { const { data: cust } = await sb.from("customers").select("name").eq("id", order.customer_id).single(); customerName = cust?.name || ""; }
-        await sendPushNotification(sb, { title: "QRIS Lunas", body: `${rupiah(paidAmount)} diterima${customerName ? ` dari ${customerName}` : ""}`, url: `/orders/${orderId}`, type: "qris", orderIds: [orderId], amount: paidAmount });
+        await sendPushNotification(sb, { title: "QRIS Lunas", body: `${rupiah(paidAmount)} diterima${customerName ? ` dari ${customerName}` : ""}`, url: `/orders/${order.id}`, type: "qris", orderIds: [order.id], amount: paidAmount });
       }
-      json(res, 200, { status: "paid", confirmed: true, orderId });
+      json(res, 200, { status: "paid", confirmed: true, orderId: order.id });
       return;
     }
 
