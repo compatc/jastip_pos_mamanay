@@ -1498,7 +1498,15 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      }).then(function(r) { return r.json(); }).then(function(resp) {
+      }).then(function(r) {
+        var ct = r.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') === -1) {
+          return r.text().then(function(t) {
+            throw new Error('Server error (' + r.status + '): ' + (t || 'empty response').slice(0, 200));
+          });
+        }
+        return r.json();
+      }).then(function(resp) {
         if (resp.error) {
           document.getElementById('qrisContent').innerHTML = '<div class="empty-state"><div class="empty-icon">&#9888;</div><h3>Gagal membuat QR</h3><p>' + resp.error + '</p></div>';
           return;

@@ -4,6 +4,7 @@
   "framework": "vite",
   "installCommand": "npm install",
   "rewrites": [
+    { "source": "/api/boqris", "destination": "/api/pay" },
     { "source": "/((?!assets/|api/).*)", "destination": "/index.html" }
   ]
 }

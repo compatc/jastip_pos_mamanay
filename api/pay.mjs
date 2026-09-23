@@ -226,8 +226,13 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
   const FETCH_TIMEOUT_MS = 5000;
-  const code = Math.floor(Math.random() * 100) + 1;
-  const qrAmount = amount - code;
+  let code = Math.floor(Math.random() * 100) + 1;
+  let qrAmount = amount - code;
+  while (qrAmount <= 0 && code > 1) {
+    code = Math.floor(Math.random() * Math.min(99, Math.max(1, amount - 1))) + 1;
+    qrAmount = amount - code;
+  }
+  if (qrAmount <= 0) { code = 0; qrAmount = amount; }
 
   const payload = { ...basePayload, amount: qrAmount };
   const controller = new AbortController();
@@ -694,12 +699,13 @@ export default async function handler(req, res) {
       if (invoiceNo) basePayload.invoice_no = invoiceNo;
 
       const useUniqueAmount = Number(body.unique_amount ?? 0) === 1;
-      const code = useUniqueAmount ? Math.floor(Math.random() * 100) + 1 : 0;
-      const qrAmount = amount - code;
-      if (qrAmount <= 0) {
-        json(res, 400, { error: "Amount terlalu kecil untuk kode unik" });
-        return;
+      let code = useUniqueAmount ? Math.floor(Math.random() * 100) + 1 : 0;
+      let qrAmount = amount - code;
+      while (qrAmount <= 0 && code > 1) {
+        code = Math.floor(Math.random() * Math.min(99, Math.max(1, amount - 1))) + 1;
+        qrAmount = amount - code;
       }
+      if (qrAmount <= 0) { code = 0; qrAmount = amount; }
       const payload = {
         ...basePayload,
         amount: qrAmount,
@@ -949,9 +955,13 @@ export default async function handler(req, res) {
           let qrSvg = null;
           try {
             const apiKey = process.env.BOQRIS_API_KEY;
+            const detailCtl = new AbortController();
+            const detailTimer = setTimeout(() => detailCtl.abort(), 4000);
             const boDetail = await fetch(`${BOQRIS_BASE}/api/v1/transactions/${existing.transaction_id}`, {
               headers: { Authorization: `Bearer ${apiKey}` },
+              signal: detailCtl.signal,
             });
+            clearTimeout(detailTimer);
             const boData = await boDetail.json();
             const qrPayload = boData.qris_dynamic || boData.qr_url;
             if (qrPayload) {
