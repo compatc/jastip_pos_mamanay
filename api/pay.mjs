@@ -226,17 +226,19 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
   const FETCH_TIMEOUT_MS = 5000;
-  const MAX_ATTEMPTS = 5;
-  let lastError = null;
+  const maxCode = Math.min(99, Math.max(0, amount - 1));
+  const codes = [];
+  for (let c = 1; c <= maxCode; c++) codes.push(c);
+  codes.push(0);
+  for (let i = codes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [codes[i], codes[j]] = [codes[j], codes[i]];
+  }
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    let code = Math.floor(Math.random() * 100) + 1;
-    let qrAmount = amount - code;
-    while (qrAmount <= 0 && code > 1) {
-      code = Math.floor(Math.random() * Math.min(99, Math.max(1, amount - 1))) + 1;
-      qrAmount = amount - code;
-    }
-    if (qrAmount <= 0) { code = 0; qrAmount = amount; }
+  let lastError = null;
+  for (const code of codes) {
+    const qrAmount = code > 0 ? amount - code : amount;
+    if (qrAmount <= 0) continue;
 
     const payload = { ...basePayload, amount: qrAmount };
     const controller = new AbortController();
@@ -258,7 +260,7 @@ async function createBoqrisTransaction(amount, invoiceNo) {
       const errMsg = data.error || data.message || `BOQris ${bo.status}`;
       lastError = new Error(errMsg);
       if (errMsg.includes("nominal sama") || errMsg.includes("unique_amount")) {
-        console.error(`[PAY] BOQris duplicate amount (attempt ${attempt + 1}), retrying with new code...`);
+        console.error(`[PAY] BOQris duplicate amount qrAmount=${qrAmount}, trying next code...`);
         continue;
       }
       throw lastError;
@@ -274,7 +276,7 @@ async function createBoqrisTransaction(amount, invoiceNo) {
       throw err;
     }
   }
-  throw lastError || new Error("Gagal membuat transaksi QRIS");
+  throw lastError || new Error("Gagal membuat transaksi QRIS: semua nominal sudah dipakai transaksi pending");
 }
 
 export async function checkBoqrisTransaction(transactionId) {
