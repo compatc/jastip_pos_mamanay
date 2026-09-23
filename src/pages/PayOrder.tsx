@@ -56,6 +56,11 @@ export default function PayOrder() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Gagal membuat QR");
 
+        if (data.status === "paid" || data.confirmed) {
+          setConfirmed(true);
+          return;
+        }
+
         const tx = data.tx || {};
         const qrSvg = tx.qr_svg || null;
 
@@ -68,6 +73,9 @@ export default function PayOrder() {
         setKodeUnik(tx.custom_unique_code || 0);
         setQrCreatedAt(tx.created_at || null);
         setQrImage(qrSvg);
+        if (!qrSvg && !tx.qr_url) {
+          setError("QR tidak tersedia. Coba lagi.");
+        }
       } catch (e: any) {
         setError(e.message || "Gagal");
       } finally {
