@@ -956,7 +956,7 @@ export default async function handler(req, res) {
           try {
             const apiKey = process.env.BOQRIS_API_KEY;
             const detailCtl = new AbortController();
-            const detailTimer = setTimeout(() => detailCtl.abort(), 4000);
+            const detailTimer = setTimeout(() => detailCtl.abort(), 6000);
             const boDetail = await fetch(`${BOQRIS_BASE}/api/v1/transactions/${existing.transaction_id}`, {
               headers: { Authorization: `Bearer ${apiKey}` },
               signal: detailCtl.signal,
@@ -971,42 +971,46 @@ export default async function handler(req, res) {
             console.error("[PAY] Resume QR fetch failed:", e.message);
           }
 
-          if (validOrders.length === 1) {
-            const info = await loadOrderInfo(sb, validOrders[0]);
-            json(res, 200, {
-              order: info,
-              tx: {
-                transaction_id: existing.transaction_id,
-                requested_amount: existing.requested_amount || existing.amount,
-                amount: existing.amount,
-                custom_unique_code: kodeUnik,
-                qr_svg: qrSvg,
-                created_at: existing.created_at,
-              },
-            });
-          } else {
-            const infoList = [];
-            for (const order of validOrders) {
-              infoList.push(await loadOrderInfo(sb, order));
+          if (qrSvg) {
+            if (validOrders.length === 1) {
+              const info = await loadOrderInfo(sb, validOrders[0]);
+              json(res, 200, {
+                order: info,
+                tx: {
+                  transaction_id: existing.transaction_id,
+                  requested_amount: existing.requested_amount || existing.amount,
+                  amount: existing.amount,
+                  custom_unique_code: kodeUnik,
+                  qr_svg: qrSvg,
+                  created_at: existing.created_at,
+                },
+              });
+            } else {
+              const infoList = [];
+              for (const order of validOrders) {
+                infoList.push(await loadOrderInfo(sb, order));
+              }
+              json(res, 200, {
+                group: {
+                  id: existing.id,
+                  order_ids: orderIdsSet,
+                  sisa_total: sisaTotal,
+                },
+                orders: infoList,
+                tx: {
+                  transaction_id: existing.transaction_id,
+                  requested_amount: existing.requested_amount || existing.amount,
+                  amount: existing.amount,
+                  custom_unique_code: kodeUnik,
+                  qr_svg: qrSvg,
+                  created_at: existing.created_at,
+                },
+              });
             }
-            json(res, 200, {
-              group: {
-                id: existing.id,
-                order_ids: orderIdsSet,
-                sisa_total: sisaTotal,
-              },
-              orders: infoList,
-              tx: {
-                transaction_id: existing.transaction_id,
-                requested_amount: existing.requested_amount || existing.amount,
-                amount: existing.amount,
-                custom_unique_code: kodeUnik,
-                qr_svg: qrSvg,
-                created_at: existing.created_at,
-              },
-            });
+            return;
           }
-          return;
+          console.error("[PAY] Resume QR fetch failed, expiring and creating new for:", existing.transaction_id);
+          await sb.from("qris_payments").update({ status: "expired" }).eq("id", existing.id);
         }
         if (boStatus.status === "paid") {
           json(res, 200, { status: "paid", confirmed: true });
@@ -1014,6 +1018,11 @@ export default async function handler(req, res) {
         }
         await sb.from("qris_payments").update({ status: "expired" }).eq("id", existing.id);
       }
+
+      await sb.from("qris_payments")
+        .update({ status: "expired" })
+        .contains("order_ids", orderIdsSet)
+        .eq("status", "pending");
 
       const sisaTotal = validOrders.reduce(
         (sum, o) => sum + ((o.total || 0) - (o.paid_total || 0)),
