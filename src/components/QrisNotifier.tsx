@@ -157,14 +157,6 @@ export default function QrisNotifier() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (timer.current != null) window.clearTimeout(timer.current);
-    };
-  }, []);
-    };
-  }, []);
-
   if (toasts.length === 0) return null;
 
   return (
