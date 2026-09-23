@@ -226,39 +226,55 @@ async function createBoqrisTransaction(amount, invoiceNo) {
   if (invoiceNo) basePayload.invoice_no = String(invoiceNo).slice(0, 25);
 
   const FETCH_TIMEOUT_MS = 5000;
-  let code = Math.floor(Math.random() * 100) + 1;
-  let qrAmount = amount - code;
-  while (qrAmount <= 0 && code > 1) {
-    code = Math.floor(Math.random() * Math.min(99, Math.max(1, amount - 1))) + 1;
-    qrAmount = amount - code;
-  }
-  if (qrAmount <= 0) { code = 0; qrAmount = amount; }
+  const MAX_ATTEMPTS = 5;
+  let lastError = null;
 
-  const payload = { ...basePayload, amount: qrAmount };
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    const data = await bo.json();
-    if (bo.status === 201) {
-      data.requested_amount = amount;
-      data.custom_unique_code = code;
-      return data;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    let code = Math.floor(Math.random() * 100) + 1;
+    let qrAmount = amount - code;
+    while (qrAmount <= 0 && code > 1) {
+      code = Math.floor(Math.random() * Math.min(99, Math.max(1, amount - 1))) + 1;
+      qrAmount = amount - code;
     }
-    throw new Error(data.error || data.message || `BOQris ${bo.status}`);
-  } catch (err) {
-    clearTimeout(timer);
-    if (err.name === "AbortError") {
-      throw new Error("BOQris API timeout, coba lagi nanti");
+    if (qrAmount <= 0) { code = 0; qrAmount = amount; }
+
+    const payload = { ...basePayload, amount: qrAmount };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      const data = await bo.json();
+      if (bo.status === 201) {
+        data.requested_amount = amount;
+        data.custom_unique_code = code;
+        return data;
+      }
+      const errMsg = data.error || data.message || `BOQris ${bo.status}`;
+      lastError = new Error(errMsg);
+      if (errMsg.includes("nominal sama") || errMsg.includes("unique_amount")) {
+        console.error(`[PAY] BOQris duplicate amount (attempt ${attempt + 1}), retrying with new code...`);
+        continue;
+      }
+      throw lastError;
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === "AbortError") {
+        throw new Error("BOQris API timeout, coba lagi nanti");
+      }
+      if (err.message && (err.message.includes("nominal sama") || err.message.includes("unique_amount"))) {
+        lastError = err;
+        continue;
+      }
+      throw err;
     }
-    throw err;
   }
+  throw lastError || new Error("Gagal membuat transaksi QRIS");
 }
 
 export async function checkBoqrisTransaction(transactionId) {
@@ -1037,10 +1053,10 @@ export default async function handler(req, res) {
           await sb.from("qris_payments").insert({
             id: "qg-" + randomUUID().replace(/-/g, "").slice(0, 22),
             order_ids: [order.id],
-            amount: sisa,
+            amount: tx.amount,
             status: "pending",
             transaction_id: tx.transaction_id,
-            requested_amount: sisa,
+            requested_amount: tx.requested_amount,
           });
         } catch (e) {
           console.error("[PAY] Gagal insert qris_payments (single):", e.message);
@@ -1057,10 +1073,10 @@ export default async function handler(req, res) {
       const { error: groupErr } = await sb.from("qris_payments").insert({
         id: invoiceNo,
         order_ids: validOrders.map((o) => o.id),
-        amount: sisaTotal,
+        amount: tx.amount,
         status: "pending",
         transaction_id: tx.transaction_id,
-        requested_amount: sisaTotal,
+        requested_amount: tx.requested_amount,
       });
       if (groupErr) {
         json(res, 500, { error: "Gagal menyimpan pembayaran gabungan: " + groupErr.message });
