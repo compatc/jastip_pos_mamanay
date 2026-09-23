@@ -11,8 +11,6 @@ interface ToastItem {
 
 const NOTIFIED_KEY = "qris_notified_ids";
 const NOTIFIED_WINDOW_MS = 5 * 60 * 1000;
-const POLL_MS = 60000;
-const POLL_WINDOW_MS = 5 * 60 * 1000;
 
 function rupiah(n: number): string {
   return "Rp " + (n || 0).toLocaleString("id-ID");
@@ -43,13 +41,6 @@ export default function QrisNotifier() {
   const pending = useRef<Map<string, { id: string; total: number }>>(new Map());
   const timer = useRef<number | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
-  const visibleRef = useRef(document.visibilityState !== "hidden");
-
-  useEffect(() => {
-    const onVis = () => { visibleRef.current = document.visibilityState !== "hidden"; };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, []);
 
   function chime() {
     try {
@@ -159,49 +150,18 @@ export default function QrisNotifier() {
       )
       .subscribe();
 
-    const poll = window.setInterval(async () => {
-      if (!visibleRef.current) return;
-      try {
-        const since = new Date(Date.now() - POLL_WINDOW_MS).toISOString();
-        const { data, error } = await supabase
-          .from("orders")
-          .select("id, total, updated_at")
-          .eq("payment_type", "qris")
-          .eq("status", "paid")
-          .gte("updated_at", since)
-          .order("updated_at", { ascending: false })
-          .limit(10);
-        if (error) return;
-        (data || []).forEach((o) => queue(o.id, o.total, o.updated_at));
-      } catch {
-        // jaringan bermasalah, coba lagi tick berikutnya
-      }
-    }, POLL_MS);
-
     return () => {
       supabase.removeChannel(channel);
-      window.clearInterval(poll);
       if (timer.current != null) window.clearTimeout(timer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const reconcile = window.setInterval(async () => {
-      if (!visibleRef.current) return;
-      try {
-        await fetch("/api/pay", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "reconcile" }),
-        });
-        // Realtime events from confirmOrder already update the UI
-        // No need to call loadAllOrders() here
-      } catch {}
-    }, 120000);
-
     return () => {
-      window.clearInterval(reconcile);
+      if (timer.current != null) window.clearTimeout(timer.current);
+    };
+  }, []);
     };
   }, []);
 
