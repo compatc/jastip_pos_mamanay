@@ -192,8 +192,8 @@ function json(res, status, body) {
 
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
 function verifyWebhook(rawBody, signatureHeader) {
@@ -624,6 +624,20 @@ export default async function handler(req, res) {
     res.end();
     return;
   }
+
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+  const transactionId = url.searchParams.get("transaction_id");
+
+  if (req.method === "GET" && transactionId) {
+    try {
+      const data = await checkBoqrisTransaction(transactionId);
+      json(res, 200, data);
+    } catch (err) {
+      json(res, 500, { error: err.message || "Gagal menghubungi BOQris" });
+    }
+    return;
+  }
+
   if (req.method !== "POST") {
     json(res, 404, { error: "Not found" });
     return;
@@ -636,6 +650,97 @@ export default async function handler(req, res) {
     try { body = JSON.parse(rawBody || "{}"); } catch (e) { console.log("[PAY] JSON parse error:", e.message); json(res, 400, { error: "Invalid JSON" }); return; }
     console.log("[PAY] Body keys:", Object.keys(body), "event:", body.event, "type:", body.type, "action:", body.action);
     const sb = await getAdmin();
+
+    // Direct boqris transaction create (called from customer.html or boqris.ts via rewrite /api/boqris -> /api/pay)
+    if (!body.action && !body.event && !body.type && body.amount != null) {
+      const apiKey = process.env.BOQRIS_API_KEY;
+      const merchantId = process.env.BOQRIS_MERCHANT_ID;
+      if (!apiKey || !merchantId) {
+        json(res, 500, { error: "BOQRIS_API_KEY atau BOQRIS_MERCHANT_ID belum di-set" });
+        return;
+      }
+      const amount = Number(body.amount);
+      if (!Number.isInteger(amount) || amount <= 0) {
+        json(res, 400, { error: "amount harus bilangan bulat positif" });
+        return;
+      }
+
+      const orderIds = Array.isArray(body.order_ids)
+        ? body.order_ids
+        : (body.invoice_no ? String(body.invoice_no).split(",").filter(Boolean) : null);
+      const groupId = "qg-" + randomUUID().replace(/-/g, "").slice(0, 22);
+      let invoiceNo = groupId.slice(0, 25);
+
+      if (orderIds && orderIds.length > 0) {
+        const { error: insertErr } = await sb.from("qris_payments").insert({
+          id: invoiceNo,
+          order_ids: orderIds,
+          amount: amount,
+          status: "pending",
+          transaction_id: "",
+          requested_amount: amount,
+        });
+        if (insertErr) {
+          console.error("[BOQRIS] qris_payments insert failed:", insertErr.message);
+          json(res, 500, { error: "Gagal menyimpan data pembayaran: " + insertErr.message });
+          return;
+        }
+      }
+
+      const basePayload = {
+        merchant_id: merchantId,
+        expires_in: Math.min(Math.max(Number(body.expires_in) || BOQRIS_EXPIRES_IN, 60), 3600),
+      };
+      if (invoiceNo) basePayload.invoice_no = invoiceNo;
+
+      const useUniqueAmount = Number(body.unique_amount ?? 0) === 1;
+      const code = useUniqueAmount ? Math.floor(Math.random() * 100) + 1 : 0;
+      const qrAmount = amount - code;
+      if (qrAmount <= 0) {
+        json(res, 400, { error: "Amount terlalu kecil untuk kode unik" });
+        return;
+      }
+      const payload = {
+        ...basePayload,
+        amount: qrAmount,
+        unique_amount: false,
+      };
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const bo = await fetch(`${BOQRIS_BASE}/api/v1/transactions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        const data = await bo.json();
+
+        if (bo.status === 201) {
+          data.requested_amount = amount;
+          data.custom_unique_code = code;
+          data.amount = qrAmount;
+          if (invoiceNo) {
+            await sb.from("qris_payments").update({ transaction_id: data.transaction_id || "" }).eq("id", invoiceNo);
+          }
+          json(res, 201, data);
+          return;
+        }
+        json(res, bo.status, data);
+      } catch (err) {
+        clearTimeout(timer);
+        if (err.name === "AbortError") {
+          json(res, 504, { error: "BOQris API timeout, coba lagi nanti" });
+          return;
+        }
+        throw err;
+      }
+      return;
+    }
 
     if (body.event || body.type === "payment.success" || body.type === "payment.expired") {
       const event = body.event || body.type;
