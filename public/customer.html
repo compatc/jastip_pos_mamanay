@@ -1514,13 +1514,15 @@
         var data = resp.tx || resp;
         var txId = data.transaction_id || '';
         var qrUrl = data.qris_dynamic || data.qr_url || '';
-        var finalAmount = data.amount != null ? data.amount : amount;
+        var requestedAmt = data.requested_amount != null ? data.requested_amount : (data.amount != null ? data.amount : amount);
+        var uniqueCode = data.custom_unique_code || 0;
+        var payAmt = requestedAmt - uniqueCode;
         var h = '<div class="qris-card">';
         h += '<div class="qris-label">Total Pembayaran</div>';
         h += '<div class="qris-invoice">' + label + '</div>';
-        h += '<div class="qris-amount">' + fmt(data.requested_amount || finalAmount) + '</div>';
-        if (data.custom_unique_code > 0) {
-          h += '<div class="qris-unique-note">Termasuk kode unik Rp' + data.custom_unique_code.toLocaleString('id-ID') + '</div>';
+        h += '<div class="qris-amount">' + fmt(payAmt) + '</div>';
+        if (uniqueCode > 0) {
+          h += '<div class="qris-unique-note">asli ' + fmt(requestedAmt) + ' &middot; kode unik −' + uniqueCode.toLocaleString('id-ID') + '</div>';
         }
         if (data.qr_svg) {
           h += '<div class="qris-qr">' + data.qr_svg + '</div>';
