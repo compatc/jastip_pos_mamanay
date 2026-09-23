@@ -16,13 +16,15 @@ export interface BoqrisTransaction {
   custom_unique_code?: number;
 }
 
-async function request(path: string, init?: RequestInit): Promise<any> {
-  const res = await fetch(`/api/boqris${path}`, {
+async function request(body: any, init?: RequestInit): Promise<any> {
+  const res = await fetch("/api/pay", {
+    method: "POST",
     ...init,
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers || {}),
     },
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -36,12 +38,12 @@ export async function createBoqrisTransaction(options: {
   invoice_no?: string;
   expires_in?: number;
 }): Promise<BoqrisTransaction> {
-  return request("", {
-    method: "POST",
-    body: JSON.stringify(options),
-  });
+  const orderId = options.invoice_no || "";
+  const resp = await request({ action: "create", orderId });
+  return resp.tx || resp;
 }
 
 export async function checkBoqrisStatus(transactionId: string): Promise<BoqrisTransaction> {
-  return request(`?transaction_id=${encodeURIComponent(transactionId)}`);
+  const resp = await request({ action: "status", transactionId });
+  return resp.tx || resp;
 }

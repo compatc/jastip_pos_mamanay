@@ -1492,29 +1492,32 @@
       document.getElementById('qrisContent').innerHTML = '<div class="loading"><div class="spinner"></div>Memuat QRIS...</div>';
       var ids = orderIds.split(',');
       var label = ids.length > 1 ? ids.length + ' invoice' : '#' + shortId(ids[0]);
-      var payload = { amount: Math.round(Number(amount)), invoice_no: orderIds, unique_amount: 1 };
-      if (multiOrderIds && multiOrderIds.length > 1) payload.order_ids = multiOrderIds;
-      fetch('/api/boqris', {
+      var payload = { action: 'create', orderId: ids[0] };
+      if (ids.length > 1) payload.orderIds = ids;
+      fetch('/api/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      }).then(function(r) { return r.json(); }).then(function(data) {
-        if (data.error) {
-          document.getElementById('qrisContent').innerHTML = '<div class="empty-state"><div class="empty-icon">&#9888;</div><h3>Gagal membuat QR</h3><p>' + data.error + '</p></div>';
+      }).then(function(r) { return r.json(); }).then(function(resp) {
+        if (resp.error) {
+          document.getElementById('qrisContent').innerHTML = '<div class="empty-state"><div class="empty-icon">&#9888;</div><h3>Gagal membuat QR</h3><p>' + resp.error + '</p></div>';
           return;
         }
+        var data = resp.tx || resp;
         var txId = data.transaction_id || '';
-        var qrUrl = data.qr_url || data.qr_string || '';
+        var qrUrl = data.qris_dynamic || data.qr_url || '';
         var finalAmount = data.amount != null ? data.amount : amount;
         var h = '<div class="qris-card">';
         h += '<div class="qris-label">Total Pembayaran</div>';
         h += '<div class="qris-invoice">' + label + '</div>';
-        h += '<div class="qris-amount">' + fmt(finalAmount) + '</div>';
+        h += '<div class="qris-amount">' + fmt(data.requested_amount || finalAmount) + '</div>';
         if (data.custom_unique_code > 0) {
           h += '<div class="qris-unique-note">Termasuk kode unik Rp' + data.custom_unique_code.toLocaleString('id-ID') + '</div>';
         }
-        if (qrUrl) {
-          h += '<div class="qris-qr"><img src="' + qrUrl + '" alt="QRIS"></div>';
+        if (data.qr_svg) {
+          h += '<div class="qris-qr">' + data.qr_svg + '</div>';
+        } else if (qrUrl) {
+          h += '<div class="qris-qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrUrl) + '" alt="QRIS"></div>';
         }
         h += '<div class="qris-timer"><span class="timer-dot"></span> QR berlaku 15 menit</div>';
         h += '<div class="qris-info">BCA 5271330651<br>a.n. Nurul Azizah</div>';
@@ -1532,22 +1535,21 @@
       var interval = setInterval(function() {
         attempts++;
         if (attempts > 180) { clearInterval(interval); return; }
-        fetch('/api/boqris?transaction_id=' + txId).then(function(r) { return r.json(); }).then(function(data) {
-          if (data.status === 'paid') {
+        fetch('/api/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'confirm', transactionId: txId, orderIds: ids })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.status === 'paid' || data.confirmed) {
             clearInterval(interval);
             var label = ids.length > 1 ? ids.length + ' invoice' : '#' + shortId(ids[0]);
             document.getElementById('qrisContent').innerHTML = '<div class="qris-card"><div class="qris-success"><div class="success-icon">&#10003;</div><h2>Pembayaran Berhasil!</h2><p>Invoice ' + label + ' sudah lunas.</p></div></div>';
-            fetch('/api/pay', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'confirm', transactionId: txId, orderIds: ids })
-            }).catch(function() {});
             setTimeout(function() { showDashboard(); }, 3000);
           } else if (data.status === 'expired') {
             clearInterval(interval);
             document.getElementById('qrisContent').innerHTML = '<div class="qris-card"><div class="qris-success"><div class="success-icon" style="background:linear-gradient(135deg,#fee2e2,#fecaca);">&#10007;</div><h2 style="color:#dc2626;">QR Expired</h2><p>Silakan buat QR baru.</p></div></div>';
           }
-        });
+        }).catch(function() {});
       }, 5000);
     }
 
