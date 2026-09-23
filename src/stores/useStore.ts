@@ -123,6 +123,7 @@ interface PosStore {
     supplier?: string
   ) => Promise<string>;
   togglePoClosed: (productId: string, closed: boolean) => Promise<void>;
+  bulkPoClosed: (productIds: string[], closed: boolean) => Promise<void>;
   updateProduct: (
     id: string,
     name: string,
@@ -1452,6 +1453,16 @@ export const useStore = create<PosStore>((set, get) => ({
       .from("products")
       .update({ po_closed: closed })
       .eq("id", productId);
+    if (error) throw error;
+    invalidateCache("products");
+    await get().loadProducts();
+  },
+
+  bulkPoClosed: async (productIds, closed) => {
+    const { error } = await supabase
+      .from("products")
+      .update({ po_closed: closed })
+      .in("id", productIds);
     if (error) throw error;
     invalidateCache("products");
     await get().loadProducts();

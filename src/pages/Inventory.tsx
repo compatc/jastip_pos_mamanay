@@ -79,6 +79,7 @@ export default function Inventory() {
     updateProduct,
     deleteProduct,
     togglePoClosed,
+    bulkPoClosed,
     stockMovements,
     loadStockMovements,
     variantStock,
@@ -227,6 +228,7 @@ export default function Inventory() {
     if (categoryFilter === "habis") return realStock === 0;
     if (categoryFilter === "rendah") return realStock > 0 && realStock <= 5;
     if (categoryFilter === "ada") return realStock > 0;
+    if (categoryFilter === "po") return (p as any).stock_type === "po";
     return true;
   });
 
@@ -685,6 +687,7 @@ export default function Inventory() {
     { key: "ada", label: "Ada Stok" },
     { key: "rendah", label: "Stok Rendah" },
     { key: "habis", label: "Stok Habis" },
+    { key: "po", label: "PO" },
   ];
 
   function getStockStatus(stock: number) {
@@ -1140,6 +1143,25 @@ export default function Inventory() {
     }
   }
 
+  async function bulkClosePo() {
+    if (selectedProducts.size === 0) return;
+    const ids = Array.from(selectedProducts);
+    const targets = products.filter(p => ids.includes(p.id) && (p as any).stock_type === "po" && !(p as any).po_closed);
+    if (targets.length === 0) {
+      alert("Tidak ada produk PO yang bisa ditutup.");
+      return;
+    }
+    if (!confirm(`Tutup PO untuk ${targets.length} produk? Bot dan catalog akan menolak order produk ini.`)) return;
+    try {
+      await bulkPoClosed(targets.map(p => p.id), true);
+      alert(`Berhasil tutup PO untuk ${targets.length} produk.`);
+      setBulkSelect(false);
+      setSelectedProducts(new Set());
+    } catch (e: any) {
+      alert("Gagal: " + (e.message || e));
+    }
+  }
+
   async function bulkSendToGroup() {
     if (selectedProducts.size === 0) return;
     setBulkSending(true);
@@ -1386,7 +1408,9 @@ export default function Inventory() {
                 categoryFilter === f.key
                   ? f.key === "habis"
                     ? "bg-red-500 text-white border-red-500"
-                    : "bg-pink-500 text-white border-pink-500"
+                    : f.key === "po"
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-pink-500 text-white border-pink-500"
                   : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
               }`}
             >
@@ -2610,13 +2634,19 @@ export default function Inventory() {
       })()}
 
       {bulkSelect && selectedProducts.size > 0 && !bulkSending && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex gap-2">
           <button
             onClick={bulkSendToGroup}
             className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-bold rounded-2xl shadow-xl shadow-green-300/40 transition-all active:scale-95 flex items-center gap-2"
           >
             <Share2 className="w-4 h-4" />
             Kirim {selectedProducts.size} Produk ke Grup
+          </button>
+          <button
+            onClick={bulkClosePo}
+            className="px-6 py-3 bg-gradient-to-r from-red-400 to-rose-500 hover:from-red-500 hover:to-rose-600 text-white font-bold rounded-2xl shadow-xl shadow-red-300/40 transition-all active:scale-95 flex items-center gap-2"
+          >
+            Tutup PO ({selectedProducts.size})
           </button>
         </div>
       )}
