@@ -356,9 +356,10 @@ export default function Catalog() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
-            {filtered.map((p) => {
+            {filtered.map((p, index) => {
               const stock = getStockInfo(p.stock);
               const isPoClosed = p.stock_type === "po" && p.po_closed;
+              const isAboveFold = index < 6;
               return (
                 <div
                   key={p.id}
@@ -368,7 +369,14 @@ export default function Catalog() {
                   {/* Image */}
                   <div className="relative w-full aspect-square bg-slate-50 overflow-hidden">
                     {p.image ? (
-                      <img src={p.image} alt={p.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        loading={isAboveFold ? "eager" : "lazy"}
+                        fetchPriority={isAboveFold ? "high" : undefined}
+                        decoding="async"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     ) : (
                       <div className={`w-full h-full bg-gradient-to-br ${getGradient(p.name)} flex items-center justify-center`}>
                         <span className="text-5xl opacity-80">{getEmoji(p.name)}</span>
@@ -501,7 +509,14 @@ export default function Catalog() {
                   const imgSrc = allImages[carouselIdx] || allImages[0];
                   return (
                     <>
-                      <img src={imgSrc} alt={selected.name} loading="lazy" className="w-full object-contain max-h-80 lg:max-h-96" />
+                      <img
+                        src={imgSrc}
+                        alt={selected.name}
+                        loading="eager"
+                        fetchPriority="high"
+                        decoding="async"
+                        className="w-full object-contain max-h-80 lg:max-h-96"
+                      />
                       {allImages.length > 1 && (
                         <>
                           <button onClick={() => setCarouselIdx((carouselIdx - 1 + allImages.length) % allImages.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg">‹</button>

@@ -280,14 +280,15 @@ export default async function handler(req, res) {
       const bR2_ACCESS_KEY = "c48ccbe4d8ccd5f902cf9b9746807ecb";
       const bR2_SECRET_KEY = "7e5edf36506903caa3f7efcf179217d8adba3f8d841fee1c6c6ca211f0122911";
       const bR2_BUCKET = "mamanay-images";
-      const cr = `PUT\n/${bR2_BUCKET}/${r2Key}\n\ncontent-type:application/json\nhost:${bR2_ACCOUNT_ID}.r2.cloudflarestorage.com\nx-amz-content-sha256:${pHash}\nx-amz-date:${amzDate}\n\ncontent-type;host;x-amz-content-sha256;x-amz-date\n${pHash}`;
+      const bCC = "public, max-age=300, stale-while-revalidate=600";
+      const cr = `PUT\n/${bR2_BUCKET}/${r2Key}\n\ncache-control:${bCC}\ncontent-type:application/json\nhost:${bR2_ACCOUNT_ID}.r2.cloudflarestorage.com\nx-amz-content-sha256:${pHash}\nx-amz-date:${amzDate}\n\ncache-control;content-type;host;x-amz-content-sha256;x-amz-date\n${pHash}`;
       const crHash = ch("sha256").update(cr).digest("hex");
       const sts = `AWS4-HMAC-SHA256\n${amzDate}\n${ds}/auto/s3/aws4_request\n${crHash}`;
       const hmac2 = (k, d) => createHmac("sha256", k).update(d).digest();
       const kD = hmac2(`AWS4${bR2_SECRET_KEY}`, ds); const kR = hmac2(kD, "auto"); const kS = hmac2(kR, "s3"); const kSi = hmac2(kS, "aws4_request");
       const sig = hmac2(kSi, sts).toString("hex");
-      const auth = `AWS4-HMAC-SHA256 Credential=${bR2_ACCESS_KEY}/${ds}/auto/s3/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=${sig}`;
-      const r2Res = await fetch(`https://${bR2_ACCOUNT_ID}.r2.cloudflarestorage.com/${bR2_BUCKET}/${r2Key}`, { method: "PUT", headers: { Authorization: auth, "Content-Type": "application/json", "x-amz-content-sha256": pHash, "x-amz-date": amzDate }, body: bodyBuf });
+      const auth = `AWS4-HMAC-SHA256 Credential=${bR2_ACCESS_KEY}/${ds}/auto/s3/aws4_request, SignedHeaders=cache-control;content-type;host;x-amz-content-sha256;x-amz-date, Signature=${sig}`;
+      const r2Res = await fetch(`https://${bR2_ACCOUNT_ID}.r2.cloudflarestorage.com/${bR2_BUCKET}/${r2Key}`, { method: "PUT", headers: { Authorization: auth, "Cache-Control": bCC, "Content-Type": "application/json", "x-amz-content-sha256": pHash, "x-amz-date": amzDate }, body: bodyBuf });
       if (!r2Res.ok) { const e = await r2Res.text(); json(res, 500, { error: `R2: ${r2Res.status} ${e}` }); return; }
       json(res, 200, { ok: true, products: result.length, url: `https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/${r2Key}` });
       return;

@@ -4,34 +4,42 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { lazy, Suspense, Component, useEffect } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { useStore } from "./stores/useStore";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
-import PayOrder from "./pages/PayOrder";
-import Profile from "./pages/Profile";
-import UploadCustomers from "./pages/UploadCustomers";
-import Dashboard from "./pages/Dashboard";
-import CustomerOrders from "./pages/CustomerOrders";
-import Orders from "./pages/Orders";
-import BulkOrder from "./pages/BulkOrder";
-import OrderDetail from "./pages/OrderDetail";
-import NewOrderForm from "./pages/NewOrderForm";
-import EditOrderForm from "./pages/EditOrderForm";
-import Inventory from "./pages/Inventory";
-import SalesDashboard from "./pages/SalesDashboard";
-import UploadOrders from "./pages/UploadOrders";
-import Accounts from "./pages/Accounts";
-import AccountDetail from "./pages/AccountDetail";
-import Maintenance from "./pages/Maintenance";
-import Shipments from "./pages/Shipments";
-import Expenses from "./pages/Expenses";
-import PaymentConfirmations from "./pages/PaymentConfirmations";
-import Catalog from "./pages/Catalog";
-import Piutang from "./pages/Piutang";
 import AppLayout from "./components/AppLayout";
-import { Component, useEffect } from "react";
-import type { ErrorInfo, ReactNode } from "react";
 import { supabase } from "./lib/supabase";
+
+const PayOrder = lazy(() => import("./pages/PayOrder"));
+const Profile = lazy(() => import("./pages/Profile"));
+const UploadCustomers = lazy(() => import("./pages/UploadCustomers"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const CustomerOrders = lazy(() => import("./pages/CustomerOrders"));
+const Orders = lazy(() => import("./pages/Orders"));
+const BulkOrder = lazy(() => import("./pages/BulkOrder"));
+const OrderDetail = lazy(() => import("./pages/OrderDetail"));
+const NewOrderForm = lazy(() => import("./pages/NewOrderForm"));
+const EditOrderForm = lazy(() => import("./pages/EditOrderForm"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const SalesDashboard = lazy(() => import("./pages/SalesDashboard"));
+const UploadOrders = lazy(() => import("./pages/UploadOrders"));
+const Accounts = lazy(() => import("./pages/Accounts"));
+const AccountDetail = lazy(() => import("./pages/AccountDetail"));
+const Maintenance = lazy(() => import("./pages/Maintenance"));
+const Shipments = lazy(() => import("./pages/Shipments"));
+const Expenses = lazy(() => import("./pages/Expenses"));
+const PaymentConfirmations = lazy(() => import("./pages/PaymentConfirmations"));
+const Catalog = lazy(() => import("./pages/Catalog"));
+const Piutang = lazy(() => import("./pages/Piutang"));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-dvh bg-[#f8f7f4] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -121,13 +129,14 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          {/* <Route path="/register" element={<Register />} /> */}
-          <Route path="/pay/:orderId" element={<PayOrder />} />
-          <Route path="/pay" element={<PayOrder />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/catalog/:id" element={<Catalog />} />
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            {/* <Route path="/register" element={<Register />} /> */}
+            <Route path="/pay/:orderId" element={<PayOrder />} />
+            <Route path="/pay" element={<PayOrder />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/catalog/:id" element={<Catalog />} />
           <Route
             path="/piutang"
             element={
@@ -322,7 +331,8 @@ export default function App() {
             path="*"
             element={<Navigate to="/" replace />}
           />
-        </Routes>
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </ErrorBoundary>
   );

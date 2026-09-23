@@ -30,7 +30,6 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       devOptions: { enabled: false },
-      includeAssets: ["logo.png"],
       manifest: {
         name: "Jastip_mamanay",
         short_name: "Jastip_mamanay",
@@ -55,8 +54,15 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        globPatterns: ["**/*.{js,css,html,svg,webmanifest}"],
+        globIgnores: [
+          "**/pdf.worker*",
+          "**/logo.png",
+          "**/customer.html",
+          "**/mockup-*",
+          "**/mock-*",
+        ],
+        maximumFileSizeToCacheInBytes: 1.5 * 1024 * 1024,
       },
     }),
   ],
