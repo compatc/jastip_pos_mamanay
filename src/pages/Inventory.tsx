@@ -472,16 +472,28 @@ export default function Inventory() {
     setShowForm(true);
   }
 
-  async function uploadToStorage(file: File): Promise<string | null> {
+  async function uploadToStorage(file: File, folder: "products" | "variants" = "products"): Promise<string | null> {
     const ext = file.name.split(".").pop() || "jpg";
-    const filename = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage.from("products").upload(filename, file, {
-      contentType: file.type,
-      upsert: true,
-    });
-    if (error) { console.error("Upload error:", error.message); return null; }
-    const { data } = supabase.storage.from("products").getPublicUrl(filename);
-    return data?.publicUrl || null;
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1] || "");
+        reader.onerror = () => reject(new Error("Gagal membaca file"));
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch("/api/order-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "upload-product", folder, fileName: filename, contentType: file.type || "image/jpeg", body: base64 }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) { console.error("Upload error:", data.error || res.status); return null; }
+      return data.url as string;
+    } catch (e) {
+      console.error("Upload error:", e);
+      return null;
+    }
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -596,28 +608,28 @@ export default function Inventory() {
     setDeleteConfirm(null);
   }
 
-  function handleVariantImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleVariantImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 1.5 * 1024 * 1024) {
       alert("Ukuran gambar maksimal 1.5MB");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setVariantImage(reader.result as string);
-    reader.readAsDataURL(file);
+    const url = await uploadToStorage(file, "variants");
+    if (url) setVariantImage(url);
+    if (e.target) e.target.value = "";
   }
 
-  function handleFormVariantImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFormVariantImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 1.5 * 1024 * 1024) {
       alert("Ukuran gambar maksimal 1.5MB");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setFormVariantImage(reader.result as string);
-    reader.readAsDataURL(file);
+    const url = await uploadToStorage(file, "variants");
+    if (url) setFormVariantImage(url);
+    if (e.target) e.target.value = "";
   }
 
   function addFormVariant() {

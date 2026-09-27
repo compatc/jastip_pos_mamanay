@@ -11,24 +11,13 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-async function handleUploadPacking(body, res) {
-  const { fileName, contentType, body: base64Body } = body;
-  if (!fileName || !base64Body) { json(res, 400, { error: "fileName and body required" }); return; }
-
-  const MAX_SIZE = 4 * 1024 * 1024;
-  const bodyBuf = Buffer.from(base64Body, "base64");
-  if (bodyBuf.length > MAX_SIZE) {
-    json(res, 413, { error: `File terlalu besar (${Math.round(bodyBuf.length / 1024 / 1024)} MB). Max 4 MB.` });
-    return;
-  }
-
+async function putToR2(r2Key, bodyBuf, contentType) {
   const R2_ACCOUNT_ID = "3ba62fa119ee4f295a5655776bfdb386";
   const R2_ACCESS_KEY = "c48ccbe4d8ccd5f902cf9b9746807ecb";
   const R2_SECRET_KEY = "7e5edf36506903caa3f7efcf179217d8adba3f8d841fee1c6c6ca211f0122911";
   const R2_BUCKET = "mamanay-images";
   const R2_PUBLIC = "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev";
 
-  const r2Key = `packing/${fileName}`;
   const payloadHash = createHash("sha256").update(bodyBuf).digest("hex");
 
   const now = new Date();
@@ -61,11 +50,29 @@ async function handleUploadPacking(body, res) {
 
   if (!r2Res.ok) {
     const errText = await r2Res.text();
-    json(res, 500, { error: `R2 upload failed ${r2Res.status}: ${errText}` });
+    throw new Error(`R2 upload failed ${r2Res.status}: ${errText}`);
+  }
+
+  return `${R2_PUBLIC}/${r2Key}`;
+}
+
+async function handleUploadImage(body, res, folder) {
+  const { fileName, contentType, body: base64Body } = body;
+  if (!fileName || !base64Body) { json(res, 400, { error: "fileName and body required" }); return; }
+
+  const MAX_SIZE = 4 * 1024 * 1024;
+  const bodyBuf = Buffer.from(base64Body, "base64");
+  if (bodyBuf.length > MAX_SIZE) {
+    json(res, 413, { error: `File terlalu besar (${Math.round(bodyBuf.length / 1024 / 1024)} MB). Max 4 MB.` });
     return;
   }
 
-  json(res, 200, { ok: true, url: `${R2_PUBLIC}/${r2Key}` });
+  try {
+    const url = await putToR2(`${folder}/${fileName}`, bodyBuf, contentType || "image/jpeg");
+    json(res, 200, { ok: true, url });
+  } catch (e) {
+    json(res, 500, { error: e.message });
+  }
 }
 
 export default async function handler(req, res) {
@@ -78,7 +85,13 @@ export default async function handler(req, res) {
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
 
     if (body.action === "upload-packing") {
-      await handleUploadPacking(body, res);
+      await handleUploadImage(body, res, "packing");
+      return;
+    }
+
+    if (body.action === "upload-product") {
+      const folder = body.folder === "variants" ? "variants" : "products";
+      await handleUploadImage(body, res, folder);
       return;
     }
 
