@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>MOCKUP — Pusat Invoice (Admin) | jastip_mamanay</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      min-height: 100dvh;
+      padding-bottom: 40px;
+    }
+
+    /* banner */
+    .mock-banner {
+      max-width: 1000px;
+      margin: 16px auto 12px;
+      background: #fefce8;
+      border: 1.5px dashed #eab308;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a16207;
+    }
+
+    /* header */
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .page-title { display: flex; align-items: center; gap: 12px; }
+    .page-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, #ec4899, #e11d48);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(225,29,72,0.3);
+    }
+    .page-title h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+    .page-title p { font-size: 12px; color: #64748b; margin-top: 1px; }
+    .btn-new {
+      padding: 11px 18px;
+      background: linear-gradient(135deg, #ec4899, #e11d48);
+      color: white; border: none; border-radius: 14px;
+      font-size: 13px; font-weight: 800; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(225,29,72,0.3);
+      transition: all .15s;
+    }
+    .btn-new:active { transform: scale(.97); }
+
+    /* stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat {
+      background: white;
+      border: 1px solid rgba(226,232,240,0.8);
+      border-radius: 18px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .stat-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .6px; }
+    .stat-value { font-size: 24px; font-weight: 800; letter-spacing: -1px; margin-top: 4px; }
+    .stat-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+    .stat.red .stat-value { color: #e11d48; }
+    .stat.amber .stat-value { color: #d97706; }
+    .stat.green .stat-value { color: #059669; }
+    .stat.purple .stat-value { color: #7c3aed; }
+
+    /* tabs */
+    .tabs {
+      display: flex; gap: 6px;
+      background: white;
+      border: 1px solid rgba(226,232,240,0.8);
+      border-radius: 16px;
+      padding: 6px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      width: fit-content;
+    }
+    .tab {
+      padding: 9px 18px;
+      border-radius: 11px;
+      border: none; background: transparent;
+      font-size: 13px; font-weight: 700; color: #64748b;
+      cursor: pointer; transition: all .15s;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .tab .cnt {
+      background: #f1f5f9; color: #64748b;
+      font-size: 10px; font-weight: 800;
+      padding: 2px 7px; border-radius: 20px;
+    }
+    .tab.active { background: #fdf2f8; color: #db2777; }
+    .tab.active .cnt { background: #fce7f3; color: #db2777; }
+
+    /* bulk bar */
+    .bulkbar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      border-radius: 16px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      color: white;
+      box-shadow: 0 8px 20px rgba(15,23,42,0.3);
+    }
+    .bulkbar.show { display: flex; }
+    .bulk-count { font-size: 13px; font-weight: 700; }
+    .bulk-count b { color: #f9a8d4; }
+    .bulk-actions { display: flex; gap: 8px; }
+    .btn-wa {
+      padding: 9px 16px; border: none; border-radius: 11px;
+      background: #22c55e; color: white;
+      font-size: 12px; font-weight: 800; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: all .15s;
+    }
+    .btn-wa:hover { background: #16a34a; }
+    .btn-ghost-sm {
+      padding: 9px 14px; border-radius: 11px;
+      background: rgba(255,255,255,0.12); color: white;
+      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+
+    /* panel */
+    .panel {
+      background: white;
+      border: 1px solid rgba(226,232,240,0.8);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      display: none;
+    }
+    .panel.active { display: block; }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 14px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      flex-wrap: wrap;
+    }
+    .panel-title { font-size: 14px; font-weight: 800; }
+    .panel-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+    .search {
+      padding: 9px 12px;
+      border: 1.5px solid #e2e8f0; border-radius: 12px;
+      font-size: 12px; width: 230px;
+      outline: none; transition: border-color .15s;
+      color: #1e293b;
+    }
+    .search:focus { border-color: #ec4899; }
+
+    /* rows */
+    .row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f8fafc;
+      transition: background .1s;
+    }
+    .row:last-child { border-bottom: none; }
+    .row:hover { background: #fafcff; }
+    .row.checked { background: #fdf2f8; }
+    .chk {
+      width: 18px; height: 18px; flex-shrink: 0;
+      accent-color: #ec4899; cursor: pointer;
+    }
+    .avatar {
+      width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
+      background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .avatar.blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
+    .avatar.green { background: linear-gradient(135deg, #dcfce7, #bbf7d0); }
+    .avatar.purple { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+    .avatar.amber { background: linear-gradient(135deg, #fef3c7, #fde68a); }
+    .who { flex: 1; min-width: 150px; }
+    .who-name { font-size: 13px; font-weight: 700; }
+    .who-meta { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+    .ord { flex: 1.4; min-width: 160px; }
+    .ord-id { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; font-weight: 700; }
+    .ord-items { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+    .amount { font-size: 14px; font-weight: 800; text-align: right; min-width: 110px; }
+    .amount small { display: block; font-size: 10px; font-weight: 600; color: #94a3b8; }
+
+    /* status pills */
+    .spill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 700;
+      padding: 4px 10px; border-radius: 20px;
+      white-space: nowrap;
+    }
+    .spill .d { width: 5px; height: 5px; border-radius: 50%; }
+    .spill.wait { background: #fef2f2; color: #dc2626; } .spill.wait .d { background: #ef4444; }
+    .spill.sent { background: #f0fdf4; color: #15803d; } .spill.sent .d { background: #22c55e; }
+    .spill.opened { background: #eff6ff; color: #1d4ed8; } .spill.opened .d { background: #3b82f6; }
+    .spill.paid { background: #dcfce7; color: #15803d; } .spill.paid .d { background: #22c55e; }
+    .spill.dp { background: #fefce8; color: #a16207; } .spill.dp .d { background: #eab308; }
+    .spill.exp { background: #f1f5f9; color: #64748b; } .spill.exp .d { background: #94a3b8; }
+    .spill.nodp { background: #fef2f2; color: #dc2626; } .spill.nodp .d { background: #ef4444; }
+
+    /* actions */
+    .acts { display: flex; gap: 6px; }
+    .btn-mini {
+      padding: 7px 12px;
+      border: 1.5px solid #e2e8f0; border-radius: 10px;
+      background: white; color: #475569;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 4px;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .btn-mini:hover { border-color: #ec4899; color: #ec4899; }
+    .btn-mini.wa { background: #22c55e; border-color: #22c55e; color: white; }
+    .btn-mini.wa:hover { background: #16a34a; border-color: #16a34a; color: white; }
+    .btn-mini.primary { background: #ec4899; border-color: #ec4899; color: white; }
+    .btn-mini.primary:hover { background: #db2777; border-color: #db2777; color: white; }
+
+    /* DP input */
+    .dp-input-wrap { display: flex; gap: 5px; align-items: center; }
+    .dp-input {
+      width: 110px; padding: 7px 9px;
+      border: 1.5px solid #e2e8f0; border-radius: 10px;
+      font-size: 12px; font-weight: 700; color: #0f172a;
+      outline: none; text-align: right;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .dp-input:focus { border-color: #ec4899; }
+    .pct {
+      padding: 6px 7px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      background: white; font-size: 10px; font-weight: 800;
+      color: #64748b; cursor: pointer;
+    }
+    .pct:hover { border-color: #ec4899; color: #ec4899; }
+
+    /* timeline chips */
+    .tl { display: flex; gap: 4px; align-items: center; font-size: 10px; font-weight: 700; }
+    .tl span { padding: 3px 8px; border-radius: 8px; background: #f1f5f9; color: #94a3b8; }
+    .tl span.on { background: #dcfce7; color: #15803d; }
+    .tl span.warn { background: #fef3c7; color: #b45309; }
+    .tl span.bad { background: #fee2e2; color: #dc2626; }
+    .tl i { color: #cbd5e1; font-style: normal; }
+    .link {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px; color: #64748b;
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 5px 8px;
+      max-width: 230px; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; cursor: pointer;
+    }
+    .link:hover { border-color: #ec4899; color: #ec4899; }
+
+    .panel-foot {
+      padding: 10px 16px;
+      background: #f8fafc;
+      border-top: 1px solid #f1f5f9;
+      font-size: 11px; color: #94a3b8;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 8px;
+    }
+
+    /* modal */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(15,23,42,0.55);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 50; padding: 16px;
+    }
+    .overlay.show { display: flex; }
+    .modal {
+      background: white; border-radius: 22px;
+      width: 100%; max-width: 880px;
+      max-height: 90vh; overflow: auto;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .modal-left { padding: 22px; border-right: 1.5px dashed #e2e8f0; }
+    .modal-right { padding: 22px; background: #f8fafc; border-radius: 0 22px 22px 0; }
+    .modal-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+    .modal-sub { font-size: 11px; color: #94a3b8; margin-bottom: 14px; }
+
+    /* mini invoice preview */
+    .mini {
+      border: 1.5px solid #e2e8f0; border-radius: 18px;
+      overflow: hidden;
+    }
+    .mini-head {
+      background: linear-gradient(135deg, #ec4899, #e11d48);
+      padding: 14px; color: white;
+    }
+    .mini-brand { font-size: 13px; font-weight: 800; }
+    .mini-sub { font-size: 9px; opacity: .8; text-transform: uppercase; letter-spacing: 1.2px; }
+    .mini-no {
+      display: inline-block; margin-top: 8px;
+      background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px; padding: 3px 8px;
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; font-weight: 700;
+    }
+    .mini-body { padding: 12px 14px; font-size: 11px; }
+    .mini-row { display: flex; justify-content: space-between; padding: 3px 0; color: #475569; }
+    .mini-row.total {
+      border-top: 1.5px solid #0f172a; margin-top: 6px; padding-top: 7px;
+      font-weight: 800; font-size: 14px; color: #0f172a;
+    }
+    .mini-row.total span:last-child { color: #e11d48; }
+    .mini-cta {
+      margin: 10px 14px 14px;
+      padding: 10px; border-radius: 10px;
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      color: white; text-align: center;
+      font-size: 12px; font-weight: 800;
+    }
+
+    /* WA template */
+    .wa-box {
+      background: #dcf8c6;
+      border-radius: 14px 14px 14px 4px;
+      padding: 12px 14px;
+      font-size: 12px; color: #111b21;
+      line-height: 1.6;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      position: relative;
+      margin-bottom: 12px;
+    }
+    .wa-box::after {
+      content: '';
+      position: absolute; left: 0; bottom: 0;
+      border: 7px solid transparent;
+      border-top-color: #dcf8c6; border-left-color: #dcf8c6;
+    }
+    .wa-box .link-wa { color: #027eb5; text-decoration: underline; word-break: break-all; }
+    .wa-time { display: block; text-align: right; font-size: 9px; color: #667781; margin-top: 4px; }
+    .field-label { font-size: 11px; font-weight: 700; color: #475569; margin: 12px 0 5px; display: block; }
+    .template-edit {
+      width: 100%; min-height: 84px;
+      border: 1.5px solid #e2e8f0; border-radius: 12px;
+      padding: 10px; font-size: 12px; font-family: inherit;
+      color: #334155; resize: vertical; outline: none;
+      line-height: 1.5;
+    }
+    .template-edit:focus { border-color: #ec4899; }
+    .var-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+    .chip {
+      font-size: 10px; font-weight: 700;
+      background: #f1f5f9; color: #64748b;
+      border: 1px solid #e2e8f0; border-radius: 7px;
+      padding: 3px 8px; cursor: pointer;
+    }
+    .chip:hover { background: #fdf2f8; color: #db2777; border-color: #fbcfe8; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .btn-send {
+      flex: 1; padding: 13px;
+      border: none; border-radius: 13px;
+      background: #22c55e; color: white;
+      font-size: 14px; font-weight: 800; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      transition: all .15s;
+    }
+    .btn-send:hover { background: #16a34a; }
+    .btn-copy {
+      padding: 13px 18px; border-radius: 13px;
+      background: white; border: 1.5px solid #e2e8f0;
+      color: #475569; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-close {
+      position: absolute; top: 14px; right: 16px;
+      background: white; border: 1.5px solid #e2e8f0;
+      width: 34px; height: 34px; border-radius: 50%;
+      cursor: pointer; font-size: 15px; color: #64748b;
+      z-index: 60;
+    }
+
+    /* toast */
+    .toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translate(-50%, 80px);
+      background: #0f172a; color: white;
+      padding: 12px 20px; border-radius: 14px;
+      font-size: 13px; font-weight: 700;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      opacity: 0;
+      transition: all .3s cubic-bezier(.2,.9,.3,1.2);
+      z-index: 100;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 760px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .modal { grid-template-columns: 1fr; }
+      .modal-left { border-right: none; border-bottom: 1.5px dashed #e2e8f0; }
+      .modal-right { border-radius: 0 0 22px 22px; }
+      .ord { display: none; }
+      .search { width: 140px; }
+      .row { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mock-banner">
+    MOCKUP ADMIN — Pusat Invoice · tidak terhubung data · interaktif: ceklis pesanan, ganti tab, klik Preview
+  </div>
+
+  <div class="page">
+    <!-- HEADER -->
+    <div class="page-head">
+      <div class="page-title">
+        <div class="page-icon">🧾</div>
+        <div>
+          <h1>Pusat Invoice</h1>
+          <p>Kirim invoice siap tagih &amp; DP pre-order ke pelanggan via WhatsApp</p>
+        </div>
+      </div>
+      <button class="btn-new" onclick="toast('Mockup: buka form invoice manual')">+ Buat Invoice Manual</button>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat red">
+        <div class="stat-label">Belum Dikirim</div>
+        <div class="stat-value">12</div>
+        <div class="stat-sub">pesanan ready, belum ada link</div>
+      </div>
+      <div class="stat amber">
+        <div class="stat-label">Dibuka, Belum Bayar</div>
+        <div class="stat-value">5</div>
+        <div class="stat-sub">link dibuka &gt; 1 jam lalu</div>
+      </div>
+      <div class="stat green">
+        <div class="stat-label">Lunas Hari Ini</div>
+        <div class="stat-value">8</div>
+        <div class="stat-sub">Rp 2.410.007 masuk</div>
+      </div>
+      <div class="stat purple">
+        <div class="stat-label">DP PO Berjalan</div>
+        <div class="stat-value">3</div>
+        <div class="stat-sub">2 menunggu pelunasan</div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="setTab(this,'ready')">📦 Siap Tagih <span class="cnt">12</span></button>
+      <button class="tab" onclick="setTab(this,'dp')">⏳ DP Pre-Order <span class="cnt">3</span></button>
+      <button class="tab" onclick="setTab(this,'history')">📜 Riwayat <span class="cnt">47</span></button>
+    </div>
+
+    <!-- BULK BAR -->
+    <div class="bulkbar" id="bulkbar">
+      <div class="bulk-count"><b id="bulkN">0</b> pelanggan dipilih</div>
+      <div class="bulk-actions">
+        <button class="btn-ghost-sm" onclick="toast('Mockup: QRIS dibuat untuk semua yang dipilih')">Buat QRIS dulu</button>
+        <button class="btn-wa" onclick="bulkSend()">🟢 Kirim Invoice Massal via WA</button>
+      </div>
+    </div>
+
+    <!-- PANEL: SIAP TAGIH -->
+    <div class="panel active" id="panel-ready">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Pesanan Ready — Siap Ditagih</div>
+          <div class="panel-sub">Centang untuk kirim massal · sekali kirim, satu link per pelanggan</div>
+        </div>
+        <input class="search" placeholder="🔍 Cari nama / no. order…">
+      </div>
+
+      <div class="row" data-inv>
+        <input type="checkbox" class="chk" onchange="countSel()">
+        <div class="avatar">👩</div>
+        <div class="who">
+          <div class="who-name">Wulandari Handayani</div>
+          <div class="who-meta">📱 0812-3456-7890</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">INV-20260924-0837</div>
+          <div class="ord-items">4 barang · Bra Greney, Tumbler, Sun Lotion</div>
+        </div>
+        <div class="amount">Rp 305.007<small>QRIS + kode unik</small></div>
+        <span class="spill wait"><span class="d"></span>Belum dikirim</span>
+        <div class="acts">
+          <button class="btn-mini" onclick="openPreview()">👁 Preview</button>
+          <button class="btn-mini wa" onclick="toast('Mockup: link dikirim ke Wulandari ✓')">Kirim</button>
+        </div>
+      </div>
+
+      <div class="row" data-inv>
+        <input type="checkbox" class="chk" onchange="countSel()">
+        <div class="avatar blue">👩</div>
+        <div class="who">
+          <div class="who-name">Rina Marlina</div>
+          <div class="who-meta">📱 0857-1122-3344</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">INV-20260923-0712</div>
+          <div class="ord-items">2 barang · Moell Sun Lotion ×2</div>
+        </div>
+        <div class="amount">Rp 130.000<small>QRIS + kode unik</small></div>
+        <span class="spill opened"><span class="d"></span>Dibuka 21:33</span>
+        <div class="acts">
+          <button class="btn-mini" onclick="openPreview()">👁 Preview</button>
+          <button class="btn-mini wa" onclick="toast('Mockup: pengingat dikirim ke Rina ✓')">Ingatkan</button>
+        </div>
+      </div>
+
+      <div class="row" data-inv>
+        <input type="checkbox" class="chk" onchange="countSel()">
+        <div class="avatar green">🧕</div>
+        <div class="who">
+          <div class="who-name">Dwi Lestari</div>
+          <div class="who-meta">📱 0813-9988-7766</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">INV-20260922-0455</div>
+          <div class="ord-items">6 barang · campuran ready</div>
+        </div>
+        <div class="amount">Rp 1.150.000<small>QRIS + kode unik</small></div>
+        <span class="spill paid"><span class="d"></span>Lunas 09:12</span>
+        <div class="acts">
+          <button class="btn-mini" onclick="openPreview()">👁 Preview</button>
+          <button class="btn-mini" onclick="toast('Mockup: nota PDF diunduh')">Nota</button>
+        </div>
+      </div>
+
+      <div class="row" data-inv>
+        <input type="checkbox" class="chk" onchange="countSel()">
+        <div class="avatar purple">👩</div>
+        <div class="who">
+          <div class="who-name">Sari Anjani</div>
+          <div class="who-meta">📱 0821-5566-7788</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">INV-20260924-0901</div>
+          <div class="ord-items">1 barang · PERO QIBY TUMBLER</div>
+        </div>
+        <div class="amount">Rp 94.007<small>QRIS + kode unik</small></div>
+        <span class="spill wait"><span class="d"></span>Belum dikirim</span>
+        <div class="acts">
+          <button class="btn-mini" onclick="openPreview()">👁 Preview</button>
+          <button class="btn-mini wa" onclick="toast('Mockup: link dikirim ke Sari ✓')">Kirim</button>
+        </div>
+      </div>
+
+      <div class="row" data-inv>
+        <input type="checkbox" class="chk" onchange="countSel()">
+        <div class="avatar amber">👩</div>
+        <div class="who">
+          <div class="who-name">Tika Amelia</div>
+          <div class="who-meta">📱 0838-4455-6677</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">INV-20260924-0913</div>
+          <div class="ord-items">3 barang · Greney Nude 90B, dll</div>
+        </div>
+        <div class="amount">Rp 219.007<small>QRIS + kode unik</small></div>
+        <span class="spill sent"><span class="d"></span>Terkirim 21:31</span>
+        <div class="acts">
+          <button class="btn-mini" onclick="openPreview()">👁 Preview</button>
+          <button class="btn-mini wa" onclick="toast('Mockup: pengingat dikirim ke Tika ✓')">Ingatkan</button>
+        </div>
+      </div>
+
+      <div class="panel-foot">
+        <span>Menampilkan 5 dari 12 · otomatis tampil saat status order = <b>Ready</b></span>
+        <span>Kirim massal maks. 20 link / kali (jeda 2 detik anti-spam WA)</span>
+      </div>
+    </div>
+
+    <!-- PANEL: DP PO -->
+    <div class="panel" id="panel-dp">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">DP Pre-Order</div>
+          <div class="panel-sub">Tagih DP di muka · pelunasan otomatis dikirim saat barang ready</div>
+        </div>
+        <input class="search" placeholder="🔍 Cari nama / no. PO…">
+      </div>
+
+      <div class="row">
+        <div class="avatar purple">👩</div>
+        <div class="who">
+          <div class="who-name">Nadia Putri</div>
+          <div class="who-meta">📱 0812-7788-9900 · PO estimasi ready 10 Okt</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">PO-20260924-012</div>
+          <div class="ord-items">5 barang pre-order · Moell, Greney PO</div>
+        </div>
+        <div class="amount">Rp 615.000<small>total pesanan</small></div>
+        <div class="dp-input-wrap">
+          <input class="dp-input" value="184500" oninput="syncDp(this)">
+          <button class="pct" onclick="setPct(this,25)">25%</button>
+          <button class="pct" onclick="setPct(this,30)">30%</button>
+          <button class="pct" onclick="setPct(this,50)">50%</button>
+        </div>
+        <span class="spill nodp"><span class="d"></span>Belum ada DP</span>
+        <div class="acts">
+          <button class="btn-mini primary" onclick="toast('Mockup: invoice DP Rp 184.507 dibuat & dikirim ke Nadia ✓')">Buat Invoice DP</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="avatar blue">👨</div>
+        <div class="who">
+          <div class="who-name">Yusuf Ramadhan</div>
+          <div class="who-meta">📱 0819-2233-4455 · PO estimasi ready 8 Okt</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">PO-20260920-008</div>
+          <div class="ord-items">2 barang pre-order · Tumbler PO</div>
+        </div>
+        <div class="amount">Rp 340.000<small>total pesanan</small></div>
+        <div class="dp-input-wrap">
+          <input class="dp-input" value="170000" oninput="syncDp(this)" disabled style="opacity:.55">
+        </div>
+        <span class="spill dp"><span class="d"></span>DP 50% lunas · tunggu pelunasan</span>
+        <div class="acts">
+          <button class="btn-mini" onclick="toast('Mockup: buka invoice DP')">Lihat</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="avatar green">👩</div>
+        <div class="who">
+          <div class="who-name">Maya Sinta</div>
+          <div class="who-meta">📱 0856-3344-5566 · PO estimasi ready 14 Okt</div>
+        </div>
+        <div class="ord">
+          <div class="ord-id">PO-20260923-011</div>
+          <div class="ord-items">4 barang pre-order · Greney PO 2 varian</div>
+        </div>
+        <div class="amount">Rp 480.000<small>total pesanan</small></div>
+        <div class="dp-input-wrap">
+          <input class="dp-input" value="120000" oninput="syncDp(this)">
+          <button class="pct" onclick="setPct(this,25)">25%</button>
+          <button class="pct" onclick="setPct(this,30)">30%</button>
+          <button class="pct" onclick="setPct(this,50)">50%</button>
+        </div>
+        <span class="spill nodp"><span class="d"></span>Belum ada DP</span>
+        <div class="acts">
+          <button class="btn-mini primary" onclick="toast('Mockup: invoice DP Rp 120.007 dibuat & dikirim ke Maya ✓')">Buat Invoice DP</button>
+        </div>
+      </div>
+
+      <div class="panel-foot">
+        <span>Setelah DP lunas → pesanan terkunci · status <b style="color:#b45309">DP</b> di order &amp; katalog</span>
+        <span>Saat barang ready → invoice pelunasan dibuat &amp; dikirim otomatis</span>
+      </div>
+    </div>
+
+    <!-- PANEL: RIWAYAT -->
+    <div class="panel" id="panel-history">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Riwayat Invoice</div>
+          <div class="panel-sub">Status link: terkirim → dibuka → dibayar · kadaluarsa bisa dibuat ulang</div>
+        </div>
+        <input class="search" placeholder="🔍 Cari nama / no. invoice…">
+      </div>
+
+      <div class="row">
+        <div class="ord">
+          <div class="ord-id">INV-20260922-0455</div>
+          <div class="ord-items">Dwi Lestari · Rp 1.150.000</div>
+        </div>
+        <div class="tl">
+          <span class="on">Terkirim 08:40</span><i>→</i>
+          <span class="on">Dibuka 08:52</span><i>→</i>
+          <span class="on">Dibayar 09:12</span>
+        </div>
+        <div class="link" onclick="toast('Mockup: link disalin')">mamanay.vercel.app/invoice/INV-20260922-0455</div>
+        <div class="acts">
+          <button class="btn-mini" onclick="openPreview()">👁</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="ord">
+          <div class="ord-id">INV-20260923-0712</div>
+          <div class="ord-items">Rina Marlina · Rp 130.000</div>
+        </div>
+        <div class="tl">
+          <span class="on">Terkirim 21:02</span><i>→</i>
+          <span class="warn">Dibuka 21:33 · belum bayar</span>
+        </div>
+        <div class="link" onclick="toast('Mockup: link disalin')">mamanay.vercel.app/invoice/INV-20260923-0712</div>
+        <div class="acts">
+          <button class="btn-mini wa" onclick="toast('Mockup: pengingat dikirim ✓')">Ingatkan</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="ord">
+          <div class="ord-id">INV-20260918-0233</div>
+          <div class="ord-items">Fitri Handayani · Rp 94.007</div>
+        </div>
+        <div class="tl">
+          <span class="on">Terkirim 14:20</span><i>→</i>
+          <span class="bad">QR kadaluarsa</span>
+        </div>
+        <div class="link" onclick="toast('Mockup: link disalin')">mamanay.vercel.app/invoice/INV-20260918-0233</div>
+        <div class="acts">
+          <button class="btn-mini primary" onclick="toast('Mockup: QR baru dibuat, link sama ✓')">QR Baru</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="ord">
+          <div class="ord-id">INV-20260920-0187</div>
+          <div class="ord-items">Yusuf Ramadhan · DP Rp 170.007 / 340.000</div>
+        </div>
+        <div class="tl">
+          <span class="on">DP terkirim 10:15</span><i>→</i>
+          <span class="on">Dibayar 10:41</span><i>→</i>
+          <span class="warn">Pelunasan menunggu ready</span>
+        </div>
+        <div class="link" onclick="toast('Mockup: link disalin')">mamanay.vercel.app/invoice/DP-20260920-0187</div>
+        <div class="acts">
+          <button class="btn-mini" onclick="openPreview()">👁</button>
+        </div>
+      </div>
+
+      <div class="panel-foot">
+        <span>Link permanen &amp; tanpa login · QR expired ≠ invoice expired (bisa refresh)</span>
+        <span>47 invoice bulan ini · Rp 18.402.113 lunas</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PREVIEW -->
+  <div class="overlay" id="overlay">
+    <button class="btn-close" onclick="closePreview()">✕</button>
+    <div class="modal">
+      <div class="modal-left">
+        <div class="modal-title">👁 Preview Invoice</div>
+        <div class="modal-sub">Persis seperti yang dilihat pelanggan di browser (mobile)</div>
+        <div class="mini">
+          <div class="mini-head">
+            <div class="mini-brand">jastip_mamanay</div>
+            <div class="mini-sub">Invoice Penjualan</div>
+            <span class="mini-no">INV-20260924-0837</span>
+          </div>
+          <div class="mini-body">
+            <div class="mini-row"><span>Wulandari Handayani · 4 barang</span></div>
+            <div class="mini-row"><span>Subtotal</span><span>Rp 297.000</span></div>
+            <div class="mini-row"><span>Diskon Loyalty</span><span>− Rp 10.000</span></div>
+            <div class="mini-row"><span>Ongkir (JNE REG)</span><span>Rp 18.000</span></div>
+            <div class="mini-row"><span>Kode unik QRIS</span><span>+ Rp 7</span></div>
+            <div class="mini-row total"><span>TOTAL BAYAR</span><span>Rp 305.007</span></div>
+          </div>
+          <div class="mini-cta">💳 Bayar QRIS / Transfer BCA</div>
+        </div>
+      </div>
+      <div class="modal-right">
+        <div class="modal-title">💬 Pesan WhatsApp</div>
+        <div class="modal-sub">Pratinjau chat yang terkirim ke pelanggan</div>
+
+        <div class="wa-box">
+          Halo kak Wulandari! 🌸 Pesanan kamu sudah ready ya kak 📦<br><br>
+          Ini invoice-nya, tinggal dibayar lewat link ya kak 👇<br>
+          <span class="link-wa">https://mamanay.vercel.app/invoice/INV-20260924-0837</span><br><br>
+          Total: <b>Rp 305.007</b> (QRIS / BCA)<br>
+          Ada yang mau ditanyakan, chat aja di sini ya kak 🙏
+          <span class="wa-time">21:30 ✓✓</span>
+        </div>
+
+        <label class="field-label">Template pesan (bisa diedit)</label>
+        <textarea class="template-edit" id="waTpl">Halo kak {nama}! 🌸 Pesanan kamu sudah ready ya kak 📦
+
+Ini invoice-nya, tinggal dibayar lewat link ya kak 👇
+{link}
+
+Total: {total} (QRIS / BCA)
+Ada yang mau ditanyakan, chat aja di sini ya kak 🙏</textarea>
+        <div class="var-chips">
+          <span class="chip">{nama}</span>
+          <span class="chip">{link}</span>
+          <span class="chip">{total}</span>
+          <span class="chip">{no_inv}</span>
+          <span class="chip">{batas_bayar}</span>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-send" onclick="sendWa()">🟢 Kirim via WhatsApp</button>
+          <button class="btn-copy" onclick="toast('Mockup: link disalin ke clipboard')">Salin Link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function setTab(btn, name) {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      document.getElementById('bulkbar').classList.remove('show');
+      document.querySelectorAll('.chk').forEach(c => c.checked = false);
+      document.querySelectorAll('.row').forEach(r => r.classList.remove('checked'));
+    }
+    function countSel() {
+      let n = 0;
+      document.querySelectorAll('#panel-ready .chk').forEach(c => {
+        c.closest('.row').classList.toggle('checked', c.checked);
+        if (c.checked) n++;
+      });
+      document.getElementById('bulkN').textContent = n;
+      document.getElementById('bulkbar').classList.toggle('show', n > 0);
+    }
+    function bulkSend() {
+      const n = document.getElementById('bulkN').textContent;
+      toast('Mockup: ' + n + ' invoice dikirim massal via WhatsApp 🟢');
+      document.querySelectorAll('#panel-ready .chk').forEach(c => c.checked = false);
+      countSel();
+    }
+    function setPct(btn, pct) {
+      const total = 615000;
+      const row = btn.closest('.row');
+      row.querySelector('.dp-input').value = Math.round(total * pct / 100);
+      syncDp(row.querySelector('.dp-input'));
+    }
+    function syncDp(input) {
+      const v = parseInt(input.value.replace(/\D/g,'')) || 0;
+      input.title = 'Tagih: Rp ' + v.toLocaleString('id-ID');
+    }
+    function openPreview() { document.getElementById('overlay').classList.add('show'); }
+    function closePreview() { document.getElementById('overlay').classList.remove('show'); }
+    document.getElementById('overlay').addEventListener('click', e => {
+      if (e.target.id === 'overlay') closePreview();
+    });
+    function sendWa() {
+      closePreview();
+      toast('Mockup: invoice dikirim ke WhatsApp pelanggan 🟢');
+    }
+    let toastTimer;
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+    }
+  </script>
+</body>
+</html>

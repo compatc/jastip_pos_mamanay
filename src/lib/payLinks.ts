@@ -7,3 +7,7 @@ export function payOrderLink(orderId: string): string {
 export function payGroupLink(orderIds: string[]): string {
   return `${PAY_BASE_URL}/pay?orders=${orderIds.join(",")}`;
 }
+
+export function invoiceOrderLink(orderId: string): string {
+  return `${PAY_BASE_URL}/invoice/${orderId}`;
+}

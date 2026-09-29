@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>MOCKUP — Invoice | jastip_mamanay</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #e2e8f0;
+      color: #0f172a;
+      min-height: 100dvh;
+      padding: 24px 12px;
+    }
+
+    /* ===== MOCKUP BANNER ===== */
+    .mock-banner {
+      max-width: 420px;
+      margin: 0 auto 14px;
+      background: #fefce8;
+      border: 1.5px dashed #eab308;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a16207;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .mock-label { width: 100%; text-align: center; }
+    .mock-toggle { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; width: 100%; }
+    .mock-toggle button {
+      border: 1.5px solid #eab308;
+      background: white;
+      color: #a16207;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .mock-toggle button.active { background: #eab308; color: white; border-color: #eab308; }
+
+    /* ===== PHONE FRAME ===== */
+    .phone {
+      max-width: 420px;
+      margin: 0 auto;
+      background: #f8fafc;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(15,23,42,0.25);
+      border: 6px solid #0f172a;
+    }
+
+    /* ===== HEADER ===== */
+    .inv-header {
+      background: linear-gradient(135deg, #ec4899 0%, #f43f5e 50%, #e11d48 100%);
+      padding: 18px 16px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .inv-header::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 120px; height: 120px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
+    .brand-icon {
+      width: 34px; height: 34px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .brand-text { color: white; font-size: 16px; font-weight: 800; letter-spacing: -0.5px; }
+    .brand-sub { color: rgba(255,255,255,0.75); font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; }
+    .inv-title { position: relative; z-index: 1; margin-top: 18px; color: white; }
+    .inv-title h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+    .inv-title .inv-no {
+      display: inline-block;
+      margin-top: 6px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.25);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .inv-title .inv-date { font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 6px; }
+
+    /* ===== CONTENT ===== */
+    .content { padding: 0 14px 20px; margin-top: -34px; position: relative; z-index: 2; }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      border: 1.5px solid #e2e8f0;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* status row */
+    .status-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 700;
+      padding: 5px 12px; border-radius: 20px;
+    }
+    .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .pill.unpaid { background: #fef2f2; color: #dc2626; }
+    .pill.unpaid .dot { background: #ef4444; }
+    .pill.paid { background: #dcfce7; color: #15803d; }
+    .pill.paid .dot { background: #22c55e; }
+    .pill.sent { background: #f3e8ff; color: #7c3aed; }
+    .pill.sent .dot { background: #a78bfa; }
+    .pill-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .label-card-title {
+      font-size: 11px; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* progress */
+    .progress { display: flex; margin-top: 4px; }
+    .step { flex: 1; text-align: center; position: relative; }
+    .step-dot {
+      width: 22px; height: 22px; border-radius: 50%; margin: 0 auto 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: white; position: relative; z-index: 1;
+    }
+    .step-dot.done { background: #22c55e; }
+    .step-dot.active { background: #ec4899; box-shadow: 0 0 0 3px rgba(236,72,153,0.2); }
+    .step-dot.pending { background: #e2e8f0; }
+    .step-label { font-size: 9px; font-weight: 600; color: #94a3b8; }
+    .step-label.active { color: #ec4899; }
+    .step-label.done { color: #22c55e; }
+    .step-line {
+      position: absolute; top: 11px; left: 50%; right: -50%;
+      height: 2px; background: #e2e8f0; z-index: 0;
+    }
+    .step-line.done { background: #22c55e; }
+    .step:last-child .step-line { display: none; }
+
+    /* customer */
+    .cust-row { display: flex; gap: 10px; align-items: center; }
+    .cust-avatar {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .cust-name { font-size: 14px; font-weight: 700; }
+    .cust-phone { font-size: 11px; color: #94a3b8; }
+    .cust-addr {
+      margin-top: 10px; padding: 8px 10px;
+      background: #f8fafc; border-radius: 10px;
+      font-size: 11px; color: #64748b; line-height: 1.5;
+    }
+    .cust-addr b { color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+
+    /* items */
+    .items { background: #f8fafc; border-radius: 12px; padding: 2px 0; }
+    .item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+    .item + .item { border-top: 1px solid #e9eef4; }
+    .item-img {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.3; }
+    .variant-tag {
+      display: inline-block;
+      background: #f3e8ff; color: #7c3aed;
+      font-size: 10px; font-weight: 700;
+      padding: 1px 7px; border-radius: 6px;
+      margin-left: 4px; vertical-align: middle;
+    }
+    .item-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .item-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 9px; font-weight: 800;
+      padding: 2px 8px; border-radius: 6px;
+      text-transform: uppercase; letter-spacing: .4px;
+      margin-left: 6px; vertical-align: middle;
+    }
+    .item-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+    .item-status.ready { background: #dcfce7; color: #15803d; }
+    .item-status.ready::before { background: #22c55e; }
+    .item-status.po { background: #ffedd5; color: #c2410c; }
+    .item-status.po::before { background: #f97316; }
+    .items-summary {
+      margin-left: auto;
+      font-size: 10px; font-weight: 700; color: #94a3b8;
+      text-transform: none; letter-spacing: 0;
+    }
+    .items-summary .g { color: #16a34a; }
+    .items-summary .o { color: #ea580c; }
+    .item-price { font-size: 13px; font-weight: 700; color: #334155; white-space: nowrap; text-align: right; }
+    .item-qty { font-size: 10px; color: #94a3b8; font-weight: 600; text-align: right; }
+
+    /* totals */
+    .totals { margin-top: 12px; padding-top: 10px; border-top: 1.5px dashed #e2e8f0; }
+    .trow { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: #475569; }
+    .trow.discount { color: #16a34a; }
+    .trow.ongkir { color: #64748b; }
+    .trow.kodeunik { color: #64748b; }
+    .trow.grand {
+      margin-top: 8px; padding-top: 10px;
+      border-top: 1.5px solid #0f172a;
+      font-size: 17px; font-weight: 800; color: #0f172a;
+    }
+    .trow .grand-label { display: flex; align-items: center; gap: 6px; }
+    .trow .qr-tag {
+      font-size: 9px; background: #fce7f3; color: #db2777;
+      font-weight: 700; padding: 2px 6px; border-radius: 5px;
+    }
+
+    /* payment box */
+    .pay-box { border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .pay-box.unpaid { background: linear-gradient(135deg, #fff1f2, #ffe4e6); border: 1.5px solid #fecdd3; }
+    .pay-box.paid { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1.5px solid #bbf7d0; }
+    .pay-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .pay-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pay-box.unpaid .pay-title { color: #be123c; }
+    .pay-box.paid .pay-title { color: #15803d; }
+    .pay-amount { font-size: 26px; font-weight: 800; letter-spacing: -1px; color: #0f172a; }
+    .pay-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .pay-method {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: white; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 4px 10px;
+      font-size: 11px; font-weight: 700; color: #334155;
+      margin-top: 8px;
+    }
+    .qr-holder {
+      display: flex; gap: 12px; align-items: center;
+      background: white; border-radius: 12px; padding: 12px;
+      border: 1px solid #fecdd3; margin-top: 10px;
+    }
+    .qr-img {
+      width: 84px; height: 84px; border-radius: 8px; flex-shrink: 0;
+      background:
+        repeating-linear-gradient(0deg, #0f172a 0 6px, transparent 6px 12px),
+        repeating-linear-gradient(90deg, #0f172a 0 6px, #fff 6px 12px);
+      background-blend-mode: screen;
+      border: 4px solid white; outline: 1.5px solid #e2e8f0;
+      position: relative;
+    }
+    .qr-img::after {
+      content: 'QR';
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: white; color: #0f172a;
+      font-size: 13px; font-weight: 800;
+      width: 26px; height: 26px; margin: auto;
+      border: 2px solid #0f172a; border-radius: 4px;
+    }
+    .qr-info { font-size: 11px; color: #64748b; line-height: 1.5; }
+    .qr-info b { display: block; color: #0f172a; font-size: 12px; margin-bottom: 2px; }
+    .btn-pay {
+      display: block; width: 100%;
+      margin-top: 10px; padding: 13px;
+      border: none; border-radius: 12px;
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      color: white; font-size: 15px; font-weight: 800;
+      cursor: pointer; transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(225,29,72,0.35);
+    }
+    .btn-pay:active { transform: scale(0.98); }
+    .paid-detail { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; color: #475569; }
+    .paid-detail b { color: #0f172a; }
+    .paid-check {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: #22c55e; color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800;
+      box-shadow: 0 4px 12px rgba(34,197,94,0.4);
+    }
+
+    /* note */
+    .note-box {
+      background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: 10px; padding: 10px 12px;
+      font-size: 12px; color: #92400e; line-height: 1.5;
+    }
+    .note-box b { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+
+    /* packing photo */
+    .pack-wrap { display: flex; gap: 10px; align-items: center; }
+    .pack-thumb {
+      width: 72px; height: 72px; border-radius: 12px;
+      background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      border: 1.5px solid #e2e8f0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+    }
+    .pack-info { font-size: 12px; color: #475569; line-height: 1.5; }
+    .pack-info b { color: #0f172a; display: block; font-size: 13px; }
+
+    /* resi */
+    .ship-box { background: #f8fafc; border-radius: 12px; padding: 4px 12px; }
+    .ship-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: #64748b;
+      padding: 8px 0;
+    }
+    .ship-row + .ship-row { border-top: 1px solid #e9eef4; }
+    .ship-row b { color: #0f172a; font-size: 12px; }
+    .ship-row .mono { font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: .5px; }
+    .btn-track {
+      display: block; width: 100%;
+      margin-top: 10px; padding: 12px;
+      border: 1.5px solid #bfdbfe; border-radius: 12px;
+      background: #eff6ff; color: #1d4ed8;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-track:hover { background: #dbeafe; }
+
+    /* done */
+    .done-box {
+      display: flex; align-items: center; gap: 12px;
+      background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+      border: 1.5px solid #a7f3d0;
+      border-radius: 12px; padding: 14px;
+      font-size: 12px; color: #065f46; line-height: 1.5;
+    }
+    .done-box b { font-size: 13px; color: #064e3b; }
+    .done-emoji { font-size: 26px; }
+    .done-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+    /* toast */
+    .toast {
+      position: fixed;
+      bottom: 20px; left: 50%;
+      transform: translate(-50%, 80px);
+      background: #0f172a; color: white;
+      padding: 11px 18px; border-radius: 12px;
+      font-size: 12px; font-weight: 700;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+      opacity: 0;
+      transition: all .3s cubic-bezier(.2,.9,.3,1.2);
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* footer actions */
+    .actions { display: flex; gap: 8px; margin-bottom: 4px; }
+    .btn-ghost {
+      flex: 1; padding: 12px;
+      border: 1.5px solid #e2e8f0; border-radius: 12px;
+      background: white; color: #475569;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { border-color: #ec4899; color: #ec4899; }
+    .trust {
+      text-align: center; font-size: 10px; color: #94a3b8;
+      padding: 10px 0 4px; line-height: 1.6;
+    }
+    .trust b { color: #64748b; }
+
+    /* payment method tabs */
+    .pay-tabs { display: flex; gap: 6px; margin-top: 12px; }
+    .pay-tab {
+      flex: 1; padding: 9px 6px;
+      border-radius: 10px; border: 1.5px solid #fecdd3;
+      background: white; color: #9f1239;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+    }
+    .pay-tab.active { background: #be123c; border-color: #be123c; color: white; }
+    .pay-pane { display: none; }
+    .pay-pane.active { display: block; }
+
+    /* BCA transfer */
+    .rek-card {
+      background: white; border: 1px solid #fecdd3;
+      border-radius: 12px; padding: 12px; margin-top: 10px;
+    }
+    .rek-head { display: flex; justify-content: space-between; align-items: center; }
+    .rek-bank { font-size: 13px; font-weight: 800; color: #0f172a; }
+    .rek-logo { background: #0054a6; color: white; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 5px; letter-spacing: 1.5px; }
+    .rek-num {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 18px; font-weight: 700; letter-spacing: 1.5px;
+      color: #0f172a; margin-top: 8px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .rek-num .copy-hint { font-family: 'Inter'; font-size: 10px; font-weight: 600; color: #94a3b8; }
+    .rek-name { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .rek-exact {
+      margin-top: 8px; background: #fff1f2;
+      border-radius: 8px; padding: 8px 10px;
+      font-size: 12px; color: #be123c; font-weight: 700;
+      display: flex; justify-content: space-between;
+    }
+    .btn-upload {
+      display: block; width: 100%;
+      margin-top: 10px; padding: 12px;
+      border: 1.5px dashed #be123c; border-radius: 12px;
+      background: #fff1f2; color: #be123c;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .auto-note {
+      margin-top: 10px; font-size: 10px; color: #be123c;
+      text-align: center; line-height: 1.5; font-weight: 600;
+    }
+
+    /* PO banner */
+    .po-banner {
+      background: #fff7ed; border: 1.5px solid #fed7aa;
+      border-radius: 12px; padding: 12px;
+      font-size: 12px; color: #9a3412; line-height: 1.6;
+    }
+    .po-banner b { color: #7c2d12; }
+    .po-banner .po-eta {
+      display: flex; justify-content: space-between;
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px dashed #fed7aa; font-size: 11px;
+    }
+    .po-pay-note {
+      margin-top: 10px; background: rgba(255,255,255,0.7);
+      border-radius: 8px; padding: 8px 10px;
+      font-size: 11px; color: #9a3412; line-height: 1.5;
+      font-weight: 600;
+    }
+    .pill.prepo { background: #fff7ed; color: #c2410c; }
+    .pill.prepo .dot { background: #f97316; }
+    .pill.dp { background: #fefce8; color: #a16207; }
+    .pill.dp .dot { background: #eab308; }
+    .pill.ship { background: #eff6ff; color: #1d4ed8; }
+    .pill.ship .dot { background: #3b82f6; }
+    .pill.fin { background: #ecfdf5; color: #059669; }
+    .pill.fin .dot { background: #10b981; }
+    .dp-hint { color: #b45309; }
+
+    /* shipping info */
+    .ship-box { background: #f8fafc; border-radius: 12px; padding: 2px 12px; }
+    .ship-row { display: flex; justify-content: space-between; font-size: 12px; padding: 8px 0; color: #64748b; }
+    .ship-row + .ship-row { border-top: 1px solid #e9eef4; }
+    .ship-row b { color: #0f172a; text-align: right; }
+    .ship-row .mono { font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: .5px; }
+    .btn-track {
+      display: block; width: 100%;
+      margin-top: 10px; padding: 11px;
+      border: 1.5px solid #bfdbfe; border-radius: 12px;
+      background: #eff6ff; color: #1d4ed8;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-track:hover { background: #dbeafe; }
+
+    /* done */
+    .done-box {
+      display: flex; gap: 12px; align-items: center;
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border: 1.5px solid #bbf7d0; border-radius: 14px;
+      padding: 14px; font-size: 12px; color: #166534; line-height: 1.5;
+    }
+    .done-emoji { font-size: 26px; }
+    .done-box b { font-size: 13px; color: #14532d; }
+    .done-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+    /* toast */
+    .toast {
+      position: fixed; bottom: 20px; left: 50%;
+      transform: translate(-50%, 80px);
+      background: #0f172a; color: #fff;
+      padding: 11px 18px; border-radius: 12px;
+      font-size: 12px; font-weight: 700;
+      opacity: 0; transition: all .3s;
+      z-index: 100; box-shadow: 0 10px 24px rgba(0,0,0,.3);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* shipping choice (manual / shopee) */
+    .ship-choice { display: flex; flex-direction: column; gap: 8px; }
+    .ship-opt {
+      border: 1.5px solid #e2e8f0; border-radius: 14px;
+      padding: 12px; cursor: pointer;
+      background: white; transition: all .15s;
+    }
+    .ship-opt:hover { border-color: #fbcfe8; }
+    .ship-opt.sel { border-color: #ec4899; background: #fdf2f8; box-shadow: 0 2px 8px rgba(236,72,153,0.1); }
+    .ship-opt-head { display: flex; gap: 10px; align-items: flex-start; }
+    .ship-radio {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid #cbd5e1; margin-top: 2px; flex-shrink: 0;
+      transition: all .15s;
+    }
+    .ship-opt.sel .ship-radio { border-color: #ec4899; background: radial-gradient(circle, #ec4899 0 4px, #fdf2f8 5px); }
+    .ship-opt-title { font-size: 13px; font-weight: 700; color: #0f172a; }
+    .ship-opt-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; line-height: 1.5; }
+    .ship-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1.5px dashed #fbcfe8; }
+    .ship-opt.sel .ship-detail { display: block; }
+    .shopee-pcs {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #0f172a; color: white;
+      font-size: 12px; font-weight: 800;
+      padding: 6px 12px; border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .shopee-pcs .pcs-n { color: #fda4af; font-size: 15px; }
+    .shopee-link {
+      display: flex; gap: 8px; align-items: center;
+      background: white; border: 1px solid #fecdd3;
+      border-radius: 10px; padding: 8px 10px;
+    }
+    .shopee-url {
+      flex: 1; font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px; color: #64748b;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .btn-open-shopee {
+      background: #ee4d2d; color: white; border: none;
+      padding: 7px 12px; border-radius: 8px;
+      font-size: 11px; font-weight: 800; cursor: pointer;
+      white-space: nowrap; text-decoration: none;
+    }
+    .btn-open-shopee:hover { background: #d93f1f; }
+    .shopee-note {
+      margin-top: 8px; background: #fffbeb;
+      border: 1px dashed #fcd34d; border-radius: 10px;
+      padding: 8px 10px; font-size: 11px; color: #92400e;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      line-height: 1.5;
+    }
+    .shopee-note b { color: #78350f; }
+    .btn-copy-note {
+      background: white; border: 1px solid #fcd34d;
+      padding: 5px 10px; border-radius: 8px;
+      font-size: 10px; font-weight: 800; color: #b45309;
+      cursor: pointer; white-space: nowrap;
+    }
+    .shopee-warn {
+      margin-top: 8px; font-size: 10px; color: #dc2626;
+      font-weight: 600; line-height: 1.5;
+    }
+    .manual-detail {
+      background: #f8fafc; border-radius: 10px;
+      padding: 10px 12px; font-size: 11px; color: #64748b;
+      line-height: 1.6;
+    }
+    .manual-detail b { color: #0f172a; }
+
+    /* hidden by state */
+    .state-paid, .state-unpaid, .state-po, .state-notpo, .state-dp, .state-notdp, .state-ship, .state-done { display: none; }
+    body[data-state="unpaid"] .pill-wrap .state-unpaid,
+    body[data-state="po"] .pill-wrap .state-unpaid,
+    body[data-state="paid"] .pill-wrap .state-paid,
+    body[data-state="shipped"] .pill-wrap .state-paid,
+    body[data-state="done"] .pill-wrap .state-paid,
+    body[data-state="dp"] .pill-wrap .state-dp,
+    body[data-state="unpaid"] .pill-wrap .state-notpo,
+    body[data-state="paid"] .pill-wrap .state-notpo,
+    body[data-state="po"] .pill-wrap .state-po,
+    body[data-state="dp"] .pill-wrap .state-po,
+    body[data-state="shipped"] .pill-wrap .state-ship,
+    body[data-state="done"] .pill-wrap .state-done { display: inline-flex; }
+    body[data-state="unpaid"] .pay-box.state-unpaid,
+    body[data-state="po"] .pay-box.state-unpaid,
+    body[data-state="dp"] .pay-box.state-dp,
+    body[data-state="paid"] .pay-box.state-paid,
+    body[data-state="shipped"] .pay-box.state-paid,
+    body[data-state="done"] .pay-box.state-paid,
+    body[data-state="paid"] .card.state-paid,
+    body[data-state="shipped"] .card.state-paid,
+    body[data-state="done"] .card.state-paid,
+    body[data-state="shipped"] .card.state-ship,
+    body[data-state="done"] .card.state-ship,
+    body[data-state="done"] .card.state-done,
+    body[data-state="po"] .po-block,
+    body[data-state="dp"] .po-block { display: block; }
+    body[data-state="unpaid"] .totals .state-notdp,
+    body[data-state="paid"] .totals .state-notdp,
+    body[data-state="shipped"] .totals .state-notdp,
+    body[data-state="done"] .totals .state-notdp,
+    body[data-state="po"] .totals .state-notdp { display: block; }
+    body[data-state="dp"] .totals .state-dp { display: block; }
+    .prog-po, .prog-ship, .prog-done { display: none !important; }
+    .po-block { display: none; }
+    body[data-state="po"] .prog-main,
+    body[data-state="dp"] .prog-main,
+    body[data-state="shipped"] .prog-main,
+    body[data-state="done"] .prog-main { display: none !important; }
+    body[data-state="po"] .prog-po,
+    body[data-state="dp"] .prog-po { display: flex !important; }
+    body[data-state="shipped"] .prog-ship { display: flex !important; }
+    body[data-state="done"] .prog-done { display: flex !important; }
+    body[data-state="po"] .po-pay-note.state-po,
+    body[data-state="dp"] .po-pay-note.state-dp { display: block; }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .mock-banner, .actions, .phone { border: none; box-shadow: none; }
+      .phone { border-radius: 0; max-width: 100%; }
+      .btn-pay { display: none; }
+    }
+  </style>
+</head>
+<body data-state="unpaid">
+
+  <div class="mock-banner">
+    <span class="mock-label">MOCKUP — klik tahapan (belum terhubung data):</span>
+    <span class="mock-toggle">
+      <button id="btnUnpaid" class="active" onclick="setState('unpaid')">💰 Belum Bayar</button>
+      <button id="btnPo" onclick="setState('po')">📦 Pre-Order</button>
+      <button id="btnDp" onclick="setState('dp')">⏳ DP PO</button>
+      <button id="btnPaid" onclick="setState('paid')">✅ Lunas · Dikemas</button>
+      <button id="btnShipped" onclick="setState('shipped')">🚚 Dikirim</button>
+      <button id="btnDone" onclick="setState('done')">🏁 Selesai</button>
+    </span>
+  </div>
+
+  <div class="phone">
+    <!-- HEADER -->
+    <div class="inv-header">
+      <div class="brand">
+        <div class="brand-icon">🧾</div>
+        <div>
+          <div class="brand-text">jastip_mamanay</div>
+          <div class="brand-sub">Invoice Penjualan</div>
+        </div>
+      </div>
+      <div class="inv-title">
+        <h1>Invoice Belanja</h1>
+        <span class="inv-no">INV-20260924-0837</span>
+        <div class="inv-date">📅 24 September 2026, 21:30 WIB</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- STATUS + PROGRESS -->
+      <div class="card">
+        <div class="status-row">
+          <div class="pill-wrap">
+            <span class="pill unpaid state-unpaid"><span class="dot"></span>Belum Dibayar</span>
+            <span class="pill paid state-paid"><span class="dot"></span>Lunas</span>
+            <span class="pill dp state-dp"><span class="dot"></span>DP Belum Dibayar</span>
+          </div>
+          <div class="pill-wrap">
+            <span class="pill sent state-notpo"><span class="dot"></span>Sedang Dikemas</span>
+            <span class="pill prepo state-po"><span class="dot"></span>Pre-order · Belum Ready</span>
+            <span class="pill ship state-ship"><span class="dot"></span>Dalam Perjalanan</span>
+            <span class="pill fin state-done"><span class="dot"></span>Selesai</span>
+          </div>
+        </div>
+        <div class="progress prog-main" style="margin-top:14px">
+          <div class="step">
+            <div class="step-line done"></div>
+            <div class="step-dot done">✓</div>
+            <div class="step-label done">Dibuat</div>
+          </div>
+          <div class="step">
+            <div class="step-line done"></div>
+            <div class="step-dot active">●</div>
+            <div class="step-label active">Dikemas</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot pending">3</div>
+            <div class="step-label">Dikirim</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot pending">4</div>
+            <div class="step-label">Selesai</div>
+          </div>
+        </div>
+        <div class="progress prog-po" style="margin-top:14px">
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot active">●</div>
+            <div class="step-label active">Dipesan (PO)</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot pending">2</div>
+            <div class="step-label">Ready</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot pending">3</div>
+            <div class="step-label">Dikirim</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot pending">4</div>
+            <div class="step-label">Selesai</div>
+          </div>
+        </div>
+        <div class="progress prog-ship" style="margin-top:14px">
+          <div class="step">
+            <div class="step-line done"></div>
+            <div class="step-dot done">✓</div>
+            <div class="step-label done">Dibuat</div>
+          </div>
+          <div class="step">
+            <div class="step-line done"></div>
+            <div class="step-dot done">✓</div>
+            <div class="step-label done">Dikemas</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot active">●</div>
+            <div class="step-label active">Dikirim</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot pending">4</div>
+            <div class="step-label">Selesai</div>
+          </div>
+        </div>
+        <div class="progress prog-done" style="margin-top:14px">
+          <div class="step">
+            <div class="step-line done"></div>
+            <div class="step-dot done">✓</div>
+            <div class="step-label done">Dibuat</div>
+          </div>
+          <div class="step">
+            <div class="step-line done"></div>
+            <div class="step-dot done">✓</div>
+            <div class="step-label done">Dikemas</div>
+          </div>
+          <div class="step">
+            <div class="step-line done"></div>
+            <div class="step-dot done">✓</div>
+            <div class="step-label done">Dikirim</div>
+          </div>
+          <div class="step">
+            <div class="step-line"></div>
+            <div class="step-dot done">✓</div>
+            <div class="step-label done">Selesai</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PO NOTICE -->
+      <div class="card po-block">
+        <div class="po-banner">
+          🕐 Sebagian barang adalah <b>pre-order</b>. Pesanan baru dikirim setelah semua barang ready —
+          satu paket, satu kali kirim, biar ongkir cuma sekali.
+          <div class="po-eta">
+            <span>Estimasi ready supplier</span>
+            <b>10 Okt 2026 (±14 hari)</b>
+          </div>
+          <div class="po-eta" style="border-top:none; padding-top:2px; margin-top:2px;">
+            <span>Estimasi dikirim ke kamu</span>
+            <b>11–13 Okt 2026</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- CUSTOMER -->
+      <div class="card">
+        <div class="label-card-title">👤 Pelanggan</div>
+        <div class="cust-row">
+          <div class="cust-avatar">👩</div>
+          <div>
+            <div class="cust-name">Wulandari Handayani</div>
+            <div class="cust-phone">📱 0812-3456-7890</div>
+          </div>
+        </div>
+        <div class="cust-addr">
+          <b>📍 Alamat Kirim</b>
+          Jl. Melati Raya No. 21, RT 03 / RW 05, Kel. Sukamaju,<br>
+          Cibinong, Bogor, Jawa Barat 16913
+        </div>
+      </div>
+
+      <!-- ITEMS -->
+      <div class="card">
+        <div class="label-card-title">🛍️ Rincian Barang
+          <span class="items-summary"><span class="g">2 ready</span> · <span class="o">1 pre-order</span></span>
+        </div>
+        <div class="items">
+          <div class="item">
+            <div class="item-img">👙</div>
+            <div class="item-info">
+              <div class="item-name">Bra Greney Red 80B <span class="variant-tag">80B</span><span class="item-status ready">Ready</span></div>
+              <div class="item-meta">Ready stock · dikirim bersama pesanan</div>
+            </div>
+            <div>
+              <div class="item-price">Rp 44.000</div>
+              <div class="item-qty">× 1</div>
+            </div>
+          </div>
+          <div class="item">
+            <div class="item-img">🥤</div>
+            <div class="item-info">
+              <div class="item-name">PERO QIBY TUMBLER 739 ML <span class="variant-tag">pink</span><span class="item-status ready">Ready</span></div>
+              <div class="item-meta">Ready stock · dikirim bersama pesanan</div>
+            </div>
+            <div>
+              <div class="item-price">Rp 188.000</div>
+              <div class="item-qty">× 2 @ 94.000</div>
+            </div>
+          </div>
+          <div class="item">
+            <div class="item-img">🧴</div>
+            <div class="item-info">
+              <div class="item-name">Moell Sun Lotion 100 gr<span class="item-status po">PO · ready 10 Okt</span></div>
+              <div class="item-meta">Pre-order dari supplier · ±14 hari</div>
+            </div>
+            <div>
+              <div class="item-price">Rp 65.000</div>
+              <div class="item-qty">× 1</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="totals">
+          <div class="trow"><span>Subtotal (4 barang)</span><span>Rp 297.000</span></div>
+          <div class="trow discount"><span>🏷️ Diskon Loyalty (10rb)</span><span>− Rp 10.000</span></div>
+          <div class="trow ongkir"><span>🚚 Ongkir (JNE REG)</span><span>Rp 18.000</span></div>
+          <div class="state-notdp">
+            <div class="trow kodeunik"><span>🔑 Kode unik QRIS</span><span>+ Rp 7</span></div>
+            <div class="trow grand">
+              <span class="grand-label">TOTAL BAYAR <span class="qr-tag">QRIS</span></span>
+              <span>Rp 305.007</span>
+            </div>
+          </div>
+          <div class="state-dp">
+            <div class="trow dp-hint"><span>💰 DP Pre-Order (30%) — wajib di muka</span><span>Rp 91.500</span></div>
+            <div class="trow ongkir"><span>📄 Sisa pelunasan — dibayar saat ready</span><span>Rp 213.500</span></div>
+            <div class="trow kodeunik"><span>🔑 Kode unik QRIS</span><span>+ Rp 7</span></div>
+            <div class="trow grand">
+              <span class="grand-label">TAGIHAN DP <span class="qr-tag">QRIS</span></span>
+              <span>Rp 91.507</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYMENT: UNPAID / PO -->
+      <div class="pay-box unpaid state-unpaid">
+        <div class="pay-head">
+          <div>
+            <div class="pay-title">⚠️ Menunggu Pembayaran</div>
+            <div class="pay-amount">Rp 305.007</div>
+            <div class="pay-sub">Bayar sebelum 24 Sep 2026, 22:00 WIB (15 menit)</div>
+          </div>
+        </div>
+
+        <div class="pay-tabs">
+          <button class="pay-tab active" onclick="setPay(this,'pane','qris')">▣ Bayar QRIS</button>
+          <button class="pay-tab" onclick="setPay(this,'pane','bca')">🏦 Transfer BCA</button>
+        </div>
+
+        <!-- QRIS pane -->
+        <div class="pay-pane active" id="pane-qris">
+          <div class="qr-holder" style="border:none; padding:12px 0 0;">
+            <div class="qr-img"></div>
+            <div class="qr-info">
+              <b>Scan QRIS di aplikasi bank / e-wallet</b>
+              GoPay · OVO · DANA · ShopeePay · m-BCA<br>
+              Nominal sudah termasuk kode unik — <b style="display:inline">Rp 305.007</b>
+            </div>
+          </div>
+          <div class="auto-note">✓ Status invoice ter-update otomatis ≤1 menit setelah bayar</div>
+        </div>
+
+        <!-- BCA pane -->
+        <div class="pay-pane" id="pane-bca">
+          <div class="rek-card">
+            <div class="rek-head">
+              <span class="rek-bank">BCA</span>
+              <span class="rek-logo">BCA</span>
+            </div>
+            <div class="rek-num" onclick="this.querySelector('.copy-hint').textContent='Tersalin! (mockup)'">
+              123-456-7890 <span class="copy-hint">⧉ klik untuk salin</span>
+            </div>
+            <div class="rek-name">a.n. MAMANAY (Nurul Azizah)</div>
+            <div class="rek-exact">
+              <span>Nominal persis (kode unik)</span>
+              <span>Rp 305.007</span>
+            </div>
+          </div>
+          <button class="btn-upload">⬆️ Upload Bukti Transfer</button>
+          <div class="auto-note">Verifikasi manual oleh penjual — aktif ≤30 menit setelah upload</div>
+        </div>
+
+        <div class="po-pay-note state-po">
+          🔒 <b>Pre-order:</b> bayar sekarang untuk mengunci pesanan. Link invoice tetap aktif —
+          kalau QR kadaluarsa, bisa minta QR baru lewat link ini.
+        </div>
+      </div>
+
+      <!-- PAYMENT: DP PO -->
+      <div class="pay-box dp state-dp">
+        <div class="pay-head">
+          <div>
+            <div class="pay-title">⚠️ Menunggu Pembayaran DP</div>
+            <div class="pay-amount">Rp 91.507</div>
+            <div class="pay-sub">DP 30% · sisa <b>Rp 213.500</b> dibayar saat barang ready</div>
+          </div>
+        </div>
+
+        <div class="pay-tabs">
+          <button class="pay-tab active" onclick="setPay(this,'dp-pane','qris')">▣ Bayar QRIS</button>
+          <button class="pay-tab" onclick="setPay(this,'dp-pane','bca')">🏦 Transfer BCA</button>
+        </div>
+
+        <div class="pay-pane active" id="dp-pane-qris">
+          <div class="qr-holder" style="border:none; padding:12px 0 0;">
+            <div class="qr-img"></div>
+            <div class="qr-info">
+              <b>Scan QRIS — khusus DP</b>
+              Nominal DP sudah termasuk kode unik — <b style="display:inline">Rp 91.507</b>
+            </div>
+          </div>
+          <div class="auto-note">✓ Status invoice ter-update otomatis ≤1 menit setelah bayar</div>
+        </div>
+
+        <div class="pay-pane" id="dp-pane-bca">
+          <div class="rek-card">
+            <div class="rek-head">
+              <span class="rek-bank">BCA</span>
+              <span class="rek-logo">BCA</span>
+            </div>
+            <div class="rek-num">123-456-7890 <span class="copy-hint">⧉ klik untuk salin</span></div>
+            <div class="rek-name">a.n. MAMANAY (Nurul Azizah)</div>
+            <div class="rek-exact">
+              <span>Nominal persis DP</span>
+              <span>Rp 91.507</span>
+            </div>
+          </div>
+          <button class="btn-upload">⬆️ Upload Bukti Transfer</button>
+          <div class="auto-note">Verifikasi manual oleh penjual — aktif ≤30 menit setelah upload</div>
+        </div>
+
+        <div class="po-pay-note state-dp">
+          📄 Invoice pelunasan <b>Rp 213.500</b> otomatis dikirim via WhatsApp begitu barang ready.
+          Link ini tetap aktif sampai pesanan selesai.
+        </div>
+      </div>
+
+      <!-- SHIPPING CHOICE -->
+      <div class="card">
+        <div class="label-card-title">🚚 Metode Pengiriman</div>
+        <div class="ship-choice">
+          <div class="ship-opt sel" id="opt-manual" onclick="setShip('manual')">
+            <div class="ship-opt-head">
+              <div class="ship-radio"></div>
+              <div>
+                <div class="ship-opt-title">📮 Kirim Manual</div>
+                <div class="ship-opt-sub">JNT / JNE / LION PARCEL — admin yang atur kurir &amp; ongkir setelah pembayaran</div>
+              </div>
+            </div>
+            <div class="ship-detail">
+              <div class="manual-detail">
+                Setelah lunas, admin konfirmasi kurir + ongkir via WhatsApp.<br>
+                Estimasi tiba <b>2–4 hari</b> · resiko paket ditanggung penjual sampai diterima.
+              </div>
+            </div>
+          </div>
+
+          <div class="ship-opt" id="opt-shopee" onclick="setShip('shopee')">
+            <div class="ship-opt-head">
+              <div class="ship-radio"></div>
+              <div>
+                <div class="ship-opt-title">🛒 Kirim via Shopee</div>
+                <div class="ship-opt-sub">Checkout sendiri di Shopee — ongkir &amp; resi Shopee, paket lebih aman</div>
+              </div>
+            </div>
+            <div class="ship-detail">
+              <div class="shopee-pcs">Checkout <span class="pcs-n">4</span> pcs <span style="font-weight:600;color:#94a3b8;font-size:10px">berat total 3,4 kg</span></div>
+              <div class="shopee-link">
+                <span class="shopee-url">https://s.shopee.co.id/8pjZ07JBJe</span>
+                <a class="btn-open-shopee" href="https://s.shopee.co.id/8pjZ07JBJe" target="_blank">Buka Shopee ▶</a>
+              </div>
+              <div class="shopee-note">
+                <span>📝 Catatan (tempel di kolom catatan Shopee):<br><b id="noteText">Wulandari 7890</b></span>
+                <button class="btn-copy-note" onclick="event.stopPropagation(); copyNote()">⧉ Salin</button>
+              </div>
+              <div class="shopee-warn">⚠️ Wajib isi catatan di atas, tanpa catatan pesanan tidak bisa dicocokkan. Resiko paket hilang/rusak via Shopee ditanggung pembeli.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYMENT: PAID -->
+      <div class="pay-box paid state-paid">
+        <div class="pay-head">
+          <div>
+            <div class="pay-title">✅ Pembayaran Diterima</div>
+            <div class="pay-amount">Rp 305.007</div>
+            <div class="pay-sub">24 Sep 2026, 21:34 WIB</div>
+          </div>
+          <div class="paid-check">✓</div>
+        </div>
+        <div class="paid-detail"><span>Metode</span><b>QRIS</b></div>
+        <div class="paid-detail"><span>Ref</span><b>QRIS9248730128</b></div>
+        <div class="paid-detail"><span>Sisa tagihan</span><b style="color:#16a34a">Rp 0</b></div>
+      </div>
+
+      <!-- PACKING PHOTO (paid only) -->
+      <div class="card state-paid">
+        <div class="label-card-title">📦 Foto Packing</div>
+        <div class="pack-wrap">
+          <div class="pack-thumb">📷</div>
+          <div class="pack-info">
+            <b>Siap dikirim hari ini</b>
+            Klik foto untuk memperbesar. Resi menyusul via WhatsApp.
+          </div>
+        </div>
+      </div>
+
+      <!-- RESI (shipped / done) -->
+      <div class="card state-ship">
+        <div class="label-card-title">🚚 Info Pengiriman</div>
+        <div class="ship-box">
+          <div class="ship-row"><span>Kurir</span><b>JNE REG</b></div>
+          <div class="ship-row"><span>No. Resi</span><b class="mono">JP1234567890</b></div>
+          <div class="ship-row"><span>Dikirim</span><b>25 Sep 2026, 10:15 WIB</b></div>
+          <div class="ship-row"><span>Estimasi tiba</span><b>27–29 Sep 2026</b></div>
+        </div>
+        <button class="btn-track" onclick="toast('Mockup: buka lacak JNE')">🌐 Lacak Pengiriman</button>
+        <div class="auto-note" style="color:#64748b">Resi juga dikirim otomatis ke WhatsApp kamu</div>
+      </div>
+
+      <!-- DONE (done only) -->
+      <div class="card state-done">
+        <div class="done-box">
+          <div class="done-emoji">🎉</div>
+          <div>
+            <b>Pesanan selesai!</b><br>
+            Terima kasih sudah belanja di jastip_mamanay 🌸
+          </div>
+        </div>
+        <div class="done-actions">
+          <button class="btn-ghost" onclick="toast('Mockup: buka katalog')">🔄 Pesan Lagi</button>
+          <button class="btn-ghost" onclick="toast('Mockup: chat WA penjual')">💬 Chat Penjual</button>
+        </div>
+      </div>
+
+      <!-- NOTE -->
+      <div class="card">
+        <div class="note-box">
+          <b>📝 Catatan dari penjual</b>
+          Packing bubble wrap 2 lapis ya kak, terima kasih sudah order! 🌸
+        </div>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="actions">
+        <button class="btn-ghost" onclick="window.print()">⬇️ Simpan PDF</button>
+        <button class="btn-ghost" onclick="navigator.clipboard && navigator.clipboard.writeText(location.href)">🔗 Salin Link</button>
+      </div>
+
+      <div class="trust">
+        Link invoice ini bisa dibuka kapan saja tanpa login.<br>
+        <b>mamanay.vercel.app/invoice/INV-20260924-0837</b>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function setState(s) {
+      document.body.dataset.state = s;
+      ['unpaid','po','dp','paid','shipped','done'].forEach(k => {
+        const el = document.getElementById('btn' + k.charAt(0).toUpperCase() + k.slice(1));
+        if (el) el.classList.toggle('active', k === s);
+      });
+    }
+    let toastTimer;
+    function toast(msg) {
+      let t = document.getElementById('toast');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'toast';
+        t.className = 'toast';
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+    function setPay(btn, scope, method) {
+      btn.parentElement.querySelectorAll('.pay-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(scope + '-qris').classList.toggle('active', method === 'qris');
+      document.getElementById(scope + '-bca').classList.toggle('active', method === 'bca');
+    }
+    function setShip(which) {
+      document.getElementById('opt-manual').classList.toggle('sel', which === 'manual');
+      document.getElementById('opt-shopee').classList.toggle('sel', which === 'shopee');
+      if (which === 'shopee') toast('Mockup: pilihan Shopee — link, pcs & catatan tampil');
+    }
+    function copyNote() {
+      const txt = document.getElementById('noteText').textContent;
+      if (navigator.clipboard) navigator.clipboard.writeText(txt);
+      toast('Catatan disalin: "' + txt + '"');
+    }
+  </script>
+</body>
+</html>

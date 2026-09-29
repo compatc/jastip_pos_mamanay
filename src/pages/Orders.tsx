@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
-import { payOrderLink, payGroupLink } from "../lib/payLinks";
+import { payGroupLink, invoiceOrderLink } from "../lib/payLinks";
 import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 
@@ -352,7 +352,7 @@ export default function Orders() {
 
     if (sisa > 0) {
       msg += `\u{1F4B3} *Bayar QRIS sekarang:*\n`;
-      msg += `Klik di sini untuk bayar pakai QRIS:\n${payOrderLink(order.id)}\n\n`;
+      msg += `Klik di sini untuk melihat invoice & bayar pakai QRIS:\n${invoiceOrderLink(order.id)}\n\n`;
       msg += `\u{1F3E6} *Transfer Bank BCA:*\n`;
       msg += `${BANK_INFO}\n\n`;
     }
@@ -396,7 +396,7 @@ export default function Orders() {
     } else {
       msg += `Sisa bayar: *Rp ${sisa.toLocaleString("id-ID")}*\n\n`;
       msg += `\u{1F4B3} *Bayar QRIS:*\n`;
-      msg += `${payOrderLink(order.id)}\n\n`;
+      msg += `${invoiceOrderLink(order.id)}\n\n`;
       msg += `\u{1F3E6} Transfer BCA: ${BANK_INFO}\n\n`;
     }
 
@@ -546,7 +546,7 @@ export default function Orders() {
         },
       ];
     }
-    return unpaid.map((order) => ({ order, url: payOrderLink(order.id) }));
+    return unpaid.map((order) => ({ order, url: invoiceOrderLink(order.id) }));
   }
 
   function buildInvoiceMsg(

@@ -32,6 +32,7 @@ const Expenses = lazy(() => import("./pages/Expenses"));
 const PaymentConfirmations = lazy(() => import("./pages/PaymentConfirmations"));
 const Catalog = lazy(() => import("./pages/Catalog"));
 const Piutang = lazy(() => import("./pages/Piutang"));
+const Invoice = lazy(() => import("./pages/Invoice"));
 
 function RouteFallback() {
   return (
@@ -137,6 +138,7 @@ export default function App() {
             <Route path="/pay" element={<PayOrder />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/catalog/:id" element={<Catalog />} />
+            <Route path="/invoice/:orderId" element={<Invoice />} />
           <Route
             path="/piutang"
             element={
