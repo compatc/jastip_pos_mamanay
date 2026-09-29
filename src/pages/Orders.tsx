@@ -508,7 +508,7 @@ export default function Orders() {
       map.get(key)!.orders.push(order);
     }
     return [...map.values()]
-      .filter((g) => g.orders.some((o) => !isOrderLunas(o)))
+      .filter((g) => g.orders.some((o) => o.fulfillment_status !== "cancelled" && !isOrderLunas(o)))
       .sort((a, b) => a.name.localeCompare(b.name, "id"));
   }, [filtered, customers]);
 
@@ -536,7 +536,11 @@ export default function Orders() {
   async function buildQrisLinks(
     group: CustomerGroup
   ): Promise<{ order: Order; url: string }[] | { combined: true; url: string; orders: Order[] }[]> {
-    const unpaid = group.orders.filter((o) => (o.total - (o.diskon || 0) - (o.kode_unik || 0)) - (o.paid_total || 0) > 0);
+    const unpaid = group.orders.filter(
+      (o) =>
+        o.fulfillment_status !== "cancelled" &&
+        (o.total - (o.diskon || 0) - (o.kode_unik || 0)) - (o.paid_total || 0) > 0
+    );
     if (unpaid.length > 1) {
       return [
         {
@@ -560,10 +564,15 @@ export default function Orders() {
       year: "numeric",
     });
 
-    const unpaidOrders = group.orders.filter((o) => !isOrderLunas(o));
-    // Sisa bayar dari order.total — sama persis dengan halaman invoice & nominal QRIS
+    const unpaidOrders = group.orders.filter(
+      (o) => o.fulfillment_status !== "cancelled" && !isOrderLunas(o)
+    );
+    // Sisa bayar dari order.total — sama persis dengan halaman invoice & nominal QRIS.
+    // Di-clamp per order: order kelebihan bayar tidak menutupi order lain yang belum bayar.
     const grandSisa = unpaidOrders.reduce(
-      (s, o) => s + (o.total - (o.diskon || 0) - ((o as any).kode_unik || 0) - (o.paid_total || 0)),
+      (s, o) =>
+        s +
+        Math.max(0, o.total - (o.diskon || 0) - ((o as any).kode_unik || 0) - (o.paid_total || 0)),
       0
     );
     const invoiceUrl = qrisLinks && qrisLinks.length > 0 ? qrisLinks[0].url : "";
@@ -1297,7 +1306,7 @@ export default function Orders() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      {!isOrderLunas(order) && order.total > 0 && (
+                      {!isOrderLunas(order) && order.total > 0 && order.fulfillment_status !== "cancelled" && (
                         <>
                           <button
                             type="button"

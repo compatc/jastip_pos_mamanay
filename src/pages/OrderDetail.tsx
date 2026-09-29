@@ -235,8 +235,10 @@ export default function OrderDetail() {
     });
 
     // Sisa bayar dari order.total — sama persis dengan halaman invoice & nominal QRIS
-    const sisa =
-      order.total - (order.diskon || 0) - ((order as any).kode_unik || 0) - (order.paid_total || 0);
+    const sisa = Math.max(
+      0,
+      order.total - (order.diskon || 0) - ((order as any).kode_unik || 0) - (order.paid_total || 0)
+    );
 
     let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
     if (sisa > 0) {
@@ -545,7 +547,7 @@ export default function OrderDetail() {
             </div>
           )}
 
-          {!isOrderLunas(order) && order.total > 0 && qrisLink && (
+          {!isOrderLunas(order) && order.total > 0 && order.fulfillment_status !== "cancelled" && qrisLink && (
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-400 uppercase font-bold mb-2">Link Pembayaran</p>
               <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-lg">
@@ -567,7 +569,7 @@ export default function OrderDetail() {
           )}
 
           <div className="flex gap-2.5 pt-1">
-              {!isOrderLunas(order) && order.total > 0 && (
+              {!isOrderLunas(order) && order.total > 0 && order.fulfillment_status !== "cancelled" && (
               <button
                 onClick={sendWa}
                 className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"

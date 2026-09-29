@@ -942,15 +942,24 @@ export default async function handler(req, res) {
 
       const { data: orders, error: ordersErr } = await sb
         .from("orders")
-        .select("id, customer_id, total, paid_total, diskon, kode_unik, order_type, account_id, notes, qris_notes, status")
+        .select("id, customer_id, total, paid_total, diskon, kode_unik, order_type, account_id, notes, qris_notes, status, fulfillment_status")
         .in("id", orderIdsRaw);
       if (ordersErr || !orders || orders.length === 0) {
         json(res, 404, { error: "Order tidak ditemukan" });
         return;
       }
 
+      // QRIS gabung hanya untuk 1 pelanggan (konsisten dengan halaman invoice)
+      const custIds = [...new Set(orders.map((o) => o.customer_id).filter(Boolean))];
+      if (custIds.length > 1) {
+        json(res, 400, { error: "Pembayaran gabung hanya untuk pesanan milik 1 pelanggan yang sama" });
+        return;
+      }
+
       const validOrders = orders.filter(
-        (o) => (o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0) - (o.paid_total || 0) > 0
+        (o) =>
+          o.fulfillment_status !== "cancelled" &&
+          (o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0) - (o.paid_total || 0) > 0
       );
       if (validOrders.length === 0) {
         json(res, 400, { error: "Semua order sudah lunas" });
@@ -1243,6 +1252,20 @@ export default async function handler(req, res) {
         return;
       }
 
+      // Invoice gabung hanya boleh 1 pelanggan — cegah link lama menampilkan data pelanggan lain
+      const custIds = [...new Set(found.map((o) => o.customer_id).filter(Boolean))];
+      if (custIds.length > 1 || (custIds.length === 1 && found.some((o) => !o.customer_id))) {
+        json(res, 400, { error: "Invoice gabung hanya untuk pesanan milik 1 pelanggan yang sama" });
+        return;
+      }
+
+      // Order yang dibatalkan tidak ditagih & tidak ditampilkan
+      const billable = found.filter((o) => o.fulfillment_status !== "cancelled");
+      if (billable.length === 0) {
+        json(res, 404, { error: "Invoice tidak tersedia (pesanan sudah dibatalkan)" });
+        return;
+      }
+
       const mapOrder = (o) => ({
         id: o.id,
         customer_id: o.customer_id || null,
@@ -1264,10 +1287,10 @@ export default async function handler(req, res) {
         order_type: o.order_type || "penjualan",
         shipping_method: o.shipping_method ?? null,
       });
-      const orders = found.map(mapOrder);
+      const orders = billable.map(mapOrder);
 
       let customer = null;
-      const customerId = found.find((o) => o.customer_id)?.customer_id || null;
+      const customerId = billable[0]?.customer_id || null;
       if (customerId) {
         const { data: cust } = await sb
           .from("customers")
@@ -1277,10 +1300,11 @@ export default async function handler(req, res) {
         if (cust) customer = { name: cust.name || "", phone: cust.phone || "", address: cust.address || "" };
       }
 
+      const billableIds = billable.map((o) => o.id);
       const { data: itemRows } = await sb
         .from("order_items")
         .select("order_id, product_id, product_name, variant, quantity, price, discount")
-        .in("order_id", ids);
+        .in("order_id", billableIds);
       const rawItems = itemRows || [];
       const productIds = [...new Set(rawItems.map((i) => i.product_id).filter(Boolean))];
       const productMap = new Map();
@@ -1314,19 +1338,25 @@ export default async function handler(req, res) {
         (s, i) => s + (i.price || 0) * (i.quantity || 0) - (i.discount || 0),
         0
       );
-      const sumField = (k) => found.reduce((s, o) => s + (o[k] || 0), 0);
+      const sumField = (k) => billable.reduce((s, o) => s + (o[k] || 0), 0);
       const total = sumField("total");
       const diskonSum = sumField("diskon");
       const kodeUnikSum = sumField("kode_unik");
       const ongkirSum = sumField("ongkir");
       const paidSum = sumField("paid_total");
-      const sisa = Math.max(0, total - diskonSum - kodeUnikSum - paidSum);
+      // Sisa per order di-clamp dulu — order kelebihan bayar tidak boleh menutupi order lain yang belum bayar
+      const sisa = billable.reduce(
+        (s, o) =>
+          s +
+          Math.max(0, (o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0) - (o.paid_total || 0)),
+        0
+      );
       const paymentStatus = sisa <= 0 ? "paid" : paidSum > 0 ? "dp" : "unpaid";
 
       // Batas bayar = 2 hari setelah invoice dikirim (konsisten dengan pesan WA)
       let deadline = null;
       try {
-        const bases = found
+        const bases = billable
           .map((o) => new Date(o.invoice_sent_at || o.created_at).getTime())
           .filter((t) => !Number.isNaN(t));
         if (bases.length > 0) {

@@ -238,16 +238,21 @@ export default function CustomerOrders() {
       year: "numeric",
     });
 
-    const unpaidOrders = selected.filter((o) => !isOrderLunas(o));
-    const targetOrders = unpaidOrders.length > 0 ? unpaidOrders : selected;
+    const activeOrders = selected.filter((o) => o.fulfillment_status !== "cancelled");
+    const unpaidOrders = activeOrders.filter((o) => !isOrderLunas(o));
+    const targetOrders = unpaidOrders.length > 0 ? unpaidOrders : activeOrders;
 
-    // Sisa bayar dari order.total — sama persis dengan halaman invoice & nominal QRIS
+    // Sisa bayar dari order.total — sama persis dengan halaman invoice & nominal QRIS.
+    // Di-clamp per order: order kelebihan bayar tidak menutupi order lain yang belum bayar.
     const grandSisa = targetOrders.reduce(
-      (s, o) => s + (o.total - (o.diskon || 0) - ((o as any).kode_unik || 0) - (o.paid_total || 0)),
+      (s, o) =>
+        s +
+        Math.max(0, o.total - (o.diskon || 0) - ((o as any).kode_unik || 0) - (o.paid_total || 0)),
       0
     );
     const qrisOrders = targetOrders.filter(
-      (o) => (o.total - (o.diskon || 0) - ((o as any).kode_unik || 0)) - (o.paid_total || 0) > 0
+      (o) =>
+        (o.total - (o.diskon || 0) - ((o as any).kode_unik || 0)) - (o.paid_total || 0) > 0
     );
 
     let msg = `Halo Kak ${customer?.name} \u{1F64F}\n\n`;
