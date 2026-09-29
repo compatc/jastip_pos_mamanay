@@ -238,93 +238,29 @@ export default function CustomerOrders() {
       year: "numeric",
     });
 
-    let msg = `Halo Kak ${customer?.name} \u{1F64F}\n\n`;
-    msg += "Invoice *Jastip_mamanay*:\n\n";
-
     const unpaidOrders = selected.filter((o) => !isOrderLunas(o));
     const targetOrders = unpaidOrders.length > 0 ? unpaidOrders : selected;
 
-    const productMap = new Map<string, { name: string; qty: number; total: number }>();
-    let grandGross = 0;
-    let grandDiskon = 0;
-    let grandKodeUnik = 0;
-    let grandPaid = 0;
+    // Sisa bayar dari order.total — sama persis dengan halaman invoice & nominal QRIS
+    const grandSisa = targetOrders.reduce(
+      (s, o) => s + (o.total - (o.diskon || 0) - ((o as any).kode_unik || 0) - (o.paid_total || 0)),
+      0
+    );
+    const qrisOrders = targetOrders.filter(
+      (o) => (o.total - (o.diskon || 0) - ((o as any).kode_unik || 0)) - (o.paid_total || 0) > 0
+    );
 
-    const orderStatuses = new Map<string, string>();
-
-    targetOrders.forEach((order) => {
-      const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status || "";
-      if (statusLabel) orderStatuses.set(order.id, statusLabel);
-
-      const items = itemsByOrder[order.id] || [];
-      items.forEach((item) => {
-        const key = `${item.product_name}|${item.variant || ""}`;
-        const itemTotal = item.price * item.quantity - (item.discount || 0);
-        const existing = productMap.get(key);
-        if (existing) {
-          existing.qty += item.quantity;
-          existing.total += itemTotal;
-        } else {
-          productMap.set(key, { name: itemLabel(item), qty: item.quantity, total: itemTotal });
-        }
-        grandGross += item.price * item.quantity - (item.discount || 0);
-      });
-      grandDiskon += order.diskon || 0;
-      grandKodeUnik += (order as any).kode_unik || 0;
-      grandPaid += order.paid_total || 0;
-    });
-
-    for (const [, prod] of productMap) {
-      msg += `\u{1F4E6} ${prod.name} x${prod.qty} \u2014 Rp ${prod.total.toLocaleString("id-ID")}\n`;
-    }
-
-    const uniqueStatuses = [...new Set(orderStatuses.values())];
-    if (uniqueStatuses.length === 1) {
-      msg += `Status: ${uniqueStatuses[0]}\n`;
-    } else if (uniqueStatuses.length > 1) {
-      const statusCounts = [...orderStatuses.values()].reduce((acc, s) => { acc[s] = (acc[s] || 0) + 1; return acc; }, {} as Record<string, number>);
-      msg += `Status: ${Object.entries(statusCounts).map(([s, c]) => `${s} (${c})`).join(", ")}\n`;
-    }
-
-    const grandSisa = grandGross - grandDiskon - grandKodeUnik - grandPaid;
-    msg += `\n\u{1F4CA} *Sisa bayar: Rp ${grandSisa.toLocaleString("id-ID")}*`;
-    if (grandPaid > 0) msg += `\n(sudah bayar Rp ${grandPaid.toLocaleString("id-ID")})`;
-    msg += "\n";
-
-    msg += "\n\u{1F4B3} Pembayaran:\n";
-    let payIdx = 1;
-    const qrisOrders = targetOrders.filter((o) => (o.total - (o.diskon || 0) - ((o as any).kode_unik || 0)) - (o.paid_total || 0) > 0);
-    if (qrisOrders.length > 0) {
+    let msg = `Halo Kak ${customer?.name} \u{1F64F}\n\n`;
+    if (grandSisa > 0) {
+      msg += `\u{1F9FE} *Invoice baru* \u2014 Rp ${grandSisa.toLocaleString("id-ID")}\n`;
       if (qrisOrders.length === 1) {
-        const order = qrisOrders[0];
-        const sisa = (order.total - (order.diskon || 0) - ((order as any).kode_unik || 0)) - (order.paid_total || 0);
-        msg += `${payIdx}. QRIS \u2014 Rp ${sisa.toLocaleString("id-ID")}: ${invoiceOrderLink(order.id)}\n`;
-      } else {
-        const qrisIds = qrisOrders.map((o) => o.id);
-        const totalSisa = qrisOrders.reduce((s, o) => s + ((o.total - (o.diskon || 0) - ((o as any).kode_unik || 0)) - (o.paid_total || 0)), 0);
-        msg += `${payIdx}. QRIS \u2014 Rp ${totalSisa.toLocaleString("id-ID")}: ${invoiceGroupLink(qrisIds)}\n`;
+        msg += `Cek detail dan bayar:\n${invoiceOrderLink(qrisOrders[0].id)}\n`;
+      } else if (qrisOrders.length > 1) {
+        msg += `Cek detail dan bayar:\n${invoiceGroupLink(qrisOrders.map((o) => o.id))}\n`;
       }
-      payIdx++;
-    }
-    msg += `${payIdx}. BCA: 5271330651 a.n. Nurul Azizah\n`;
-    msg += `\u23F0 Sebelum ${deadlineStr}\n`;
-
-    const totalWeight = targetOrders.reduce((sum, order) => {
-      const items = itemsByOrder[order.id] || [];
-      return sum + items.reduce((s, i) => {
-        const product = products.find((p) => p.id === i.product_id);
-        const weight = product?.weight || 250;
-        return s + (i.quantity * weight);
-      }, 0);
-    }, 0);
-    const pcsShopee = Math.ceil(totalWeight / 1000);
-    if (pcsShopee > 0) {
-      msg += `\n\u{1F4E6} Pengiriman:\n`;
-      msg += `1. Manual (JNT/JNE/LION PARCEL) \u2014 hubungi admin\n`;
-      msg += `2. Shopee \u2014 checkout ${pcsShopee} pcs:\n`;
-      msg += `https://s.shopee.co.id/8pjZ07JBJe\n`;
-      msg += `\u{1F4DD} Catatan: *nama* + *4 digit HP*\n`;
-      msg += `\u26A0\uFE0F Resiko paket hilang/rusak via Shopee ditanggung pembeli`;
+      msg += `\u23F0 Bayar sebelum ${deadlineStr}`;
+    } else {
+      msg += `\u2705 *Invoice baru* \u2014 sudah lunas`;
     }
 
     const cleaned = phone.replace(/\D/g, "");
