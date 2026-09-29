@@ -386,7 +386,13 @@ export default function Invoice() {
     totals.payment_status ||
     (isPaid ? "paid" : sumPaid > 0 ? "dp" : order.payment_status || "unpaid");
   const isCancelled = ordersList.every((o) => o.fulfillment_status === "cancelled");
-  const hasPo = items.some((i) => i.stock_type === "po");
+  const READY_FULFILL = new Set(["ready", "shipped", "diterima", "completed"]);
+  const readyOrderIds = new Set(
+    ordersList.filter((o) => READY_FULFILL.has(o.fulfillment_status)).map((o) => o.id)
+  );
+  const isPoItem = (it: InvoiceItem) =>
+    it.stock_type === "po" && !readyOrderIds.has(it.order_id || order.id);
+  const hasPo = items.some((i) => isPoItem(i));
   const phoneDigits = (customer?.phone || "").replace(/\D/g, "");
   const phoneLast4 = phoneDigits.slice(-4);
   const noteShopee = `${(customer?.name || "Pelanggan").split(" ")[0]} ${phoneLast4}`.trim();
@@ -406,9 +412,10 @@ export default function Invoice() {
 
   type Stage = "po" | "dikemas" | "shipped" | "done";
   const stageOf = (o: InvoiceOrder): Stage => {
-    const po = (itemsByOrderId.get(o.id) || []).some((i) => i.stock_type === "po");
+    const po = (itemsByOrderId.get(o.id) || []).some((i) => isPoItem(i));
     if (o.fulfillment_status === "completed") return "done";
     if (o.fulfillment_status === "shipped" || o.fulfillment_status === "diterima") return "shipped";
+    if (o.fulfillment_status === "ready") return "dikemas";
     if (o.fulfillment_status === "belum_ready") return po ? "po" : "dikemas";
     if (po && !isPaid) return "po";
     return "dikemas";
@@ -605,10 +612,10 @@ export default function Invoice() {
             🛍️ Rincian Barang
             <span className="ml-auto normal-case tracking-normal text-[10px] text-slate-400">
               <span className="text-emerald-600 font-bold">
-                {items.filter((i) => i.stock_type !== "po").length} ready
+                {items.filter((i) => !isPoItem(i)).length} ready
               </span>
               {" · "}
-              <span className="text-orange-600 font-bold">{items.filter((i) => i.stock_type === "po").length} pre-order</span>
+              <span className="text-orange-600 font-bold">{items.filter((i) => isPoItem(i)).length} pre-order</span>
             </span>
           </div>
           <div className="flex flex-col gap-2">
@@ -665,16 +672,16 @@ export default function Invoice() {
                         )}
                         <span
                           className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md ml-1.5 align-middle ${
-                            it.stock_type === "po"
+                            isPoItem(it)
                               ? "bg-orange-100 text-orange-700"
                               : "bg-emerald-100 text-emerald-700"
                           }`}
                         >
-                          {it.stock_type === "po" ? "PO" : "Ready"}
+                          {isPoItem(it) ? "PO" : "Ready"}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        {it.stock_type === "po"
+                        {isPoItem(it)
                           ? "Pre-order · dikirim setelah ready"
                           : "Dikirim bersama pesanan"}
                       </div>
