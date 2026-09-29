@@ -71,8 +71,6 @@ const COURIER_LABELS: Record<string, string> = {
   shopee: "Shopee Express",
 };
 
-const BANK_INFO = "BCA 5271330651 a.n. Nurul Azizah";
-
 function getStatusColor(fulfillmentStatus: string): string {
   const colors: Record<string, string> = {
     belum_ready: "bg-orange-100 text-orange-600",
@@ -236,63 +234,17 @@ export default function OrderDetail() {
       year: "numeric",
     });
 
+    // Sisa bayar dari order.total — sama persis dengan halaman invoice & nominal QRIS
+    const sisa =
+      order.total - (order.diskon || 0) - ((order as any).kode_unik || 0) - (order.paid_total || 0);
+
     let msg = `Halo Kak ${order.customer_name || ""} 🙏\n\n`;
-    msg += "Invoice *Jastip_mamanay*:\n\n";
-
-    // Product lines
-    let itemGross = 0;
-    items.forEach((i) => {
-      const itemTotal = i.price * i.quantity - (i.discount || 0);
-      const label = i.variant ? `${i.product_name} ${i.variant}` : i.product_name;
-      msg += `📦 ${label} x${i.quantity} — Rp ${itemTotal.toLocaleString("id-ID")}\n`;
-      itemGross += i.price * i.quantity;
-    });
-
-    // Status barang
-    const statusLabel = FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || order.fulfillment_status || "";
-    if (statusLabel) {
-      msg += `Status: ${statusLabel}\n`;
-    }
-
-    // Catatan (only if exists)
-    if (order.notes?.trim()) {
-      msg += `Catatan: ${order.notes.trim()}\n`;
-    }
-
-    // Grand total
-    const diskon = order.diskon || 0;
-    const kodeUnik = (order as any).kode_unik || 0;
-    const paid = order.paid_total || 0;
-    const sisa = itemGross - diskon - kodeUnik - paid;
-    msg += `\n📈 *Sisa bayar: Rp ${sisa.toLocaleString("id-ID")}*`;
-    if (paid > 0) msg += `\n(sudah bayar Rp ${paid.toLocaleString("id-ID")})`;
-    msg += "\n";
-
-    // Payment block
-    msg += "\n💳 Pembayaran:\n";
-    let payIdx = 1;
-    if (qrisLink) {
-      msg += `${payIdx}. QRIS — Rp ${sisa.toLocaleString("id-ID")}: ${qrisLink}\n`;
-      payIdx++;
-    }
-    msg += `${payIdx}. BCA: ${BANK_INFO}\n`;
-    msg += `⏰ Sebelum ${deadlineStr}\n`;
-
-    // Shopee checkout
-    const totalWeight = items.reduce((sum, i) => {
-      const product = products.find((p) => p.id === i.product_id);
-      const weight = product?.weight || 250;
-      return sum + (i.quantity * weight);
-    }, 0);
-    const pcsShopee = Math.ceil(totalWeight / 1000);
-
-    if (pcsShopee > 0) {
-      msg += `\n📦 Pengiriman:\n`;
-      msg += `1. Manual (JNT/JNE/LION PARCEL) — hubungi admin\n`;
-      msg += `2. Shopee — checkout ${pcsShopee} pcs:\n`;
-      msg += `https://s.shopee.co.id/8pjZ07JBJe\n`;
-      msg += `📝 Catatan: *nama* + *4 digit HP*\n`;
-      msg += `⚠️ Resiko paket hilang/rusak via Shopee ditanggung pembeli`;
+    if (sisa > 0) {
+      msg += `🧾 *Invoice baru* — Rp ${sisa.toLocaleString("id-ID")}\n`;
+      if (qrisLink) msg += `Cek detail dan bayar:\n${qrisLink}\n`;
+      msg += `⏰ Bayar sebelum ${deadlineStr}`;
+    } else {
+      msg += `✅ *Invoice baru* — sudah lunas`;
     }
 
     return msg;
