@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
-import { payGroupLink, invoiceOrderLink } from "../lib/payLinks";
+import { invoiceGroupLink, invoiceOrderLink } from "../lib/payLinks";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
   ArrowLeft,
@@ -302,7 +302,7 @@ export default function CustomerOrders() {
       } else {
         const qrisIds = qrisOrders.map((o) => o.id);
         const totalSisa = qrisOrders.reduce((s, o) => s + ((o.total - (o.diskon || 0) - ((o as any).kode_unik || 0)) - (o.paid_total || 0)), 0);
-        msg += `${payIdx}. QRIS \u2014 Rp ${totalSisa.toLocaleString("id-ID")}: ${payGroupLink(qrisIds)}\n`;
+        msg += `${payIdx}. QRIS \u2014 Rp ${totalSisa.toLocaleString("id-ID")}: ${invoiceGroupLink(qrisIds)}\n`;
       }
       payIdx++;
     }

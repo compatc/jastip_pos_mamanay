@@ -1207,48 +1207,80 @@ export default async function handler(req, res) {
     }
 
     if (body.action === "invoice") {
-      const orderId = String(body.orderId || "").trim();
-      if (!orderId) {
+      const ids = [
+        ...new Set(
+          [
+            ...(Array.isArray(body.orderIds) ? body.orderIds : []),
+            body.orderId,
+          ]
+            .map((x) => String(x || "").trim())
+            .filter(Boolean)
+        ),
+      ];
+      if (ids.length === 0) {
         json(res, 400, { error: "orderId wajib diisi" });
         return;
       }
 
       const orderCols =
         "id, customer_id, total, paid_total, diskon, kode_unik, ongkir, payment_status, fulfillment_status, status, notes, packing_photo, courier, resi, payment_type, order_type, created_at, invoice_sent_at";
-      let order = null;
-      let shippingMethod = null;
+      let rows = null;
       const withShip = await sb
         .from("orders")
         .select(orderCols + ", shipping_method")
-        .eq("id", orderId)
-        .maybeSingle();
-      if (withShip.data) {
-        order = withShip.data;
-        shippingMethod = withShip.data.shipping_method || null;
+        .in("id", ids);
+      if (!withShip.error && withShip.data) {
+        rows = withShip.data;
       } else {
         // Fallback kalau kolom shipping_method belum ada (migration belum dijalankan)
-        const retry = await sb.from("orders").select(orderCols).eq("id", orderId).maybeSingle();
-        order = retry.data;
+        const retry = await sb.from("orders").select(orderCols).in("id", ids);
+        rows = retry.data || [];
       }
-      if (!order) {
+      const byId = new Map((rows || []).map((o) => [o.id, o]));
+      const found = ids.map((id) => byId.get(id)).filter(Boolean);
+      if (found.length === 0 || found.length !== ids.length) {
         json(res, 404, { error: "Order tidak ditemukan" });
         return;
       }
 
+      const mapOrder = (o) => ({
+        id: o.id,
+        customer_id: o.customer_id || null,
+        created_at: o.created_at,
+        invoice_sent_at: o.invoice_sent_at || null,
+        total: o.total || 0,
+        diskon: o.diskon || 0,
+        kode_unik: o.kode_unik || 0,
+        ongkir: o.ongkir || 0,
+        paid_total: o.paid_total || 0,
+        payment_status: o.payment_status || "unpaid",
+        fulfillment_status: o.fulfillment_status || "",
+        status: o.status || "",
+        notes: o.notes || "",
+        packing_photo: o.packing_photo || "",
+        courier: o.courier || "",
+        resi: o.resi || "",
+        payment_type: o.payment_type || "",
+        order_type: o.order_type || "penjualan",
+        shipping_method: o.shipping_method ?? null,
+      });
+      const orders = found.map(mapOrder);
+
       let customer = null;
-      if (order.customer_id) {
+      const customerId = found.find((o) => o.customer_id)?.customer_id || null;
+      if (customerId) {
         const { data: cust } = await sb
           .from("customers")
           .select("name, phone, address")
-          .eq("id", order.customer_id)
+          .eq("id", customerId)
           .maybeSingle();
         if (cust) customer = { name: cust.name || "", phone: cust.phone || "", address: cust.address || "" };
       }
 
       const { data: itemRows } = await sb
         .from("order_items")
-        .select("product_id, product_name, variant, quantity, price, discount")
-        .eq("order_id", orderId);
+        .select("order_id, product_id, product_name, variant, quantity, price, discount")
+        .in("order_id", ids);
       const rawItems = itemRows || [];
       const productIds = [...new Set(rawItems.map((i) => i.product_id).filter(Boolean))];
       const productMap = new Map();
@@ -1262,6 +1294,7 @@ export default async function handler(req, res) {
       const items = rawItems.map((i) => {
         const p = productMap.get(i.product_id);
         return {
+          order_id: i.order_id,
           product_id: i.product_id,
           product_name: i.product_name || "",
           variant: i.variant || null,
@@ -1281,60 +1314,66 @@ export default async function handler(req, res) {
         (s, i) => s + (i.price || 0) * (i.quantity || 0) - (i.discount || 0),
         0
       );
-      const sisa = Math.max(
-        0,
-        (order.total || 0) - (order.diskon || 0) - (order.kode_unik || 0) - (order.paid_total || 0)
-      );
+      const sumField = (k) => found.reduce((s, o) => s + (o[k] || 0), 0);
+      const total = sumField("total");
+      const diskonSum = sumField("diskon");
+      const kodeUnikSum = sumField("kode_unik");
+      const ongkirSum = sumField("ongkir");
+      const paidSum = sumField("paid_total");
+      const sisa = Math.max(0, total - diskonSum - kodeUnikSum - paidSum);
+      const paymentStatus = sisa <= 0 ? "paid" : paidSum > 0 ? "dp" : "unpaid";
 
       // Batas bayar = 2 hari setelah invoice dikirim (konsisten dengan pesan WA)
       let deadline = null;
       try {
-        const base = new Date(order.invoice_sent_at || order.created_at);
-        deadline = new Date(base.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+        const bases = found
+          .map((o) => new Date(o.invoice_sent_at || o.created_at).getTime())
+          .filter((t) => !Number.isNaN(t));
+        if (bases.length > 0) {
+          deadline = new Date(Math.max(...bases) + 2 * 24 * 60 * 60 * 1000).toISOString();
+        }
       } catch {
         deadline = null;
       }
 
       json(res, 200, {
-        order: {
-          id: order.id,
-          created_at: order.created_at,
-          invoice_sent_at: order.invoice_sent_at || null,
-          total: order.total || 0,
-          diskon: order.diskon || 0,
-          kode_unik: order.kode_unik || 0,
-          ongkir: order.ongkir || 0,
-          paid_total: order.paid_total || 0,
-          payment_status: order.payment_status || "unpaid",
-          fulfillment_status: order.fulfillment_status || "",
-          status: order.status || "",
-          notes: order.notes || "",
-          packing_photo: order.packing_photo || "",
-          courier: order.courier || "",
-          resi: order.resi || "",
-          payment_type: order.payment_type || "",
-          order_type: order.order_type || "penjualan",
-          shipping_method: shippingMethod,
-        },
+        order: orders[0],
+        orders,
         customer,
         items,
-        totals: { subtotal, sisa, deadline },
+        totals: {
+          subtotal,
+          sisa,
+          deadline,
+          total,
+          diskon: diskonSum,
+          kode_unik: kodeUnikSum,
+          ongkir: ongkirSum,
+          paid_total: paidSum,
+          payment_status: paymentStatus,
+        },
         shopee: { url: SHOPEE_SHIPPING_URL, pcs: pcsShopee, weight_g: totalWeight },
       });
       return;
     }
 
     if (body.action === "shipping") {
-      const orderId = String(body.orderId || "").trim();
+      const ids = [
+        ...new Set(
+          [...(Array.isArray(body.orderIds) ? body.orderIds : []), body.orderId]
+            .map((x) => String(x || "").trim())
+            .filter(Boolean)
+        ),
+      ];
       const method = String(body.method || "");
-      if (!orderId || (method !== "manual" && method !== "shopee")) {
+      if (ids.length === 0 || (method !== "manual" && method !== "shopee")) {
         json(res, 400, { error: "orderId dan method (manual/shopee) wajib" });
         return;
       }
       const { error: shipErr } = await sb
         .from("orders")
         .update({ shipping_method: method })
-        .eq("id", orderId);
+        .in("id", ids);
       if (shipErr) {
         console.error("[PAY] shipping update failed:", shipErr.message);
         json(res, 500, {

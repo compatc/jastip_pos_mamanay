@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   Loader2,
   CheckCircle2,
@@ -15,42 +15,57 @@ import {
 } from "lucide-react";
 
 interface InvoiceItem {
+  order_id?: string;
   product_id: string | null;
   product_name: string;
   variant: string | null;
   quantity: number;
   price: number;
+  discount?: number;
   image: string;
   stock_type: "ready" | "po" | null;
   weight: number;
   unit: string;
 }
 
+interface InvoiceOrder {
+  id: string;
+  customer_id: string | null;
+  created_at: string;
+  invoice_sent_at: string | null;
+  total: number;
+  diskon: number;
+  kode_unik: number;
+  ongkir: number;
+  paid_total: number;
+  payment_status: string;
+  fulfillment_status: string;
+  status: string;
+  notes: string;
+  packing_photo: string;
+  courier: string;
+  resi: string;
+  payment_type: string;
+  order_type: string;
+  shipping_method: string | null;
+}
+
 interface InvoiceData {
-  order: {
-    id: string;
-    customer_id: string | null;
-    created_at: string;
-    invoice_sent_at: string | null;
-    total: number;
-    diskon: number;
-    kode_unik: number;
-    ongkir: number;
-    paid_total: number;
-    payment_status: string;
-    fulfillment_status: string;
-    status: string;
-    notes: string;
-    packing_photo: string;
-    courier: string;
-    resi: string;
-    payment_type: string;
-    order_type: string;
-    shipping_method: string | null;
-  };
+  order: InvoiceOrder;
+  orders?: InvoiceOrder[];
   customer: { name: string; phone: string; address: string } | null;
   items: InvoiceItem[];
-  totals: { subtotal: number; sisa: number; deadline: string | null };
+  totals: {
+    subtotal: number;
+    sisa: number;
+    deadline: string | null;
+    total?: number;
+    diskon?: number;
+    kode_unik?: number;
+    ongkir?: number;
+    paid_total?: number;
+    payment_status?: string;
+  };
   shopee: { url: string; pcs: number; weight_g: number };
 }
 
@@ -130,6 +145,12 @@ function Progress({ steps }: { steps: { label: string; state: StepState }[] }) {
 
 export default function Invoice() {
   const { orderId } = useParams();
+  const [searchParams] = useSearchParams();
+  const queryIds = searchParams.get("orders") || "";
+  const orderIds = orderId
+    ? [orderId]
+    : queryIds.split(",").map((s) => s.trim()).filter(Boolean);
+  const idsKey = orderIds.join(",");
 
   const [data, setData] = useState<InvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,17 +182,22 @@ export default function Invoice() {
   }
 
   const fetchInvoice = async () => {
-    if (!orderId) return;
+    if (orderIds.length === 0) {
+      setLoading(false);
+      setError("Link invoice tidak valid");
+      return;
+    }
     try {
       const res = await fetch("/api/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "invoice", orderId }),
+        body: JSON.stringify({ action: "invoice", orderIds }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Gagal memuat invoice");
       setData(d);
-      setShippingMethod(d.order.shipping_method || "manual");
+      const first = (d.orders && d.orders[0]) || d.order;
+      setShippingMethod(first?.shipping_method || "manual");
       setError(null);
     } catch (e: any) {
       setError(e.message || "Gagal memuat invoice");
@@ -183,7 +209,7 @@ export default function Invoice() {
   useEffect(() => {
     fetchInvoice();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [idsKey]);
 
   useEffect(() => {
     if (!qrSvg) return;
@@ -208,7 +234,7 @@ export default function Invoice() {
         const res = await fetch("/api/pay", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "confirm", orderId, transactionId: txId }),
+          body: JSON.stringify({ action: "confirm", orderIds, transactionId: txId }),
         });
         const d = await res.json();
         if (d.status === "paid" || d.confirmed) {
@@ -229,14 +255,14 @@ export default function Invoice() {
   }, [txId, qrSvg]);
 
   async function startQr() {
-    if (!orderId) return;
+    if (orderIds.length === 0) return;
     setQrLoading(true);
     setQrError(null);
     try {
       const res = await fetch("/api/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", orderId }),
+        body: JSON.stringify({ action: "create", orderIds }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Gagal membuat QR");
@@ -279,7 +305,7 @@ export default function Invoice() {
       const res = await fetch("/api/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "shipping", orderId, method }),
+        body: JSON.stringify({ action: "shipping", orderIds, method }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Gagal menyimpan");
@@ -295,8 +321,8 @@ export default function Invoice() {
     setBuktiState("uploading");
     try {
       const fd = new FormData();
-      fd.append("order_id", data.order.id);
-      fd.append("order_ids", data.order.id);
+      fd.append("order_id", orderIds[0]);
+      fd.append("order_ids", orderIds.join(","));
       if (data.order.customer_id) fd.append("customer_id", data.order.customer_id);
       fd.append("amount", String(data.totals.sisa));
       fd.append("transfer_date", new Date().toISOString().slice(0, 10));
@@ -344,22 +370,58 @@ export default function Invoice() {
     );
   }
 
-  const { order, customer, items, totals, shopee } = data;
+  const { customer, items, totals, shopee } = data;
+  const ordersList: InvoiceOrder[] =
+    data.orders && data.orders.length > 0 ? data.orders : [data.order];
+  const order = ordersList[0];
+  const isMulti = ordersList.length > 1;
   const sisa = totals.sisa;
+  const sumTotal = totals.total ?? ordersList.reduce((s, o) => s + (o.total || 0), 0);
+  const sumDiskon = totals.diskon ?? ordersList.reduce((s, o) => s + (o.diskon || 0), 0);
+  const sumKodeUnik = totals.kode_unik ?? ordersList.reduce((s, o) => s + (o.kode_unik || 0), 0);
+  const sumOngkir = totals.ongkir ?? ordersList.reduce((s, o) => s + (o.ongkir || 0), 0);
+  const sumPaid = totals.paid_total ?? ordersList.reduce((s, o) => s + (o.paid_total || 0), 0);
   const isPaid = sisa <= 0;
-  const isCancelled = order.fulfillment_status === "cancelled";
+  const paymentStatus =
+    totals.payment_status ||
+    (isPaid ? "paid" : sumPaid > 0 ? "dp" : order.payment_status || "unpaid");
+  const isCancelled = ordersList.every((o) => o.fulfillment_status === "cancelled");
   const hasPo = items.some((i) => i.stock_type === "po");
   const phoneDigits = (customer?.phone || "").replace(/\D/g, "");
   const phoneLast4 = phoneDigits.slice(-4);
   const noteShopee = `${(customer?.name || "Pelanggan").split(" ")[0]} ${phoneLast4}`.trim();
-  const invoiceNo = `INV-${(order.created_at || "").slice(0, 10).replace(/-/g, "")}-${(order.id || "").slice(0, 4).toUpperCase()}`;
+  const invoiceNo = `INV-${(order.created_at || "").slice(0, 10).replace(/-/g, "")}-${(order.id || "").slice(0, 4).toUpperCase()}${
+    isMulti ? ` +${ordersList.length - 1} lainnya` : ""
+  }`;
+  const invoicePath = isMulti
+    ? `invoice?orders=${ordersList.map((o) => o.id).join(",")}`
+    : `invoice/${order.id}`;
 
-  let stage: "po" | "dikemas" | "shipped" | "done" = "dikemas";
-  if (order.fulfillment_status === "completed") stage = "done";
-  else if (order.fulfillment_status === "shipped" || order.fulfillment_status === "diterima")
-    stage = "shipped";
-  else if (order.fulfillment_status === "belum_ready") stage = hasPo ? "po" : "dikemas";
-  else if (hasPo && !isPaid) stage = "po";
+  const itemsByOrderId = new Map<string, InvoiceItem[]>();
+  for (const it of items) {
+    const key = it.order_id || order.id;
+    if (!itemsByOrderId.has(key)) itemsByOrderId.set(key, []);
+    itemsByOrderId.get(key)!.push(it);
+  }
+
+  type Stage = "po" | "dikemas" | "shipped" | "done";
+  const stageOf = (o: InvoiceOrder): Stage => {
+    const po = (itemsByOrderId.get(o.id) || []).some((i) => i.stock_type === "po");
+    if (o.fulfillment_status === "completed") return "done";
+    if (o.fulfillment_status === "shipped" || o.fulfillment_status === "diterima") return "shipped";
+    if (o.fulfillment_status === "belum_ready") return po ? "po" : "dikemas";
+    if (po && !isPaid) return "po";
+    return "dikemas";
+  };
+  const stages = ordersList.map(stageOf);
+  const sameStage = stages.every((s) => s === stages[0]);
+  const stage: Stage = stages[0];
+  const STAGE_LABEL: Record<Stage, string> = {
+    po: "Dipesan (PO)",
+    dikemas: "Dikemas",
+    shipped: "Dikirim",
+    done: "Selesai",
+  };
 
   const stageSteps: Record<typeof stage, { label: string; state: StepState }[]> = {
     po: [
@@ -390,9 +452,9 @@ export default function Invoice() {
 
   const payPill = isCancelled
     ? { label: "Dibatalkan", cls: "bg-red-50 text-red-600", dot: "bg-red-500" }
-    : order.payment_status === "paid" || isPaid
+    : paymentStatus === "paid" || isPaid
       ? { label: "Lunas", cls: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" }
-      : order.payment_status === "dp"
+      : paymentStatus === "dp"
         ? { label: "DP", cls: "bg-amber-50 text-amber-700", dot: "bg-amber-500" }
         : { label: "Belum Dibayar", cls: "bg-red-50 text-red-600", dot: "bg-red-500" };
 
@@ -406,7 +468,21 @@ export default function Invoice() {
     completed: { label: "Selesai", cls: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
     cancelled: { label: "Dibatalkan", cls: "bg-red-50 text-red-600", dot: "bg-red-500" },
   };
-  const fulfillPill = fulfillMap[order.fulfillment_status] || fulfillMap.ready;
+  const sameFulfill = ordersList.every(
+    (o) => o.fulfillment_status === order.fulfillment_status
+  );
+  const fulfillPill = isCancelled
+    ? fulfillMap.cancelled
+    : sameFulfill
+      ? fulfillMap[order.fulfillment_status] || fulfillMap.ready
+      : { label: `${ordersList.length} pesanan`, cls: "bg-slate-100 text-slate-600", dot: "bg-slate-400" };
+
+  const packings = ordersList.filter((o) => o.packing_photo);
+  const resiRows = ordersList.filter(
+    (o) => o.resi && (stageOf(o) === "shipped" || stageOf(o) === "done")
+  );
+  const notesRows = ordersList.filter((o) => o.notes);
+  const paymentType = ordersList.map((o) => o.payment_type).find((t) => t) || "QRIS";
 
   const card = "bg-white border border-slate-200/80 rounded-2xl p-4 mb-3";
   const labelTitle =
@@ -434,7 +510,9 @@ export default function Invoice() {
           <span className="inline-block mt-1.5 bg-white/20 border border-white/25 backdrop-blur px-2.5 py-1 rounded-lg font-mono text-[13px] font-bold tracking-wide">
             {invoiceNo}
           </span>
-          <div className="text-[11px] text-white/80 mt-1.5">📅 {fmtDateTime(order.created_at)} WIB</div>
+          <div className="text-[11px] text-white/80 mt-1.5">
+            📅 {fmtDateTime(order.created_at)} WIB{isMulti ? ` · ${ordersList.length} pesanan` : ""}
+          </div>
         </div>
       </div>
 
@@ -455,11 +533,36 @@ export default function Invoice() {
               {fulfillPill.label}
             </span>
           </div>
-          <Progress steps={stageSteps[stage]} />
+          {sameStage ? (
+            <Progress steps={stageSteps[stage]} />
+          ) : (
+            <div className="mt-3 flex flex-col gap-1.5">
+              {ordersList.map((o, idx) => (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-2.5 py-1.5"
+                >
+                  <span className="font-mono text-[11px] text-slate-500 shrink-0">
+                    #{(o.id || "").slice(0, 6).toUpperCase()}
+                  </span>
+                  <span className="text-[11px] text-slate-500 truncate">
+                    {STAGE_LABEL[stages[idx]]}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                      (fulfillMap[o.fulfillment_status] || fulfillMap.ready).cls
+                    }`}
+                  >
+                    {(fulfillMap[o.fulfillment_status] || fulfillMap.ready).label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* PO BANNER */}
-        {stage === "po" && hasPo && !isCancelled && (
+        {hasPo && stages.includes("po") && !isCancelled && (
           <div className={card}>
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-[12px] text-orange-800 leading-relaxed">
               🕐 Sebagian barang adalah <b>pre-order</b>. Pesanan dikirim setelah semua barang ready —
@@ -508,55 +611,85 @@ export default function Invoice() {
               <span className="text-orange-600 font-bold">{items.filter((i) => i.stock_type === "po").length} pre-order</span>
             </span>
           </div>
-          <div className="bg-slate-50 rounded-xl overflow-hidden">
-            {items.map((it, idx) => (
-              <div
-                key={idx}
-                className={`flex items-center gap-2.5 p-3 ${idx > 0 ? "border-t border-slate-100" : ""}`}
-              >
-                {it.image ? (
-                  <img
-                    src={it.image}
-                    alt=""
-                    className="w-11 h-11 rounded-xl object-cover bg-white border border-slate-100 shrink-0"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className="w-11 h-11 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-lg shrink-0">
-                    🛍️
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold text-slate-800 leading-snug">
-                    {it.product_name}
-                    {it.variant && (
-                      <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md ml-1.5 align-middle">
-                        {it.variant}
-                      </span>
-                    )}
+          <div className="flex flex-col gap-2">
+            {(isMulti
+              ? ordersList.map((o) => ({ ref: o, groupItems: itemsByOrderId.get(o.id) || [] }))
+              : [{ ref: order, groupItems: items }]
+            ).map((grp) => (
+              <div key={grp.ref.id} className="bg-slate-50 rounded-xl overflow-hidden">
+                {isMulti && (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-slate-100">
+                    <span className="font-mono text-[11px] font-bold text-slate-500 shrink-0">
+                      #{(grp.ref.id || "").slice(0, 6).toUpperCase()}
+                    </span>
                     <span
-                      className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md ml-1.5 align-middle ${
-                        it.stock_type === "po"
-                          ? "bg-orange-100 text-orange-700"
-                          : "bg-emerald-100 text-emerald-700"
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full truncate ${
+                        (fulfillMap[grp.ref.fulfillment_status] || fulfillMap.ready).cls
                       }`}
                     >
-                      {it.stock_type === "po" ? "PO" : "Ready"}
+                      {(fulfillMap[grp.ref.fulfillment_status] || fulfillMap.ready).label}
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-700 shrink-0">
+                      {rupiah(grp.ref.total)}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
-                    {it.stock_type === "po" ? "Pre-order · dikirim setelah ready" : "Dikirim bersama pesanan"}
+                )}
+                {grp.groupItems.map((it, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-2.5 p-3 ${
+                      idx > 0 ? "border-t border-slate-100" : ""
+                    }`}
+                  >
+                    {it.image ? (
+                      <img
+                        src={it.image}
+                        alt=""
+                        className="w-11 h-11 rounded-xl object-cover bg-white border border-slate-100 shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-lg shrink-0">
+                        🛍️
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-semibold text-slate-800 leading-snug">
+                        {it.product_name}
+                        {it.variant && (
+                          <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md ml-1.5 align-middle">
+                            {it.variant}
+                          </span>
+                        )}
+                        <span
+                          className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md ml-1.5 align-middle ${
+                            it.stock_type === "po"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {it.stock_type === "po" ? "PO" : "Ready"}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {it.stock_type === "po"
+                          ? "Pre-order · dikirim setelah ready"
+                          : "Dikirim bersama pesanan"}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-[13px] font-bold text-slate-700">
+                        {rupiah(it.price * it.quantity - (it.discount || 0))}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-semibold">
+                        × {it.quantity}
+                        {it.quantity > 1 ? ` @ ${rupiah(it.price)}` : ""}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[13px] font-bold text-slate-700">{rupiah(it.price * it.quantity)}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">
-                    × {it.quantity}
-                    {it.quantity > 1 ? ` @ ${rupiah(it.price)}` : ""}
-                  </div>
-                </div>
+                ))}
               </div>
             ))}
           </div>
@@ -567,38 +700,40 @@ export default function Invoice() {
               <span>Subtotal ({items.length} jenis barang)</span>
               <span>{rupiah(totals.subtotal)}</span>
             </div>
-            {order.diskon > 0 && (
+            {sumDiskon > 0 && (
               <div className="flex justify-between py-0.5 text-emerald-600">
                 <span>🏷️ Diskon</span>
-                <span>− {rupiah(order.diskon)}</span>
+                <span>− {rupiah(sumDiskon)}</span>
               </div>
             )}
-            {order.ongkir > 0 && (
+            {sumOngkir > 0 && (
               <div className="flex justify-between py-0.5 text-slate-500">
                 <span>🚚 Ongkir</span>
-                <span>{rupiah(order.ongkir)}</span>
+                <span>{rupiah(sumOngkir)}</span>
               </div>
             )}
-            {order.kode_unik > 0 && (
+            {sumKodeUnik > 0 && (
               <div className="flex justify-between py-0.5 text-slate-500">
                 <span>🔑 Kode unik QRIS</span>
-                <span>+ {rupiah(order.kode_unik)}</span>
+                <span>+ {rupiah(sumKodeUnik)}</span>
               </div>
             )}
             <div className="flex justify-between pt-2 mt-1.5 border-t border-slate-800 font-extrabold text-[16px] text-slate-900">
               <span>TOTAL TAGIHAN</span>
-              <span>{rupiah(order.total)}</span>
+              <span>{rupiah(sumTotal)}</span>
             </div>
-            {order.paid_total > 0 && !isPaid && (
+            {sumPaid > 0 && !isPaid && (
               <div className="flex justify-between py-0.5 text-emerald-600 font-semibold">
                 <span>Sudah dibayar</span>
-                <span>− {rupiah(order.paid_total)}</span>
+                <span>− {rupiah(sumPaid)}</span>
               </div>
             )}
             {isPaid ? (
               <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex justify-between items-center">
                 <span className="text-[12px] font-bold text-emerald-700">✅ LUNAS</span>
-                <span className="text-[13px] font-extrabold text-emerald-700">{rupiah(order.total - (order.kode_unik || 0))}</span>
+                <span className="text-[13px] font-extrabold text-emerald-700">
+                  {rupiah(sumTotal - sumKodeUnik)}
+                </span>
               </div>
             ) : (
               <div className="mt-2 bg-pink-50 border border-pink-200 rounded-xl px-3 py-2 flex justify-between items-center">
@@ -628,7 +763,7 @@ export default function Invoice() {
               {rupiah(sisa)}
             </div>
             <div className="text-[11px] text-slate-500">
-              {order.payment_status === "dp" && "DP diterima · "}
+              {paymentStatus === "dp" && "DP diterima · "}
               {totals.deadline && new Date(totals.deadline).getTime() > Date.now()
                 ? `Bayar sebelum ${fmtDateTime(totals.deadline)} WIB`
                 : "Segera bayar agar pesanan diproses"}
@@ -797,11 +932,11 @@ export default function Invoice() {
                   ✅ Pembayaran Diterima
                 </div>
                 <div className="text-[24px] font-extrabold tracking-tight text-slate-900 mt-0.5">
-                  {rupiah(order.total - (order.kode_unik || 0))}
+                  {rupiah(sumTotal - sumKodeUnik)}
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  {order.paid_total > 0 ? `Terbayar ${rupiah(order.paid_total)} · ` : ""}
-                  {order.payment_type ? order.payment_type.toUpperCase() : "QRIS"}
+                  {sumPaid > 0 ? `Terbayar ${rupiah(sumPaid)} · ` : ""}
+                  {paymentType ? paymentType.toUpperCase() : "QRIS"}
                 </div>
               </div>
               <div className="w-11 h-11 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xl font-extrabold shadow-lg shadow-emerald-200">
@@ -812,7 +947,7 @@ export default function Invoice() {
         )}
 
         {/* SHIPPING CHOICE */}
-        {!isCancelled && order.order_type === "penjualan" && (
+        {!isCancelled && ordersList.some((o) => o.order_type === "penjualan") && (
           <div className={card}>
             <div className={labelTitle}>🚚 Metode Pengiriman</div>
             <div className="flex flex-col gap-2">
@@ -916,42 +1051,66 @@ export default function Invoice() {
         )}
 
         {/* PACKING PHOTO */}
-        {!isPaid ? null : order.packing_photo ? (
+        {isPaid && packings.length > 0 && (
           <div className={card}>
             <div className={labelTitle}>📦 Foto Packing</div>
-            <div className="flex items-center gap-3">
-              <img
-                src={order.packing_photo}
-                alt="Foto packing"
-                className="w-16 h-16 rounded-xl object-cover border border-slate-200"
-              />
-              <div className="text-[12px] text-slate-500 leading-relaxed">
-                <b className="block text-slate-800 text-[13px]">Pesanan dipacking</b>
-                Klik foto untuk memperbesar. Resi menyusul via WhatsApp.
-              </div>
+            <div className="flex flex-col gap-3">
+              {packings.map((o) => (
+                <div key={o.id} className="flex items-center gap-3">
+                  <img
+                    src={o.packing_photo || ""}
+                    alt="Foto packing"
+                    className="w-16 h-16 rounded-xl object-cover border border-slate-200"
+                  />
+                  <div className="text-[12px] text-slate-500 leading-relaxed">
+                    <b className="block text-slate-800 text-[13px]">
+                      {isMulti ? `Pesanan #${(o.id || "").slice(0, 6).toUpperCase()}` : "Pesanan dipacking"}
+                    </b>
+                    Klik foto untuk memperbesar. Resi menyusul via WhatsApp.
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ) : null}
+        )}
 
         {/* RESI */}
-        {order.resi && (stage === "shipped" || stage === "done") && (
+        {resiRows.length > 0 && (
           <div className={card}>
             <div className={labelTitle}>🚚 Info Pengiriman</div>
-            <div className="bg-slate-50 rounded-xl px-3">
-              <div className="flex justify-between py-2 text-[12px] text-slate-500">
-                <span>Kurir</span>
-                <b className="text-slate-800">
-                  {COURIER_LABELS[order.courier] || order.courier || "-"}
-                </b>
-              </div>
-              <div className="flex justify-between py-2 text-[12px] text-slate-500 border-t border-slate-100">
-                <span>No. Resi</span>
-                <b className="font-mono text-slate-800 tracking-wide">{order.resi}</b>
-              </div>
-              <div className="flex justify-between py-2 text-[12px] text-slate-500 border-t border-slate-100">
-                <span>Status</span>
-                <b className="text-blue-700">{fulfillPill.label}</b>
-              </div>
+            <div className="flex flex-col gap-2">
+              {resiRows.map((o) => {
+                const st = stageOf(o);
+                const fp = fulfillMap[o.fulfillment_status] || fulfillMap.ready;
+                return (
+                  <div key={o.id} className="bg-slate-50 rounded-xl px-3">
+                    {isMulti && (
+                      <div className="font-mono text-[11px] font-bold text-slate-500 pt-2">
+                        #{(o.id || "").slice(0, 6).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex justify-between py-2 text-[12px] text-slate-500">
+                      <span>Kurir</span>
+                      <b className="text-slate-800">
+                        {COURIER_LABELS[o.courier] || o.courier || "-"}
+                      </b>
+                    </div>
+                    <div className="flex justify-between py-2 text-[12px] text-slate-500 border-t border-slate-100">
+                      <span>No. Resi</span>
+                      <b className="font-mono text-slate-800 tracking-wide">{o.resi}</b>
+                    </div>
+                    <div className="flex justify-between py-2 text-[12px] text-slate-500 border-t border-slate-100">
+                      <span>Status</span>
+                      <b className="text-blue-700">
+                        {sameFulfill && !isMulti ? fulfillPill.label : fp.label}
+                      </b>
+                    </div>
+                    {isMulti && st === "po" && (
+                      <div className="pb-2 text-[10px] font-bold text-orange-600">Menunggu barang ready</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <p className="text-[10px] text-slate-400 text-center mt-2">
               Resi juga dikirim otomatis ke WhatsApp kamu
@@ -960,13 +1119,25 @@ export default function Invoice() {
         )}
 
         {/* NOTES */}
-        {order.notes && (
+        {notesRows.length > 0 && (
           <div className={card}>
             <div className={labelTitle}>
               <StickyNote className="w-3.5 h-3.5" /> Catatan dari penjual
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[12px] text-amber-900 leading-relaxed">
-              {order.notes}
+            <div className="flex flex-col gap-2">
+              {notesRows.map((o) => (
+                <div
+                  key={o.id}
+                  className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[12px] text-amber-900 leading-relaxed"
+                >
+                  {isMulti && (
+                    <b className="block font-mono text-[10px] text-amber-600 mb-1">
+                      #{(o.id || "").slice(0, 6).toUpperCase()}
+                    </b>
+                  )}
+                  {o.notes}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -990,8 +1161,8 @@ export default function Invoice() {
         <div className="text-center text-[10px] text-slate-400 leading-relaxed py-3">
           Link invoice ini bisa dibuka kapan saja tanpa login.
           <br />
-          <b className="text-slate-500">
-            mamanay.vercel.app/invoice/{order.id}
+          <b className="text-slate-500 break-all">
+            mamanay.vercel.app/{invoicePath}
           </b>
           <div className="mt-2 inline-flex items-center gap-1.5 text-slate-400">
             <Truck className="w-3 h-3" />

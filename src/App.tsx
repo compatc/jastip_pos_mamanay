@@ -139,6 +139,7 @@ export default function App() {
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/catalog/:id" element={<Catalog />} />
             <Route path="/invoice/:orderId" element={<Invoice />} />
+            <Route path="/invoice" element={<Invoice />} />
           <Route
             path="/piutang"
             element={
