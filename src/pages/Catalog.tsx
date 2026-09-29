@@ -919,7 +919,7 @@ export default function Catalog() {
             </p>
             <div className="flex flex-col gap-2">
               <a
-                href={`/pay/${orderSuccess}`}
+                href={`/invoice/${orderSuccess}`}
                 className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] inline-block"
               >
                 Bayar Sekarang

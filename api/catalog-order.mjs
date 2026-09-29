@@ -613,14 +613,14 @@ export default async function handler(req, res) {
     // Send payment link to customer via WhatsApp
     const customerPhoneNorm = phone.trim().replace(/[^0-9]/g, "").replace(/^0+/, "");
     const customerPhone62 = customerPhoneNorm.startsWith("62") ? customerPhoneNorm : "62" + customerPhoneNorm;
-    const payLink = "https://mamanay.vercel.app/pay/" + orderId;
+    const invoiceLink = "https://mamanay.vercel.app/invoice/" + orderId;
     let custMsg = "Halo " + customer_name.trim() + "! ≡ƒæï\n\n";
     custMsg += "Terima kasih sudah pesan di *jastip_mamanay* Γ£¿\n\n";
     custMsg += "≡ƒôª *Ringkasan Pesanan:*\n" + itemList + "\n\n";
     custMsg += "≡ƒÆ░ *Total: Rp " + subtotal.toLocaleString("id-ID") + "*\n\n";
-    custMsg += "Silakan klik link di bawah untuk pembayaran QRIS:\n";
-    custMsg += payLink + "\n\n";
-    custMsg += "ΓÅ░ Link berlaku 15 menit. Setelah bayar, admin akan segera memproses pesanan Anda.";
+    custMsg += "Silakan klik link di bawah untuk melihat invoice & bayar QRIS:\n";
+    custMsg += invoiceLink + "\n\n";
+    custMsg += "ΓÅ░ Link berlaku 15 menit setelah QR dibuat. Setelah bayar, admin akan segera memproses pesanan Anda.";
 
     try {
       await fetch(botUrl + "/api/send-invoice", {

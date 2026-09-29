@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useStore } from "../stores/useStore";
-import { payOrderLink } from "../lib/payLinks";
+import { invoiceOrderLink } from "../lib/payLinks";
 import { supabase } from "../lib/supabase";
 import {
   ArrowLeft,
@@ -133,7 +133,7 @@ export default function OrderDetail() {
 
   useEffect(() => {
     if (order && !isOrderLunas(order) && order.total > 0) {
-      setQrisLink(payOrderLink(order.id));
+      setQrisLink(invoiceOrderLink(order.id));
     }
   }, [order?.id]);
 
@@ -601,7 +601,7 @@ export default function OrderDetail() {
                   <ExternalLink className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-800">QRIS Dinamis</p>
+                  <p className="text-xs font-semibold text-gray-800">Invoice &amp; QRIS</p>
                   <p className="text-[10px] text-gray-400 truncate">{qrisLink}</p>
                 </div>
                 <button
