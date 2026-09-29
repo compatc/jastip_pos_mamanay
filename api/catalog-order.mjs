@@ -224,6 +224,9 @@ export default async function handler(req, res) {
       }
       for (const m of movements || []) {
         const pid = m.product_id;
+        // Produk TANPA varian: jangan buat varian palsu dari stock_movement —
+        // stok tetap dari products.stock (movement90 hari hanya potongan, bukan stok awal)
+        if (!variantDetailsMap[pid]) continue;
         const v = m.variant || "(tanpa varian)";
         if (!variantStockMap[pid]) variantStockMap[pid] = {};
         variantStockMap[pid][v] = (variantStockMap[pid][v] || 0) + m.qty;
@@ -270,7 +273,7 @@ export default async function handler(req, res) {
       const ptMap = {}; for (const pt of bPt || []) { if (!ptMap[pt.product_id]) ptMap[pt.product_id] = []; const tn = tMap[pt.tag_id]; if (tn) ptMap[pt.product_id].push(tn); }
       const vsMap = {}; const vdMap = {};
       for (const v of bVar || []) { if (!vsMap[v.product_id]) vsMap[v.product_id] = {}; vsMap[v.product_id][v.name] = v.stock || 0; if (!vdMap[v.product_id]) vdMap[v.product_id] = []; vdMap[v.product_id].push({ id: v.id, name: v.name, image: v.image || "", stock: v.stock || 0, stock_type: v.stock_type || null }); }
-      for (const m of bMov || []) { const pid = m.product_id; const v = m.variant || "(tanpa varian)"; if (!vsMap[pid]) vsMap[pid] = {}; vsMap[pid][v] = (vsMap[pid][v] || 0) + m.qty; const d = vdMap[pid]; if (d) { const vd = d.find(x => x.name === v); if (vd) vd.stock = (vd.stock || 0) + m.qty; } }
+      for (const m of bMov || []) { const pid = m.product_id; if (!vdMap[pid]) continue; const v = m.variant || "(tanpa varian)"; if (!vsMap[pid]) vsMap[pid] = {}; vsMap[pid][v] = (vsMap[pid][v] || 0) + m.qty; const d = vdMap[pid]; if (d) { const vd = d.find(x => x.name === v); if (vd) vd.stock = (vd.stock || 0) + m.qty; } }
       const result = (prodData || []).map(p => { const vs = vsMap[p.id]; const hv = vs && Object.keys(vs).length > 0; const rs = hv ? Object.values(vs).reduce((a, b) => a + Math.max(0, b), 0) : p.stock; return { ...p, stock: rs, variants: vdMap[p.id] || [], tags: ptMap[p.id] || [] }; });
       const payload = JSON.stringify({ ok: true, data: result, built_at: new Date().toISOString() });
       const bodyBuf = Buffer.from(payload, "utf8");
