@@ -1,6 +1,12 @@
-import { precacheAndRoute } from "workbox-precaching";
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 
 declare const self: any;
+
+// Biar deploy baru langsung aktif: SW lama jangan nyimpen index.html basi
+// (nama chunk berubah tiap build → index lama minta chunk yang sudah 404)
+cleanupOutdatedCaches();
+self.skipWaiting();
+self.clients.claim();
 
 precacheAndRoute(self.__WB_MANIFEST);
 
