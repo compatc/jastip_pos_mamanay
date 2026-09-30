@@ -807,7 +807,10 @@
           <div class="brand-icon">&#128722;</div>
           <div class="brand-text">jastip_mamanay</div>
         </div>
-        <button class="btn-logout" id="btnLogout">Ganti Akun</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-logout" id="btnReload" onclick="reloadOrders()">&#10227; Muat ulang</button>
+          <button class="btn-logout" id="btnLogout">Ganti Akun</button>
+        </div>
       </div>
       <div class="greeting">
         <h1 id="customerName">Halo!</h1>
@@ -1002,21 +1005,90 @@
       });
     }
 
+    function unpaidSisa(o) {
+      return (o.total || 0) - (o.paid_total || 0) - (o.diskon || 0);
+    }
+
     function updateGrandTotal() {
       var total = 0;
       var count = 0;
+      var readyCount = 0;
+      var poCount = 0;
       for (var k in selectedOrders) {
         total += selectedOrders[k];
         count++;
+        var ord = null;
+        for (var i = 0; i < unpaidOrders.length; i++) {
+          if (unpaidOrders[i].id === k) { ord = unpaidOrders[i]; break; }
+        }
+        if (ord && ord.fulfillment_status === 'belum_ready') poCount++;
+        else readyCount++;
       }
+      var grandAll = unpaidOrders.reduce(function(s, o) { return s + unpaidSisa(o); }, 0);
+      var show = count > 0 ? total : grandAll;
       var el = document.getElementById('grandTotalAmount');
-      if (el) el.textContent = fmt(total);
+      if (el) el.textContent = fmt(show);
       var el2 = document.getElementById('grandTotalCount');
-      if (el2) el2.textContent = count + ' invoice dipilih';
+      if (el2) el2.textContent = count > 0 ? count + ' invoice dipilih' : unpaidOrders.length + ' invoice';
+      var elMeta = document.getElementById('grandTotalMeta');
+      if (elMeta) elMeta.textContent = count > 0 ? 'siap bayar' : 'belum lunas';
+      var split = document.getElementById('grandSplit');
+      if (split) {
+        split.textContent = count > 0
+          ? readyCount + ' siap dikirim \u00b7 ' + poCount + ' PO ditunda'
+          : (unpaidOrders.length > 1 ? 'Belum ada dipilih \u2014 centang manual atau pakai tombol di atas' : '');
+      }
       var btn = document.getElementById('btnPaySelected');
-      if (btn) btn.style.display = count > 0 ? '' : 'none';
+      if (btn) {
+        btn.style.display = unpaidOrders.length > 0 ? '' : 'none';
+        btn.textContent = count > 0
+          ? 'Bayar ' + count + ' invoice (' + fmt(total) + ')'
+          : 'Bayar semua (' + fmt(grandAll) + ')';
+      }
       var btnTf = document.getElementById('btnTfSelected');
-      if (btnTf) btnTf.style.display = count > 0 ? '' : 'none';
+      if (btnTf) {
+        btnTf.style.display = unpaidOrders.length > 0 ? '' : 'none';
+        btnTf.textContent = count > 0
+          ? 'Transfer ' + count + ' invoice (' + fmt(total) + ')'
+          : 'Transfer semua (' + fmt(grandAll) + ')';
+      }
+    }
+
+    function setSelection(ids) {
+      selectedOrders = {};
+      unpaidOrders.forEach(function(o) {
+        if (ids.indexOf(o.id) >= 0) selectedOrders[o.id] = unpaidSisa(o);
+      });
+      updateGrandTotal();
+      document.querySelectorAll('.order-checkbox').forEach(function(cb) {
+        cb.checked = !!selectedOrders[cb.getAttribute('data-order-id')];
+      });
+      document.querySelectorAll('.card[data-card-id]').forEach(function(card) {
+        card.classList.toggle('selected', !!selectedOrders[card.getAttribute('data-card-id')]);
+      });
+      var sa = document.getElementById('selectAllCb');
+      if (sa) sa.checked = unpaidOrders.length > 0 && unpaidOrders.every(function(o) { return !!selectedOrders[o.id]; });
+    }
+
+    function selectReadyOnly() {
+      var ids = unpaidOrders
+        .filter(function(o) { return o.fulfillment_status !== 'belum_ready' && o.fulfillment_status !== 'cancelled'; })
+        .map(function(o) { return o.id; });
+      setSelection(ids);
+    }
+
+    function clearSelection() {
+      setSelection([]);
+    }
+
+    function reloadOrders() {
+      allOrdersCache = [];
+      allItemsCache = {};
+      var hc = document.getElementById('historyContent');
+      if (hc) hc.innerHTML = '';
+      showDashboard();
+      var activeTab = document.querySelector('.tab.active');
+      if (activeTab && activeTab.getAttribute('data-tab') === 'riwayat') loadHistory();
     }
 
     function paySelected() {
@@ -1082,12 +1154,17 @@
         html += '<div class="grand-total-amount" id="grandTotalAmount">' + fmt(grandTotal) + '</div>';
         html += '<div class="grand-total-meta">';
         html += '<span class="meta-badge" id="grandTotalCount">' + unpaid.length + ' invoice</span>';
-        html += '<span class="meta-text">belum lunas</span>';
+        html += '<span class="meta-text" id="grandTotalMeta">belum lunas</span>';
         html += '</div>';
         html += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">';
-        html += '<button class="btn-pay-all" id="btnPaySelected" onclick="paySelected()" style="width:100%;">Bayar via QRIS</button>';
-        html += '<button class="btn-confirm-tf" id="btnTfSelected" onclick="tfSelected()" style="width:100%;">Konfirmasi Transfer BCA</button>';
+        html += '<button class="btn-pay-all" id="btnPaySelected" onclick="paySelected()" style="width:100%;">Bayar semua</button>';
+        html += '<button class="btn-confirm-tf" id="btnTfSelected" onclick="tfSelected()" style="width:100%;">Transfer semua</button>';
         html += '</div>';
+        html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+        html += '<button onclick="selectReadyOnly()" style="flex:1;font-size:11px;padding:9px;background:#fff;color:#db2777;border:1.5px dashed #f9a8d4;border-radius:10px;font-weight:800;cursor:pointer;">&#9889; Pilih semua yang Ready</button>';
+        html += '<button onclick="clearSelection()" style="flex:1;font-size:11px;padding:9px;background:#fff;color:#475569;border:1.5px solid #e2e8f0;border-radius:10px;font-weight:800;cursor:pointer;">Hapus pilihan</button>';
+        html += '</div>';
+        html += '<div id="grandSplit" style="margin-top:6px;font-size:11px;color:#94a3b8;font-weight:700;"></div>';
         html += '</div>';
         html += '<div class="section-bar">';
         html += '<span class="section-title">Belum Dibayar</span>';
@@ -1151,6 +1228,7 @@
           openTfModal(orderId, sisa);
         });
       });
+      updateGrandTotal();
       recheckPendingQris(unpaid);
     }
 
@@ -1416,6 +1494,7 @@
       else if (fs === 'completed') { kirimLabel = 'Selesai'; kirimCls = 'status-paid'; }
       else if (fs === 'ready') { kirimLabel = 'Ready'; kirimCls = 'status-ready'; }
       else { kirimLabel = 'Belum Ready'; kirimCls = 'status-belum-ready'; }
+      var fulfilReady = (fs === 'ready' || fs === 'shipped' || fs === 'completed');
 
       var h = '<div class="card" data-card-id="' + order.id + '">';
 
@@ -1428,9 +1507,10 @@
       h += '<span class="card-id">#' + shortId(order.id) + '</span>';
       h += '<span class="card-date">' + fmtDate(order.created_at) + '</span>';
       h += '</div></div>';
-      h += '<div style="display:flex;gap:4px;">';
+      h += '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">';
       h += '<span class="card-status ' + bayarCls + '"><span class="status-dot"></span>' + bayarLabel + '</span>';
       if (kirimLabel) h += '<span class="card-status ' + kirimCls + '"><span class="status-dot"></span>' + kirimLabel + '</span>';
+      if (order.shipping_method === 'shopee') h += '<span class="card-status" style="background:#fff7ed;color:#c2410c;"><span class="status-dot" style="background:#f97316;"></span>&#128722; Shopee</span>';
       h += '</div></div>';
 
       // Items with images
@@ -1446,7 +1526,14 @@
         h += '<div class="card-item">';
         h += imgHtml;
         h += '<div class="card-item-info">';
-        h += '<div class="card-item-name">' + escHtml(item.product_name) + '</div>';
+        var badgeHtml = '';
+        if (item.stock_type) {
+          var isPoItem = (item.stock_type === 'po' && !fulfilReady);
+          badgeHtml = isPoItem
+            ? '<span style="display:inline-block;font-size:9px;font-weight:800;padding:1px 6px;border-radius:6px;background:#ffedd5;color:#c2410c;margin-left:6px;vertical-align:middle;">PO</span>'
+            : '<span style="display:inline-block;font-size:9px;font-weight:800;padding:1px 6px;border-radius:6px;background:#dcfce7;color:#15803d;margin-left:6px;vertical-align:middle;">Ready</span>';
+        }
+        h += '<div class="card-item-name">' + escHtml(item.product_name) + badgeHtml + '</div>';
         if (item.variant) h += '<div class="card-item-meta"><span class="variant">' + escHtml(item.variant) + '</span></div>';
         h += '<div class="card-item-qty-price">Rp' + (item.price || 0).toLocaleString('id-ID') + ' &times; ' + item.quantity + '</div>';
         h += '</div></div>';
@@ -1467,7 +1554,22 @@
       if (sisa > 0) {
         h += '<div class="card-row sisa"><span>Sisa</span><span>' + fmt(sisa) + '</span></div>';
       }
+      if ((fs === 'shipped' || fs === 'completed') && order.resi) {
+        if (order.courier) h += '<div class="card-row"><span>Kurir</span><span style="font-weight:700;">' + escHtml(String(order.courier).toUpperCase()) + '</span></div>';
+        h += '<div class="card-row"><span>No. Resi</span><span style="font-family:monospace;font-weight:700;">' + escHtml(order.resi) + '</span></div>';
+      } else if ((fs === 'shipped' || fs === 'completed') && order.shipping_method === 'shopee') {
+        h += '<div class="card-row"><span>No. Resi</span><span style="color:#94a3b8;">Resi Shopee menyusul</span></div>';
+      }
       h += '</div>';
+
+      // Status bayar vs kirim
+      if (sisa > 0 && fs !== 'cancelled') {
+        if (fs === 'belum_ready') {
+          h += '<div style="font-size:10.5px;font-weight:800;color:#c2410c;background:#fff7ed;border:1px dashed #fdba74;border-radius:8px;padding:6px 8px;margin-top:8px;">&#8987; Barang nyampe dulu — boleh bayar nanti</div>';
+        } else if (fs === 'ready') {
+          h += '<div style="font-size:10.5px;font-weight:800;color:#047857;background:#ecfdf5;border:1px dashed #6ee7b7;border-radius:8px;padding:6px 8px;margin-top:8px;">&#10004; Siap dikirim setelah lunas</div>';
+        }
+      }
 
       // Notes
       if (order.notes) {
@@ -1480,6 +1582,11 @@
       if (order.packing_photo) {
         h += '<div class="card-packing"><img src="' + order.packing_photo + '" alt="Foto packing" class="packing-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + order.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')"></div>';
       }
+
+      // Lihat invoice detail (Shopee, resi, progress, bayar)
+      h += '<div style="display:flex;gap:8px;margin-top:10px;">';
+      h += '<button onclick="window.open(\'/invoice/' + order.id + '\',\'_blank\')" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;font-size:12px;font-weight:800;color:#334155;cursor:pointer;">Lihat Invoice &#8594;</button>';
+      h += '</div>';
 
       h += '</div>';
       return h;

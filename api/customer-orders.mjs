@@ -32,7 +32,9 @@ export default async function handler(req, res) {
     const sb = await getAdmin();
     const { data: orders, error: ordersErr } = await sb
       .from("orders")
-      .select("id, created_at, total, paid_total, diskon, status, payment_status, fulfillment_status, notes, qris_notes, packing_photo")
+      .select(
+        "id, created_at, updated_at, total, paid_total, diskon, status, payment_status, fulfillment_status, notes, qris_notes, packing_photo, courier, resi, shipping_method, shopee_order_no, order_type"
+      )
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false });
 
@@ -56,10 +58,10 @@ export default async function handler(req, res) {
     if (productIds.length > 0) {
       const { data: prods } = await sb
         .from("products")
-        .select("id, image")
+        .select("id, image, stock_type")
         .in("id", productIds);
       for (const p of (prods || [])) {
-        productMap[p.id] = { image: p.image };
+        productMap[p.id] = { image: p.image, stock_type: p.stock_type || null };
       }
     }
 
@@ -70,6 +72,7 @@ export default async function handler(req, res) {
       itemsByOrder[item.order_id].push({
         ...item,
         image: prod?.image || null,
+        stock_type: prod?.stock_type || null,
       });
     }
 

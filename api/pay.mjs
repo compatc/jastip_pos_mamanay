@@ -1233,15 +1233,16 @@ export default async function handler(req, res) {
 
       const orderCols =
         "id, customer_id, total, paid_total, diskon, kode_unik, ongkir, payment_status, fulfillment_status, status, notes, packing_photo, courier, resi, payment_type, order_type, created_at, invoice_sent_at";
+      const shipCols = ", shipping_method, shopee_order_no";
       let rows = null;
       const withShip = await sb
         .from("orders")
-        .select(orderCols + ", shipping_method")
+        .select(orderCols + shipCols)
         .in("id", ids);
       if (!withShip.error && withShip.data) {
         rows = withShip.data;
       } else {
-        // Fallback kalau kolom shipping_method belum ada (migration belum dijalankan)
+        // Fallback kalau kolom shipping_method / shopee_order_no belum ada (migration belum dijalankan)
         const retry = await sb.from("orders").select(orderCols).in("id", ids);
         rows = retry.data || [];
       }
@@ -1286,6 +1287,7 @@ export default async function handler(req, res) {
         payment_type: o.payment_type || "",
         order_type: o.order_type || "penjualan",
         shipping_method: o.shipping_method ?? null,
+        shopee_order_no: o.shopee_order_no || "",
       });
       const orders = billable.map(mapOrder);
 
@@ -1400,10 +1402,20 @@ export default async function handler(req, res) {
         json(res, 400, { error: "orderId dan method (manual/shopee) wajib" });
         return;
       }
-      const { error: shipErr } = await sb
+      const hasShopeeNo = Object.prototype.hasOwnProperty.call(body, "shopee_order_no");
+      const shopeeNo = hasShopeeNo ? String(body.shopee_order_no || "").trim().slice(0, 40) : null;
+
+      const { data: prevRows } = await sb
         .from("orders")
-        .update({ shipping_method: method })
+        .select(
+          "id, shipping_method, shopee_order_no, customer_id, total, paid_total, diskon, created_at"
+        )
         .in("id", ids);
+      const prev = (prevRows || [])[0] || {};
+
+      const update = { shipping_method: method };
+      if (hasShopeeNo && method === "shopee") update.shopee_order_no = shopeeNo;
+      const { error: shipErr } = await sb.from("orders").update(update).in("id", ids);
       if (shipErr) {
         console.error("[PAY] shipping update failed:", shipErr.message);
         json(res, 500, {
@@ -1412,7 +1424,114 @@ export default async function handler(req, res) {
         });
         return;
       }
-      json(res, 200, { ok: true, shipping_method: method });
+
+      // Notifikasi admin hanya kalau benar-benar berubah (metode ganti / no. Shopee masuk)
+      const methodChanged = String(prev.shipping_method || "") !== method;
+      const shopeeNoChanged =
+        hasShopeeNo && method === "shopee" && String(prev.shopee_order_no || "") !== shopeeNo;
+      let notified = false;
+      try {
+        if (methodChanged || shopeeNoChanged) {
+          const rows = prevRows || [];
+          const amount = rows.reduce(
+            (s, o) => s + Math.max(0, (o.total || 0) - (o.paid_total || 0) - (o.diskon || 0)),
+            0
+          );
+          const { data: qtyRows } = await sb.from("order_items").select("order_id, quantity").in("order_id", ids);
+          const qtyByOrder = new Map((qtyRows || []).map((q) => [q.order_id, q.quantity || 0]));
+          const pcs = rows.reduce((s, o) => s + (qtyByOrder.get(o.id) || 0), 0);
+          let custName = "Pelanggan";
+          if (rows[0]?.customer_id) {
+            const { data: cust } = await sb
+              .from("customers")
+              .select("name")
+              .eq("id", rows[0].customer_id)
+              .maybeSingle();
+            if (cust?.name) custName = cust.name;
+          }
+          const d0 = (rows[0]?.created_at || new Date().toISOString()).slice(0, 10).replace(/-/g, "");
+          const invNo =
+            "INV-" + d0 + "-" + String(rows[0]?.id || "").slice(0, 4).toUpperCase() +
+            (rows.length > 1 ? ` +${rows.length - 1} lainnya` : "");
+          const rupiah = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID");
+
+          let title, bodyText, waMsg;
+          if (shopeeNoChanged) {
+            title = "NO. SHOPEE MASUK";
+            bodyText =
+              custName +
+              "\n📦 " + invNo + " · " + pcs + " pcs · " + rupiah(amount) +
+              "\n🧾 No. Shopee: " + (shopeeNo || "-") +
+              "\nTinggal cocokkan di Seller Center.";
+            waMsg =
+              "*" + title + "*\n" +
+              custName + "\n" +
+              "📦 " + invNo + " · " + pcs + " pcs · " + rupiah(amount) + "\n" +
+              "🧾 No. Shopee: " + (shopeeNo || "-") + "\n" +
+              "Tinggal cocokkan di Seller Center.";
+          } else {
+            title = method === "shopee" ? "SHOPEE DIPILIH" : "KIRIM MANUAL DIPILIH";
+            bodyText =
+              custName +
+              "\n📦 " + invNo + " · " + pcs + " pcs · " + rupiah(amount) +
+              (method === "shopee"
+                ? "\n🛒 Customer checkout sendiri di Shopee\n⏳ Menunggu kamu konfirmasi via WA"
+                : "\n📮 Kurir manual — atur kurir & ongkir setelah pembayaran");
+            waMsg =
+              "*" + title + "*\n" +
+              custName + "\n" +
+              "📦 " + invNo + " · " + pcs + " pcs · " + rupiah(amount) + "\n" +
+              (method === "shopee"
+                ? "🛒 Customer checkout sendiri di Shopee\n⏳ Menunggu kamu konfirmasi via WA"
+                : "📮 Kurir manual — atur kurir & ongkir setelah pembayaran");
+          }
+          const invUrl = "https://mamanay.vercel.app/invoice/" + String(rows[0]?.id || "");
+          await sendPushNotification(sb, {
+            title,
+            body: bodyText + "\n" + invUrl,
+            url: "/orders",
+            type: "shipping",
+            orderIds: ids,
+            amount,
+          });
+          notified = true;
+
+          // WA ke admin (jalur yang sama seperti notif Order Baru / Lunas) — jangan gagalkan response
+          try {
+            const adminPhone =
+              process.env.ADMIN_PHONE || process.env.VITE_ADMIN_PHONE || "6285894652806";
+            let botUrl =
+              process.env.VITE_BOT_API_URL || "https://hardship-broadly-mammogram.ngrok-free.dev";
+            try {
+              const { data: settings } = await sb
+                .from("settings")
+                .select("value")
+                .eq("key", "bot_api_url")
+                .maybeSingle();
+              if (settings?.value) botUrl = settings.value;
+            } catch {}
+            await fetch(botUrl + "/api/send-invoice", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + (process.env.BOT_API_TOKEN || "mamanay2026"),
+              },
+              body: JSON.stringify({ phone: adminPhone, message: waMsg + "\n" + invUrl }),
+            });
+          } catch (waErr) {
+            console.error("[PAY] shipping WA notify failed:", waErr.message);
+          }
+        }
+      } catch (notifErr) {
+        console.error("[PAY] shipping notify error:", notifErr.message);
+      }
+
+      json(res, 200, {
+        ok: true,
+        shipping_method: method,
+        shopee_order_no: update.shopee_order_no ?? String(prev.shopee_order_no || ""),
+        notified,
+      });
       return;
     }
 

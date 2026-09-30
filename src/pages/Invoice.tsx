@@ -48,6 +48,7 @@ interface InvoiceOrder {
   payment_type: string;
   order_type: string;
   shipping_method: string | null;
+  shopee_order_no?: string;
 }
 
 interface InvoiceData {
@@ -169,6 +170,9 @@ export default function Invoice() {
   const [txId, setTxId] = useState("");
 
   const [shippingMethod, setShippingMethod] = useState<string>("");
+  const [shopeeNo, setShopeeNo] = useState<string>("");
+  const [shopeeNoInput, setShopeeNoInput] = useState<string>("");
+  const [shopeeSaving, setShopeeSaving] = useState(false);
   const [buktiState, setBuktiState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [toast, setToast] = useState("");
 
@@ -197,7 +201,9 @@ export default function Invoice() {
       if (!res.ok) throw new Error(d.error || "Gagal memuat invoice");
       setData(d);
       const first = (d.orders && d.orders[0]) || d.order;
-      setShippingMethod(first?.shipping_method || "manual");
+      setShippingMethod(first?.shipping_method || "");
+      setShopeeNo(first?.shopee_order_no || "");
+      setShopeeNoInput(first?.shopee_order_no || "");
       setError(null);
     } catch (e: any) {
       setError(e.message || "Gagal memuat invoice");
@@ -309,10 +315,44 @@ export default function Invoice() {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Gagal menyimpan");
-      showToast("Pilihan pengiriman disimpan ✓");
+      showToast(
+        method === "shopee"
+          ? "Pilihan disimpan ✓ penjual sudah diberi tahu"
+          : "Pilihan pengiriman disimpan ✓"
+      );
     } catch (e: any) {
       setShippingMethod(prev);
       showToast(e.message || "Gagal menyimpan");
+    }
+  }
+
+  async function saveShopeeNo() {
+    if (shopeeSaving) return;
+    const val = shopeeNoInput.trim();
+    if (!val) {
+      showToast("Isi nomor pesanan Shopee dulu");
+      return;
+    }
+    setShopeeSaving(true);
+    try {
+      const res = await fetch("/api/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "shipping",
+          orderIds,
+          method: "shopee",
+          shopee_order_no: val,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Gagal menyimpan");
+      setShopeeNo(val);
+      showToast("No. Shopee disimpan ✓ penjual sudah diberi tahu");
+    } catch (e: any) {
+      showToast(e.message || "Gagal menyimpan");
+    } finally {
+      setShopeeSaving(false);
     }
   }
 
@@ -956,7 +996,19 @@ export default function Invoice() {
         {/* SHIPPING CHOICE */}
         {!isCancelled && ordersList.some((o) => o.order_type === "penjualan") && (
           <div className={card}>
-            <div className={labelTitle}>🚚 Metode Pengiriman</div>
+            <div className={labelTitle}>
+              🚚 Metode Pengiriman
+              {shippingMethod === "" && (
+                <span className="ml-auto normal-case tracking-normal text-[10px] text-amber-600 font-bold">
+                  belum dipilih
+                </span>
+              )}
+            </div>
+            {shippingMethod === "" && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-800 leading-relaxed mb-2.5">
+                ⬇️ Pilih metode pengiriman dulu supaya penjual bisa segera memproses.
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <div
                 onClick={() => chooseShipping("manual")}
@@ -980,9 +1032,22 @@ export default function Invoice() {
                   </div>
                 </div>
                 {shippingMethod === "manual" && (
-                  <div className="mt-2.5 pt-2.5 border-t border-dashed border-pink-200 bg-slate-50 rounded-lg p-2.5 text-[11px] text-slate-500 leading-relaxed">
-                    Setelah lunas, admin konfirmasi kurir + ongkir via WhatsApp. Estimasi tiba{" "}
-                    <b className="text-slate-800">2–4 hari</b> · resiko ditanggung penjual sampai diterima.
+                  <div className="mt-2.5 pt-2.5 border-t border-dashed border-pink-200">
+                    <div className="bg-slate-50 rounded-lg p-2.5 text-[11px] text-slate-500 leading-relaxed">
+                      Setelah lunas, admin konfirmasi kurir + ongkir via WhatsApp. Estimasi tiba{" "}
+                      <b className="text-slate-800">2–4 hari</b> · resiko ditanggung penjual sampai
+                      diterima.
+                    </div>
+                    <a
+                      href={`https://wa.me/6285894652806?text=${encodeURIComponent(
+                        `Halo Mama Nay, saya mau konfirmasi pengiriman untuk invoice ${invoiceNo}`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 flex items-center justify-center gap-1.5 bg-[#25d366]/10 border border-[#25d366]/40 text-[#128c7e] rounded-xl py-2 text-[12px] font-extrabold no-print"
+                    >
+                      💬 Chat penjual via WhatsApp
+                    </a>
                   </div>
                 )}
               </div>
@@ -1050,6 +1115,51 @@ export default function Invoice() {
                       ⚠️ Wajib isi catatan di atas, tanpa catatan pesanan tidak bisa dicocokkan. Resiko
                       paket hilang/rusak via Shopee ditanggung pembeli.
                     </div>
+                    <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-extrabold text-emerald-700 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Pilihan disimpan — penjual
+                      sudah diberi tahu
+                    </div>
+                    <div className="mt-2.5 bg-white border border-slate-200 rounded-xl p-2.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">
+                        🧾 No. pesanan Shopee (opsional)
+                      </label>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={shopeeNoInput}
+                          onChange={(e) => setShopeeNoInput(e.target.value)}
+                          placeholder="cth. 260930847291103"
+                          className="flex-1 min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-[13px] font-mono text-slate-800 focus:outline-none focus:border-pink-400 no-print"
+                        />
+                        <button
+                          onClick={saveShopeeNo}
+                          disabled={
+                            shopeeSaving ||
+                            !shopeeNoInput.trim() ||
+                            shopeeNoInput.trim() === shopeeNo
+                          }
+                          className="bg-slate-900 text-white px-3 rounded-lg text-[11px] font-extrabold disabled:opacity-40 shrink-0 no-print"
+                        >
+                          {shopeeSaving ? "…" : "Simpan"}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                        {shopeeNo
+                          ? `Tersimpan: ${shopeeNo} — penjual sudah dapat notif.`
+                          : "Diisi setelah kamu checkout di Shopee. Penjual dapat notif otomatis saat disimpan."}
+                      </p>
+                    </div>
+                    <a
+                      href={`https://wa.me/6285894652806?text=${encodeURIComponent(
+                        `Halo Mama Nay, saya sudah pilih kirim via Shopee untuk invoice ${invoiceNo}`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 flex items-center justify-center gap-1.5 bg-[#25d366]/10 border border-[#25d366]/40 text-[#128c7e] rounded-xl py-2 text-[12px] font-extrabold no-print"
+                    >
+                      💬 Chat penjual via WhatsApp
+                    </a>
                   </div>
                 )}
               </div>
