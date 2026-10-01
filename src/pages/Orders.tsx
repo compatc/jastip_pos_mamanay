@@ -1037,7 +1037,7 @@ export default function Orders() {
 
           {productFilter && (
             <div className="text-[11px] text-pink-600 font-semibold bg-pink-50 border border-pink-200 rounded-xl px-3 py-1.5 -mt-1">
-              🔍 Filter produk aktif — periode diabaikan, semua data ditampilkan (1 tahun terakhir)
+              🔍 Filter produk aktif — periode diabaikan, semua data ditampilkan (30 hari terakhir)
             </div>
           )}
 

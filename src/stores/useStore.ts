@@ -428,7 +428,7 @@ export const useStore = create<PosStore>((set, get) => ({
   loadAllOrders: async () => {
     if (isFresh("allOrders")) return;
     try {
-      const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
