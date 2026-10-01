@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Notifikasi Admin (QRIS · Order Baru · Shipping)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#0f172a; color:#0f172a; min-height:100dvh; padding:28px 16px 60px; }
+  h1 { color:#fff; font-size:19px; font-weight:800; text-align:center; }
+  .sub { color:#94a3b8; font-size:12px; text-align:center; margin:6px 0 26px; }
+  .sub b { color:#f9a8d4; }
+  .frames { display:flex; flex-wrap:wrap; gap:26px; justify-content:center; align-items:flex-start; max-width:1400px; margin:0 auto; }
+  .col { width:360px; max-width:100%; }
+  .cap { color:#f9a8d4; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:9px; text-align:center; }
+  .cap small { display:block; color:#64748b; font-weight:600; letter-spacing:0; text-transform:none; margin-top:3px; }
+  .phone { background:#f1f5f9; border-radius:26px; overflow:hidden; box-shadow:0 18px 50px rgba(0,0,0,.45); border:1px solid #1e293b; }
+  .hd { background:linear-gradient(135deg,#ec4899 0%,#f43f5e 50%,#e11d48 100%); padding:16px 14px 24px; color:#fff; }
+  .hd .row { display:flex; justify-content:space-between; align-items:center; }
+  .brand { font-weight:800; font-size:15px; }
+  .badge-n { background:#fff; color:#e11d48; font-size:9.5px; font-weight:900; border-radius:99px; padding:3px 8px; letter-spacing:.5px; }
+  .body { padding:12px 12px 20px; }
+
+  /* ===== kartu notifikasi ===== */
+  .notif { background:#fff; border-radius:16px; padding:12px; margin-bottom:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(15,23,42,.05); position:relative; }
+  .notif.unread { border-color:#fbcfe8; box-shadow:0 4px 14px rgba(236,72,153,.12); }
+  .notif.unread::before { content:''; position:absolute; left:0; top:14px; bottom:14px; width:3px; border-radius:0 3px 3px 0; background:linear-gradient(#ec4899,#e11d48); }
+  .nhead { display:flex; gap:9px; align-items:center; margin-bottom:8px; }
+  .bell { width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; flex-shrink:0; }
+  .bell-qris { background:linear-gradient(135deg,#10b981,#059669); }
+  .bell-order { background:linear-gradient(135deg,#ec4899,#e11d48); }
+  .bell-ship { background:linear-gradient(135deg,#f59e0b,#d97706); }
+  .ntitle { font-size:12px; font-weight:800; color:#0f172a; }
+  .ntime { margin-left:auto; font-size:9.5px; color:#94a3b8; font-weight:600; white-space:nowrap; }
+  .baru { background:#e11d48; color:#fff; font-size:8.5px; font-weight:900; letter-spacing:.6px; border-radius:99px; padding:2px 7px; margin-left:auto; }
+  .nbody { background:#f8fafc; border:1px solid #e2e8f0; border-radius:11px; padding:10px; font-size:11px; color:#334155; line-height:1.65; }
+  .nbody b { color:#0f172a; }
+  .nbody .inv { font-family:'SF Mono','Fira Code',monospace; letter-spacing:.3px; }
+  .nbody .wa { color:#047857; font-weight:800; }
+  .nbody .amount { color:#e11d48; font-weight:900; }
+  .nbody .muted { color:#94a3b8; font-size:10px; }
+  .btnrow { display:flex; gap:8px; margin-top:10px; }
+  .btn { flex:1; text-align:center; padding:9px; border-radius:11px; font-size:11.5px; font-weight:800; cursor:pointer; border:none; }
+  .btn-ghost { background:#fff; border:1.5px solid #e2e8f0; color:#475569; }
+  .btn-ghost:hover { background:#f8fafc; }
+  .btn-main { background:linear-gradient(135deg,#ec4899,#e11d48); color:#fff; box-shadow:0 6px 14px rgba(225,29,72,.28); }
+  .btn-dark { background:#0f172a; color:#fff; }
+
+  /* kartu sudah dibaca */
+  .notif.read { opacity:.72; background:#f8fafc; }
+  .notif.read .ntitle { color:#475569; }
+
+  /* ===== frame 1: entry (bell) ===== */
+  .entry-card { background:#fff; border-radius:16px; padding:14px; border:1px solid #e2e8f0; margin-bottom:14px; }
+  .entry-card .lbl { font-size:10px; font-weight:900; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  .sidebar-btn { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; font-weight:700; color:#475569; position:relative; }
+  .sidebar-btn .icon { width:18px; height:18px; }
+  .cnt { margin-left:auto; min-width:20px; height:20px; padding:0 6px; background:#e11d48; color:#fff; font-size:10.5px; font-weight:900; border-radius:99px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(225,29,72,.35); }
+  .dot-alert { position:absolute; top:8px; right:10px; width:8px; height:8px; background:#e11d48; border-radius:50%; border:2px solid #fff; }
+
+  .tablerow { display:flex; justify-content:space-between; font-size:11.5px; padding:7px 0; border-bottom:1px dashed #e2e8f0; color:#475569; }
+  .tablerow:last-child { border-bottom:none; }
+  .tablerow b { color:#0f172a; }
+  .yes { color:#059669; font-weight:800; }
+  .no { color:#dc2626; font-weight:800; }
+
+  /* ===== WA ===== */
+  .wa-box { background:#e7f6e9; border:1px solid #b7e4c0; border-radius:14px 14px 4px 14px; padding:10px 12px; font-size:11.5px; color:#14532d; line-height:1.6; }
+  .wa-box b { color:#064e3b; }
+  .wa-head { display:flex; gap:7px; align-items:center; font-size:10px; font-weight:900; color:#047857; text-transform:uppercase; letter-spacing:.6px; margin-bottom:7px; }
+
+  .legend { color:#94a3b8; font-size:11px; line-height:1.75; max-width:960px; margin:30px auto 0; background:#111c31; border:1px solid #1e293b; border-radius:14px; padding:16px 18px; }
+  .legend b { color:#f9a8d4; }
+  .legend ol, .legend ul { padding-left:18px; } .legend li { margin-bottom:5px; }
+  .legend code { background:#0f172a; color:#7dd3fc; padding:1px 5px; border-radius:4px; font-size:10.5px; }
+
+  .chg { display:block; font-size:10px; font-weight:800; color:#15803d; background:#dcfce7; border:1px solid #86efac; border-radius:999px; padding:3px 10px; margin-top:6px; letter-spacing:.5px; width:max-content; margin-left:auto; margin-right:auto; }
+
+  /* ===== tab filter per tipe ===== */
+  .tabs { display:flex; gap:6px; padding:10px 12px; background:#fff; border-bottom:1px solid #e2e8f0; overflow-x:auto; }
+  .tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:7px 6px; border-radius:10px; font-size:10.5px; font-weight:800; color:#64748b; background:#f1f5f9; border:1.5px solid transparent; cursor:pointer; white-space:nowrap; }
+  .tab.on { background:#fdf2f8; border-color:#f9a8d4; color:#be185d; }
+  .tab .tn { background:#e2e8f0; color:#475569; font-size:9px; font-weight:900; border-radius:99px; padding:1px 5px; min-width:15px; text-align:center; }
+  .tab.on .tn { background:#e11d48; color:#fff; }
+
+  /* ===== section header per tipe ===== */
+  .sec { display:flex; align-items:center; gap:7px; margin:14px 2px 8px; }
+  .sec:first-child { margin-top:2px; }
+  .sec .sec-ic { width:20px; height:20px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; }
+  .sec .sec-t { font-size:10px; font-weight:900; letter-spacing:1px; text-transform:uppercase; color:#64748b; }
+  .sec .sec-c { margin-left:auto; font-size:9.5px; font-weight:800; color:#94a3b8; background:#fff; border:1px solid #e2e8f0; border-radius:99px; padding:2px 7px; }
+</style>
+</head>
+<body>
+
+<h1>Mockup — Panel Notifikasi Admin</h1>
+<div class="sub">3 tipe notifikasi baru: <b>QRIS Lunas</b> · <b>Order Baru</b> · <b>Shipping Dipilih</b> — dipisah per tipe (tab + grup section), ikon per tipe, badge BARU, tombol aksi per kartu</div>
+
+<div class="frames">
+
+  <!-- ========== FRAME 1: ENTRY / BELL ========== -->
+  <div class="col">
+    <div class="cap">1 · Titik masuk (bell)<small>Desktop sidebar · header mobile</small><span class="chg">BARU: label + badge angka</span></div>
+
+    <div class="entry-card">
+      <div class="lbl">Sidebar desktop — sekarang</div>
+      <div class="sidebar-btn">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        QRIS
+        <span class="dot-alert"></span>
+      </div>
+    </div>
+
+    <div class="entry-card" style="border-color:#fbcfe8;box-shadow:0 6px 18px rgba(236,72,153,.12);">
+      <div class="lbl" style="color:#e11d48;">Sidebar desktop — usulan</div>
+      <div class="sidebar-btn" style="border-color:#fbcfe8;background:#fdf2f8;color:#be185d;">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Notifikasi
+        <span class="cnt">3</span>
+      </div>
+      <div style="font-size:10.5px;color:#94a3b8;margin-top:8px;line-height:1.6;">Hitung = jumlah kartu <b style="color:#e11d48;">belum dibaca</b>. Klik panel → tandai semua terbuka.</div>
+    </div>
+
+    <div class="entry-card">
+      <div class="lbl">Header mobile — usulan</div>
+      <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:9px 11px;">
+        <svg style="width:16px;height:16px;color:#be185d;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span style="font-size:12px;font-weight:800;color:#334155;">Notifikasi</span>
+        <span class="cnt">3</span>
+      </div>
+    </div>
+
+    <div class="entry-card">
+      <div class="lbl">Aturan baca / tandai</div>
+      <div class="tablerow"><span>Belum dibaca</span><b>Kartu putih + aksen pink + pill <span style="background:#e11d48;color:#fff;padding:1px 6px;border-radius:99px;font-size:9px;">BARU</span></b></div>
+      <div class="tablerow"><span>Sudah dibaca</span><b>Abu melayang, tanpa pill</b></div>
+      <div class="tablerow"><span>Tandai selesai</span><b>Kartu → read (lokal)</b></div>
+      <div class="tablerow"><span>Buka order</span><b>navigate ke URL notif</b></div>
+    </div>
+  </div>
+
+  <!-- ========== FRAME 2: PANEL NOTIF ========== -->
+  <div class="col">
+    <div class="cap">2 · Panel "Notifikasi Admin"<small>Tab filter per tipe + grup section</small><span class="chg">BARU: pisah per tipe</span></div>
+    <div class="phone">
+      <div class="hd" style="padding-bottom:18px;">
+        <div class="row">
+          <div class="brand">🔔 Notifikasi Admin</div>
+          <span class="badge-n">3 BARU</span>
+        </div>
+      </div>
+
+      <!-- tab filter per tipe -->
+      <div class="tabs">
+        <div class="tab on">Semua <span class="tn">5</span></div>
+        <div class="tab">💳 QRIS <span class="tn">1</span></div>
+        <div class="tab">🛒 Order <span class="tn">1</span></div>
+        <div class="tab">🚚 Shipping <span class="tn">3</span></div>
+      </div>
+
+      <div class="body">
+
+        <!-- ===== GRUP: QRIS ===== -->
+        <div class="sec" data-tipe="qris">
+          <div class="sec-ic bell-qris">💳</div>
+          <div class="sec-t">Pembayaran</div>
+          <div class="sec-c">1 notif</div>
+        </div>
+
+        <!-- (1) QRIS LUNAS -->
+        <div class="notif unread" data-tipe="qris">
+          <div class="nhead">
+            <div class="bell bell-qris">✓</div>
+            <div class="ntitle">Pembayaran QRIS Lunas</div>
+            <span class="baru">BARU</span>
+          </div>
+          <div class="nbody">
+            <b>Wulandari Handayani</b> <span class="muted">•••• 1817</span><br>
+            📦 <span class="inv">INV-20260930-C4D5</span> · 4 pcs · <span class="amount">Rp186.000</span><br>
+            💳 QRIS · reconciled otomatis
+            <span class="muted" style="display:block;margin-top:4px;">🕐 07:15 · 1 Okt 2026</span>
+          </div>
+          <div class="btnrow">
+            <button class="btn btn-ghost">✓ Tandai selesai</button>
+            <button class="btn btn-main">Buka order</button>
+          </div>
+        </div>
+
+        <!-- ===== GRUP: ORDER ===== -->
+        <div class="sec" data-tipe="order">
+          <div class="sec-ic bell-order">🛒</div>
+          <div class="sec-t">Order Masuk</div>
+          <div class="sec-c">1 notif</div>
+        </div>
+
+        <!-- (2) ORDER BARU -->
+        <div class="notif unread" data-tipe="order">
+          <div class="nhead">
+            <div class="bell bell-order">🛒</div>
+            <div class="ntitle">Order Baru dari Katalog</div>
+            <span class="baru">BARU</span>
+          </div>
+          <div class="nbody">
+            <b>Rani Putri</b> <span class="muted">•••• 4821</span><br>
+            🧴 Detergen Ecodoo 3in1 × 2<br>
+            💄 Maybelline Teddy Tint × 1<br>
+            💰 <span class="amount">Rp100.000</span> · belum bayar
+            <span class="muted" style="display:block;margin-top:4px;">🕐 09:42 · 1 Okt 2026</span>
+          </div>
+          <div class="btnrow">
+            <button class="btn btn-ghost">✓ Tandai selesai</button>
+            <button class="btn btn-main">Buka order</button>
+          </div>
+        </div>
+
+        <!-- ===== GRUP: SHIPPING ===== -->
+        <div class="sec" data-tipe="shipping">
+          <div class="sec-ic bell-ship">🚚</div>
+          <div class="sec-t">Pengiriman</div>
+          <div class="sec-c">3 notif</div>
+        </div>
+
+        <!-- (3a) SHIPPING: SHOPEE DIPILIH -->
+        <div class="notif unread" data-tipe="shipping">
+          <div class="nhead">
+            <div class="bell bell-ship">🚚</div>
+            <div class="ntitle">Shopee Dipilih</div>
+            <span class="baru">BARU</span>
+          </div>
+          <div class="nbody">
+            <b>Rani Putri</b> memilih kirim via <b>Shopee</b><br>
+            📦 <span class="inv">INV-20260930-A1B2</span> · 3 pcs · Rp100.000<br>
+            🧾 No. Shopee: <b>260930847291103</b><br>
+            ⏳ Menunggu kamu konfirmasi via WA
+            <span class="muted" style="display:block;margin-top:4px;">🕐 10:05 · 1 Okt 2026</span>
+          </div>
+          <div class="btnrow">
+            <button class="btn btn-ghost">✓ Tandai selesai</button>
+            <button class="btn btn-main">Buka order</button>
+          </div>
+        </div>
+
+        <!-- (3b) SHIPPING: NO. SHOPEE MASUK — sudah dibaca -->
+        <div class="notif read" data-tipe="shipping">
+          <div class="nhead">
+            <div class="bell bell-ship">🧾</div>
+            <div class="ntitle">No. Shopee Masuk</div>
+            <span class="ntime">07:15</span>
+          </div>
+          <div class="nbody">
+            <b>Devi 5506</b><br>
+            📦 <span class="inv">INV-20260929-B7E8</span> · 2 pcs · Rp94.000<br>
+            🧾 No. Shopee: <b>260929114477882</b><br>
+            ✅ Tinggal cocokkan di Seller Center.
+          </div>
+          <div class="btnrow">
+            <button class="btn btn-ghost">✓ Tandai selesai</button>
+            <button class="btn btn-main">Buka order</button>
+          </div>
+        </div>
+
+        <!-- (3c) SHIPPING: KIRIM MANUAL -->
+        <div class="notif read" data-tipe="shipping">
+          <div class="nhead">
+            <div class="bell bell-ship">📮</div>
+            <div class="ntitle">Kirim Manual Dipilih</div>
+            <span class="ntime">Kemarin</span>
+          </div>
+          <div class="nbody">
+            <b>Ratih</b><br>
+            📦 <span class="inv">INV-20260928-F3A1</span> · 1 pcs · Rp49.000<br>
+            📮 Kurir manual — atur kurir &amp; ongkir setelah pembayaran
+          </div>
+          <div class="btnrow">
+            <button class="btn btn-ghost">✓ Tandai selesai</button>
+            <button class="btn btn-main">Buka order</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== FRAME 3: PUSH + WA ========== -->
+  <div class="col">
+    <div class="cap">3 · Push notification + WA admin<small>Sama seperti sekarang, hanya label ikon</small><span class="chg">BARU: judul & ikon per tipe</span></div>
+
+    <div class="entry-card" style="background:#0f172a;border-color:#1e293b;">
+      <div class="lbl" style="color:#64748b;">Push ke HP (web push / native)</div>
+      <div style="background:#1e293b;border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#ec4899,#e11d48);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🔔</div>
+        <div style="color:#e2e8f0;font-size:11.5px;line-height:1.55;">
+          <b style="color:#fff;font-size:12px;">Shopee Dipilih</b><br>
+          Rani Putri · INV-20260930-A1B2 · 3 pcs · Rp100.000<br>
+          <span style="color:#94a3b8;font-size:10px;">mamanay.vercel.app · sekarang</span>
+        </div>
+      </div>
+      <div style="color:#64748b;font-size:10.5px;margin-top:9px;line-height:1.6;">
+        Push sekarang sudah dikirim 3× sejak fitur shipping ada (<code style="color:#7dd3fc;background:#0b1220;padding:1px 4px;border-radius:4px;">pay.mjs → sendPushNotification</code>). Tidak berubah.
+      </div>
+    </div>
+
+    <div class="entry-card">
+      <div class="lbl">Pesan WhatsApp ke admin — tipe shipping</div>
+      <div class="wa-box">
+        <div class="wa-head">🛒 SHOPEE DIPILIH</div>
+        Rani Putri<br>
+        📦 INV-20260930-A1B2 · 3 pcs · Rp100.000<br>
+        🛒 Customer checkout sendiri di Shopee<br>
+        ⏳ Menunggu kamu konfirmasi via WA<br>
+        https://mamanay.vercel.app/invoice/A1B2…
+      </div>
+      <div style="height:10px;"></div>
+      <div class="wa-box">
+        <div class="wa-head">💳 QRIS LUNAS</div>
+        Wulandari Handayani<br>
+        📦 INV-20260930-C4D5 · 4 pcs<br>
+        💰 Rp186.000 · QRIS reconciled<br>
+        https://mamanay.vercel.app/invoice/C4D5…
+      </div>
+      <div style="height:10px;"></div>
+      <div class="wa-box">
+        <div class="wa-head">🛒 ORDER BARU DARI KATALOG</div>
+        Rani Putri<br>
+        🧴 Detergen Ecodoo 3in1 × 2 · 💄 Maybelline × 1<br>
+        💰 Rp100.000<br>
+        https://mamanay.vercel.app/orders/…
+      </div>
+      <div style="font-size:10.5px;color:#94a3b8;margin-top:9px;line-height:1.6;">Format WA = pola yang sudah ada. <b style="color:#f9a8d4;">Tidak diubah.</b></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <b>Cara baca mockup &amp; mapping ke kode</b>
+  <ol>
+    <li><b>Frame 1 (entry)</b> — tombol sidebar "QRIS" ganti label jadi <b>Notifikasi</b> + badge angka unread. Badge dihitung dari kartu yang belum ditandai.</li>
+    <li><b>Frame 2 (panel)</b> — <code>QrisHistoryModal.tsx</code> di-rename jadi panel "Notifikasi Admin" dengan <b>tab filter per tipe</b> (Semua · 💳 QRIS · 🛒 Order · 🚚 Shipping, masing-masing berhitung unread) dan <b>grup section</b> di tab Semua:
+      <ul>
+        <li><b>Pembayaran</b> (hijau) → QRIS Lunas (<code>type: qris</code> — data sudah ada di tabel <code>notifications</code>)</li>
+        <li><b>Order Masuk</b> (pink) → Order Baru dari Katalog (<code>CatalogOrderNotifier</code> — saat ini cuma toast, kartu masuk ke riwayat juga)</li>
+        <li><b>Pengiriman</b> (oranye) → Shopee Dipilih / No. Shopee Masuk / Kirim Manual (<code>type: shipping</code>, sudah ditulis <code>pay.mjs:1479</code>)</li>
+      </ul>
+    </li>
+    <li><b>State baca/tuntas</b> — tabel <code>notifications</code> tidak punya kolom read → tandai di <b>localStorage</b> (id notif → timestamp), tanpa SQL/DDL. Sesudah 30 hari kartu anggap sudah dibaca.</li>
+    <li><b>Tombol per kartu</b> — <b>Tandai selesai</b> = tandai read + kartu jadi abu; <b>Buka order</b> = navigate ke <code>url</code> notif (<code>/orders/...</code> atau <code>/invoice/...</code>).</li>
+    <li><b>Frame 3 (push + WA)</b> — tidak berubah, hanya judul push mengikuti tipe.</li>
+    <li>Kartu <b>Order Baru</b> masuk riwayat: saat ini cuma toast 10 detik lalu hilang — dengan panel ini ada jejak permanen + bisa dibuka ulang.</li>
+  </ol>
+</div>
+
+<script>
+  const tabs = document.querySelectorAll('.tabs .tab');
+  const tipes = ['qris', 'order', 'shipping'];
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      const key = i === 0 ? null : tipes[i - 1];
+      document.querySelectorAll('.sec, .notif').forEach(el => {
+        el.style.display = (!key || el.dataset.tipe === key) ? '' : 'none';
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -5,7 +5,8 @@ import { supabase } from "../lib/supabase";
 import QrisNotifier from "./QrisNotifier";
 import CatalogOrderNotifier from "./CatalogOrderNotifier";
 import TransferConfirmNotifier from "./TransferConfirmNotifier";
-import QrisHistoryModal from "./QrisHistoryModal";
+import NotifAdminModal from "./NotifAdminModal";
+import { countUnread } from "../lib/notifRead";
 import {
   ShoppingBag,
   ClipboardList,
@@ -35,7 +36,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, setUser, isOnline, setOnline, fontSize } = useStore();
   const [showQrisHistory, setShowQrisHistory] = useState(false);
   const [pendingConfCount, setPendingConfCount] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
   const badgeVisibleRef = useRef(document.visibilityState !== "hidden");
+
+  const refreshNotifUnread = async () => {
+    try {
+      const { data } = await supabase
+        .from("notifications")
+        .select("id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setNotifUnread(countUnread(data || []));
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     const onVis = () => { badgeVisibleRef.current = document.visibilityState !== "hidden"; };
@@ -69,6 +84,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     checkOnline();
     const interval = setInterval(checkOnline, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    refreshNotifUnread();
+    const interval = setInterval(() => {
+      if (badgeVisibleRef.current) refreshNotifUnread();
+    }, 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -162,8 +185,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-500 hover:bg-slate-50 font-medium transition-all relative"
           >
             <BellRing className="w-[18px] h-[18px]" />
-            QRIS
-            <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-rose-500" />
+            Notifikasi
+            {notifUnread > 0 ? (
+              <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full px-1">
+                {notifUnread}
+              </span>
+            ) : (
+              <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-slate-300" />
+            )}
           </button>
           <button
             onClick={() => navigate("/payment-confirmations")}
@@ -229,10 +258,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={() => setShowQrisHistory(true)}
                   className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
-                  title="QRIS"
+                  title="Notifikasi"
                 >
                   <BellRing className="w-4 h-4" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
+                  {notifUnread > 0 ? (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center bg-rose-500 text-white text-[9px] font-black rounded-full px-1 border-2 border-white">
+                      {notifUnread}
+                    </span>
+                  ) : (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-300" />
+                  )}
                 </button>
               </div>
             </div>
@@ -257,7 +292,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <QrisNotifier />
         <CatalogOrderNotifier />
         <TransferConfirmNotifier />
-        <QrisHistoryModal open={showQrisHistory} onClose={() => setShowQrisHistory(false)} />
+        <NotifAdminModal
+          open={showQrisHistory}
+          onClose={() => {
+            setShowQrisHistory(false);
+            refreshNotifUnread();
+          }}
+        />
 
         {/* Bottom nav - mobile only */}
         {!isSubPage && (
