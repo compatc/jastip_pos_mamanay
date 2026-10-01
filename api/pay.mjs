@@ -1301,6 +1301,7 @@ export default async function handler(req, res) {
           .maybeSingle();
         if (cust) {
           customer = {
+            id: cust.id,
             name: cust.name || "",
             phone: cust.phone || "",
             address: cust.address || "",
