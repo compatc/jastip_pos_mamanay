@@ -130,7 +130,7 @@ export default function OrderDetail() {
     : null;
 
   useEffect(() => {
-    if (order && !isOrderLunas(order) && order.total > 0) {
+    if (order) {
       setQrisLink(invoiceOrderLink(order.id));
     }
   }, [order?.id]);
@@ -547,17 +547,27 @@ export default function OrderDetail() {
             </div>
           )}
 
-          {!isOrderLunas(order) && order.total > 0 && order.fulfillment_status !== "cancelled" && qrisLink && (
+          {order.fulfillment_status !== "cancelled" && qrisLink && (
             <div className="bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-xs text-gray-400 uppercase font-bold mb-2">Link Pembayaran</p>
+              <p className="text-xs text-gray-400 uppercase font-bold mb-2">
+                {isOrderLunas(order) ? "Link Invoice" : "Invoice & QRIS"}
+              </p>
               <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-lg">
                 <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center shrink-0">
                   <ExternalLink className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-800">Invoice &amp; QRIS</p>
+                  <p className="text-xs font-semibold text-gray-800">
+                    {isOrderLunas(order) ? "Invoice lunas" : "Invoice & QRIS"}
+                  </p>
                   <p className="text-[10px] text-gray-400 truncate">{qrisLink}</p>
                 </div>
+                <button
+                  onClick={() => window.open(qrisLink, "_blank")}
+                  className="px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] font-bold shrink-0"
+                >
+                  Buka
+                </button>
                 <button
                   onClick={() => copyToClipboard(qrisLink, "qris")}
                   className="px-2.5 py-1.5 bg-pink-500 text-white rounded-lg text-[10px] font-bold shrink-0"
