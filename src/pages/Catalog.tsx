@@ -169,7 +169,6 @@ export default function Catalog() {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (p.stock <= 0 && p.stock_type !== "po") return false;
-      if (p.stock_type === "po" && (p as any).po_closed) return false;
       if (tagFilter && !(p.tags || []).some((t) => (typeof t === "string" ? t : t.name) === tagFilter)) return false;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       if (filter === "ready") return matchSearch && p.stock_type !== "po";
@@ -185,7 +184,8 @@ export default function Catalog() {
     const vId = variant?.id || "";
     setCart((prev) => {
       const existing = prev.find((c) => c.product.id === product.id && (c.variant?.id || "") === vId);
-      const maxStock = variant ? variant.stock : product.stock;
+      let maxStock = variant ? variant.stock : product.stock;
+      if (maxStock <= 0 && product.stock_type === "po") maxStock = 999;
       if (existing) {
         const newQty = Math.min(existing.qty + 1, maxStock);
         return prev.map((c) => c.product.id === product.id && (c.variant?.id || "") === vId ? { ...c, qty: newQty } : c);
@@ -202,12 +202,26 @@ export default function Catalog() {
       return prev
         .map((c) => {
           if (c.product.id !== productId || (c.variant?.id || "") !== variantId) return c;
-          const maxStock = c.variant ? c.variant.stock : c.product.stock;
+          let maxStock = c.variant ? c.variant.stock : c.product.stock;
+          if (maxStock <= 0 && c.product.stock_type === "po") maxStock = 999;
           const newQty = c.qty + delta;
           return { ...c, qty: Math.min(newQty, maxStock) };
         })
         .filter((c) => c.qty > 0);
     });
+  }
+
+  function quickIncrement(p: Product) {
+    if (p.stock_type === "po" && p.po_closed) return;
+    const first = cart.find((c) => c.product.id === p.id);
+    if (first) updateCartQty(p.id, first.variant?.id || "", 1);
+    else addToCart(p);
+  }
+
+  function quickDecrement(p: Product) {
+    const lines = cart.filter((c) => c.product.id === p.id);
+    const last = lines[lines.length - 1];
+    if (last) updateCartQty(p.id, last.variant?.id || "", -1);
   }
 
   function removeFromCart(productId: string, variantId: string) {
@@ -263,22 +277,23 @@ export default function Catalog() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#f8f7f4]">
+    <div className="min-h-dvh bg-[#fff5f8] font-candy">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-[#f8f7f4]/90 backdrop-blur-xl">
+      <div className="sticky top-0 z-50 bg-[#fff5f8]/90 backdrop-blur-xl">
         <div className="px-4 sm:px-6 lg:px-8 pt-5 pb-4 max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-[1.35rem] font-extrabold text-slate-900 tracking-tight">jastip_mamanay</h1>
-              <p className="text-[0.78rem] text-slate-400 font-medium mt-0.5">{products.length} produk tersedia</p>
+              <p className="text-[9.5px] font-bold uppercase tracking-[0.25em] text-pink-400">Jastip · Curated</p>
+              <h1 className="text-[1.35rem] font-extrabold text-[#4a2334] tracking-tight">jastip_mamanay</h1>
+              <p className="text-[0.78rem] text-pink-300 font-medium mt-0.5">{products.length} produk tersedia</p>
             </div>
             <button
               onClick={() => setShowCart(true)}
-              className="relative w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center active:scale-95 transition-transform"
+              className="relative w-12 h-12 bg-white rounded-full shadow-md shadow-pink-100 border-2 border-pink-100 flex items-center justify-center active:scale-95 transition-transform"
             >
-              <ShoppingCart className="w-5 h-5 text-slate-700" />
+              <ShoppingCart className="w-5 h-5 text-rose-500" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
                   {cartCount}
                 </span>
               )}
@@ -287,12 +302,12 @@ export default function Catalog() {
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-pink-300" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Mau cari apa?"
-              className="w-full pl-12 pr-5 py-3.5 bg-white border-0 rounded-2xl text-[0.9rem] font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-300 placeholder:text-slate-400"
+              className="w-full pl-12 pr-5 py-3.5 bg-white border-2 border-pink-100 rounded-full text-[0.9rem] font-semibold text-[#4a2334] shadow-sm focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 placeholder:text-pink-300 placeholder:font-medium"
             />
           </div>
         </div>
@@ -305,22 +320,22 @@ export default function Catalog() {
           <div className="flex gap-2 overflow-x-auto pb-4 -mx-1 px-1 scrollbar-hide items-center">
             <button
               onClick={() => { const p = new URLSearchParams(searchParams); p.delete("tag"); setSearchParams(p); }}
-              className={`px-4 py-2.5 rounded-2xl text-[0.82rem] font-bold whitespace-nowrap transition-all shrink-0 border-2 ${
+              className={`px-4 py-2.5 rounded-full text-[0.82rem] font-bold whitespace-nowrap transition-all shrink-0 border-2 ${
                 !tagFilter
-                  ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white text-slate-600 border-slate-200"
+                  ? "bg-gradient-to-br from-pink-400 to-rose-500 text-white border-transparent shadow-md shadow-pink-200"
+                  : "bg-white text-pink-400 border-pink-100 hover:border-pink-200"
               }`}
             >
-              Semua
+              ✨ Semua
             </button>
             {allUniqueTags.map((t) => (
               <button
                 key={t}
                 onClick={() => { const p = new URLSearchParams(searchParams); p.set("tag", t); setSearchParams(p); }}
-                className={`px-4 py-2.5 rounded-2xl text-[0.82rem] font-semibold whitespace-nowrap transition-all shrink-0 border-2 ${
+                className={`px-4 py-2.5 rounded-full text-[0.82rem] font-semibold whitespace-nowrap transition-all shrink-0 border-2 ${
                   tagFilter === t
-                    ? "bg-slate-900 text-white border-slate-900"
-                    : "bg-white text-slate-600 border-slate-200"
+                    ? "bg-gradient-to-br from-pink-400 to-rose-500 text-white border-transparent shadow-md shadow-pink-200"
+                    : "bg-white text-pink-400 border-pink-100 hover:border-pink-200"
                 }`}
               >
                 {t}
@@ -329,7 +344,7 @@ export default function Catalog() {
             {tagFilter && (
               <button
                 onClick={() => { const url = window.location.origin + "/api/catalog-order?ogTag=" + tagFilter; navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => {}); }}
-                className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors shrink-0"
+                className="w-9 h-9 rounded-full bg-pink-50 flex items-center justify-center text-pink-400 hover:text-pink-600 hover:bg-pink-100 transition-colors shrink-0"
                 title="Copy share link"
               >
                 <Share2 className="w-4 h-4" />
@@ -340,7 +355,7 @@ export default function Catalog() {
 
         {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
                 <div className="h-40 bg-slate-100" />
@@ -361,19 +376,32 @@ export default function Catalog() {
             <p className="text-slate-400 text-xs mt-1">Coba kata kunci lain</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5">
             {filtered.map((p, index) => {
-              const stock = getStockInfo(p.stock);
               const isPoClosed = p.stock_type === "po" && p.po_closed;
               const isAboveFold = index < 6;
+              const imgCount = p.images && p.images.length > 0 ? p.images.length : p.image ? 1 : 0;
+              const cartLines = cart.filter((c) => c.product.id === p.id);
+              const cartQty = cartLines.reduce((s, c) => s + c.qty, 0);
+              const stockLine = isPoClosed
+                ? "PO ditutup"
+                : p.stock_type === "po"
+                  ? "Pre-order · ± 7 hari"
+                  : p.stock <= 8
+                    ? `Ready · sisa ${p.stock}`
+                    : `Ready · ${p.stock} pcs`;
               return (
                 <div
                   key={p.id}
                   onClick={() => { setSelected(p); setCarouselIdx(0); window.history.pushState({}, "", "/catalog/" + p.id); }}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm transition-all hover:shadow-md hover:border-slate-300 active:scale-[0.98] cursor-pointer group"
+                  className={`relative bg-white rounded-[22px] p-2.5 text-center border transition-all cursor-pointer group ${
+                    cartQty > 0
+                      ? "border-pink-500 shadow-[0_10px_26px_rgba(236,72,153,0.22)]"
+                      : "border-[#fde2ee] shadow-[0_8px_20px_rgba(244,114,182,0.14)] hover:shadow-[0_12px_26px_rgba(244,114,182,0.22)]"
+                  } active:scale-[0.98]`}
                 >
                   {/* Image */}
-                  <div className="relative w-full aspect-square bg-slate-50 overflow-hidden">
+                  <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden bg-pink-50">
                     {p.image ? (
                       <img
                         src={p.image}
@@ -388,29 +416,22 @@ export default function Catalog() {
                         <span className="text-5xl opacity-80">{getEmoji(p.name)}</span>
                       </div>
                     )}
-                    {/* Badge overlay */}
-                    <div className="absolute top-2 right-2">
-                      {isPoClosed ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-red-50 text-red-600 border-red-200">
-                          PO Ditutup
-                        </span>
-                      ) : p.stock_type === "po" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm bg-amber-50 text-amber-600 border-amber-200">
-                          PO
-                        </span>
-                      ) : p.stock > 0 ? (
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border backdrop-blur-sm ${stock.color}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${stock.dot}`} />
-                          {stock.label}
-                        </span>
-                      ) : null}
-                    </div>
+                    {cartQty > 0 && (
+                      <span className="absolute top-2 left-2 z-10 px-2.5 py-1 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[9px] font-bold shadow-md">
+                        ✓ {cartQty} di keranjang
+                      </span>
+                    )}
+                    {imgCount > 1 && (
+                      <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-white/95 text-[9px] font-bold text-slate-500">
+                        1/{imgCount}
+                      </span>
+                    )}
                     {p.tags && p.tags.length > 0 && (
-                      <div className="absolute top-2 left-2 flex flex-wrap gap-0.5">
+                      <div className="absolute top-2 right-2 flex flex-wrap gap-0.5 justify-end max-w-[70%]">
                         {p.tags.slice(0, 2).map((t) => {
                           const tagName = typeof t === "string" ? t : t.name;
                           return (
-                            <span key={tagName} className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-white/90 text-purple-600 border border-purple-200 backdrop-blur-sm">
+                            <span key={tagName} className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/95 text-pink-500 border border-pink-100 backdrop-blur-sm">
                               {tagName}
                             </span>
                           );
@@ -420,29 +441,77 @@ export default function Catalog() {
                   </div>
 
                   {/* Info */}
-                  <div className="p-3">
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-1.5 min-h-[32px] sm:min-h-[36px]">
+                  <div className="px-1 pt-2.5 pb-0.5">
+                    <h3 className="text-xs sm:text-[13px] font-bold text-[#4a2334] leading-snug line-clamp-2 min-h-[32px] sm:min-h-[36px]">
                       {p.name}
                     </h3>
+                    <p className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mt-1.5 ${isPoClosed ? "text-rose-400" : "text-pink-400"}`}>
+                      {stockLine}
+                    </p>
                     {p.variants && p.variants.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
+                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
                         {p.variants.slice(0, 3).map((v) => (
-                          <span key={v.id} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md font-semibold">
+                          <span key={v.id} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-pink-50 text-pink-500 rounded-full font-bold">
                             {v.name}
                           </span>
                         ))}
                         {p.variants.length > 3 && (
-                          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md font-semibold">
+                          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-pink-50 text-pink-400 rounded-full font-bold">
                             +{p.variants.length - 3}
                           </span>
                         )}
                       </div>
                     )}
-                    <div className="flex items-end justify-between">
-                      <span className="text-sm sm:text-base font-extrabold text-rose-500 leading-none">
+                    <div className="mt-2">
+                      <span className="inline-block bg-pink-100 text-pink-600 text-[13px] sm:text-sm font-extrabold px-3 py-1 rounded-full leading-snug">
                         {rupiah(p.sell_price)}
                       </span>
                     </div>
+
+                    {/* Quick add / stepper in-cart */}
+                    {cartQty > 0 ? (
+                      <div
+                        className="mt-2.5 flex items-center gap-1.5 bg-pink-50 border-2 border-pink-200 rounded-full p-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => quickDecrement(p)}
+                          aria-label="Kurangi"
+                          className="w-8 h-8 rounded-full bg-white text-rose-500 flex items-center justify-center shadow-sm active:scale-95 transition-transform"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="flex-1 text-center text-sm font-extrabold text-rose-500">{cartQty}</span>
+                        <button
+                          onClick={() => quickIncrement(p)}
+                          aria-label="Tambah"
+                          className="w-8 h-8 rounded-full bg-white text-rose-500 flex items-center justify-center shadow-sm active:scale-95 transition-transform"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (p.variants && p.variants.length > 0) {
+                            setSelected(p);
+                            setCarouselIdx(0);
+                            window.history.pushState({}, "", "/catalog/" + p.id);
+                          } else {
+                            addToCart(p);
+                          }
+                        }}
+                        disabled={isPoClosed}
+                        className={`w-full mt-2.5 py-2.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide transition-all ${
+                          isPoClosed
+                            ? "bg-pink-50 text-pink-300 cursor-not-allowed"
+                            : "bg-gradient-to-br from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200 active:scale-[0.97]"
+                        }`}
+                      >
+                        {isPoClosed ? "PO Ditutup" : "+ Keranjang"}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -457,18 +526,15 @@ export default function Catalog() {
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-[440px]">
           <button
             onClick={() => setShowCart(true)}
-            className="w-full flex items-center justify-between bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl shadow-slate-900/30 active:scale-[0.98] transition-all"
+            className="w-full flex items-center justify-between bg-white border-2 border-pink-100 px-4 py-3.5 rounded-full shadow-[0_16px_36px_rgba(236,72,153,0.25)] active:scale-[0.98] transition-all"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center">
-                <ShoppingCart className="w-5 h-5" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-bold">{cartCount} produk</p>
-                <p className="text-[11px] text-slate-400">Lihat keranjang</p>
-              </div>
+            <div className="text-left">
+              <p className="text-[9.5px] font-bold uppercase tracking-[0.15em] text-pink-400">Tas kamu</p>
+              <p className="text-sm font-extrabold text-rose-500">{cartCount} item · {rupiah(cartTotal)}</p>
             </div>
-            <span className="text-base font-extrabold">{rupiah(cartTotal)}</span>
+            <span className="text-xs font-extrabold text-white bg-gradient-to-br from-pink-400 to-rose-500 px-5 py-3 rounded-full shadow-md shadow-pink-200">
+              Checkout →
+            </span>
           </button>
         </div>
       )}
@@ -479,7 +545,7 @@ export default function Catalog() {
           href="https://wa.me/6285894652806?text=Halo%20Mama%20Nay%2C%20saya%20mau%20pesan%20produk"
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-3.5 rounded-2xl shadow-xl shadow-emerald-400/30 transition-all active:scale-95"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-3.5 rounded-full shadow-xl shadow-emerald-400/30 transition-all active:scale-95"
         >
           <MessageCircle className="w-5 h-5" />
           <span className="text-sm">Chat Admin</span>
@@ -707,10 +773,10 @@ export default function Catalog() {
                   }
                   addToCart(selected, selectedVariant || undefined);
                 }}
-                className={`flex items-center justify-center gap-2.5 w-full py-3.5 font-bold rounded-2xl transition-all active:scale-[0.98] ${
+                className={`flex items-center justify-center gap-2.5 w-full py-3.5 font-extrabold rounded-full transition-all active:scale-[0.98] ${
                   selected.po_closed
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20"
+                    ? "bg-pink-50 text-pink-300 cursor-not-allowed shadow-none"
+                    : "bg-gradient-to-br from-pink-400 to-rose-500 hover:opacity-95 text-white shadow-lg shadow-pink-200"
                 }`}
               >
                 <ShoppingCart className="w-5 h-5" />

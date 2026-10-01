@@ -5,6 +5,10 @@ html {
   font-size: clamp(15px, 3.8vw, 20px);
 }
 
+.font-candy {
+  font-family: 'Quicksand', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 @keyframes slideUp {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
