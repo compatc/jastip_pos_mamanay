@@ -7,6 +7,13 @@ if (import.meta.env.DEV) {
   document.title = "[LOCAL] " + document.title;
 }
 
+window.addEventListener("vite:preloadError", () => {
+  if (sessionStorage.getItem("chunk_reload") === "1") return;
+  sessionStorage.setItem("chunk_reload", "1");
+  window.location.reload();
+});
+setTimeout(() => sessionStorage.removeItem("chunk_reload"), 10000);
+
 const root = document.getElementById("root");
 
 if (!root) {
