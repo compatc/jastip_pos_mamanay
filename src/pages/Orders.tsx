@@ -96,7 +96,10 @@ export default function Orders() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [tab, setTab] = useState<TabFilter>((searchParams.get("tab") as TabFilter) || "all");
   const [productFilter, setProductFilter] = useState(searchParams.get("product") || "");
-  const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [period, setPeriod] = useState<"daily" | "weekly" | "monthly" | "all">(
+    (searchParams.get("period") as "daily" | "weekly" | "monthly" | "all") || "daily"
+  );
+  const [month, setMonth] = useState(searchParams.get("month") || new Date().toISOString().slice(0, 7));
 
   const [showProductSuggest, setShowProductSuggest] = useState(false);
   const itemsByOrder = allOrderItems;
@@ -182,8 +185,10 @@ export default function Orders() {
     if (search) params.q = search;
     if (tab !== "all") params.tab = tab;
     if (productFilter) params.product = productFilter;
+    if (period !== "daily") params.period = period;
+    if (period === "monthly") params.month = month;
     setSearchParams(params, { replace: true });
-  }, [search, tab, productFilter]);
+  }, [search, tab, productFilter, period, month]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -231,9 +236,13 @@ export default function Orders() {
 
   const periodRange = useMemo(() => {
     const now = new Date();
+    if (period === "all") {
+      return { start: "", end: "", label: "Semua waktu" };
+    }
     if (period === "daily") {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      return { start: start.toISOString(), label: now.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) };
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      return { start: start.toISOString(), end: end.toISOString(), label: now.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) };
     }
     if (period === "weekly") {
       const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -241,12 +250,21 @@ export default function Orders() {
       start.setDate(end.getDate() - 6);
       return { start: start.toISOString(), end: end.toISOString(), label: `${start.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}` };
     }
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { start: start.toISOString(), label: now.toLocaleDateString("id-ID", { month: "long", year: "numeric" }) };
-  }, [period]);
+    const parts = month.split("-").map(Number);
+    const y = parts.length === 2 && parts[0] ? parts[0] : now.getFullYear();
+    const m = parts.length === 2 && parts[1] ? parts[1] : now.getMonth() + 1;
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 0, 23, 59, 59);
+    return { start: start.toISOString(), end: end.toISOString(), label: start.toLocaleDateString("id-ID", { month: "long", year: "numeric" }) };
+  }, [period, month]);
+
+  const timeBypass = !!productFilter || period === "all";
 
   const baseFiltered = allOrders.filter((o) => {
-    if (o.created_at && o.created_at < periodRange.start) return false;
+    if (!timeBypass && o.created_at) {
+      if (periodRange.start && o.created_at < periodRange.start) return false;
+      if (periodRange.end && o.created_at > periodRange.end) return false;
+    }
     const q = search.toLowerCase();
     const matchSearch =
       !search ||
@@ -988,11 +1006,12 @@ export default function Orders() {
                 { key: "daily" as const, label: "Harian" },
                 { key: "weekly" as const, label: "Mingguan" },
                 { key: "monthly" as const, label: "Bulanan" },
+                { key: "all" as const, label: "Semua" },
               ]).map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => setPeriod(key)}
-                  className={`px-3.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`px-3 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold whitespace-nowrap transition-all ${
                     period === key
                       ? "bg-pink-500 text-white"
                       : "text-slate-400 border-l border-slate-200 first:border-l-0 hover:text-slate-600"
@@ -1002,11 +1021,25 @@ export default function Orders() {
                 </button>
               ))}
             </div>
+            {period === "monthly" && (
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="px-2.5 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-full text-[11px] sm:text-xs text-slate-700 font-semibold shadow-sm outline-none focus:border-pink-400"
+              />
+            )}
             <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-full text-[11px] sm:text-xs text-slate-600 font-semibold shadow-sm shrink-0">
               <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
               <span>{periodRange.label}</span>
             </div>
           </div>
+
+          {productFilter && (
+            <div className="text-[11px] text-pink-600 font-semibold bg-pink-50 border border-pink-200 rounded-xl px-3 py-1.5 -mt-1">
+              🔍 Filter produk aktif — periode diabaikan, semua data ditampilkan (1 tahun terakhir)
+            </div>
+          )}
 
           {itemsError && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600 flex items-center gap-2">
