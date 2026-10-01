@@ -1296,11 +1296,29 @@ export default async function handler(req, res) {
       if (customerId) {
         const { data: cust } = await sb
           .from("customers")
-          .select("name, phone, address")
+          .select("name, phone, address, points, member_level")
           .eq("id", customerId)
           .maybeSingle();
-        if (cust) customer = { name: cust.name || "", phone: cust.phone || "", address: cust.address || "" };
+        if (cust) {
+          customer = {
+            name: cust.name || "",
+            phone: cust.phone || "",
+            address: cust.address || "",
+            points: cust.points || 0,
+            member_level: cust.member_level || "silver",
+          };
+        }
       }
+
+      // Poin yang benar-benar sudah masuk untuk order-order di invoice ini
+      let awardedPoints = 0;
+      try {
+        const { data: ph } = await sb
+          .from("points_history")
+          .select("points")
+          .in("order_id", ids);
+        awardedPoints = (ph || []).reduce((s, p) => s + (p.points || 0), 0);
+      } catch {}
 
       const billableIds = billable.map((o) => o.id);
       const { data: itemRows } = await sb
@@ -1372,6 +1390,7 @@ export default async function handler(req, res) {
         order: orders[0],
         orders,
         customer,
+        awardedPoints,
         items,
         totals: {
           subtotal,

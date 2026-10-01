@@ -54,7 +54,14 @@ interface InvoiceOrder {
 interface InvoiceData {
   order: InvoiceOrder;
   orders?: InvoiceOrder[];
-  customer: { name: string; phone: string; address: string } | null;
+  customer: {
+    name: string;
+    phone: string;
+    address: string;
+    points?: number;
+    member_level?: string;
+  } | null;
+  awardedPoints?: number;
   items: InvoiceItem[];
   totals: {
     subtotal: number;
@@ -535,6 +542,12 @@ export default function Invoice() {
   const labelTitle =
     "text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5";
 
+  const memberLevel = customer?.member_level || "silver";
+  const pointMult = memberLevel === "platinum" ? 1.2 : memberLevel === "gold" ? 1.1 : 1;
+  const futurePoints =
+    !isPaid && !isCancelled && sisa > 0 ? Math.floor((sisa / 1000) * pointMult) : 0;
+  const awardedPoints = data.awardedPoints || 0;
+
   return (
     <div className="min-h-dvh bg-slate-100 pb-8">
       <style>{`@media print { .no-print { display: none !important; } body { background: white; } }`}</style>
@@ -643,6 +656,29 @@ export default function Invoice() {
                 {customer.address}
               </div>
             )}
+            <div className="mt-2.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-amber-800">✨ Poin loyalitas</span>
+                <span className="text-[15px] font-extrabold text-amber-900">
+                  {(customer.points || 0).toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="text-[10px] text-amber-700 mt-0.5 leading-relaxed">
+                100 poin = Rp1.000 diskon
+                {memberLevel !== "silver" ? ` · level ${memberLevel} (poin ×${pointMult})` : ""} —
+                tukar lewat portal customer
+              </div>
+              {futurePoints > 0 && (
+                <div className="text-[11px] font-bold text-amber-900 mt-1">
+                  🎁 Bayar invoice ini → dapat ≈ +{futurePoints.toLocaleString("id-ID")} poin
+                </div>
+              )}
+              {awardedPoints > 0 && (
+                <div className="text-[11px] font-extrabold text-emerald-700 mt-1">
+                  ✅ +{awardedPoints.toLocaleString("id-ID")} poin sudah masuk dari invoice ini
+                </div>
+              )}
+            </div>
           </div>
         )}
 
