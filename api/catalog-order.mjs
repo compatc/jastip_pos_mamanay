@@ -33,6 +33,27 @@ export default async function handler(req, res) {
       const ogId = url.searchParams.get("og");
 
       if (ogId) {
+        // Link katalog utama (dipakai di bio IG/FB) — preview cantik, redirect ke /catalog
+        if (ogId === "catalog") {
+          let prodCount = 0;
+          try {
+            const { count } = await sb.from("products").select("id", { count: "exact", head: true });
+            prodCount = count || 0;
+          } catch {}
+          const img =
+            "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/promo/bundle-paket-hemat-rumah.jpg";
+          const catDesc =
+            `${prodCount} produk siap pesan — rumah tangga, anak & bayi, mainan, beauty. ` +
+            "Ready stock & PO, bayar QRIS/transfer, kirim ke seluruh Indonesia.";
+          const catUrl = "https://mamanay.vercel.app/catalog";
+          const catHtml = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Katalog Lengkap - jastip_mamanay</title><meta property="og:type" content="website"><meta property="og:title" content="Katalog Lengkap - jastip_mamanay"><meta property="og:description" content="${catDesc}"><meta property="og:image" content="${img}"><meta property="og:url" content="${catUrl}"><meta property="og:site_name" content="jastip_mamanay"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Katalog Lengkap - jastip_mamanay"><meta name="twitter:description" content="${catDesc}"><meta name="twitter:image" content="${img}"><script>window.location.href="/catalog";</script></head><body><p>Membuka <a href="/catalog">katalog</a>...</p></body></html>`;
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=86400");
+          res.writeHead(200);
+          res.end(catHtml);
+          return;
+        }
+
         const { data: product } = await sb.from("products").select("name, sell_price, description, image, stock_type").eq("id", ogId).single();
         const name = product?.name || "Produk";
         const desc = product?.description ? product.description.slice(0, 160).replace(/\n/g, " ").replace(/<[^>]*>/g, "") : "Jastip produk import berkualitas";
