@@ -1296,7 +1296,7 @@ export default async function handler(req, res) {
       if (customerId) {
         const { data: cust } = await sb
           .from("customers")
-          .select("name, phone, address, points, member_level")
+          .select("id, name, phone, address, points, member_level")
           .eq("id", customerId)
           .maybeSingle();
         if (cust) {

@@ -55,6 +55,7 @@ interface InvoiceData {
   order: InvoiceOrder;
   orders?: InvoiceOrder[];
   customer: {
+    id?: string;
     name: string;
     phone: string;
     address: string;
@@ -182,6 +183,8 @@ export default function Invoice() {
   const [shopeeSaving, setShopeeSaving] = useState(false);
   const [buktiState, setBuktiState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [toast, setToast] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState("");
+  const [redeemBusy, setRedeemBusy] = useState(false);
 
   const pollRef = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -390,6 +393,32 @@ export default function Invoice() {
     showToast(label + " disalin ✓");
   }
 
+  async function confirmRedeem() {
+    if (!redeemOrder || !customer?.id || redeemBusy) return;
+    const pts = Math.min(redeemMaxPoints, Math.max(0, parseInt(redeemPoints, 10) || 0));
+    if (pts < 100) return;
+    setRedeemBusy(true);
+    try {
+      const res = await fetch("/api/redeem-points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: customer.id, order_id: redeemOrder.id, points: pts }),
+      });
+      const j = await res.json();
+      if (j.success) {
+        setRedeemPoints("");
+        await fetchInvoice();
+        showToast(`✅ ${j.pointsUsed} poin → diskon ${rupiah(j.discount)} · sisa poin ${j.newPoints}`);
+      } else {
+        showToast(j.error || "Gagal menukar poin");
+      }
+    } catch (e: any) {
+      showToast(e.message || "Gagal menukar poin");
+    } finally {
+      setRedeemBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-dvh bg-slate-100 flex flex-col items-center justify-center gap-3">
@@ -423,7 +452,6 @@ export default function Invoice() {
   const order = ordersList[0];
   const isMulti = ordersList.length > 1;
   const sisa = totals.sisa;
-  const sumTotal = totals.total ?? ordersList.reduce((s, o) => s + (o.total || 0), 0);
   const sumDiskon = totals.diskon ?? ordersList.reduce((s, o) => s + (o.diskon || 0), 0);
   const sumKodeUnik = totals.kode_unik ?? ordersList.reduce((s, o) => s + (o.kode_unik || 0), 0);
   const sumOngkir = totals.ongkir ?? ordersList.reduce((s, o) => s + (o.ongkir || 0), 0);
@@ -433,6 +461,21 @@ export default function Invoice() {
     totals.payment_status ||
     (isPaid ? "paid" : sumPaid > 0 ? "dp" : order.payment_status || "unpaid");
   const isCancelled = ordersList.every((o) => o.fulfillment_status === "cancelled");
+  const totalDue = Math.max(0, totals.subtotal + sumOngkir - sumDiskon - sumKodeUnik);
+  const paidDisplay = sumPaid > 0 ? sumPaid : totalDue;
+  const custPoints = customer?.points || 0;
+  const redeemOrder = !isMulti && !isPaid && !isCancelled ? order : null;
+  const redeemTierMax = redeemOrder ? ((redeemOrder.total || 0) < 500000 ? 10000 : 20000) : 0;
+  const redeemMaxDiskon = redeemOrder
+    ? Math.max(0, Math.min(redeemTierMax, redeemOrder.total || 0) - (redeemOrder.diskon || 0))
+    : 0;
+  const redeemMaxPoints = Math.max(
+    0,
+    Math.min(custPoints, Math.ceil(redeemMaxDiskon / 1000) * 100)
+  );
+  const redeemPts = Math.max(0, parseInt(redeemPoints, 10) || 0);
+  const redeemPreview = Math.min(Math.floor(redeemPts / 100) * 1000, redeemMaxDiskon);
+  const showRedeem = !!redeemOrder && custPoints >= 100 && redeemMaxDiskon > 0;
   const READY_FULFILL = new Set(["ready", "shipped", "diterima", "completed"]);
   const readyOrderIds = new Set(
     ordersList.filter((o) => READY_FULFILL.has(o.fulfillment_status)).map((o) => o.id)
@@ -666,7 +709,7 @@ export default function Invoice() {
               <div className="text-[10px] text-amber-700 mt-0.5 leading-relaxed">
                 100 poin = Rp1.000 diskon
                 {memberLevel !== "silver" ? ` · level ${memberLevel} (poin ×${pointMult})` : ""} —
-                tukar lewat portal customer
+                {showRedeem ? " tukar poin di bawah ↓" : " tukar lewat portal customer"}
               </div>
               {futurePoints > 0 && (
                 <div className="text-[11px] font-bold text-amber-900 mt-1">
@@ -798,12 +841,12 @@ export default function Invoice() {
             {sumKodeUnik > 0 && (
               <div className="flex justify-between py-0.5 text-slate-500">
                 <span>🔑 Kode unik QRIS</span>
-                <span>+ {rupiah(sumKodeUnik)}</span>
+                <span>− {rupiah(sumKodeUnik)}</span>
               </div>
             )}
             <div className="flex justify-between pt-2 mt-1.5 border-t border-slate-800 font-extrabold text-[16px] text-slate-900">
               <span>TOTAL TAGIHAN</span>
-              <span>{rupiah(sumTotal)}</span>
+              <span>{rupiah(totalDue)}</span>
             </div>
             {sumPaid > 0 && !isPaid && (
               <div className="flex justify-between py-0.5 text-emerald-600 font-semibold">
@@ -815,7 +858,7 @@ export default function Invoice() {
               <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex justify-between items-center">
                 <span className="text-[12px] font-bold text-emerald-700">✅ LUNAS</span>
                 <span className="text-[13px] font-extrabold text-emerald-700">
-                  {rupiah(sumTotal - sumKodeUnik)}
+                  {rupiah(paidDisplay)}
                 </span>
               </div>
             ) : (
@@ -832,6 +875,72 @@ export default function Invoice() {
           <div className={card}>
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-[12px] text-red-700 font-semibold">
               ⛔ Pesanan ini dibatalkan. Hubungi penjual kalau ada pertanyaan.
+            </div>
+          </div>
+        )}
+
+        {/* REDEEM POINTS */}
+        {showRedeem && (
+          <div className="bg-white border border-amber-200 rounded-2xl p-4 mb-3">
+            <div className="text-[13px] font-extrabold text-amber-800 mb-0.5">✨ Tukar Poin</div>
+            <div className="text-[11px] text-slate-500 mb-2.5">
+              Saldo <b>{custPoints.toLocaleString("id-ID")} poin</b> · maks diskon{" "}
+              {rupiah(redeemMaxDiskon)} untuk invoice ini
+            </div>
+            <div className="flex gap-1.5 mb-2 flex-wrap">
+              {[100, 500, 1000].map((n) => (
+                <button
+                  key={n}
+                  onClick={() =>
+                    setRedeemPoints(
+                      String(Math.min(redeemMaxPoints, (parseInt(redeemPoints, 10) || 0) + n))
+                    )
+                  }
+                  className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-bold text-amber-700"
+                >
+                  +{n}
+                </button>
+              ))}
+              <button
+                onClick={() => setRedeemPoints(String(redeemMaxPoints))}
+                className="px-3 py-1.5 bg-amber-100 border border-amber-300 rounded-lg text-[11px] font-bold text-amber-800"
+              >
+                Maks
+              </button>
+              <button
+                onClick={() => setRedeemPoints("")}
+                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-500"
+              >
+                Reset
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={redeemMaxPoints}
+                value={redeemPoints}
+                onChange={(e) => setRedeemPoints(e.target.value)}
+                placeholder="Jumlah poin (kelipatan 100)"
+                className="flex-1 min-w-0 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[13px] font-bold text-amber-900 outline-none focus:border-amber-400"
+              />
+              <button
+                onClick={confirmRedeem}
+                disabled={redeemBusy || redeemPts < 100 || redeemPreview <= 0}
+                className="px-4 py-2.5 bg-amber-500 disabled:opacity-40 text-white rounded-xl text-[13px] font-extrabold shrink-0"
+              >
+                {redeemBusy ? "..." : "Tukar"}
+              </button>
+            </div>
+            {redeemPts >= 100 && (
+              <div className="text-[12px] font-bold text-emerald-600 mt-2">
+                {redeemPts.toLocaleString("id-ID")} poin → diskon {rupiah(redeemPreview)} · sisa
+                poin {Math.max(0, custPoints - redeemPts).toLocaleString("id-ID")}
+              </div>
+            )}
+            <div className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
+              100 poin = Rp1.000 diskon · batas per invoice: {rupiah(redeemMaxDiskon)}
             </div>
           </div>
         )}
@@ -1015,7 +1124,7 @@ export default function Invoice() {
                   ✅ Pembayaran Diterima
                 </div>
                 <div className="text-[24px] font-extrabold tracking-tight text-slate-900 mt-0.5">
-                  {rupiah(sumTotal - sumKodeUnik)}
+                  {rupiah(paidDisplay)}
                 </div>
                 <div className="text-[11px] text-slate-500">
                   {sumPaid > 0 ? `Terbayar ${rupiah(sumPaid)} · ` : ""}

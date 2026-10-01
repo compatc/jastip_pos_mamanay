@@ -78,7 +78,7 @@ export default async function handler(req, res) {
     order_id,
     points: -actualPoints,
     type: "redeem",
-    description: `Tukar ${actualPoints} poin ΓåÆ diskon Rp${discount.toLocaleString("id-ID")} (Order #${order_id.slice(0, 8)})`,
+    description: `Tukar ${actualPoints} poin jadi diskon Rp${discount.toLocaleString("id-ID")} (Order #${order_id.slice(0, 8)})`,
     created_at: now,
   });
 
