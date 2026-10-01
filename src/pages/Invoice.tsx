@@ -227,6 +227,18 @@ export default function Invoice() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
 
+  // Toast setelah checkout katalog (Opsi A): /invoice/{id}?new=1
+  useEffect(() => {
+    if (searchParams.get("new")) {
+      showToast("✓ Pesanan terkirim! Link juga dikirim ke WhatsApp");
+      const p = new URLSearchParams(searchParams);
+      p.delete("new");
+      const qs = p.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${qs ? "?" + qs : ""}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!qrSvg) return;
     const createdAtMs = qrCreatedAt ? new Date(qrCreatedAt).getTime() : Date.now();

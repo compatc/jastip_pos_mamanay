@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Package, MessageCircle, ShoppingCart, X, Plus, Minus, Check, Loader2, Share2 } from "lucide-react";
 
 interface Variant {
@@ -69,6 +69,7 @@ function getGradient(name: string) {
 export default function Catalog() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tagFilter = searchParams.get("tag") || "";
   const [products, setProducts] = useState<Product[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -90,7 +91,6 @@ export default function Catalog() {
   const [custAddress, setCustAddress] = useState("");
   const [custNotes, setCustNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
   const [descExpanded, setDescExpanded] = useState(false);
   const descRef = useRef<HTMLDivElement>(null);
@@ -246,7 +246,13 @@ export default function Catalog() {
         setCustPhone("");
         setCustAddress("");
         setCustNotes("");
-        setOrderSuccess(data.order_id);
+        setShowCheckout(false);
+        const newOrderId = data.orderId || data.order_id;
+        if (newOrderId) {
+          navigate(`/invoice/${newOrderId}?new=1`, { replace: true });
+        } else {
+          alert("Pesanan terkirim!");
+        }
       } else {
         alert(data.error || "Gagal mengirim pesanan");
       }
@@ -891,45 +897,12 @@ export default function Catalog() {
                 {submitting ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Mengirim...</>
                 ) : (
-                  <><Check className="w-5 h-5" /> Kirim Pesanan</>
+                  <><Check className="w-5 h-5" /> Pesan Sekarang</>
                 )}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Order Success Modal */}
-      {orderSuccess && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-5"
-        >
-          <div
-            className="bg-white w-full max-w-sm lg:max-w-md rounded-3xl overflow-hidden p-8 text-center animate-[slideUp_0.3s_ease]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-emerald-500" />
-            </div>
-            <h3 className="text-xl font-extrabold text-slate-900 mb-2">Pesanan Terkirim!</h3>
-            <p className="text-sm text-slate-500 mb-1">Nomor pesanan:</p>
-            <p className="text-lg font-bold text-slate-800 mb-3">#{orderSuccess.slice(0, 8).toUpperCase()}</p>
-            <p className="text-xs text-slate-400 mb-6">
-              Link pembayaran sudah dikirim ke WhatsApp Anda.<br/>Silakan cek pesan WhatsApp untuk melakukan pembayaran.
-            </p>
-            <div className="flex flex-col gap-2">
-              <a
-                href={`/invoice/${orderSuccess}`}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl transition-all active:scale-[0.98] inline-block"
-              >
-                Bayar Sekarang
-              </a>
-              <button
-                onClick={() => setOrderSuccess(null)}
-                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl transition-all active:scale-[0.98]"
-              >
-                Kembali ke Katalog
-              </button>
+              <p className="text-[11px] text-slate-400 text-center mt-2.5 leading-relaxed">
+                Pesanan jadi tagihan &mdash; langsung ke halaman pembayaran
+              </p>
             </div>
           </div>
         </div>
