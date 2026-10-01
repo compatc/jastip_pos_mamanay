@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup v2 — "Pesan Sekarang" → Invoice Belanja Formal</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  body { background:#e8e6e1; color:#0f172a; padding:32px 16px 64px; }
+  .wrap { max-width:1320px; margin:0 auto; }
+  .page-title { font-size:22px; font-weight:800; letter-spacing:-.5px; margin-bottom:4px; }
+  .page-sub { font-size:13px; color:#64748b; margin-bottom:28px; }
+  .tag { display:inline-block; background:#e11d48; color:#fff; font-size:10px; font-weight:800; letter-spacing:1.5px; padding:4px 10px; border-radius:999px; vertical-align:middle; margin-right:8px; }
+  .tag2 { display:inline-block; background:#0f172a; color:#fff; font-size:10px; font-weight:800; letter-spacing:1.5px; padding:4px 10px; border-radius:999px; vertical-align:middle; margin-right:8px; }
+
+  .flow { display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .col-label { font-size:12px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:1px; text-align:center; }
+  .col-label .num { background:#e11d48; color:#fff; border-radius:999px; padding:2px 8px; margin-right:6px; font-size:11px; }
+  .col-label .chg { display:block; font-size:10px; font-weight:800; color:#15803d; background:#dcfce7; border:1px solid #86efac; border-radius:999px; padding:3px 10px; margin-top:6px; letter-spacing:.5px; }
+
+  .phone { width:348px; background:#fff; border-radius:36px; box-shadow:0 24px 60px rgba(15,23,42,.18); overflow:hidden; border:8px solid #0f172a; position:relative; }
+  .statusbar { height:30px; background:#f8f7f4; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:10px; font-weight:700; color:#334155; }
+
+  .arrowcol { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:420px; width:150px; }
+  .arrow { font-size:34px; color:#e11d48; font-weight:900; line-height:1; }
+  .arrow-note { font-size:11px; font-weight:700; color:#e11d48; text-align:center; line-height:1.5; background:#fff1f2; border:1px dashed #fda4af; padding:8px 10px; border-radius:12px; max-width:150px; }
+  .arrow-note.gray { background:#f1f5f9; border-color:#cbd5e1; color:#475569; }
+  .badge-baru { position:absolute; top:44px; right:12px; z-index:5; background:#e11d48; color:#fff; font-size:10px; font-weight:900; letter-spacing:1px; padding:5px 10px; border-radius:999px; box-shadow:0 6px 16px rgba(225,29,72,.4); }
+
+  /* ===== SCREEN 1 : checkout ===== */
+  .s1-bg { background:#f8f7f4; min-height:640px; position:relative; padding:14px; }
+  .s1-bg .ghost-row { display:flex; gap:10px; margin-bottom:12px; }
+  .s1-bg .ghost { flex:1; height:150px; background:#e9e7e2; border-radius:16px; }
+  .s1-overlay { position:absolute; inset:0; background:rgba(15,23,42,.45); backdrop-filter:blur(2px); display:flex; align-items:flex-end; }
+  .sheet { background:#fff; width:100%; border-radius:26px 26px 0 0; overflow:hidden; }
+  .sheet-grip { display:flex; justify-content:center; padding-top:12px; } .sheet-grip div { width:40px; height:4px; background:#e2e8f0; border-radius:99px; }
+  .sheet-head { display:flex; justify-content:space-between; align-items:center; padding:10px 18px; border-bottom:1px solid #f1f5f9; }
+  .sheet-head h2 { font-size:17px; font-weight:800; }
+  .sheet-x { width:22px; height:22px; color:#94a3b8; text-align:center; font-size:18px; line-height:22px; }
+  .sheet-body { padding:16px 18px; }
+  .summary { background:#f8fafc; border-radius:16px; padding:14px 16px; margin-bottom:16px; border:1px solid #eef2f7; }
+  .summary .cap { font-size:10px; font-weight:800; color:#64748b; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px; }
+  .summary .row { display:flex; justify-content:space-between; font-size:13px; color:#334155; padding:4px 0; }
+  .summary .row b { color:#1e293b; }
+  .summary .total { display:flex; justify-content:space-between; border-top:1px solid #e2e8f0; margin-top:8px; padding-top:10px; }
+  .summary .total span:first-child { font-size:14px; font-weight:800; color:#1e293b; }
+  .summary .total span:last-child { font-size:17px; font-weight:900; color:#f43f5e; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:6px; }
+  .field .input { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:11px 14px; font-size:13px; color:#94a3b8; }
+  .field .input.filled { color:#0f172a; font-weight:600; }
+
+  /* button Pesan Sekarang (CHANGED) */
+  .btn-pesan { margin:6px 18px 14px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; text-align:center; font-weight:900; font-size:15px; padding:14px; border-radius:16px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 20px rgba(16,185,129,.35); letter-spacing:.3px; }
+  .btn-pesan .chk { width:19px; height:19px; background:rgba(255,255,255,.25); border-radius:99px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; }
+  .btn-sub { text-align:center; font-size:10.5px; font-weight:700; color:#94a3b8; margin:0 18px 18px; letter-spacing:.3px; }
+
+  /* strikethrough old word */
+  .word-old { position:relative; display:inline-block; }
+  .word-old::after { content:''; position:absolute; left:-2px; right:-2px; top:52%; height:2px; background:#fecdd3; transform:rotate(-6deg); }
+
+  /* ===== SCREEN 2 : Invoice Belanja formal ===== */
+  .s2 { background:#f1f5f9; min-height:640px; }
+  .inv-header { background:linear-gradient(135deg,#ec4899 0%,#f43f5e 50%,#e11d48 100%); padding:18px 16px 48px; position:relative; overflow:hidden; }
+  .inv-header::before { content:''; position:absolute; top:-40px; right:-40px; width:120px; height:120px; background:rgba(255,255,255,.1); border-radius:50%; }
+  .brand { display:flex; align-items:center; gap:10px; position:relative; z-index:1; }
+  .brand-icon { width:34px; height:34px; background:rgba(255,255,255,.2); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .brand-text { color:#fff; font-size:16px; font-weight:800; letter-spacing:-.5px; }
+  .brand-sub { color:rgba(255,255,255,.75); font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; }
+  .inv-title { position:relative; z-index:1; margin-top:16px; color:#fff; }
+  .inv-title h1 { font-size:22px; font-weight:800; letter-spacing:-.5px; }
+  .inv-title .inv-no { display:inline-block; margin-top:6px; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.25); backdrop-filter:blur(10px); border-radius:8px; padding:4px 10px; font-family:'SF Mono','Fira Code',monospace; font-size:13px; font-weight:700; letter-spacing:.5px; }
+  .inv-title .inv-date { font-size:11px; color:rgba(255,255,255,.8); margin-top:6px; }
+  .toast { position:absolute; top:14px; right:14px; z-index:9; background:rgba(15,23,42,.92); color:#fff; font-size:11px; font-weight:700; padding:8px 14px; border-radius:999px; box-shadow:0 10px 24px rgba(15,23,42,.35); white-space:nowrap; }
+  .toast .ok { color:#34d399; margin-right:5px; }
+
+  .content { padding:0 14px 22px; margin-top:-34px; position:relative; z-index:2; }
+  .card { background:#fff; border-radius:18px; border:1.5px solid #e2e8f0; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+
+  .status-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:5px 12px; border-radius:20px; }
+  .pill .dot { width:6px; height:6px; border-radius:50%; }
+  .pill.unpaid { background:#fef2f2; color:#dc2626; }
+  .pill.unpaid .dot { background:#ef4444; }
+  .pill-label { font-size:10px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; }
+
+  .label-card-title { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.8px; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+
+  .progress { display:flex; margin-top:4px; }
+  .step { flex:1; text-align:center; position:relative; }
+  .step-dot { width:22px; height:22px; border-radius:50%; margin:0 auto 4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; position:relative; z-index:1; }
+  .step-dot.done { background:#22c55e; }
+  .step-dot.active { background:#ec4899; box-shadow:0 0 0 3px rgba(236,72,153,.2); }
+  .step-dot.pending { background:#e2e8f0; }
+  .step-label { font-size:9px; font-weight:600; color:#94a3b8; }
+  .step-label.active { color:#ec4899; }
+  .step-label.done { color:#22c55e; }
+  .step-line { position:absolute; top:11px; left:50%; right:-50%; height:2px; background:#e2e8f0; z-index:0; }
+  .step-line.done { background:#22c55e; }
+  .step:last-child .step-line { display:none; }
+
+  .cust-row { display:flex; gap:10px; align-items:center; }
+  .cust-avatar { width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#fce7f3,#fbcfe8); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .cust-name { font-size:14px; font-weight:700; }
+  .cust-phone { font-size:11px; color:#94a3b8; }
+
+  .items { background:#f8fafc; border-radius:12px; padding:2px 0; }
+  .item { display:flex; align-items:center; gap:10px; padding:10px 12px; }
+  .item-img { width:44px; height:44px; border-radius:10px; background:linear-gradient(135deg,#f1f5f9,#e2e8f0); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .item-info { flex:1; min-width:0; }
+  .item-name { font-size:13px; font-weight:600; color:#1e293b; line-height:1.3; }
+  .item-meta { font-size:11px; color:#94a3b8; margin-top:2px; }
+  .item-status { display:inline-flex; align-items:center; gap:4px; font-size:9px; font-weight:800; padding:2px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:.4px; margin-left:6px; vertical-align:middle; }
+  .item-status::before { content:''; width:5px; height:5px; border-radius:50%; }
+  .item-status.ready { background:#dcfce7; color:#15803d; }
+  .item-status.ready::before { background:#22c55e; }
+  .item-price { font-size:13px; font-weight:700; color:#334155; white-space:nowrap; text-align:right; }
+  .item-qty { font-size:10px; color:#94a3b8; font-weight:600; text-align:right; }
+
+  .totals { margin-top:12px; padding-top:10px; border-top:1.5px dashed #e2e8f0; }
+  .trow { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; color:#475569; }
+  .trow.discount { color:#16a34a; }
+  .trow.grand { margin-top:8px; padding-top:10px; border-top:1.5px solid #0f172a; font-size:17px; font-weight:800; color:#0f172a; }
+  .trow .grand-label { display:flex; align-items:center; gap:6px; }
+  .trow .qr-tag { font-size:9px; background:#fce7f3; color:#db2777; font-weight:700; padding:2px 6px; border-radius:5px; }
+
+  .pay-box { border-radius:14px; padding:14px; margin-bottom:12px; background:linear-gradient(135deg,#fff1f2,#ffe4e6); border:1.5px solid #fecdd3; }
+  .pay-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .pay-title { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:#be123c; }
+  .pay-amount { font-size:26px; font-weight:800; letter-spacing:-1px; color:#0f172a; }
+  .pay-sub { font-size:11px; color:#64748b; margin-top:2px; }
+  .pay-method { display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:4px 10px; font-size:11px; font-weight:700; color:#334155; margin-top:8px; }
+  .qr-holder { display:flex; gap:12px; align-items:center; background:#fff; border-radius:12px; padding:12px; border:1px solid #fecdd3; margin-top:10px; }
+  .qr-img { width:84px; height:84px; border-radius:8px; flex-shrink:0; background:
+      repeating-linear-gradient(0deg,#0f172a 0 6px,transparent 6px 12px),
+      repeating-linear-gradient(90deg,#0f172a 0 6px,#fff 6px 12px);
+    background-blend-mode:screen; border:4px solid #fff; outline:1.5px solid #e2e8f0; position:relative; }
+  .qr-img::after { content:'QR'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#fff; color:#0f172a; font-size:13px; font-weight:800; width:26px; height:26px; margin:auto; border:2px solid #0f172a; border-radius:4px; }
+  .qr-info { font-size:11px; color:#64748b; line-height:1.5; }
+  .qr-info b { display:block; color:#0f172a; font-size:12px; margin-bottom:2px; }
+  .btn-pay { display:block; width:100%; margin-top:10px; padding:13px; border:none; border-radius:12px; background:linear-gradient(135deg,#e11d48,#be123c); color:#fff; font-size:15px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(225,29,72,.35); text-align:center; }
+
+  /* payment tabs (QRIS / Transfer BCA) */
+  .pay-tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .pay-tab { flex:1; padding:8px; border-radius:12px; border:1.5px solid #fecdd3; background:#fff; color:#be123c; font-size:12px; font-weight:800; text-align:center; }
+  .pay-tab.on { background:#be123c; border-color:#be123c; color:#fff; box-shadow:0 4px 10px rgba(190,18,60,.3); }
+  .qr-center { text-align:center; }
+  .qr-big { width:150px; height:150px; margin:0 auto; border:2px solid #fecdd3; border-radius:14px; background:
+      repeating-linear-gradient(0deg,#0f172a 0 6px,transparent 6px 12px),
+      repeating-linear-gradient(90deg,#0f172a 0 6px,#fff 6px 12px);
+    background-blend-mode:screen; position:relative; }
+  .qr-big::after { content:'QR'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#fff; color:#0f172a; font-size:15px; font-weight:800; width:32px; height:32px; margin:auto; border:2.5px solid #0f172a; border-radius:6px; }
+  .qr-amount { font-size:18px; font-weight:900; color:#0f172a; margin-top:8px; }
+  .qr-note { font-size:10.5px; color:#94a3b8; }
+  .qr-wait { font-size:10.5px; color:#e11d48; font-weight:700; margin-top:6px; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+  .bca-card { background:#fff; border:1px solid #fecdd3; border-radius:12px; padding:12px; margin-top:4px; }
+  .bca-top { display:flex; justify-content:space-between; align-items:center; }
+  .bca-top .bank { font-size:14px; font-weight:900; color:#0f172a; }
+  .bca-top .badge { background:#0054a6; color:#fff; font-size:9px; font-weight:900; padding:3px 8px; border-radius:5px; letter-spacing:1.5px; }
+  .bca-num { font-family:'SF Mono','Fira Code',monospace; font-size:16px; font-weight:700; letter-spacing:1px; color:#0f172a; margin-top:6px; }
+  .bca-owner { font-size:11px; color:#94a3b8; }
+  .bca-nominal { margin-top:8px; background:#fff1f2; border-radius:8px; padding:7px 10px; font-size:12px; font-weight:800; color:#be123c; display:flex; justify-content:space-between; }
+  .btn-upload { display:block; width:100%; margin-top:9px; padding:11px; border:1.5px dashed #fb7185; border-radius:12px; background:#fff1f2; color:#be123c; font-size:13px; font-weight:800; text-align:center; }
+  .bca-hint { font-size:9.5px; color:#e11d48; font-weight:700; text-align:center; margin-top:7px; line-height:1.5; }
+
+  /* shipping choice */
+  .ship-hint { background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:8px 10px; font-size:11px; color:#92400e; font-weight:600; line-height:1.5; margin-bottom:10px; }
+  .ship-opt { border:1.5px solid #e2e8f0; border-radius:12px; padding:11px; cursor:pointer; background:#fff; }
+  .ship-opt + .ship-opt { margin-top:8px; }
+  .ship-opt.on { border-color:#ec4899; background:rgba(252,231,243,.5); }
+  .ship-opt .row1 { display:flex; gap:9px; align-items:flex-start; }
+  .ship-radio { width:15px; height:15px; border:2px solid #cbd5e1; border-radius:50%; margin-top:2px; flex-shrink:0; }
+  .ship-opt.on .ship-radio { border-color:#ec4899; background:radial-gradient(circle,#ec4899 0 4px,#fdf2f8 5px); }
+  .ship-name { font-size:13px; font-weight:700; color:#1e293b; }
+  .ship-desc { font-size:11px; color:#94a3b8; line-height:1.5; margin-top:2px; }
+  .ship-detail { margin-top:9px; padding-top:9px; border-top:1.5px dashed #fbcfe8; background:#f8fafc; border-radius:8px; padding:8px 9px; font-size:10.5px; color:#64748b; line-height:1.55; }
+  .ship-detail b { color:#0f172a; }
+  .ship-wa { display:block; margin-top:8px; background:rgba(37,211,102,.1); border:1px solid rgba(37,211,102,.4); color:#128c7e; border-radius:10px; padding:7px; text-align:center; font-size:11.5px; font-weight:900; text-decoration:none; }
+
+  .card-loyalty { background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1.5px solid #bbf7d0; border-radius:18px; padding:14px; margin-bottom:12px; display:flex; align-items:center; gap:12px; }
+  .card-loyalty .ico { font-size:22px; }
+  .card-loyalty .t1 { font-size:13px; font-weight:900; color:#14532d; }
+  .card-loyalty .t2 { font-size:11px; color:#166534; margin-top:2px; }
+  .card-loyalty .pts { margin-left:auto; text-align:right; }
+  .card-loyalty .pts .n { font-size:20px; font-weight:900; color:#15803d; }
+  .card-loyalty .pts .l { font-size:9.5px; font-weight:800; color:#16a34a; letter-spacing:1px; }
+
+  .btn-wa { width:100%; background:rgba(37,211,102,.12); border:1.5px solid rgba(37,211,102,.45); color:#128c7e; font-weight:900; font-size:13px; padding:13px; border-radius:16px; text-align:center; }
+  .btn-wa::before { content:"\25B2"; font-size:10px; margin-right:8px; }
+  .btn-wa-row { display:flex; gap:8px; }
+  .btn-outline { flex:1; padding:11px; background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; text-align:center; font-size:12.5px; font-weight:800; color:#475569; }
+  .inv-foot { text-align:center; font-size:10px; color:#94a3b8; line-height:1.6; padding:14px 0 4px; }
+  .inv-foot b { color:#64748b; word-break:break-all; }
+  .inv-foot-brand { margin-top:6px; }
+
+  /* notes */
+  .notes { margin-top:40px; background:#fff; border-radius:24px; padding:26px 28px; box-shadow:0 12px 40px rgba(15,23,42,.08); max-width:980px; margin-left:auto; margin-right:auto; }
+  .notes h3 { font-size:15px; font-weight:900; margin-bottom:14px; letter-spacing:-.3px; }
+  .notes ul { list-style:none; }
+  .notes li { font-size:13px; color:#334155; padding:7px 0 7px 26px; position:relative; line-height:1.55; border-bottom:1px solid #f1f5f9; }
+  .notes li:last-child { border-bottom:none; }
+  .notes li::before { content:"\2192"; position:absolute; left:0; color:#e11d48; font-weight:900; }
+  .notes li b { color:#0f172a; }
+  .notes code { background:#f1f5f9; padding:1px 6px; border-radius:6px; font-size:12px; color:#be123c; font-weight:700; }
+  .choice { display:flex; gap:14px; margin-top:16px; flex-wrap:wrap; }
+  .choice .opt { flex:1; min-width:260px; border:2px solid #e2e8f0; border-radius:18px; padding:16px 18px; }
+  .choice .opt.reco { border-color:#e11d48; background:#fff1f2; }
+  .choice .opt .h { font-size:13px; font-weight:900; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+  .choice .opt .h .rc { background:#e11d48; color:#fff; font-size:9px; font-weight:900; padding:3px 8px; border-radius:99px; letter-spacing:1px; }
+  .choice .opt p { font-size:12px; color:#475569; line-height:1.6; }
+  .foot { text-align:center; font-size:11px; color:#94a3b8; margin-top:22px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span class="tag">MOCKUP v2</span><span class="tag2">PERUBAHAN</span> "Kirim Pesanan" → <b>"Pesan Sekarang"</b> · Invoice gaya <b>Invoice Belanja</b></div>
+  <div class="page-sub">2 perubahan: (1) kata tombol checkout diganti, (2) setelah submit customer langsung dibuka halaman invoice bergaya formal <b>Invoice Belanja</b> (brand jastip_mamanay, nomor INV, progress status) — meniru tampilan <code>mockup-invoice.html</code>.</div>
+
+  <div class="flow">
+    <!-- SCREEN 1 -->
+    <div class="col">
+      <div class="col-label">
+        <span class="num">1</span> Form Pemesanan
+        <span class="chg">TOMBOL: "Pesan Sekarang"</span>
+      </div>
+      <div class="phone">
+        <div class="statusbar"><span>19:50</span><span>mamanay.vercel.app/catalog</span></div>
+        <div class="s1-bg">
+          <div class="ghost-row"><div class="ghost"></div><div class="ghost"></div></div>
+          <div class="ghost-row"><div class="ghost"></div><div class="ghost"></div></div>
+          <div class="ghost-row"><div class="ghost"></div><div class="ghost"></div></div>
+          <div class="s1-overlay">
+            <div class="sheet">
+              <div class="sheet-grip"><div></div></div>
+              <div class="sheet-head"><h2>Data Pemesanan</h2><span class="sheet-x">&#10005;</span></div>
+              <div class="sheet-body">
+                <div class="summary">
+                  <div class="cap">Ringkasan Pesanan</div>
+                  <div class="row"><span>Greney LT 250819 green 85b x1</span><b>Rp 44.000</b></div>
+                  <div class="total"><span>Total</span><span>Rp 44.000</span></div>
+                </div>
+                <div class="field"><label>Nama Lengkap *</label><div class="input filled">Wulandari</div></div>
+                <div class="field"><label>No. WhatsApp *</label><div class="input filled">081216421817</div></div>
+                <div class="field"><label>Alamat</label><div class="input">Alamat pengiriman (opsional)</div></div>
+                <div class="field"><label>Catatan</label><div class="input">Catatan tambahan (opsional)</div></div>
+              </div>
+              <div class="btn-pesan"><span class="chk">&#10003;</span> Pesan Sekarang</div>
+              <div class="btn-sub">Pesanan jadi tagihan &mdash; bayar setelahnya lewat halaman invoice</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARROW -->
+    <div class="arrowcol">
+      <div class="arrow-note"><b>"Pesan Sekarang"</b><br>kata "Kirim Pesanan"<br>diganti total</div>
+      <div class="arrow-note gray"><b>submit sukses →</b><br>langsung buka<br>halaman invoice<br>(tanpa modal lagi)</div>
+      <div class="arrow">&#10132;</div>
+      <div class="arrow-note gray"><b>toast 2 detik</b><br>&#10003; Pesanan terkirim!<br>link tetap dikirim<br>ke WhatsApp</div>
+    </div>
+
+    <!-- SCREEN 2 -->
+    <div class="col">
+      <div class="col-label">
+        <span class="num">2</span> Halaman Invoice
+        <span class="chg">GAYA: INVOICE BELANJA FORMAL</span>
+      </div>
+      <div class="phone">
+        <span class="badge-baru">TUJUAN BARU</span>
+        <div class="statusbar"><span>19:50</span><span>mamanay.vercel.app/invoice/dfea5dc2&hellip;</span></div>
+        <div class="s2">
+          <div class="inv-header">
+            <div class="toast"><span class="ok">&#10003;</span> Pesanan terkirim!</div>
+            <div class="brand">
+              <div class="brand-icon">&#129534;</div>
+              <div>
+                <div class="brand-text">jastip_mamanay</div>
+                <div class="brand-sub">Invoice Penjualan</div>
+              </div>
+            </div>
+            <div class="inv-title">
+              <h1>Invoice Belanja</h1>
+              <span class="inv-no">INV-DFEA5D</span>
+              <div class="inv-date">&#128197; 1 Oktober 2026, 19:50 WIB</div>
+            </div>
+          </div>
+
+          <div class="content">
+            <!-- STATUS + PROGRESS -->
+            <div class="card">
+              <div class="status-row">
+                <span class="pill unpaid"><span class="dot"></span>Belum Dibayar</span>
+                <span class="pill-label">Status Pesanan</span>
+              </div>
+              <div class="progress" style="margin-top:14px">
+                <div class="step">
+                  <div class="step-line done"></div>
+                  <div class="step-dot done">&#10003;</div>
+                  <div class="step-label done">Dibuat</div>
+                </div>
+                <div class="step">
+                  <div class="step-line"></div>
+                  <div class="step-dot active">&#9679;</div>
+                  <div class="step-label active">Menunggu Bayar</div>
+                </div>
+                <div class="step">
+                  <div class="step-line"></div>
+                  <div class="step-dot pending">3</div>
+                  <div class="step-label">Dikemas</div>
+                </div>
+                <div class="step">
+                  <div class="step-line"></div>
+                  <div class="step-dot pending">4</div>
+                  <div class="step-label">Selesai</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CUSTOMER -->
+            <div class="card">
+              <div class="label-card-title">&#128100; Pelanggan</div>
+              <div class="cust-row">
+                <div class="cust-avatar">&#128131;</div>
+                <div>
+                  <div class="cust-name">Wulandari</div>
+                  <div class="cust-phone">0812-1642-1817</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ITEMS -->
+            <div class="card">
+              <div class="label-card-title">&#128230; Pesanan</div>
+              <div class="items">
+                <div class="item">
+                  <div class="item-img">&#129534;</div>
+                  <div class="item-info">
+                    <div class="item-name">Greney LT 250819 green 85b <span class="item-status ready">Ready</span></div>
+                    <div class="item-meta">1 &times; Rp 44.000</div>
+                  </div>
+                  <div>
+                    <div class="item-price">Rp 44.000</div>
+                    <div class="item-qty">1 pcs</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="totals">
+                <div class="trow"><span>Subtotal</span><span>Rp 44.000</span></div>
+                <div class="trow"><span>Ongkir</span><span>&mdash;</span></div>
+                <div class="trow discount"><span>Kode unik</span><span>&minus; Rp 37</span></div>
+                <div class="trow grand">
+                  <span class="grand-label">Total Tagihan <span class="qr-tag">QRIS</span></span>
+                  <span>Rp 43.963</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- PAY BOX: pilihan bayar QRIS / Transfer BCA -->
+            <div class="pay-box">
+              <div class="pay-head">
+                <div>
+                  <div class="pay-title">&#9888;&#65039; Menunggu Pembayaran</div>
+                  <div class="pay-amount">Rp 43.963</div>
+                  <div class="pay-sub">Bayar sebelum 3 Oktober 2026, 19:50 WIB</div>
+                </div>
+              </div>
+
+              <div class="pay-tabs">
+                <div class="pay-tab on">&#9635; Bayar QRIS</div>
+                <div class="pay-tab">&#127974; Transfer BCA</div>
+              </div>
+
+              <!-- pane QRIS (aktif) -->
+              <div class="qr-center" style="background:#fff;border:1px solid #fecdd3;border-radius:12px;padding:12px;">
+                <div class="qr-big"></div>
+                <div class="qr-amount">Rp 43.963</div>
+                <div class="qr-note">sisa Rp 44.000 &middot; kode unik &minus;Rp 37</div>
+                <div class="qr-note" style="color:#f59e0b;font-weight:700;margin-top:3px;">&#128337; Kadaluarsa 14:59</div>
+                <div class="qr-wait">&#8987; Menunggu pembayaran&hellip; (update otomatis &le;1 menit)</div>
+              </div>
+
+              <!-- pane Transfer BCA (tab kedua) -->
+              <div style="margin-top:8px;">
+                <div class="bca-card">
+                  <div class="bca-top">
+                    <span class="bank">BCA</span>
+                    <span class="badge">BCA</span>
+                  </div>
+                  <div class="bca-num">5271330651 &#9864;</div>
+                  <div class="bca-owner">a.n. Nurul Azizah</div>
+                  <div class="bca-nominal"><span>Nominal persis</span><span>Rp 43.963</span></div>
+                </div>
+                <div class="btn-upload">&#128228; Upload Bukti Transfer</div>
+                <div class="bca-hint">Verifikasi manual oleh penjual &middot; foto struk dikirim, admin cek lalu lunas</div>
+              </div>
+            </div>
+
+            <!-- SHIPPING: pilihan pengiriman -->
+            <div class="card">
+              <div class="label-card-title">&#128666; Metode Pengiriman <span style="color:#d97706;text-transform:none;letter-spacing:0;margin-left:auto;font-size:10px;">belum dipilih</span></div>
+              <div class="ship-hint">&#11015;&#65039; Pilih metode pengiriman dulu supaya penjual bisa segera memproses.</div>
+
+              <div class="ship-opt on">
+                <div class="row1">
+                  <div class="ship-radio"></div>
+                  <div>
+                    <div class="ship-name">&#128231; Kirim Manual</div>
+                    <div class="ship-desc">JNT / JNE / LION PARCEL &mdash; admin yang atur kurir &amp; ongkir setelah pembayaran</div>
+                  </div>
+                </div>
+                <div class="ship-detail">
+                  Setelah lunas, admin konfirmasi kurir + ongkir via WhatsApp. Estimasi tiba <b>2&ndash;4 hari</b> &middot; resiko ditanggung penjual sampai diterima.
+                  <a class="ship-wa" href="#" onclick="return false">&#128172; Chat penjual via WhatsApp</a>
+                </div>
+              </div>
+
+              <div class="ship-opt">
+                <div class="row1">
+                  <div class="ship-radio"></div>
+                  <div>
+                    <div class="ship-name">&#128722; Kirim via Shopee</div>
+                    <div class="ship-desc">Checkout sendiri di Shopee &mdash; ongkir &amp; resi Shopee, paket lebih aman</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- LOYALTY -->
+            <div class="card-loyalty">
+              <div class="ico">&#10024;</div>
+              <div>
+                <div class="t1">Poin loyalitas</div>
+                <div class="t2">Lunas &rarr; +44 poin (tier 1.0&times;)</div>
+              </div>
+              <div class="pts"><div class="n">0</div><div class="l">POIN</div></div>
+            </div>
+
+            <div class="btn-wa-row">
+              <div class="btn-outline">&#128424;&#65039; Simpan PDF</div>
+              <div class="btn-outline">&#128279; Salin Link</div>
+            </div>
+            <div class="inv-foot">
+              Link invoice ini bisa dibuka kapan saja tanpa login.
+              <br><b>mamanay.vercel.app/invoice/dfea5dc2</b>
+              <div class="inv-foot-brand">&#128666; &#128230; jastip_mamanay</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes">
+    <h3>&#128203; Yang berubah di aplikasi (rencana implementasi)</h3>
+    <ul>
+      <li><b>Tombol checkout</b>: <code>Kirim Pesanan</code> &rarr; <b><code>Pesan Sekarang</code></b> (Catalog.tsx, teks tombol saja, warna & fungsi tetap).</li>
+      <li><b>Setelah submit sukses &rarr; langsung <code>navigate('/invoice/{id}')</code></b> — modal "Pesanan Terkirim!" dihapus, diganti toast kecil "&#10003; Pesanan terkirim!" muncul 2 detik di halaman invoice.</li>
+      <li><b>Tampilan Invoice.tsx digaya "Invoice Belanja" formal</b>: header brand <b>jastip_mamanay / Invoice Penjualan</b> + <code>INV-XXXXXX</code> + tanggal, kartu status pill + progress (Dibuat &rarr; Menunggu Bayar &rarr; Dikemas &rarr; Selesai), kartu pelanggan, kartu item dengan badge READY/PO, rincian total, kotak <b>Sisa Tagihan</b> + QRIS + tombol bayar.</li>
+      <li><b>Kotak bayar = tab <code>▣ Bayar QRIS</code> / <code>🏦 Transfer BCA</code></b> (sama seperti Invoice.tsx sekarang): QRIS menampilkan QR dinamis + countdown + "Menunggu pembayaran…"; BCA menampilkan no. rekening 5271330651 + nominal persis + tombol Upload Bukti Transfer.</li>
+      <li><b>Kartu 🚚 Metode Pengiriman</b> (sudah ada, dipertahankan): pilihan radio <b>📮 Kirim Manual</b> (JNT/JNE/LION, admin atur kurir+ongkir) vs <b>🛒 Kirim via Shopee</b> (checkout sendiri), plus hint "belum dipilih" & tombol chat WA.</li>
+      <li>Fitur lama TIDAK hilang: kode unik, poin loyalitas, tukar poin, chat WA di kartu pengiriman, Simpan PDF + Salin Link, deadline 2 hari — hanya tata letak digaya "Invoice Belanja".</li>
+      <li>Link invoice tetap dikirim ke WhatsApp (fallback kalau customer tutup tab). Order id tetap di URL &rarr; bisa refresh/back.</li>
+      <li>Alur ini sama untuk semua jalan masuk invoice (checkout katalog, link WA tagihan, customer portal) karena halaman invoice-nya satu.</li>
+    </ul>
+
+    <div class="choice">
+      <div class="opt reco">
+        <div class="h">Opsi A — Langsung ke invoice <span class="rc">REKOMENDASI</span></div>
+        <p>"Pesan Sekarang" &rarr; sukses &rarr; halaman invoice langsung terbuka + toast. 1 langkah lebih sedikit dari sekarang. <b>Ini yang dimockup di atas.</b></p>
+      </div>
+      <div class="opt">
+        <div class="h">Opsi B — Modal singkat, lalu auto-redirect</div>
+        <p>Modal "Pesanan Terkirim!" masih tampil 1,5 detik (nomor pesanan terbaca), lalu otomatis pindah ke invoice. Lebih pelan, tapi pesanan number sempat dilihat.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">Mockup v2 &middot; "Pesan Sekarang" &rarr; Invoice Belanja formal &middot; 1 Okt 2026 &middot; bersifat visual, bukan kode produksi</div>
+</div>
+</body>
+</html>
