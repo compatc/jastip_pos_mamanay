@@ -1854,7 +1854,9 @@
       if (_redeemSelectedOrder) {
         var o = unpaidOrders.find(function(x) { return x.id === _redeemSelectedOrder; });
         if (o) {
-          var maxDiskon = Math.floor(((o.total || 0) - (o.paid_total || 0) - (o.diskon || 0)) * 0.05);
+          var ot = (o.total || 0);
+          var tier = ot < 50000 ? 5000 : ot < 500000 ? 10000 : 20000;
+          var maxDiskon = Math.min(tier, ot) - (o.diskon || 0);
           discount = Math.min(discount, Math.max(maxDiskon, 0));
         }
       }

@@ -465,7 +465,13 @@ export default function Invoice() {
   const paidDisplay = sumPaid > 0 ? sumPaid : totalDue;
   const custPoints = customer?.points || 0;
   const redeemOrder = !isMulti && !isPaid && !isCancelled ? order : null;
-  const redeemTierMax = redeemOrder ? ((redeemOrder.total || 0) < 500000 ? 10000 : 20000) : 0;
+  const redeemTierMax = redeemOrder
+    ? (redeemOrder.total || 0) < 50000
+      ? 5000
+      : (redeemOrder.total || 0) < 500000
+        ? 10000
+        : 20000
+    : 0;
   const redeemMaxDiskon = redeemOrder
     ? Math.max(0, Math.min(redeemTierMax, redeemOrder.total || 0) - (redeemOrder.diskon || 0))
     : 0;
