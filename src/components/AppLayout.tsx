@@ -256,6 +256,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
                 <button
+                  onClick={() => navigate("/payment-confirmations")}
+                  className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
+                  title="Konfirmasi Bayar"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  {pendingConfCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center bg-amber-500 text-white text-[9px] font-black rounded-full px-1 border-2 border-white">
+                      {pendingConfCount}
+                    </span>
+                  )}
+                </button>
+                <button
                   onClick={() => setShowQrisHistory(true)}
                   className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all relative"
                   title="Notifikasi"
