@@ -585,7 +585,7 @@ export async function reconcilePending(sb, limit = 30) {
         await sendPushNotification(sb, {
           title: "QRIS Lunas",
           body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}${info.lines.length ? `\n${info.lines.join("\n")}` : ""}`,
-          url: "/orders",
+          url: g.order_ids?.[0] ? `/orders/${g.order_ids[0]}` : "/orders",
           type: "qris",
           orderIds: g.order_ids || [],
           amount: paidAmount,
@@ -842,7 +842,7 @@ export default async function handler(req, res) {
           await sendPushNotification(sb, {
             title: "QRIS Lunas",
             body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}${info.lines.length ? `\n${info.lines.join("\n")}` : ""}`,
-            url: "/orders",
+            url: group.order_ids?.[0] ? `/orders/${group.order_ids[0]}` : "/orders",
             type: "qris",
             orderIds: group.order_ids,
             amount: paidAmount,
@@ -898,7 +898,7 @@ export default async function handler(req, res) {
         await sendPushNotification(sb, {
           title: "QRIS Lunas (Auto-Create)",
           body: `${rupiah(paidAmount)} diterima ΓÇö order baru dibuat otomatis`,
-          url: "/orders",
+          url: newOrderId ? `/orders/${newOrderId}` : "/orders",
           type: "qris",
           orderIds: [newOrderId],
           amount: paidAmount,
@@ -1199,7 +1199,7 @@ export default async function handler(req, res) {
         await sendPushNotification(sb, {
           title: "QRIS Lunas",
           body: `${rupiah(paidAmount)} diterima${info.names.length ? ` dari ${info.names.join(", ")}` : ""}${info.lines.length ? `\n${info.lines.join("\n")}` : ""}`,
-          url: "/orders",
+          url: orderIds?.[0] ? `/orders/${orderIds[0]}` : "/orders",
           type: "qris",
           orderIds,
           amount: paidAmount,
@@ -1509,7 +1509,7 @@ export default async function handler(req, res) {
           await sendPushNotification(sb, {
             title,
             body: bodyText + "\n" + invUrl,
-            url: "/orders",
+            url: rows[0]?.id ? `/orders/${rows[0].id}` : "/orders",
             type: "shipping",
             orderIds: ids,
             amount,

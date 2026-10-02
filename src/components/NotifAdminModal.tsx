@@ -10,6 +10,7 @@ interface HistoryItem {
   title: string;
   body: string;
   url: string;
+  order_ids: string[] | null;
   amount: number;
   type: string;
   created_at: string;
@@ -122,7 +123,7 @@ export default function NotifAdminModal({ open, onClose }: { open: boolean; onCl
       try {
         const { data } = await supabase
           .from("notifications")
-          .select("id, title, body, url, amount, type, created_at")
+          .select("id, title, body, url, order_ids, amount, type, created_at")
           .order("created_at", { ascending: false })
           .limit(50);
         if (cancelled) return;
@@ -164,7 +165,9 @@ export default function NotifAdminModal({ open, onClose }: { open: boolean; onCl
   function openNotif(it: HistoryItem) {
     doRead(it.id);
     onClose();
-    navigate(it.url && it.url.startsWith("/") ? it.url : "/orders");
+    const listLevel = !it.url || it.url === "/" || it.url === "/orders";
+    const firstId = Array.isArray(it.order_ids) ? it.order_ids[0] : undefined;
+    navigate(!listLevel ? it.url : firstId ? `/orders/${firstId}` : "/orders");
   }
 
   if (!open) return null;
