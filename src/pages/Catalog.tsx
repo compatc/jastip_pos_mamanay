@@ -395,7 +395,7 @@ export default function Catalog() {
                 <div
                   key={p.id}
                   onClick={() => { setSelected(p); setCarouselIdx(0); window.history.pushState({}, "", "/catalog/" + p.id); }}
-                  className={`relative bg-white rounded-[22px] p-2.5 text-center border transition-all cursor-pointer group ${
+                  className={`relative flex flex-col bg-white rounded-[22px] p-2.5 text-center border transition-all cursor-pointer group ${
                     cartQty > 0
                       ? "border-pink-500 shadow-[0_10px_26px_rgba(236,72,153,0.22)]"
                       : "border-[#fde2ee] shadow-[0_8px_20px_rgba(244,114,182,0.14)] hover:shadow-[0_12px_26px_rgba(244,114,182,0.22)]"
@@ -442,7 +442,7 @@ export default function Catalog() {
                   </div>
 
                   {/* Info */}
-                  <div className="px-1 pt-2.5 pb-0.5">
+                  <div className="px-1 pt-2.5 pb-0.5 flex flex-col flex-1">
                     <h3 className="text-xs sm:text-[13px] font-bold text-[#4a2334] leading-snug line-clamp-2 min-h-[32px] sm:min-h-[36px]">
                       {p.name}
                     </h3>
@@ -470,9 +470,10 @@ export default function Catalog() {
                     </div>
 
                     {/* Quick add / stepper in-cart */}
+                    <div className="mt-auto pt-2.5">
                     {cartQty > 0 ? (
                       <div
-                        className="mt-2.5 flex items-center gap-1.5 bg-pink-50 border-2 border-pink-200 rounded-full p-1"
+                        className="flex items-center gap-1.5 bg-pink-50 border-2 border-pink-200 rounded-full p-1"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
@@ -504,7 +505,7 @@ export default function Catalog() {
                           }
                         }}
                         disabled={isPoClosed}
-                        className={`w-full mt-2.5 py-2.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide transition-all ${
+                        className={`w-full py-2.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide transition-all ${
                           isPoClosed
                             ? "bg-pink-50 text-pink-300 cursor-not-allowed"
                             : "bg-gradient-to-br from-pink-400 to-rose-500 text-white shadow-md shadow-pink-200 active:scale-[0.97]"
@@ -513,6 +514,7 @@ export default function Catalog() {
                         {isPoClosed ? "PO Ditutup" : "+ Keranjang"}
                       </button>
                     )}
+                    </div>
                   </div>
                 </div>
               );
