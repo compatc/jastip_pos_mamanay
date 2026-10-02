@@ -1032,11 +1032,11 @@ export default function Invoice() {
                 )}
                 {!qrLoading && !qrError && qrSvg && !qrExpired && !confirmed && (
                   <div className="text-center">
-                    <div className="mx-auto w-52 h-52 bg-white border-2 border-rose-200 rounded-2xl p-2.5 mb-3">
+                    <div className="mx-auto w-52 h-52 bg-white border-2 border-rose-200 rounded-2xl p-2.5 mb-3 overflow-hidden">
                       {qrSvg.startsWith("data:") ? (
                         <img src={qrSvg} alt="QRIS" className="w-full h-full object-contain" />
                       ) : (
-                        <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+                        <div className="w-full h-full [&_svg]:block [&_svg]:w-full [&_svg]:h-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
                       )}
                     </div>
                     <p className="text-[13px] font-extrabold text-slate-900">{rupiah(qrAmount - qrKodeUnik)}</p>
