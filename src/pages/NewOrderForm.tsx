@@ -208,14 +208,31 @@ export default function NewOrderForm() {
       return;
     }
 
-    const validItems = items
-      .filter(
-        (i) =>
+    const invalidItems = items.filter(
+      (i) =>
+        !(
           i.product_id &&
           i.product_name.trim() &&
           (parseFloat(i.price) || 0) > 0 &&
           (parseInt(i.quantity) || 0) > 0
-      )
+        )
+    );
+    if (invalidItems.length > 0) {
+      alert(
+        "Item ini belum valid — perbaiki dulu sebelum simpan:\n" +
+          invalidItems
+            .map((i) => {
+              if (!i.product_name.trim()) return "• Item tanpa nama produk";
+              if (!i.product_id)
+                return `• "${i.product_name}" — tidak ada di Inventaris, pilih ulang dari daftar produk`;
+              return `• "${i.product_name}" — harga atau qty belum terisi`;
+            })
+            .join("\n")
+      );
+      return;
+    }
+
+    const validItems = items
       .map((i) => ({
         product_id: i.product_id,
         product_name: i.product_name.trim(),
@@ -225,8 +242,6 @@ export default function NewOrderForm() {
         variant: i.variant || "",
         unit_cost: orderType === "pembelian" ? (parseFloat(i.unit_cost || "") || undefined) : undefined,
       }));
-
-    if (validItems.length === 0) return;
 
     try {
       await addStandaloneOrder({

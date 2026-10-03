@@ -159,10 +159,25 @@ export default function EditOrderForm() {
       }
     }
 
+    const normName = (s: string) =>
+      s.replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
+
     const mappedItems: OrderItemInput[] = orderItems.map((oi) => {
-      const product = oi.product_id
-        ? products.find((p) => p.id === oi.product_id)
-        : products.find((p) => p.name === oi.product_name);
+      let product = oi.product_id ? products.find((p) => p.id === oi.product_id) : undefined;
+      if (!product) {
+        // product_id kosong (order lama) / produk sudah rename → cari by nama (fuzzy)
+        const target = normName(oi.product_name || "");
+        if (target) {
+          product =
+            products.find((p) => normName(p.name) === target) ||
+            (target.length >= 4
+              ? products.find((p) => {
+                  const n = normName(p.name);
+                  return n.startsWith(target) || target.startsWith(n);
+                })
+              : undefined);
+        }
+      }
       return {
         product_id: product?.id || oi.product_id || "",
         product_name: oi.product_name,
@@ -281,14 +296,31 @@ export default function EditOrderForm() {
       return;
     }
 
-    const validItems = items
-      .filter(
-        (i) =>
+    const invalidItems = items.filter(
+      (i) =>
+        !(
           i.product_id &&
           i.product_name.trim() &&
           (parseFloat(i.price) || 0) > 0 &&
           (parseInt(i.quantity) || 0) > 0
-      )
+        )
+    );
+    if (invalidItems.length > 0) {
+      alert(
+        "Item ini belum valid — perbaiki dulu sebelum simpan:\n" +
+          invalidItems
+            .map((i) => {
+              if (!i.product_name.trim()) return "• Item tanpa nama produk";
+              if (!i.product_id)
+                return `• "${i.product_name}" — tidak ada di Inventaris, pilih ulang dari daftar produk`;
+              return `• "${i.product_name}" — harga atau qty belum terisi`;
+            })
+            .join("\n")
+      );
+      return;
+    }
+
+    const validItems = items
       .map((i) => ({
         product_id: i.product_id,
         product_name: i.product_name.trim(),
@@ -298,8 +330,6 @@ export default function EditOrderForm() {
         variant: i.variant || "",
         unit_cost: orderType === "pembelian" ? (parseFloat(i.unit_cost || "") || undefined) : undefined,
       }));
-
-    if (validItems.length === 0) return;
 
     if (status === "completed") {
       showConfirm("Selesaiin order ini?", "Apakah kamu yakin ingin menyelesaikan order ini?", async () => {
