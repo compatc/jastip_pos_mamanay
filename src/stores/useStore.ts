@@ -817,6 +817,8 @@ export const useStore = create<PosStore>((set, get) => ({
       .eq("order_id", orderId);
 
     if (oldItems && oldItems.length > 0) {
+      const normName = (s: string) =>
+        s.replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
       for (const row of oldItems) {
         let product = null;
         if (row.product_id) {
@@ -824,15 +826,33 @@ export const useStore = create<PosStore>((set, get) => ({
             .from("products")
             .select("id, stock")
             .eq("id", row.product_id)
-            .single();
+            .maybeSingle();
           product = data;
-        } else {
-          const { data } = await supabase
+        }
+        if (!product && row.product_name) {
+          const { data: exact } = await supabase
             .from("products")
             .select("id, stock")
             .eq("name", row.product_name)
-            .single();
-          product = data;
+            .maybeSingle();
+          product = exact;
+        }
+        if (!product && row.product_name) {
+          // Produk sudah rename / nama item beda → fuzzy fallback (ilike)
+          const target = normName(row.product_name).replace(/[()%_]/g, " ").trim();
+          if (target.length >= 4) {
+            const { data: cands } = await supabase
+              .from("products")
+              .select("id, name, stock")
+              .ilike("name", `%${target}%`)
+              .limit(5);
+            const list = cands || [];
+            product =
+              list.find((p) => normName(p.name) === normName(row.product_name)) ||
+              list.find((p) => normName(p.name).startsWith(target)) ||
+              list[0] ||
+              null;
+          }
         }
         if (product) {
           const stockDelta = oldOrderType === "penjualan" ? row.quantity : -row.quantity;
