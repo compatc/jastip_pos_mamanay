@@ -1291,56 +1291,106 @@ export default async function handler(req, res) {
       });
       const orders = billable.map(mapOrder);
 
-      let customer = null;
+      // Jalankan paralel — invoice halaman publik, 5 query sequential dulu ~1,7 detik
+      const billableIds = billable.map((o) => o.id);
       const customerId = billable[0]?.customer_id || null;
-      if (customerId) {
-        const { data: cust } = await sb
-          .from("customers")
-          .select("id, name, phone, address, points, member_level")
-          .eq("id", customerId)
-          .maybeSingle();
-        if (cust) {
-          customer = {
-            id: cust.id,
-            name: cust.name || "",
-            phone: cust.phone || "",
-            address: cust.address || "",
-            points: cust.points || 0,
-            member_level: cust.member_level || "silver",
-          };
-        }
+      const [custPh, phPh, itemPh] = await Promise.all([
+        customerId
+          ? sb
+              .from("customers")
+              .select("id, name, phone, address, points, member_level")
+              .eq("id", customerId)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        sb.from("points_history").select("points").in("order_id", ids),
+        sb
+          .from("order_items")
+          .select("order_id, product_id, product_name, variant, quantity, price, discount")
+          .in("order_id", billableIds),
+      ]);
+
+      let customer = null;
+      const cust = custPh?.data;
+      if (cust) {
+        customer = {
+          id: cust.id,
+          name: cust.name || "",
+          phone: cust.phone || "",
+          address: cust.address || "",
+          points: cust.points || 0,
+          member_level: cust.member_level || "silver",
+        };
       }
 
       // Poin yang benar-benar sudah masuk untuk order-order di invoice ini
       let awardedPoints = 0;
       try {
-        const { data: ph } = await sb
-          .from("points_history")
-          .select("points")
-          .in("order_id", ids);
-        awardedPoints = (ph || []).reduce((s, p) => s + (p.points || 0), 0);
+        awardedPoints = (phPh?.data || []).reduce((s, p) => s + (p.points || 0), 0);
       } catch {}
 
-      const billableIds = billable.map((o) => o.id);
-      const { data: itemRows } = await sb
-        .from("order_items")
-        .select("order_id, product_id, product_name, variant, quantity, price, discount")
-        .in("order_id", billableIds);
-      const rawItems = itemRows || [];
+      const rawItems = itemPh?.data || [];
       const productIds = [...new Set(rawItems.map((i) => i.product_id).filter(Boolean))];
       const productMap = new Map();
-      if (productIds.length > 0) {
-        const { data: prods } = await sb
-          .from("products")
-          .select("id, image, weight, stock_type, unit")
-          .in("id", productIds);
-        for (const p of prods || []) productMap.set(p.id, p);
+      const byName = new Map();
+
+      // Order lama (POS lama) & bot bisa tanpa product_id → cari by nama, supaya berat/gambar benar
+      const missingNames = [
+        ...new Set(
+          rawItems
+            .filter((i) => !i.product_id && i.product_name)
+            .map((i) => i.product_name.trim())
+            .filter(Boolean)
+        ),
+      ];
+      const prodCols = "id, name, image, weight, stock_type, unit";
+      const lookups = [];
+      if (productIds.length > 0) lookups.push(sb.from("products").select(prodCols).in("id", productIds));
+      if (missingNames.length > 0) lookups.push(sb.from("products").select(prodCols).in("name", missingNames));
+      const prodRes = await Promise.all(lookups);
+      for (const r of prodRes) {
+        for (const p of r.data || []) {
+          productMap.set(p.id, p);
+          if (p.name) byName.set(p.name.trim(), p);
+        }
       }
+
+      const nameMap = new Map();
+      const stillMissing = [];
+      for (const n of missingNames) {
+        const hit = byName.get(n);
+        if (hit) nameMap.set(n, hit);
+        else stillMissing.push(n);
+      }
+      if (stillMissing.length > 0) {
+        // Fuzzy terakhir: strip [PO]/ready/po dari nama lalu ilike
+        const fuzzyRes = await Promise.all(
+          stillMissing.map((n) => {
+            const clean = n
+              .replace(/\[.*?\]|\b(ready|readyh|po)\b/gi, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+            return sb.from("products").select(prodCols).ilike("name", `%${clean}%`).limit(5);
+          })
+        );
+        stillMissing.forEach((n, idx) => {
+          const cands = fuzzyRes[idx]?.data || [];
+          const p =
+            cands.find((c) => c.name && c.name.trim().toLowerCase() === n.toLowerCase()) || cands[0];
+          if (p) {
+            productMap.set(p.id, p);
+            nameMap.set(n, p);
+          }
+        });
+      }
+
       const items = rawItems.map((i) => {
-        const p = productMap.get(i.product_id);
+        const p =
+          (i.product_id ? productMap.get(i.product_id) : null) ||
+          nameMap.get((i.product_name || "").trim()) ||
+          null;
         return {
           order_id: i.order_id,
-          product_id: i.product_id,
+          product_id: i.product_id || p?.id || null,
           product_name: i.product_name || "",
           variant: i.variant || null,
           quantity: i.quantity || 0,

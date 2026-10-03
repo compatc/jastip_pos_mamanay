@@ -1,3 +1,5 @@
+import { getAdmin } from "./pay.mjs";
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -26,18 +28,14 @@ export default async function handler(req, res) {
   const botToken = process.env.VITE_BOT_API_TOKEN || process.env.BOT_API_TOKEN || "mamanay2026";
 
   try {
-    const sbRes = await fetch(
-      `${process.env.VITE_SUPABASE_URL}/rest/v1/settings?key=eq.bot_api_url&select=value`,
-      {
-        headers: {
-          apikey: process.env.VITE_SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-      }
-    );
-    const sbData = await sbRes.json();
-    if (sbData?.[0]?.value) botUrl = sbData[0].value;
-  } catch (_) {}
+    const sb = await getAdmin();
+    const { data } = await sb
+      .from("settings")
+      .select("value")
+      .eq("key", "bot_api_url")
+      .maybeSingle();
+    if (data?.value) botUrl = data.value;
+  } catch {}
 
   try {
     const resp = await fetch(`${botUrl}/api/send-batch`, {

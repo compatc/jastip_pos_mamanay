@@ -617,6 +617,7 @@ export const useStore = create<PosStore>((set, get) => ({
         .insert({
           id: itemId,
           order_id: orderId,
+          product_id: item.product_id || null,
           product_name: item.product_name,
           price: item.price,
           quantity: item.quantity,
