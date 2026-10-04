@@ -13,6 +13,7 @@ import {
   Upload,
   ExternalLink,
 } from "lucide-react";
+import { imgUrl } from "../lib/img";
 
 interface InvoiceItem {
   order_id?: string;
@@ -787,12 +788,9 @@ export default function Invoice() {
                   >
                     {it.image ? (
                       <img
-                        src={it.image}
+                        src={imgUrl(it.image)}
                         alt=""
                         className="w-11 h-11 rounded-xl object-cover bg-white border border-slate-100 shrink-0"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
                       />
                     ) : (
                       <div className="w-11 h-11 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-lg shrink-0">
@@ -1338,7 +1336,7 @@ export default function Invoice() {
               {packings.map((o) => (
                 <div key={o.id} className="flex items-center gap-3">
                   <img
-                    src={o.packing_photo || ""}
+                    src={imgUrl(o.packing_photo)}
                     alt="Foto packing"
                     className="w-16 h-16 rounded-xl object-cover border border-slate-200"
                   />

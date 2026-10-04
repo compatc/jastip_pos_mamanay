@@ -206,6 +206,17 @@ packing/
 - 2026-09-09: R2 confirmed accessible from mobile browsers, reverted from Supabase Storage back to R2
 - 2026-09-09: Migrated 69 packing photos from Supabase Storage `packing-photos` to R2 `packing/` folder
 
+### r2.dev DIBLOKIR ISP Indonesia (sejak ~Juni 2026)
+- Domain `r2.dev` di-hijack DNS oleh ISP Indonesia (arah ke `internetpositif.id`/`aduankonten.id`) → semua `<img>` dari R2 gagal load di browser pelanggan. File R2 sendiri SEHAT (akses paksa IP Cloudflare asli = 200). Berita: "Pemblokiran r2.dev" ~30 Juni 2026, Komdigi belum beri penjelasan.
+- **Fix 4 Okt 2026 — proxy Vercel**:
+  1. `vercel.json` rewrite **pertama**: `/img/:path*` → `https://pub-383108e3bad04ba994957fa1155847a8.r2.dev/:path*` (external proxy, bukan serverless function — jangan tambah `api/img.mjs`, limit 12 function sudah penuh). SPA catch-all juga di-exclude `img/`.
+  2. Client render: helper `src/lib/img.ts` `imgUrl()` — pakai **hanya saat render** (`src={imgUrl(u)}`) di Catalog.tsx (kartu, carousel, varian, keranjang) + Invoice.tsx (item & foto packing). **JANGAN transform data di store/form** — form edit product harus tetap simpan URL R2 asli ke DB.
+  3. Safety net: global capture listener `error` di `src/main.tsx` — img `r2.dev` gagal → retry `/img/...` (sekali), gagal lagi → placeholder SVG pink 🛍️. Ini otomatis menangani SEMUA halaman admin (Inventory/Orders/Shipments/CustomerOrders) tanpa edit per-file. `Invoice.tsx` onError-hide lama DIHAPUS (jangan dikembalikan — bikin gambar hilang tanpa gantinya).
+  4. OG meta (`catalog-order.mjs`): absolut `https://mamanay.vercel.app/img/...` via `ogImg()` (crawler ga jalankan JS). `customer-orders.mjs` (`item.image` + `packing_photo`) juga absolut via `imgProxy()`.
+  5. `pay.mjs` invoice TIDAK di-transform (konsumen non-browser: pakai URL absolut, bot sudah aman via proxy `send-group`).
+- **Alternatif jangka panjang**: custom domain R2 (`img.domainkamu.com` CNAME) — domain sendiri tidak kena blokir; butuh domain + UPDATE URL di DB.
+- Jaringan lokal + Pi sama-sama kena blokir → test gambar dari mesin ini selalu gagal kalau tanpa override; verifikasi pakai proxy `/img/...` (harus 200).
+
 ### Example scenario
 Promo: `🏷️ PERO QIBY TUMBLER 739 ML 94000`
 Variants: `pink`, `rose gold`

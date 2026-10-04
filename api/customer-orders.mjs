@@ -1,5 +1,13 @@
 import { getAdmin } from "./pay.mjs";
 
+const R2_BASE = "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev";
+
+// r2.dev diblokir ISP Indonesia (Juni 2026) — portal customer dapat URL proxy /img
+function imgProxy(u) {
+  if (u && u.startsWith(R2_BASE)) return "https://mamanay.vercel.app/img" + u.slice(R2_BASE.length);
+  return u;
+}
+
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
@@ -71,12 +79,17 @@ export default async function handler(req, res) {
       const prod = item.product_id ? productMap[item.product_id] : null;
       itemsByOrder[item.order_id].push({
         ...item,
-        image: prod?.image || null,
+        image: imgProxy(prod?.image) || null,
         stock_type: prod?.stock_type || null,
       });
     }
 
-    json(res, 200, { orders: orders || [], itemsByOrder });
+    json(res, 200, {
+      orders: (orders || []).map((o) =>
+        o.packing_photo ? { ...o, packing_photo: imgProxy(o.packing_photo) } : o
+      ),
+      itemsByOrder,
+    });
   } catch (e) {
     json(res, 500, { error: e.message });
   }

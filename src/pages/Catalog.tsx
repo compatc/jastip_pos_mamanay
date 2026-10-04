@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Package, MessageCircle, ShoppingCart, X, Plus, Minus, Check, Loader2, Share2 } from "lucide-react";
+import { imgUrl } from "../lib/img";
 
 interface Variant {
   id: string;
@@ -405,7 +406,7 @@ export default function Catalog() {
                   <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden bg-pink-50">
                     {p.image ? (
                       <img
-                        src={p.image}
+                        src={imgUrl(p.image)}
                         alt={p.name}
                         loading={isAboveFold ? "eager" : "lazy"}
                         fetchPriority={isAboveFold ? "high" : undefined}
@@ -585,7 +586,7 @@ export default function Catalog() {
                   return (
                     <>
                       <img
-                        src={imgSrc}
+                        src={imgUrl(imgSrc)}
                         alt={selected.name}
                         loading="eager"
                         fetchPriority="high"
@@ -721,7 +722,7 @@ export default function Catalog() {
                           }`}
                           disabled={v.stock <= 0 && selected.stock_type !== "po"}
                         >
-                          {v.image && <img src={v.image} alt="" loading="lazy" className="w-5 h-5 rounded-full object-cover ring-2 ring-white" />}
+                          {v.image && <img src={imgUrl(v.image)} alt="" loading="lazy" className="w-5 h-5 rounded-full object-cover ring-2 ring-white" />}
                           <span>{v.name}</span>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isSelected ? "bg-rose-100 text-rose-600" : selected.stock_type === "po" ? "bg-amber-50 text-amber-600" : vStock.color}`}>{selected.stock_type === "po" ? "PO" : v.stock}</span>
                         </button>
@@ -824,7 +825,7 @@ export default function Catalog() {
                     <div key={`${c.product.id}-${c.variant?.id || ""}`} className="flex items-center gap-3 bg-slate-50 rounded-2xl p-3">
                       <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getGradient(c.product.name)} flex items-center justify-center shrink-0`}>
                         {c.variant?.image || c.product.image ? (
-                          <img src={c.variant?.image || c.product.image} alt="" loading="lazy" className="w-full h-full object-cover rounded-xl" />
+                          <img src={imgUrl(c.variant?.image || c.product.image)} alt="" loading="lazy" className="w-full h-full object-cover rounded-xl" />
                         ) : (
                           <span className="text-2xl">{getEmoji(c.product.name)}</span>
                         )}
