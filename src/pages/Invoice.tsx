@@ -470,12 +470,14 @@ export default function Invoice() {
   const sumKodeUnik = totals.kode_unik ?? ordersList.reduce((s, o) => s + (o.kode_unik || 0), 0);
   const sumOngkir = totals.ongkir ?? ordersList.reduce((s, o) => s + (o.ongkir || 0), 0);
   const sumPaid = totals.paid_total ?? ordersList.reduce((s, o) => s + (o.paid_total || 0), 0);
+  const sumItemDiscount = items.reduce((s, i) => s + (i.discount || 0), 0);
+  const grossSubtotal = totals.subtotal + sumItemDiscount;
   const isPaid = sisa <= 0;
   const paymentStatus =
     totals.payment_status ||
     (isPaid ? "paid" : sumPaid > 0 ? "dp" : order.payment_status || "unpaid");
   const isCancelled = ordersList.every((o) => o.fulfillment_status === "cancelled");
-  const totalDue = Math.max(0, totals.subtotal + sumOngkir - sumDiskon - sumKodeUnik);
+  const totalDue = Math.max(0, grossSubtotal + sumOngkir - sumItemDiscount - sumDiskon - sumKodeUnik);
   const paidDisplay = sumPaid > 0 ? sumPaid : totalDue;
   const custPoints = customer?.points || 0;
   const redeemOrder = !isMulti && !isPaid && !isCancelled ? order : null;
@@ -823,6 +825,11 @@ export default function Invoice() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
+                      {it.discount > 0 && (
+                        <div className="text-[10px] text-slate-400 line-through">
+                          {rupiah(it.price * it.quantity)}
+                        </div>
+                      )}
                       <div className="text-[13px] font-bold text-slate-700">
                         {rupiah(it.price * it.quantity - (it.discount || 0))}
                       </div>
@@ -830,6 +837,11 @@ export default function Invoice() {
                         × {it.quantity}
                         {it.quantity > 1 ? ` @ ${rupiah(it.price)}` : ""}
                       </div>
+                      {(it.discount || 0) > 0 && (
+                        <div className="text-[10px] font-extrabold text-emerald-600">
+                          🏷️ hemat {rupiah(it.discount)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -841,8 +853,14 @@ export default function Invoice() {
           <div className="mt-3 pt-2.5 border-t border-dashed border-slate-200 text-[13px]">
             <div className="flex justify-between py-0.5 text-slate-500">
               <span>Subtotal ({items.length} jenis barang)</span>
-              <span>{rupiah(totals.subtotal)}</span>
+              <span>{rupiah(grossSubtotal)}</span>
             </div>
+            {sumItemDiscount > 0 && (
+              <div className="flex justify-between py-0.5 text-emerald-600 font-semibold">
+                <span>🏷️ Diskon barang</span>
+                <span>− {rupiah(sumItemDiscount)}</span>
+              </div>
+            )}
             {sumDiskon > 0 && (
               <div className="flex justify-between py-0.5 text-emerald-600">
                 <span>🏷️ Diskon</span>
