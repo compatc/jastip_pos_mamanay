@@ -183,6 +183,7 @@ export default function Invoice() {
   const [shopeeNoInput, setShopeeNoInput] = useState<string>("");
   const [shopeeSaving, setShopeeSaving] = useState(false);
   const [buktiState, setBuktiState] = useState<"idle" | "uploading" | "done" | "error">("idle");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [redeemPoints, setRedeemPoints] = useState("");
   const [redeemBusy, setRedeemBusy] = useState(false);
@@ -1381,7 +1382,8 @@ export default function Invoice() {
                   <img
                     src={imgUrl(o.packing_photo)}
                     alt="Foto packing"
-                    className="w-16 h-16 rounded-xl object-cover border border-slate-200"
+                    className="w-16 h-16 rounded-xl object-cover border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => setLightboxUrl(o.packing_photo)}
                   />
                   <div className="text-[12px] text-slate-500 leading-relaxed">
                     <b className="block text-slate-800 text-[13px]">
@@ -1492,6 +1494,27 @@ export default function Invoice() {
           </div>
         </div>
       </div>
+
+      {/* LIGHTBOX */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center cursor-pointer p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={imgUrl(lightboxUrl)}
+            alt="Foto packing besar"
+            className="max-w-[95%] max-h-[95%] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 text-white text-xl font-bold flex items-center justify-center no-print"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* TOAST */}
       {toast && (
