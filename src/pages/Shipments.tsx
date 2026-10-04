@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
+import { imgUrl } from "../lib/img";
 import {
   ArrowLeft,
   Package,
@@ -764,7 +765,7 @@ export default function Shipments() {
                           />
                           {preview ? (
                             <div className="relative">
-                              <img src={preview} alt="Foto packing" className="w-full h-40 object-contain rounded-lg cursor-pointer" onClick={() => setLightboxUrl(preview)} />
+                              <img src={imgUrl(preview)} alt="Foto packing" className="w-full h-40 object-contain rounded-lg cursor-pointer" onClick={() => setLightboxUrl(preview)} />
                               <p className="text-[10px] text-slate-400 text-center mt-1">Klik foto untuk perbesar</p>
                               <button
                                 onClick={() => removePhoto(order.id)}
@@ -856,7 +857,7 @@ export default function Shipments() {
                         </div>
                         {order.packing_photo && (
                           <div className="relative">
-                            <img src={order.packing_photo} alt="Foto packing" className="w-full h-40 object-contain rounded-lg border border-slate-200 cursor-pointer" onClick={() => setLightboxUrl(order.packing_photo)} />
+                            <img src={imgUrl(order.packing_photo)} alt="Foto packing" className="w-full h-40 object-contain rounded-lg border border-slate-200 cursor-pointer" onClick={() => setLightboxUrl(order.packing_photo)} />
                           </div>
                         )}
                       </div>
@@ -894,7 +895,7 @@ export default function Shipments() {
       </main>
       {lightboxUrl && (
         <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center cursor-pointer" onClick={() => setLightboxUrl(null)}>
-          <img src={lightboxUrl} alt="Preview" className="max-w-[95%] max-h-[95%] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+          <img src={imgUrl(lightboxUrl)} alt="Preview" className="max-w-[95%] max-h-[95%] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>

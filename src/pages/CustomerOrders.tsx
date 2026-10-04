@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import { invoiceGroupLink, invoiceOrderLink } from "../lib/payLinks";
+import { imgUrl } from "../lib/img";
 import ConfirmationModal from "../components/ConfirmationModal";
 import {
   ArrowLeft,
@@ -321,7 +322,7 @@ export default function CustomerOrders() {
             return (
               <div key={item.product_id + (item.variant || "")} className="flex items-center gap-3">
                 {imgSrc ? (
-                  <img src={imgSrc} alt="" className="w-10 h-10 rounded-xl object-cover bg-slate-50 border border-slate-100 shrink-0" />
+                  <img src={imgUrl(imgSrc)} alt="" className="w-10 h-10 rounded-xl object-cover bg-slate-50 border border-slate-100 shrink-0" />
                 ) : (
                   <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
                     <Package className="w-4 h-4 text-slate-300" />

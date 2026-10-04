@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../stores/useStore";
 import { supabase } from "../lib/supabase";
 import { invoiceGroupLink, invoiceOrderLink } from "../lib/payLinks";
+import { imgUrl } from "../lib/img";
 import type { Order, PaymentType } from "../types";
 import ConfirmationModal from "../components/ConfirmationModal";
 
@@ -1299,7 +1300,7 @@ export default function Orders() {
                       return (
                         <div key={item.id} className="flex items-center gap-3">
                           {imgSrc ? (
-                            <img src={imgSrc} alt="" className="w-12 h-12 rounded-xl object-cover bg-slate-50 border border-slate-100 shrink-0" />
+                            <img src={imgUrl(imgSrc)} alt="" className="w-12 h-12 rounded-xl object-cover bg-slate-50 border border-slate-100 shrink-0" />
                           ) : (
                             <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
                               <Package className="w-5 h-5 text-slate-300" />
