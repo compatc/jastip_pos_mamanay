@@ -1302,7 +1302,7 @@ export default async function handler(req, res) {
               .eq("id", customerId)
               .maybeSingle()
           : Promise.resolve({ data: null }),
-        sb.from("points_history").select("points").in("order_id", ids),
+        sb.from("points_history").select("points").eq("type", "earn").in("order_id", ids),
         sb
           .from("order_items")
           .select("order_id, product_id, product_name, variant, quantity, price, discount")

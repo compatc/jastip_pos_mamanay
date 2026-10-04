@@ -1059,16 +1059,18 @@ export const useStore = create<PosStore>((set, get) => ({
     for (const orderId of orderIds) {
       const { data: order } = await supabase
         .from("orders")
-        .select("id, total, paid_total, account_id, order_type, payment_type, customer_id, status")
+        .select("id, total, diskon, kode_unik, paid_total, account_id, order_type, payment_type, customer_id, status")
         .eq("id", orderId)
         .single();
       if (!order) continue;
-      if ((order.paid_total || 0) >= order.total && order.total > 0) continue;
-      const payDelta = order.total - (order.paid_total || 0);
+      const due = Math.max(0, (order.total || 0) - (order.diskon || 0) - (order.kode_unik || 0));
+      const paid = order.paid_total || 0;
+      if (paid >= due && due > 0) continue;
+      const payDelta = Math.max(0, due - paid);
       const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
       await supabase
         .from("orders")
-        .update({ paid_total: order.total, status: newStatus, payment_status: "paid", updated_at: now })
+        .update({ paid_total: Math.max(paid, due), status: newStatus, payment_status: "paid", updated_at: now })
         .eq("id", orderId);
 
       // Award loyalty points for penjualan orders

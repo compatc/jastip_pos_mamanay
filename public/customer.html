@@ -1856,8 +1856,10 @@
         if (o) {
           var ot = (o.total || 0);
           var tier = ot < 50000 ? 5000 : ot < 500000 ? 10000 : 20000;
-          var maxDiskon = Math.min(tier, ot) - (o.diskon || 0);
-          discount = Math.min(discount, Math.max(maxDiskon, 0));
+          var maxDiskon = Math.floor(
+            Math.max(0, Math.min(tier, ot) - (o.diskon || 0)) / 1000
+          ) * 1000;
+          discount = Math.min(discount, maxDiskon);
         }
       }
       var preview = document.getElementById('redeemPreview');

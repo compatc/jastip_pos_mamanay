@@ -178,16 +178,17 @@ export default async function handler(req, res) {
 
           const { data: order } = await sb
             .from("orders")
-            .select("paid_total, total")
+            .select("paid_total, total, diskon, kode_unik")
             .eq("id", oid)
             .single();
 
           if (!order) continue;
-          const sisa = (order.total || 0) - (order.paid_total || 0);
+          const due = (order.total || 0) - (order.diskon || 0) - (order.kode_unik || 0);
+          const sisa = due - (order.paid_total || 0);
           if (sisa <= 0) continue;
           const payAmount = Math.min(remaining, sisa);
           const newPaidTotal = (order.paid_total || 0) + payAmount;
-          const newPaymentStatus = newPaidTotal >= (order.total || 0) ? "paid" : "dp";
+          const newPaymentStatus = newPaidTotal >= due ? "paid" : "dp";
 
           const { error: updErr } = await sb
             .from("orders")

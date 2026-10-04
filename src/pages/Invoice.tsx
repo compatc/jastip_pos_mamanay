@@ -489,11 +489,13 @@ export default function Invoice() {
         : 20000
     : 0;
   const redeemMaxDiskon = redeemOrder
-    ? Math.max(0, Math.min(redeemTierMax, redeemOrder.total || 0) - (redeemOrder.diskon || 0))
+    ? Math.floor(
+        Math.max(0, Math.min(redeemTierMax, redeemOrder.total || 0) - (redeemOrder.diskon || 0)) / 1000
+      ) * 1000
     : 0;
   const redeemMaxPoints = Math.max(
     0,
-    Math.min(custPoints, Math.ceil(redeemMaxDiskon / 1000) * 100)
+    Math.min(custPoints, Math.floor(redeemMaxDiskon / 1000) * 100)
   );
   const redeemPts = Math.max(0, parseInt(redeemPoints, 10) || 0);
   const redeemPreview = Math.min(Math.floor(redeemPts / 100) * 1000, redeemMaxDiskon);

@@ -48,45 +48,83 @@ export default async function handler(req, res) {
   const orderTotal = order.total || 0;
   const tierMax = orderTotal < 50000 ? 5000 : orderTotal < 500000 ? 10000 : 20000;
   const maxDiscount = Math.min(tierMax, orderTotal);
-  let discount = Math.floor(points / REDEEM_RATE) * 1000;
-  let usedPoints = points;
-
-  if (discount > maxDiscount) {
-    discount = maxDiscount;
-    usedPoints = Math.ceil(maxDiscount / 1000) * REDEEM_RATE;
-  }
-
   const maxDiskonLeft = maxDiscount - (order.diskon || 0);
   if (maxDiskonLeft <= 0) {
     res.status(400).json({ error: "Diskon poin sudah mencapai batas maksimal" });
     return;
   }
-  if (discount > maxDiskonLeft) {
-    discount = maxDiskonLeft;
-    usedPoints = Math.ceil(maxDiskonLeft / 1000) * REDEEM_RATE;
+
+  // Poin selalu kelipatan REDEEM_RATE, diskon selalu kelipatan 1000 —
+  // supaya poin yang dipotong persis setara diskon yang diberikan.
+  const requestedPoints = Math.floor(points / REDEEM_RATE) * REDEEM_RATE;
+  const requestedDiscount = (requestedPoints / REDEEM_RATE) * 1000;
+  const capDiscount = Math.floor(maxDiskonLeft / 1000) * 1000;
+  if (capDiscount <= 0) {
+    res.status(400).json({ error: "Sisa batas diskon poin kurang dari Rp1.000" });
+    return;
+  }
+  const discount = Math.min(requestedDiscount, capDiscount);
+  const usedPoints = (discount / 1000) * REDEEM_RATE;
+
+  if (usedPoints <= 0) {
+    res.status(400).json({ error: "Minimal " + REDEEM_RATE + " poin untuk dapat diskon" });
+    return;
   }
 
   const now = new Date().toISOString();
-  const actualPoints = Math.min(usedPoints, customer.points || 0);
+  const newPoints = (customer.points || 0) - usedPoints;
+  const newDiskon = (order.diskon || 0) + discount;
 
-  await sb.from("customers").update({ points: (customer.points || 0) - actualPoints }).eq("id", customer_id);
+  // Optimistic lock: hanya menang kalau points belum berubah sejak dibaca,
+  // sehingga klik/tab ganda tidak bisa memotong poin dua kali.
+  const { data: locked, error: lockErr } = await sb
+    .from("customers")
+    .update({ points: newPoints })
+    .eq("id", customer_id)
+    .eq("points", customer.points || 0)
+    .select("id");
 
-  await sb.from("orders").update({ diskon: (order.diskon || 0) + discount, updated_at: now }).eq("id", order_id);
+  if (lockErr) {
+    res.status(500).json({ error: lockErr.message });
+    return;
+  }
+  if (!locked || locked.length === 0) {
+    res.status(409).json({ error: "Poin berubah saat diproses. Silakan coba lagi." });
+    return;
+  }
 
-  await sb.from("points_history").insert({
-    customer_id,
-    order_id,
-    points: -actualPoints,
-    type: "redeem",
-    description: `Tukar ${actualPoints} poin jadi diskon Rp${discount.toLocaleString("id-ID")} (Order #${order_id.slice(0, 8)})`,
-    created_at: now,
-  });
+  try {
+    const { error: orderErr } = await sb
+      .from("orders")
+      .update({ diskon: newDiskon, updated_at: now })
+      .eq("id", order_id);
+    if (orderErr) throw new Error(orderErr.message);
+
+    const { error: histErr } = await sb.from("points_history").insert({
+      customer_id,
+      order_id,
+      points: -usedPoints,
+      type: "redeem",
+      description: `Tukar ${usedPoints} poin jadi diskon Rp${discount.toLocaleString("id-ID")} (Order #${order_id.slice(0, 8)})`,
+      created_at: now,
+    });
+    if (histErr) throw new Error(histErr.message);
+  } catch (e) {
+    // Kompensasi: kembalikan poin supaya tidak hilang tanpa dapat diskon.
+    await sb
+      .from("customers")
+      .update({ points: customer.points || 0 })
+      .eq("id", customer_id)
+      .eq("points", newPoints);
+    res.status(500).json({ error: "Gagal menerapkan diskon: " + e.message });
+    return;
+  }
 
   res.json({
     success: true,
-    pointsUsed: actualPoints,
+    pointsUsed: usedPoints,
     discount,
-    newPoints: (customer.points || 0) - actualPoints,
-    newDiskon: (order.diskon || 0) + discount,
+    newPoints,
+    newDiskon,
   });
 }
