@@ -32,15 +32,29 @@ export function pointsToDiscount(points: number): number {
   return Math.floor(points / REDEEM_RATE) * 1000;
 }
 
+export async function getAccessToken(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function awardPoints(
   customerId: string,
   orderId: string,
   amount: number
 ) {
   try {
+    const token = await getAccessToken();
+    if (!token) {
+      console.error("[awardPoints] tidak ada sesi login — poin tidak diaward");
+      return null;
+    }
     const res = await fetch(`${API_BASE}/api/award-points`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         customer_id: customerId,
         order_id: orderId,

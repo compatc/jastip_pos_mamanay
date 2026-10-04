@@ -50,6 +50,18 @@ function calcLevel(totalSpent) {
   return "silver";
 }
 
+// Wajib sesi login Supabase. Bukan Bearer secret — repo publik, secret bocor.
+async function isSessionUser(req, sb) {
+  const raw = (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
+  if (!raw) return false;
+  try {
+    const { data, error } = await sb.auth.getUser(raw);
+    return !error && !!data?.user;
+  } catch {
+    return false;
+  }
+}
+
 async function handleUndoBackfill(sb) {
   const { data: backfillEntries, error: histErr } = await sb
     .from("points_history")
@@ -200,17 +212,20 @@ export default async function handler(req, res) {
     const isAuth = auth === `Bearer ${process.env.BOT_API_TOKEN || "mamanay2026"}`;
 
     if (action === "backfill") {
-      if (!isAuth) { json(res, 401, { error: "Unauthorized" }); return; }
+      if (!isAuth && !(await isSessionUser(req, sb))) { json(res, 401, { error: "Unauthorized" }); return; }
       const result = await handleBackfill(sb, fromDate);
       json(res, 200, { ok: true, ...result });
       return;
     }
 
     if (action === "undo-backfill") {
+      if (!(await isSessionUser(req, sb))) { json(res, 401, { error: "Unauthorized" }); return; }
       const result = await handleUndoBackfill(sb);
       json(res, 200, { ok: true, ...result });
       return;
     }
+
+    if (!(await isSessionUser(req, sb))) { json(res, 401, { error: "Unauthorized" }); return; }
 
     const { customer_id, order_id, amount } = req.body;
     if (!customer_id || !order_id || !amount || amount <= 0) {

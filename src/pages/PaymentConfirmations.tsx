@@ -13,6 +13,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { getAccessToken } from "../lib/loyalty";
 
 interface PaymentConfirmation {
   id: string;
@@ -67,9 +68,15 @@ export default function PaymentConfirmations() {
 
     setActionLoading(id);
     try {
+      const token = await getAccessToken();
+      if (!token) {
+        alert("Sesi login berakhir — silakan login ulang.");
+        setActionLoading(null);
+        return;
+      }
       const res = await fetch("/api/payment-confirm?action=" + action, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id, action }),
       });
       const json = await res.json();

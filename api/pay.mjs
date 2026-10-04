@@ -460,7 +460,7 @@ export async function confirmOrder(sb, orderId, transactionId, boData, amountOve
   });
 
   // Award loyalty points for penjualan orders
-  if (order.order_type === "penjualan" && order.customer_id && finalPaid >= (currentTotal - finalDiskon)) {
+  if (order.order_type === "penjualan" && order.customer_id && finalPaid >= (currentTotal - finalDiskon - finalKodeUnik)) {
     try {
       await awardLoyaltyPoints(sb, order.customer_id, orderId, order.total || shareOfPayment);
     } catch (e) {

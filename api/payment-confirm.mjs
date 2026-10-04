@@ -11,6 +11,18 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+// Wajib sesi login Supabase. Bukan Bearer secret — repo publik, secret bocor.
+async function isSessionUser(req, sb) {
+  const raw = (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
+  if (!raw) return false;
+  try {
+    const { data, error } = await sb.auth.getUser(raw);
+    return !error && !!data?.user;
+  } catch {
+    return false;
+  }
+}
+
 function parseMultipart(buffer, boundary) {
   const parts = [];
   const boundaryBuffer = Buffer.from('--' + boundary);
@@ -121,6 +133,13 @@ export default async function handler(req, res) {
 
     // POST /api/payment-confirm?action=approve|reject ΓÇö admin approve/reject
     if (req.method === "POST" && action) {
+      const sb = await getAdmin();
+
+      if (!(await isSessionUser(req, sb))) {
+        json(res, 401, { error: "Unauthorized" });
+        return;
+      }
+
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
       const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -131,7 +150,6 @@ export default async function handler(req, res) {
         return;
       }
 
-      const sb = await getAdmin();
       const newStatus = action === "approve" ? "approved" : "rejected";
       const { error: updateErr } = await sb
         .from("payment_confirmations")
