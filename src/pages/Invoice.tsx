@@ -1230,94 +1230,137 @@ export default function Invoice() {
                   <div>
                     <div className="text-[13px] font-bold text-slate-800">🛒 Kirim via Shopee</div>
                     <div className="text-[11px] text-slate-400 leading-relaxed">
-                      Checkout sendiri di Shopee — ongkir &amp; resi Shopee, paket lebih aman
+                      Checkout sendiri di Shopee — ongkir &amp; resi resmi Shopee, paket
+                      lebih aman. Ikuti 3 langkah gampang di bawah ✓
                     </div>
                   </div>
                 </div>
                 {shippingMethod === "shopee" && (
                   <div className="mt-2.5 pt-2.5 border-t border-dashed border-pink-200">
-                    <div className="inline-flex items-center gap-1.5 bg-slate-900 text-white text-[12px] font-extrabold px-3 py-1.5 rounded-lg mb-2">
-                      Checkout <span className="text-pink-300 text-[15px]">{shopee.pcs}</span> pcs
-                      <span className="font-semibold text-slate-400 text-[10px]">
-                        berat {(shopee.weight_g / 1000).toFixed(1).replace(".", ",")} kg
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-extrabold text-emerald-700 flex items-center gap-1.5 mb-2.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Pilihan disimpan —
+                      penjual sudah diberi tahu
+                    </div>
+
+                    <div className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-pink-400 mb-2">
+                      🛒 Cara checkout · 3 langkah
+                    </div>
+
+                    {/* Langkah 1 */}
+                    <div className="flex gap-2 mb-2.5">
+                      <span className="w-5 h-5 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">
+                        1
                       </span>
-                    </div>
-                    <div className="flex gap-2 items-center bg-white border border-rose-200 rounded-lg p-2">
-                      <span className="flex-1 min-w-0 font-mono text-[11px] text-slate-500 truncate">
-                        {shopee.url}
-                      </span>
-                      <a
-                        href={shopee.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-[#ee4d2d] text-white px-3 py-1.5 rounded-lg text-[11px] font-extrabold no-print inline-flex items-center gap-1 shrink-0"
-                      >
-                        Buka Shopee <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <div className="mt-2 bg-amber-50 border border-dashed border-amber-300 rounded-lg p-2.5 text-[11px] text-amber-800 flex justify-between items-center gap-2">
-                      <span>
-                        📝 Catatan (tempel di kolom catatan Shopee):
-                        <br />
-                        <b>{noteShopee}</b>
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyText(noteShopee, "Catatan");
-                        }}
-                        className="bg-white border border-amber-300 px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold text-amber-700 shrink-0 no-print"
-                      >
-                        ⧉ Salin
-                      </button>
-                    </div>
-                    <div className="mt-2 text-[10px] text-red-600 font-semibold leading-relaxed">
-                      ⚠️ Wajib isi catatan di atas, tanpa catatan pesanan tidak bisa dicocokkan. Resiko
-                      paket hilang/rusak via Shopee ditanggung pembeli.
-                    </div>
-                    <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-extrabold text-emerald-700 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Pilihan disimpan — penjual
-                      sudah diberi tahu
-                    </div>
-                    <div className="mt-2.5 bg-white border border-slate-200 rounded-xl p-2.5">
-                      <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">
-                        🧾 No. pesanan Shopee (opsional)
-                      </label>
-                      <div className="flex gap-1.5">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={shopeeNoInput}
-                          onChange={(e) => setShopeeNoInput(e.target.value)}
-                          placeholder="cth. 260930847291103"
-                          className="flex-1 min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-[13px] font-mono text-slate-800 focus:outline-none focus:border-pink-400 no-print"
-                        />
-                        <button
-                          onClick={saveShopeeNo}
-                          disabled={
-                            shopeeSaving ||
-                            !shopeeNoInput.trim() ||
-                            shopeeNoInput.trim() === shopeeNo
-                          }
-                          className="bg-slate-900 text-white px-3 rounded-lg text-[11px] font-extrabold disabled:opacity-40 shrink-0 no-print"
-                        >
-                          {shopeeSaving ? "…" : "Simpan"}
-                        </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-bold text-slate-800">
+                          Buka Shopee, checkout sendiri
+                        </div>
+                        <div className="text-[11px] text-slate-500 leading-relaxed mb-1.5">
+                          Saat checkout pilih{" "}
+                          <b className="text-slate-700">{shopee.pcs} pcs</b> dengan total
+                          berat{" "}
+                          <b className="text-slate-700">
+                            {(shopee.weight_g / 1000).toFixed(1).replace(".", ",")} kg
+                          </b>{" "}
+                          — biar ongkir &amp; pesanan cocok.
+                        </div>
+                        <div className="flex gap-2 items-center bg-white border border-rose-200 rounded-lg p-2">
+                          <span className="flex-1 min-w-0 font-mono text-[11px] text-slate-500 truncate">
+                            {shopee.url}
+                          </span>
+                          <a
+                            href={shopee.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-[#ee4d2d] text-white px-3 py-1.5 rounded-lg text-[11px] font-extrabold no-print inline-flex items-center gap-1 shrink-0"
+                          >
+                            Buka Shopee <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                        {shopeeNo
-                          ? `Tersimpan: ${shopeeNo} — penjual sudah dapat notif.`
-                          : "Diisi setelah kamu checkout di Shopee. Penjual dapat notif otomatis saat disimpan."}
-                      </p>
                     </div>
+
+                    {/* Langkah 2 */}
+                    <div className="flex gap-2 mb-2.5">
+                      <span className="w-5 h-5 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">
+                        2
+                      </span>
+                      <div className="flex-1 min-w-0 bg-amber-50 border border-dashed border-amber-300 rounded-lg p-2.5">
+                        <div className="text-[11px] font-bold text-amber-800 leading-relaxed mb-1.5">
+                          Salin catatan ini, tempel di kolom{" "}
+                          <b>“Catatan”</b> saat checkout (wajib!):
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[12px] text-amber-900 font-extrabold break-all">
+                            {noteShopee}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyText(noteShopee, "Catatan");
+                            }}
+                            className="bg-white border border-amber-300 px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold text-amber-700 shrink-0 no-print"
+                          >
+                            ⧉ Salin
+                          </button>
+                        </div>
+                        <div className="text-[10px] text-amber-700 mt-1.5 leading-relaxed">
+                          Tanpa catatan ini pesanan tidak bisa dicocokkan.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Langkah 3 */}
+                    <div className="flex gap-2 mb-2.5">
+                      <span className="w-5 h-5 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">
+                        3
+                      </span>
+                      <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-xl p-2.5">
+                        <div className="text-[12px] font-bold text-slate-800 mb-1">
+                          Setelah checkout, salin No. pesanan Shopee ke sini
+                        </div>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={shopeeNoInput}
+                            onChange={(e) => setShopeeNoInput(e.target.value)}
+                            placeholder="cth. 260930847291103"
+                            className="flex-1 min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-[13px] font-mono text-slate-800 focus:outline-none focus:border-pink-400 no-print"
+                          />
+                          <button
+                            onClick={saveShopeeNo}
+                            disabled={
+                              shopeeSaving ||
+                              !shopeeNoInput.trim() ||
+                              shopeeNoInput.trim() === shopeeNo
+                            }
+                            className="bg-slate-900 text-white px-3 rounded-lg text-[11px] font-extrabold disabled:opacity-40 shrink-0 no-print"
+                          >
+                            {shopeeSaving ? "…" : "Simpan"}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                          {shopeeNo
+                            ? `Tersimpan: ${shopeeNo} — penjual sudah dapat notif.`
+                            : "Nomornya ada di halaman pesanan Shopee (menu \"Pesanan Saya\"). Penjual dapat notif otomatis saat disimpan."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 leading-relaxed mb-2">
+                      🔒 Selama pengiriman via Shopee, risiko paket hilang/rusak ditanggung
+                      pembeli.
+                    </div>
+
                     <a
                       href={`https://wa.me/6285894652806?text=${encodeURIComponent(
                         `Halo Mama Nay, saya sudah pilih kirim via Shopee untuk invoice ${invoiceNo}`
                       )}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-2 flex items-center justify-center gap-1.5 bg-[#25d366]/10 border border-[#25d366]/40 text-[#128c7e] rounded-xl py-2 text-[12px] font-extrabold no-print"
+                      className="flex items-center justify-center gap-1.5 bg-[#25d366]/10 border border-[#25d366]/40 text-[#128c7e] rounded-xl py-2 text-[12px] font-extrabold no-print"
                     >
                       💬 Chat penjual via WhatsApp
                     </a>
