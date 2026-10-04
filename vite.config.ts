@@ -7,6 +7,11 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
+      "/img": {
+        target: "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/img/, ""),
+      },
       "/api/boqris": {
         target: `http://localhost:${process.env.BOQRIS_DEV_PORT || 8788}`,
         changeOrigin: true,
