@@ -1,0 +1,11 @@
+fix(loyalty): self-heal status order yang sudah lunas tapi masih 'dp'
+
+Guard markOrdersPaid yang memakai due = total - diskon - kode_unik akan
+melewatkan order yang sudah mencapai due. Untuk 6 order produksi yang
+sudah lunas menurut rumus tapi payment_status-nya masih 'dp' (jejak kode
+lama yang memakai total mentah, sisa = kode_unik), perbaiki status saja
+saat admin menekan Lunas: tanpa menyentuh paid_total, tanpa memberi poin,
+dan skip order cancelled sesuai aturan di AGENTS.md.
+
+Bukti: order 3bc66e39 total 140000 kode_unik 39 paid 139961 = lunas,
+tapi status dp.

@@ -1059,13 +1059,24 @@ export const useStore = create<PosStore>((set, get) => ({
     for (const orderId of orderIds) {
       const { data: order } = await supabase
         .from("orders")
-        .select("id, total, diskon, kode_unik, paid_total, account_id, order_type, payment_type, customer_id, status")
+        .select("id, total, diskon, kode_unik, paid_total, payment_status, fulfillment_status, account_id, order_type, payment_type, customer_id, status")
         .eq("id", orderId)
         .single();
       if (!order) continue;
       const due = Math.max(0, (order.total || 0) - (order.diskon || 0) - (order.kode_unik || 0));
       const paid = order.paid_total || 0;
-      if (paid >= due && due > 0) continue;
+      if (paid >= due && due > 0) {
+        // Sudah lunas menurut rumus, tapi status masih 'dp' (jejak kode lama
+        // yang pakai total mentah). Perbaiki status saja — jangan sentuh
+        // paid_total dan jangan beri poin lagi.
+        if (order.payment_status !== "paid" && order.fulfillment_status !== "cancelled") {
+          await supabase
+            .from("orders")
+            .update({ payment_status: "paid", updated_at: now })
+            .eq("id", orderId);
+        }
+        continue;
+      }
       const payDelta = Math.max(0, due - paid);
       const newStatus = ["new", "belum-ready", "ready"].includes(order.status) ? "paid" : order.status;
       await supabase
