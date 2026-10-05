@@ -36,6 +36,7 @@ interface InvoiceOrder {
   invoice_sent_at: string | null;
   total: number;
   diskon: number;
+  diskon_manual: number;
   kode_unik: number;
   ongkir: number;
   paid_total: number;
@@ -71,6 +72,7 @@ interface InvoiceData {
     deadline: string | null;
     total?: number;
     diskon?: number;
+    diskon_manual?: number;
     kode_unik?: number;
     ongkir?: number;
     paid_total?: number;
@@ -467,6 +469,8 @@ export default function Invoice() {
   const isMulti = ordersList.length > 1;
   const sisa = totals.sisa;
   const sumDiskon = totals.diskon ?? ordersList.reduce((s, o) => s + (o.diskon || 0), 0);
+  const sumDiskonManual =
+    totals.diskon_manual ?? ordersList.reduce((s, o) => s + (o.diskon_manual || 0), 0);
   const sumKodeUnik = totals.kode_unik ?? ordersList.reduce((s, o) => s + (o.kode_unik || 0), 0);
   const sumOngkir = totals.ongkir ?? ordersList.reduce((s, o) => s + (o.ongkir || 0), 0);
   const sumPaid = totals.paid_total ?? ordersList.reduce((s, o) => s + (o.paid_total || 0), 0);
@@ -477,7 +481,10 @@ export default function Invoice() {
     totals.payment_status ||
     (isPaid ? "paid" : sumPaid > 0 ? "dp" : order.payment_status || "unpaid");
   const isCancelled = ordersList.every((o) => o.fulfillment_status === "cancelled");
-  const totalDue = Math.max(0, grossSubtotal + sumOngkir - sumItemDiscount - sumDiskon - sumKodeUnik);
+  const totalDue = Math.max(
+    0,
+    grossSubtotal + sumOngkir - sumItemDiscount - sumDiskonManual - sumDiskon - sumKodeUnik
+  );
   const paidDisplay = sumPaid > 0 ? sumPaid : totalDue;
   const custPoints = customer?.points || 0;
   const redeemOrder = !isMulti && !isPaid && !isCancelled ? order : null;
@@ -863,9 +870,15 @@ export default function Invoice() {
                 <span>− {rupiah(sumItemDiscount)}</span>
               </div>
             )}
-            {sumDiskon > 0 && (
+            {sumDiskonManual > 0 && (
               <div className="flex justify-between py-0.5 text-emerald-600">
                 <span>🏷️ Diskon</span>
+                <span>− {rupiah(sumDiskonManual)}</span>
+              </div>
+            )}
+            {sumDiskon > 0 && (
+              <div className="flex justify-between py-0.5 text-emerald-600">
+                <span>⭐ Diskon poin</span>
                 <span>− {rupiah(sumDiskon)}</span>
               </div>
             )}

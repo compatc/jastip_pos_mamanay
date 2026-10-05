@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     const { data: orders, error: ordersErr } = await sb
       .from("orders")
       .select(
-        "id, created_at, updated_at, total, paid_total, diskon, status, payment_status, fulfillment_status, notes, qris_notes, packing_photo, courier, resi, shipping_method, shopee_order_no, order_type"
+        "id, created_at, updated_at, total, paid_total, diskon, diskon_manual, status, payment_status, fulfillment_status, notes, qris_notes, packing_photo, courier, resi, shipping_method, shopee_order_no, order_type"
       )
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false });

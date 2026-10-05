@@ -477,9 +477,15 @@ export default function OrderDetail() {
                 <span className="text-gray-600 font-semibold">{rupiah(order.ongkir)}</span>
               </div>
             )}
-            {order.diskon > 0 && (
+            {order.diskon_manual > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Diskon</span>
+                <span className="text-red-400 font-semibold">-{rupiah(order.diskon_manual)}</span>
+              </div>
+            )}
+            {order.diskon > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Diskon Poin</span>
                 <span className="text-red-400 font-semibold">-{rupiah(order.diskon)}</span>
               </div>
             )}

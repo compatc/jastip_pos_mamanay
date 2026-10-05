@@ -138,7 +138,7 @@ export default function EditOrderForm() {
     setPaymentType(order.payment_type);
     setPaidTotal(order.paid_total.toString());
     setOngkir(order.ongkir > 0 ? order.ongkir.toString() : "");
-    setDiskon(order.diskon > 0 ? order.diskon.toString() : "");
+    setDiskon(order.diskon_manual > 0 ? order.diskon_manual.toString() : "");
     setNotes(order.notes || "");
     setStatus(order.status);
     setAccountId(order.account_id || null);

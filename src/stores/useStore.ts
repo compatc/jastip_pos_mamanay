@@ -432,7 +432,7 @@ export const useStore = create<PosStore>((set, get) => ({
       const [ordersRes, customersRes] = await Promise.all([
         supabase
           .from("orders")
-          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, order_type, created_at, updated_at")
+          .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, diskon_manual, kode_unik, ongkir, order_type, created_at, updated_at")
           .neq("status", "deleted")
           .gte("created_at", since)
           .order("created_at", { ascending: false }),
@@ -503,7 +503,7 @@ export const useStore = create<PosStore>((set, get) => ({
     try {
       const { data: order, error: orderErr } = await supabase
         .from("orders")
-        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, kode_unik, ongkir, notes, qris_notes, order_type, payment_type, created_at, updated_at, account_id, courier, resi, shopee_order_no")
+        .select("id, customer_id, status, payment_status, fulfillment_status, total, paid_total, diskon, diskon_manual, kode_unik, ongkir, notes, qris_notes, order_type, payment_type, created_at, updated_at, account_id, courier, resi, shopee_order_no")
         .eq("id", orderId)
         .single();
       if (orderErr || !order) return;
@@ -597,7 +597,8 @@ export const useStore = create<PosStore>((set, get) => ({
         fulfillment_status: "belum_ready",
         total: orderTotal,
         paid_total: paidTotal,
-        diskon: diskon || 0,
+        diskon: 0,
+        diskon_manual: diskon || 0,
         kode_unik: 0,
         order_type: orderType,
         payment_type: paymentType,
@@ -742,7 +743,8 @@ export const useStore = create<PosStore>((set, get) => ({
       fulfillment_status: "belum_ready",
       total: orderTotal,
       paid_total: paidTotal,
-      diskon: diskon || 0,
+      diskon: 0,
+      diskon_manual: diskon || 0,
       kode_unik: 0,
       order_type: orderType,
       payment_type: paymentType,
@@ -910,7 +912,7 @@ export const useStore = create<PosStore>((set, get) => ({
         fulfillment_status: status === "completed" || status === "paid" ? "completed" : status === "shipped" ? "shipped" : status === "delivered" ? "diterima" : status === "ready" ? "ready" : status === "dibatalkan" ? "cancelled" : "belum_ready",
         total: orderTotal,
         paid_total: paidTotal,
-        diskon: diskon || 0,
+        diskon_manual: diskon || 0,
         order_type: orderType,
         payment_type: paymentType,
         ongkir: ongkir || 0,

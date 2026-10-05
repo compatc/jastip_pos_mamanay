@@ -1234,17 +1234,22 @@ export default async function handler(req, res) {
       const orderCols =
         "id, customer_id, total, paid_total, diskon, kode_unik, ongkir, payment_status, fulfillment_status, status, notes, packing_photo, courier, resi, payment_type, order_type, created_at, invoice_sent_at";
       const shipCols = ", shipping_method, shopee_order_no";
-      let rows = null;
-      const withShip = await sb
-        .from("orders")
-        .select(orderCols + shipCols)
-        .in("id", ids);
-      if (!withShip.error && withShip.data) {
-        rows = withShip.data;
-      } else {
-        // Fallback kalau kolom shipping_method / shopee_order_no belum ada (migration belum dijalankan)
-        const retry = await sb.from("orders").select(orderCols).in("id", ids);
-        rows = retry.data || [];
+      // diskon_manual = kolom baru (pemisahan diskon manual vs tukar poin).
+      // Kandidat bertingkat: kalau kolom belum ada di DB (migration belum jalan),
+      // query tetap sukses dan invoice TIDAK jadi 404.
+      const colCandidates = [
+        orderCols + ", diskon_manual" + shipCols,
+        orderCols + ", diskon_manual",
+        orderCols + shipCols,
+        orderCols,
+      ];
+      let rows = [];
+      for (const cols of colCandidates) {
+        const r = await sb.from("orders").select(cols).in("id", ids);
+        if (!r.error && r.data) {
+          rows = r.data;
+          break;
+        }
       }
       const byId = new Map((rows || []).map((o) => [o.id, o]));
       const found = ids.map((id) => byId.get(id)).filter(Boolean);
@@ -1274,6 +1279,7 @@ export default async function handler(req, res) {
         invoice_sent_at: o.invoice_sent_at || null,
         total: o.total || 0,
         diskon: o.diskon || 0,
+        diskon_manual: o.diskon_manual || 0,
         kode_unik: o.kode_unik || 0,
         ongkir: o.ongkir || 0,
         paid_total: o.paid_total || 0,
@@ -1449,6 +1455,7 @@ export default async function handler(req, res) {
           deadline,
           total,
           diskon: diskonSum,
+          diskon_manual: sumField("diskon_manual"),
           kode_unik: kodeUnikSum,
           ongkir: ongkirSum,
           paid_total: paidSum,
