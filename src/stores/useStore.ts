@@ -1832,10 +1832,14 @@ export const useStore = create<PosStore>((set, get) => ({
       customerName = cust?.name || "";
     }
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const refundUserId = authUser?.id || order.user_id || null;
+    if (!refundUserId) return { error: "Sesi login tidak valid. Silakan login ulang." };
+
     const { error: refundErr } = await supabase.from("refunds").insert({
       id: refundId,
       order_id: orderId,
-      user_id: order.user_id,
+      user_id: refundUserId,
       amount: totalRefund,
       reason,
       status: "completed",
