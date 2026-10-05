@@ -7,6 +7,7 @@ import CatalogOrderNotifier from "./CatalogOrderNotifier";
 import TransferConfirmNotifier from "./TransferConfirmNotifier";
 import NotifAdminModal from "./NotifAdminModal";
 import { countUnread } from "../lib/notifRead";
+import { getAccessToken } from "../lib/loyalty";
 import {
   ShoppingBag,
   ClipboardList,
@@ -107,9 +108,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     async function checkPending() {
       if (!badgeVisibleRef.current) return;
       try {
-        const res = await fetch("/api/payment-confirm?action=list&status=pending");
-        const json = await res.json();
-        setPendingConfCount(json.data?.length || 0);
+        const token = await getAccessToken();
+        const res = await fetch("/api/payment-confirm?action=list&status=pending", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.status === 401) {
+          setPendingConfCount(0);
+        } else {
+          const json = await res.json();
+          setPendingConfCount(json.data?.length || 0);
+        }
       } catch {}
     }
     checkPending();

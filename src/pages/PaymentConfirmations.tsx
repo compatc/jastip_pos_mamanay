@@ -48,9 +48,17 @@ export default function PaymentConfirmations() {
   async function loadData() {
     setLoading(true);
     try {
-      const res = await fetch("/api/payment-confirm?action=list&status=" + filter);
-      const json = await res.json();
-      setItems(json.data || []);
+      const token = await getAccessToken();
+      const res = await fetch("/api/payment-confirm?action=list&status=" + filter, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.status === 401) {
+        setItems([]);
+        alert("Sesi login berakhir. Silakan login ulang.");
+      } else {
+        const json = await res.json();
+        setItems(json.data || []);
+      }
     } catch (e) {
       console.error("Load confirmations error:", e);
     }

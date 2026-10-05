@@ -120,6 +120,12 @@ export default async function handler(req, res) {
     // GET /api/payment-confirm ΓÇö list confirmations (admin)
     if (req.method === "GET" && action === "list") {
       const sb = await getAdmin();
+
+      if (!(await isSessionUser(req, sb))) {
+        json(res, 401, { error: "Unauthorized" });
+        return;
+      }
+
       const { status } = Object.fromEntries(url.searchParams);
       let query = sb.from("payment_confirmations").select("*").order("created_at", { ascending: false });
       if (status && status !== "all") {
