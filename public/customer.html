@@ -69,19 +69,22 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 10px;
-      padding: 8px 14px;
-      font-size: 12px;
+      padding: 8px 10px;
+      font-size: 11.5px;
       font-weight: 600;
       color: white;
       cursor: pointer;
       transition: all 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .btn-logout:hover { background: rgba(255,255,255,0.25); }
     /* ===== LOYALTY CARD ===== */
     .loyalty-card {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 12px;
+      gap: 10px 12px;
       background: rgba(255,255,255,0.15);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.2);
@@ -121,11 +124,14 @@
     }
     .loyalty-badge.gold { background: linear-gradient(135deg, #f59e0b, #d97706); }
     .loyalty-badge.platinum { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-    .loyalty-discount { font-size: 11px; color: rgba(255,255,255,0.8); }
+    .loyalty-discount { font-size: 12.5px; color: #fff; font-weight: 700; }
+    .loyalty-rate { width: 100%; flex-shrink: 0; }
+    .loyalty-rate-sub { font-size: 10.5px; color: rgba(255,255,255,0.75); font-weight: 600; margin-top: 2px; }
     .btn-redeem-points {
       display: block;
       width: 100%;
-      margin-top: 8px;
+      flex-shrink: 0;
+      margin-top: 0;
       padding: 8px;
       border-radius: 8px;
       border: 1.5px dashed rgba(255,255,255,0.5);
@@ -391,6 +397,50 @@
       transition: all 0.2s;
     }
     .btn-pay-all:hover { opacity: 0.9; }
+    /* dua angka, dua label — angka besar yang dicoret bukan tagihan */
+    .grand-total-amount.gt-all {
+      color: #94a3b8;
+      font-size: 25px;
+      text-decoration: line-through;
+      text-decoration-color: #fda4af;
+      text-decoration-thickness: 2px;
+    }
+    .grand-total-hint { font-size: 11.5px; color: #94a3b8; font-weight: 700; margin-top: 3px; }
+    .gt-sep { height: 1px; background: #f1f5f9; margin: 14px 0 12px; }
+    .gt-sel-label { font-size: 11px; font-weight: 800; color: #be123c; text-transform: uppercase; letter-spacing: .05em; }
+    .gt-sel-amount { font-size: 24px; font-weight: 900; color: #e11d48; line-height: 1.15; margin-top: 2px; }
+    .gt-sel-sub { font-size: 11px; color: #64748b; font-weight: 700; margin-top: 3px; }
+    .gt-mini { margin-top: 9px; border-top: 1.5px dashed #fdba74; padding-top: 7px; display: flex; flex-direction: column; gap: 3px; }
+    .gt-mini-row { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: #7c2d12; }
+    .gt-mini-row.tot { border-top: 1.5px solid #fdba74; margin-top: 4px; padding-top: 6px; font-size: 13px; color: #9a3412; }
+    .btn-pay-one {
+      display: block; width: 100%; margin-top: 10px; padding: 13px; border: none;
+      border-radius: 12px; background: linear-gradient(135deg, #ec4899, #f43f5e);
+      color: #fff; font-size: 13.5px; font-weight: 800; cursor: pointer;
+    }
+    .btn-pay-one:hover { opacity: .9; }
+    .gt-quick { display: flex; gap: 6px; margin-top: 10px; }
+    .gt-quick button { flex: 1; font-size: 11px; padding: 9px; border-radius: 10px; font-weight: 800; cursor: pointer; background: #fff; }
+    .gt-quick .q1 { color: #db2777; border: 1.5px dashed #f9a8d4; }
+    .gt-quick .q2 { color: #475569; border: 1.5px solid #e2e8f0; }
+    /* pilih metode bayar — menyusul setelah jumlah dikunci */
+    .pm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9999; display: none; align-items: flex-end; justify-content: center; }
+    .pm-overlay.show { display: flex; }
+    .pm-sheet { width: 100%; max-width: 480px; background: #fff; border-radius: 20px 20px 0 0; padding: 18px 16px 22px; }
+    .pm-title { font-size: 15px; font-weight: 900; color: #0f172a; }
+    .pm-sum { font-size: 12px; color: #64748b; font-weight: 700; margin-top: 3px; }
+    .pm-opt {
+      display: block; width: 100%; text-align: left; margin-top: 10px; padding: 13px 14px;
+      border: 1.5px solid #e2e8f0; border-radius: 12px; background: #fff; cursor: pointer;
+      font-size: 13.5px; font-weight: 800; color: #0f172a;
+    }
+    .pm-opt span { display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-top: 2px; }
+    .pm-opt:hover { border-color: #f9a8d4; background: #fff7fb; }
+    .pm-cancel { display: block; width: 100%; margin-top: 10px; padding: 11px; border: none; background: #f1f5f9; border-radius: 12px; font-size: 13px; font-weight: 800; color: #64748b; cursor: pointer; }
+    /* rincian per-invoice di modal transfer */
+    .tf-break { margin-top: 8px; border-top: 1.5px dashed #fdba74; padding-top: 7px; display: flex; flex-direction: column; gap: 3px; }
+    .tf-break-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #7c2d12; }
+    .tf-break-row.tot { border-top: 1.5px solid #fdba74; margin-top: 4px; padding-top: 6px; font-weight: 900; color: #9a3412; }
 
     /* ===== SECTION ===== */
     .section-bar {
@@ -512,6 +562,44 @@
     .card-row.total { font-weight: 800; font-size: 15px; color: #0f172a; }
     .card-row.paid { color: #059669; }
     .card-row.sisa { font-weight: 800; color: #e11d48; font-size: 14px; }
+    /* --- kartu "biar orang langsung paham": satu kebenaran per kartu --- */
+    .pay-lunas {
+      margin: 10px 16px 0; display: flex; gap: 8px; align-items: flex-start;
+      background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 9px 10px;
+    }
+    .pay-lunas .ic { font-size: 13px; line-height: 1.3; color: #059669; font-weight: 900; }
+    .pay-lunas .t1 { font-size: 12.5px; font-weight: 800; color: #047857; }
+    .pay-lunas .t2 { font-size: 11px; color: #059669; margin-top: 2px; line-height: 1.45; }
+    .pay-due {
+      margin: 10px 16px 0; background: #fff1f2; border: 1.5px dashed #fda4af;
+      border-radius: 12px; padding: 11px 12px; text-align: center;
+    }
+    .pay-due .lbl { font-size: 10.5px; font-weight: 800; color: #9f1239; text-transform: uppercase; letter-spacing: .04em; }
+    .pay-due .amt { font-size: 20px; font-weight: 900; color: #e11d48; margin-top: 2px; line-height: 1.15; }
+    .pay-due .sub { font-size: 10.5px; color: #be123c; margin-top: 4px; line-height: 1.45; }
+    .pay-now {
+      display: block; width: calc(100% - 32px); margin: 9px 16px 0; box-sizing: border-box;
+      padding: 12px; border: none; border-radius: 12px;
+      background: linear-gradient(135deg, #ec4899, #f43f5e); color: #fff;
+      font-size: 13.5px; font-weight: 800; cursor: pointer;
+    }
+    .pay-now:hover { opacity: .9; }
+    .pay-note {
+      margin: 8px 16px 0; font-size: 10.5px; font-weight: 800; color: #c2410c;
+      background: #fff7ed; border: 1px dashed #fdba74; border-radius: 8px; padding: 6px 8px;
+    }
+    /* strip status: tiga angka, satu tempat */
+    .status-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 0 4px; }
+    .status-strip .chip { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 9px 4px; text-align: center; }
+    .status-strip .chip b { display: block; font-size: 17px; font-weight: 900; line-height: 1; color: #94a3b8; }
+    .status-strip .chip small { display: block; font-size: 8.5px; font-weight: 800; letter-spacing: .03em; margin-top: 3px; color: #94a3b8; }
+    .status-strip .chip.pick { background: #ecfdf5; border-color: #a7f3d0; }
+    .status-strip .chip.pick b, .status-strip .chip.pick small { color: #047857; }
+    .status-strip .chip.proc { background: #eff6ff; border-color: #bfdbfe; }
+    .status-strip .chip.proc b, .status-strip .chip.proc small { color: #1d4ed8; }
+    .status-strip .chip.wait { background: #fff7ed; border-color: #fed7aa; }
+    .status-strip .chip.wait b, .status-strip .chip.wait small { color: #c2410c; }
+    .status-strip .chip.empty { opacity: .5; }
     .card-footer {
       display: flex;
       align-items: center;
@@ -820,12 +908,12 @@
         <div class="loyalty-points">
           <span class="loyalty-icon">&#11088;</span>
           <span class="loyalty-value" id="loyaltyPoints">0</span>
-          <span class="loyalty-label">Poin</span>
-        </div>
-        <div class="loyalty-divider"></div>
-        <div class="loyalty-level">
+          <span class="loyalty-label">poin</span>
           <span class="loyalty-badge" id="loyaltyBadge">Silver</span>
-          <span class="loyalty-discount" id="loyaltyDiscount">Diskon: Rp0</span>
+        </div>
+        <div class="loyalty-rate">
+          <div class="loyalty-discount" id="loyaltyDiscount">Bisa ditukar jadi diskon Rp0</div>
+          <div class="loyalty-rate-sub">100 poin = Rp1.000 &middot; berlaku di invoice berikutnya</div>
         </div>
         <button class="btn-redeem-points" id="btnRedeemPoints" onclick="openRedeemModal()" style="display:none;">Tukar Poin &#10140;</button>
       </div>
@@ -849,7 +937,9 @@
       <div class="redeem-handle"></div>
       <div class="redeem-title">Tukar Poin</div>
       <div class="redeem-info">
-        100 poin = Rp1.000 diskon (maks 5% dari total).<br>
+        100 poin = Rp1.000 diskon &middot; berlaku di invoice berikutnya.<br>
+        Batas per invoice: <strong>Rp5.000</strong> (belanja &lt; Rp50.000) &middot;
+        <strong>Rp10.000</strong> (&lt; Rp500.000) &middot; <strong>Rp20.000</strong> (&ge; Rp500.000).<br>
         Poin kamu: <strong id="redeemMyPoints">0</strong>
       </div>
       <div class="redeem-input-group">
@@ -863,6 +953,17 @@
       <div class="redeem-order-select" id="redeemOrderSelect"></div>
       <button class="btn-redeem-confirm" id="btnRedeemConfirm" onclick="confirmRedeem()" disabled>Tukar Sekarang</button>
       <button class="btn-redeem-cancel" onclick="closeRedeemModal()">Batal</button>
+    </div>
+  </div>
+
+  <!-- ===== PILIH METODE BAYAR ===== -->
+  <div class="pm-overlay" id="payMethodOverlay" onclick="if(event.target===this)closePayMethod()">
+    <div class="pm-sheet">
+      <div class="pm-title">Pilih cara bayar</div>
+      <div class="pm-sum" id="payMethodSum"></div>
+      <button class="pm-opt" onclick="payMethodPick('qris')">&#128247; QRIS<span>Scan kode, bayar langsung dari aplikasi apa pun</span></button>
+      <button class="pm-opt" onclick="payMethodPick('tf')">&#128179; Transfer bank<span>Transfer manual lalu upload bukti</span></button>
+      <button class="pm-cancel" onclick="closePayMethod()">Batal</button>
     </div>
   </div>
 
@@ -988,7 +1089,7 @@
     function selectAll() {
       var allSelected = unpaidOrders.every(function(o) { return selectedOrders[o.id]; });
       unpaidOrders.forEach(function(o) {
-        var sisa = o.total - (o.paid_total || 0) - (o.diskon || 0);
+        var sisa = unpaidSisa(o);
         if (allSelected) {
           delete selectedOrders[o.id];
         } else {
@@ -1005,8 +1106,15 @@
       });
     }
 
+    // Satu-satunya sumber "berapa yang harus dibayar" untuk 1 order.
+    // WAJIB ikut kode unik — persis seperti pay.mjs & payment-confirm.mjs.
+    // Tanpa kode unik, customer disuruh transfer lebih banyak dari tagihan asli.
     function unpaidSisa(o) {
-      return (o.total || 0) - (o.paid_total || 0) - (o.diskon || 0);
+      return Math.max(0, (o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0) - (o.paid_total || 0));
+    }
+    // Total tagihan (sebelum dibayar) untuk 1 order — dipakai kartu & modal transfer.
+    function unpaidTagihan(o) {
+      return Math.max(0, (o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0));
     }
 
     function updateGrandTotal() {
@@ -1014,6 +1122,8 @@
       var count = 0;
       var readyCount = 0;
       var poCount = 0;
+      var kodeUnikTotal = 0;
+      var rows = [];
       for (var k in selectedOrders) {
         total += selectedOrders[k];
         count++;
@@ -1021,36 +1131,52 @@
         for (var i = 0; i < unpaidOrders.length; i++) {
           if (unpaidOrders[i].id === k) { ord = unpaidOrders[i]; break; }
         }
-        if (ord && ord.fulfillment_status === 'belum_ready') poCount++;
+        if (!ord) continue;
+        if (ord.fulfillment_status === 'belum_ready') poCount++;
         else readyCount++;
+        kodeUnikTotal += (ord.kode_unik || 0);
+        rows.push({ id: ord.id, amt: selectedOrders[k] });
       }
       var grandAll = unpaidOrders.reduce(function(s, o) { return s + unpaidSisa(o); }, 0);
-      var show = count > 0 ? total : grandAll;
+
+      // angka atas selalu "semua", angka bawah = yang dipilih. Dua angka, dua label.
       var el = document.getElementById('grandTotalAmount');
-      if (el) el.textContent = fmt(show);
-      var el2 = document.getElementById('grandTotalCount');
-      if (el2) el2.textContent = count > 0 ? count + ' invoice dipilih' : unpaidOrders.length + ' invoice';
-      var elMeta = document.getElementById('grandTotalMeta');
-      if (elMeta) elMeta.textContent = count > 0 ? 'siap bayar' : 'belum lunas';
+      if (el) el.textContent = fmt(grandAll);
+      var hint = document.getElementById('grandTotalHint');
+      if (hint) hint.textContent = unpaidOrders.length + ' invoice \u00b7 kalau dibayar semua';
+
+      var box = document.getElementById('gtSelBox');
+      if (box) {
+        if (count > 0) {
+          var h = '<div class="gt-sep"></div>'
+            + '<div class="gt-sel-label">Yang dibayar sekarang &middot; ' + count + ' invoice</div>'
+            + '<div class="gt-sel-amount">' + fmt(total) + '</div>';
+          if (kodeUnikTotal > 0) {
+            h += '<div class="gt-sel-sub">Sudah termasuk potongan kode unik \u2212' + fmt(kodeUnikTotal) + '</div>';
+          }
+          h += '<div class="gt-mini">';
+          for (var r = 0; r < rows.length; r++) {
+            h += '<div class="gt-mini-row"><span>#' + shortId(rows[r].id) + '</span><span>' + fmt(rows[r].amt) + '</span></div>';
+          }
+          h += '<div class="gt-mini-row tot"><span>Total</span><span>' + fmt(total) + '</span></div></div>';
+          box.innerHTML = h;
+        } else {
+          box.innerHTML = '';
+        }
+      }
+
       var split = document.getElementById('grandSplit');
       if (split) {
         split.textContent = count > 0
-          ? readyCount + ' siap dikirim \u00b7 ' + poCount + ' PO ditunda'
-          : (unpaidOrders.length > 1 ? 'Belum ada dipilih \u2014 centang manual atau pakai tombol di atas' : '');
+          ? readyCount + ' siap dikirim \u00b7 ' + poCount + ' PO (belum dikirim)'
+          : '';
       }
       var btn = document.getElementById('btnPaySelected');
       if (btn) {
         btn.style.display = unpaidOrders.length > 0 ? '' : 'none';
         btn.textContent = count > 0
-          ? 'Bayar ' + count + ' invoice (' + fmt(total) + ')'
-          : 'Bayar semua (' + fmt(grandAll) + ')';
-      }
-      var btnTf = document.getElementById('btnTfSelected');
-      if (btnTf) {
-        btnTf.style.display = unpaidOrders.length > 0 ? '' : 'none';
-        btnTf.textContent = count > 0
-          ? 'Transfer ' + count + ' invoice (' + fmt(total) + ')'
-          : 'Transfer semua (' + fmt(grandAll) + ')';
+          ? 'Bayar ' + count + ' invoice \u2014 ' + fmt(total)
+          : 'Bayar semua (' + unpaidOrders.length + ' invoice) \u2014 ' + fmt(grandAll);
       }
     }
 
@@ -1091,28 +1217,50 @@
       if (activeTab && activeTab.getAttribute('data-tab') === 'riwayat') loadHistory();
     }
 
-    function paySelected() {
+    function paySelection() {
       var ids = Object.keys(selectedOrders);
       if (ids.length > 0) {
         var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
-        showQris(ids.join(','), total, ids);
-      } else if (unpaidOrders.length > 0) {
-        var allIds = unpaidOrders.map(function(o) { return o.id; });
-        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0) - (o.diskon || 0)); }, 0);
-        showQris(allIds.join(','), allTotal, allIds);
+        return { ids: ids, total: total };
       }
+      if (unpaidOrders.length > 0) {
+        return {
+          ids: unpaidOrders.map(function(o) { return o.id; }),
+          total: unpaidOrders.reduce(function(s, o) { return s + unpaidSisa(o); }, 0)
+        };
+      }
+      return null;
+    }
+
+    // Satu tombol bayar → pilih metode di layar berikutnya (QRIS / transfer).
+    function openPayMethod(ids, total) {
+      window._paySel = { ids: ids, total: total };
+      document.getElementById('payMethodSum').textContent = ids.length + ' invoice \u00b7 ' + fmt(total);
+      document.getElementById('payMethodOverlay').classList.add('show');
+    }
+
+    function paySelected() {
+      var sel = paySelection();
+      if (!sel) return;
+      openPayMethod(sel.ids, sel.total);
+    }
+
+    function closePayMethod() {
+      document.getElementById('payMethodOverlay').classList.remove('show');
+    }
+
+    function payMethodPick(m) {
+      var sel = window._paySel;
+      closePayMethod();
+      if (!sel) return;
+      if (m === 'qris') showQris(sel.ids.join(','), sel.total, sel.ids);
+      else openTfModal(sel.ids.join(','), sel.total);
     }
 
     function tfSelected() {
-      var ids = Object.keys(selectedOrders);
-      if (ids.length > 0) {
-        var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
-        openTfModal(ids.join(','), total);
-      } else if (unpaidOrders.length > 0) {
-        var allIds = unpaidOrders.map(function(o) { return o.id; });
-        var allTotal = unpaidOrders.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0) - (o.diskon || 0)); }, 0);
-        openTfModal(allIds.join(','), allTotal);
-      }
+      var sel = paySelection();
+      if (!sel) return;
+      openTfModal(sel.ids.join(','), sel.total);
     }
 
     async function showDashboard() {
@@ -1147,22 +1295,24 @@
       selectedOrders = {};
       document.getElementById('customerSubtitle').textContent = unpaid.length > 0 ? unpaid.length + ' invoice belum lunas' : processing.length > 0 ? processing.length + ' pesanan sedang diproses' : 'Semua sudah lunas';
       var html = '';
+      // Strip status: tiga angka, satu tempat. Menggantikan banner "Siap Diambil!" dan
+      // "Sedang Diproses" yang dulu pakai dua istilah dan dua sumber hitungan.
+      html += '<div class="status-strip">'
+        + '<div class="chip pick' + (ready.length ? '' : ' empty') + '"><b>' + ready.length + '</b><small>SIAP DIAMBIL</small></div>'
+        + '<div class="chip proc' + (processing.length ? '' : ' empty') + '"><b>' + processing.length + '</b><small>SEDANG DIPROSES</small></div>'
+        + '<div class="chip wait' + (unpaid.length ? '' : ' empty') + '"><b>' + unpaid.length + '</b><small>BELUM BAYAR</small></div>'
+        + '</div>';
       if (unpaid.length > 0) {
-        var grandTotal = unpaid.reduce(function(s, o) { return s + (o.total - (o.paid_total || 0) - (o.diskon || 0)); }, 0);
+        var grandTotal = unpaid.reduce(function(s, o) { return s + unpaidSisa(o); }, 0);
         html += '<div class="grand-total-card">';
-        html += '<div class="grand-total-label">Total yang harus dibayar</div>';
-        html += '<div class="grand-total-amount" id="grandTotalAmount">' + fmt(grandTotal) + '</div>';
-        html += '<div class="grand-total-meta">';
-        html += '<span class="meta-badge" id="grandTotalCount">' + unpaid.length + ' invoice</span>';
-        html += '<span class="meta-text" id="grandTotalMeta">belum lunas</span>';
-        html += '</div>';
-        html += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">';
-        html += '<button class="btn-pay-all" id="btnPaySelected" onclick="paySelected()" style="width:100%;">Bayar semua</button>';
-        html += '<button class="btn-confirm-tf" id="btnTfSelected" onclick="tfSelected()" style="width:100%;">Transfer semua</button>';
-        html += '</div>';
-        html += '<div style="display:flex;gap:6px;margin-top:8px;">';
-        html += '<button onclick="selectReadyOnly()" style="flex:1;font-size:11px;padding:9px;background:#fff;color:#db2777;border:1.5px dashed #f9a8d4;border-radius:10px;font-weight:800;cursor:pointer;">&#9889; Pilih semua yang Ready</button>';
-        html += '<button onclick="clearSelection()" style="flex:1;font-size:11px;padding:9px;background:#fff;color:#475569;border:1.5px solid #e2e8f0;border-radius:10px;font-weight:800;cursor:pointer;">Hapus pilihan</button>';
+        html += '<div class="grand-total-label">Belum dibayar</div>';
+        html += '<div class="grand-total-amount gt-all" id="grandTotalAmount">' + fmt(grandTotal) + '</div>';
+        html += '<div class="grand-total-hint" id="grandTotalHint">' + unpaid.length + ' invoice &middot; kalau dibayar semua</div>';
+        html += '<div id="gtSelBox"></div>';
+        html += '<button class="btn-pay-one" id="btnPaySelected" onclick="paySelected()"></button>';
+        html += '<div class="gt-quick">';
+        html += '<button class="q1" onclick="selectReadyOnly()">&#9889; Yang Ready saja</button>';
+        html += '<button class="q2" onclick="clearSelection()">Kosongkan</button>';
         html += '</div>';
         html += '<div id="grandSplit" style="margin-top:6px;font-size:11px;color:#94a3b8;font-weight:700;"></div>';
         html += '</div>';
@@ -1178,19 +1328,11 @@
         html += '</div>';
       }
       if (ready.length > 0) {
-        html += '<div class="ready-banner">';
-        html += '<div class="ready-banner-icon">&#128230;</div>';
-        html += '<div class="ready-banner-text"><h3>Siap Diambil!</h3><p>' + ready.length + ' pesanan sudah selesai</p></div>';
-        html += '</div>';
         ready.forEach(function(o) {
           html += renderCard(o, itemsByOrder[o.id] || [], false);
         });
       }
       if (processing.length > 0) {
-        html += '<div class="ready-banner" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-color:#93c5fd;">';
-        html += '<div class="ready-banner-icon" style="background:#2563eb;">&#9203;</div>';
-        html += '<div class="ready-banner-text"><h3 style="color:#1e40af;">Sedang Diproses</h3><p style="color:#2563eb;">' + processing.length + ' pesanan sudah dibayar, menunggu ready</p></div>';
-        html += '</div>';
         processing.forEach(function(o) {
           html += renderCard(o, itemsByOrder[o.id] || [], false);
         });
@@ -1216,9 +1358,7 @@
       });
       document.querySelectorAll('[data-pay-btn]').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var orderId = btn.getAttribute('data-pay-btn');
-          var amount = btn.getAttribute('data-pay-amount');
-          showQris(orderId, amount);
+          openPayMethod([btn.getAttribute('data-pay-btn')], parseFloat(btn.getAttribute('data-pay-amount')));
         });
       });
       document.querySelectorAll('[data-tf-btn]').forEach(function(btn) {
@@ -1345,7 +1485,7 @@
         var items = itemsByOrder[o.id] || [];
         var ps = o.payment_status || 'unpaid';
         var fs = o.fulfillment_status || 'belum_ready';
-        var sisa = (o.total || 0) - (o.paid_total || 0) - (o.diskon || 0);
+        var sisa = unpaidSisa(o);
 
         var bayarLabel = '', bayarCls = '';
         if (fs === 'cancelled') { bayarLabel = 'Dibatalkan'; bayarCls = 's-cancelled'; }
@@ -1478,7 +1618,8 @@
     }
 
     function renderCard(order, items, showPay) {
-      var sisa = order.total - (order.paid_total || 0) - (order.diskon || 0);
+      var sisa = unpaidSisa(order);
+      var tagihan = unpaidTagihan(order);
       var ps = order.payment_status || 'unpaid';
       var fs = order.fulfillment_status || 'belum_ready';
       // Status Bayar
@@ -1495,6 +1636,14 @@
       else if (fs === 'ready') { kirimLabel = 'Ready'; kirimCls = 'status-ready'; }
       else { kirimLabel = 'Belum Ready'; kirimCls = 'status-belum-ready'; }
       var fulfilReady = (fs === 'ready' || fs === 'shipped' || fs === 'completed');
+      // SATU kebenaran per kartu: lunas = status bayar bilang lunas ATAU memang tidak ada utang.
+      // Dulu keduanya bisa beda (badge "Lunas" + baris "Sisa Rp50") -> orang bingung.
+      var isLunas = fs !== 'cancelled' && (ps === 'paid' || sisa <= 0);
+      var isBatal = fs === 'cancelled';
+      var kodeUnik = order.kode_unik || 0;
+      // Badge harus ikut definisi "lunas" di atas — kalau utang sudah 0 tapi status masih
+      // 'dp', badge DP + strip lunas akan bertabrakan lagi.
+      if (isLunas) { bayarLabel = 'Lunas'; bayarCls = 'status-paid'; }
 
       var h = '<div class="card" data-card-id="' + order.id + '">';
 
@@ -1510,7 +1659,6 @@
       h += '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">';
       h += '<span class="card-status ' + bayarCls + '"><span class="status-dot"></span>' + bayarLabel + '</span>';
       if (kirimLabel) h += '<span class="card-status ' + kirimCls + '"><span class="status-dot"></span>' + kirimLabel + '</span>';
-      if (order.shipping_method === 'shopee') h += '<span class="card-status" style="background:#fff7ed;color:#c2410c;"><span class="status-dot" style="background:#f97316;"></span>&#128722; Shopee</span>';
       h += '</div></div>';
 
       // Items with images
@@ -1542,42 +1690,72 @@
 
       h += '<div class="card-divider"></div>';
 
-      // Totals
-      h += '<div class="card-totals">';
-      h += '<div class="card-row total"><span>Total</span><span>' + fmt(order.total) + '</span></div>';
-      if ((order.diskon_manual || 0) > 0) {
-        h += '<div class="card-row" style="color:#059669;"><span>Diskon</span><span>-' + fmt(order.diskon_manual) + '</span></div>';
+      // Totals — baris Total/Dibayar/Sisa hanya untuk yang BELUM lunas (jadi pendukung).
+      // Kartu lunas cukup satu strip hijau; angkanya sudah ada di strip.
+      if (!isLunas && !isBatal) {
+        h += '<div class="card-totals">';
+        h += '<div class="card-row total"><span>Total</span><span>' + fmt(order.total) + '</span></div>';
+        if ((order.diskon_manual || 0) > 0) {
+          h += '<div class="card-row" style="color:#059669;"><span>Diskon</span><span>-' + fmt(order.diskon_manual) + '</span></div>';
+        }
+        if ((order.diskon || 0) > 0) {
+          h += '<div class="card-row" style="color:#059669;"><span>Diskon Poin</span><span>-' + fmt(order.diskon) + '</span></div>';
+        }
+        if ((order.paid_total || 0) > 0) {
+          h += '<div class="card-row paid"><span>Dibayar</span><span>' + fmt(order.paid_total || 0) + '</span></div>';
+        }
+        if (sisa > 0) {
+          h += '<div class="card-row sisa"><span>Sisa</span><span>' + fmt(sisa) + '</span></div>';
+        }
+        h += '</div>';
       }
-      if ((order.diskon || 0) > 0) {
-        h += '<div class="card-row" style="color:#059669;"><span>Diskon Poin</span><span>-' + fmt(order.diskon) + '</span></div>';
+
+      // --- LUNAS: satu kebenaran saja. Tanpa baris "Sisa", tanpa "Siap dikirim setelah lunas". ---
+      if (isLunas) {
+        var paidAmt = order.paid_total || 0;
+        h += '<div class="pay-lunas"><div class="ic">&#10004;</div><div>';
+        h += '<div class="t1">' + (paidAmt > 0 ? 'Sudah dibayar ' + fmt(paidAmt) + ' &mdash; lunas.' : 'Lunas.') + '</div>';
+        h += '<div class="t2">Sudah cocok dengan total ' + fmt(order.total)
+           + (kodeUnik > 0 ? ' (kode unik &minus;' + fmt(kodeUnik) + ')' : '')
+           + '. Tidak ada tagihan lagi.</div>';
+        if ((order.diskon || 0) > 0) {
+          h += '<div class="t2">Diskon poin ' + fmt(order.diskon) + ' sudah ikut terpakai di invoice ini.</div>';
+        }
+        h += '</div></div>';
+      } else if (!isBatal) {
+        // --- BELUM LUNAS: satu angka besar yang harus dibayar, lalu tombol. ---
+        h += '<div class="pay-due">';
+        h += '<div class="lbl">Yang perlu kamu bayar</div>';
+        h += '<div class="amt">' + fmt(sisa) + '</div>';
+        if (sisa !== tagihan) {
+          h += '<div class="sub">Total tagihan ' + fmt(tagihan)
+             + (sisa < tagihan ? ', sudah dibayar ' + fmt(tagihan - sisa) : '') + '.</div>';
+        }
+        if (kodeUnik > 0) {
+          h += '<div class="sub">Angka unik &minus;' + fmt(kodeUnik) + ' supaya transfermu gampang kami kenali.</div>';
+        }
+        h += '</div>';
+        h += '<button class="pay-now" data-pay-btn="' + order.id + '" data-pay-amount="' + sisa + '">Bayar Sekarang</button>';
+        if (fs === 'belum_ready') {
+          h += '<div class="pay-note">&#8987; Barang nyampe dulu &mdash; boleh bayar nanti</div>';
+        }
+      } else {
+        // Dibatalkan: ringkasan saja, tidak ada tagihan yang ditagih.
+        h += '<div class="pay-lunas" style="background:#f8fafc;border-color:#e2e8f0;">'
+           + '<div class="ic" style="color:#94a3b8;">&#10006;</div>'
+           + '<div><div class="t1" style="color:#64748b;">Pesanan dibatalkan</div>'
+           + '<div class="t2" style="color:#94a3b8;">Tidak ada tagihan untuk pesanan ini.</div></div></div>';
       }
-      if ((order.paid_total || 0) > 0) {
-        h += '<div class="card-row paid"><span>Dibayar</span><span>' + fmt(order.paid_total || 0) + '</span></div>';
-      }
-      if (sisa > 0) {
-        h += '<div class="card-row sisa"><span>Sisa</span><span>' + fmt(sisa) + '</span></div>';
-      }
+
+      // Resi & kurir tetap di sini (catatan internal & metode kirim tidak dibawa ke daftar)
       if ((fs === 'shipped' || fs === 'completed') && order.resi) {
+        h += '<div class="card-totals" style="padding-top:8px;">';
         if (order.courier) h += '<div class="card-row"><span>Kurir</span><span style="font-weight:700;">' + escHtml(String(order.courier).toUpperCase()) + '</span></div>';
         h += '<div class="card-row"><span>No. Resi</span><span style="font-family:monospace;font-weight:700;">' + escHtml(order.resi) + '</span></div>';
+        h += '</div>';
       } else if ((fs === 'shipped' || fs === 'completed') && order.shipping_method === 'shopee') {
+        h += '<div class="card-totals" style="padding-top:8px;">';
         h += '<div class="card-row"><span>No. Resi</span><span style="color:#94a3b8;">Resi Shopee menyusul</span></div>';
-      }
-      h += '</div>';
-
-      // Status bayar vs kirim
-      if (sisa > 0 && fs !== 'cancelled') {
-        if (fs === 'belum_ready') {
-          h += '<div style="font-size:10.5px;font-weight:800;color:#c2410c;background:#fff7ed;border:1px dashed #fdba74;border-radius:8px;padding:6px 8px;margin-top:8px;">&#8987; Barang nyampe dulu — boleh bayar nanti</div>';
-        } else if (fs === 'ready') {
-          h += '<div style="font-size:10.5px;font-weight:800;color:#047857;background:#ecfdf5;border:1px dashed #6ee7b7;border-radius:8px;padding:6px 8px;margin-top:8px;">&#10004; Siap dikirim setelah lunas</div>';
-        }
-      }
-
-      // Notes
-      if (order.notes) {
-        h += '<div class="card-notes">';
-        h += '<div class="card-note-box"><div class="card-note-label">Catatan</div><div class="card-note-text">' + escHtml(order.notes) + '</div></div>';
         h += '</div>';
       }
 
@@ -1694,9 +1872,14 @@
       tfOrderId = orderId;
       tfSisa = parseFloat(sisa);
       var fmtSisa = 'Rp ' + tfSisa.toLocaleString('id-ID');
-      document.getElementById('tfSisaLabel').textContent = 'Total tagihan: ' + fmtSisa;
+      var ids = orderId.split(',').filter(function(x) { return x; });
+      document.getElementById('tfSisaLabel').textContent =
+        ids.length > 1 ? ids.length + ' invoice \u00b7 total ' + fmtSisa : 'Total tagihan: ' + fmtSisa;
       document.getElementById('tfSisaVal').textContent = fmtSisa;
       document.getElementById('tfNominal').value = fmtSisa;
+      // rincian per-invoice supaya customer tahu transfernya dicover invoice mana saja
+      var bd = document.getElementById('tfBreakdown');
+      if (bd) bd.innerHTML = tfBreakdownHtml(ids, tfSisa);
       document.getElementById('tfTanggal').value = new Date().toLocaleString('id-ID', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
       document.getElementById('tfFileInput').value = '';
       document.getElementById('tfUploadArea').style.display = '';
@@ -1706,23 +1889,23 @@
       document.getElementById('tfModal').classList.add('show');
     }
 
-    function openTfSelectedModal() {
-      var ids = Object.keys(selectedOrders);
-      if (ids.length === 0) return;
-      var total = ids.reduce(function(s, k) { return s + selectedOrders[k]; }, 0);
-      tfOrderId = ids.join(',');
-      tfSisa = total;
-      var fmtSisa = 'Rp ' + total.toLocaleString('id-ID');
-      document.getElementById('tfSisaLabel').textContent = ids.length + ' invoice ┬╖ Total: ' + fmtSisa;
-      document.getElementById('tfSisaVal').textContent = fmtSisa;
-      document.getElementById('tfNominal').value = fmtSisa;
-      document.getElementById('tfTanggal').value = new Date().toLocaleString('id-ID', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
-      document.getElementById('tfFileInput').value = '';
-      document.getElementById('tfUploadArea').style.display = '';
-      document.getElementById('tfPreview').style.display = 'none';
-      document.getElementById('tfSuccess').style.display = 'none';
-      document.getElementById('tfForm').style.display = '';
-      document.getElementById('tfModal').classList.add('show');
+    function tfBreakdownHtml(ids, total) {
+      if (!ids || ids.length < 2) return '';
+      var h = '<div class="tf-break">';
+      var sum = 0;
+      ids.forEach(function(id) {
+        var ord = null;
+        var pool = unpaidOrders && unpaidOrders.length ? unpaidOrders : allOrdersCache;
+        for (var i = 0; i < pool.length; i++) {
+          if (pool[i].id === id) { ord = pool[i]; break; }
+        }
+        var amt = ord ? unpaidSisa(ord) : 0;
+        sum += amt;
+        h += '<div class="tf-break-row"><span>#' + shortId(id) + '</span><span>' + fmt(amt) + '</span></div>';
+      });
+      h += '<div class="tf-break-row tot"><span>Total</span><span>' + fmt(total || sum) + '</span></div>';
+      h += '</div>';
+      return h;
     }
 
     function closeTfModal() {
@@ -1806,7 +1989,7 @@
           var badge = document.getElementById('loyaltyBadge');
           badge.textContent = data.memberLevel.charAt(0).toUpperCase() + data.memberLevel.slice(1);
           badge.className = 'loyalty-badge ' + data.memberLevel;
-          document.getElementById('loyaltyDiscount').textContent = 'Diskon: Rp' + data.discountAvailable.toLocaleString('id-ID');
+          document.getElementById('loyaltyDiscount').textContent = 'Bisa ditukar jadi diskon Rp' + data.discountAvailable.toLocaleString('id-ID');
           window._myPoints = data.points;
           document.getElementById('btnRedeemPoints').style.display = '';
         }
@@ -1829,7 +2012,7 @@
 
       var html = '<div class="redeem-label">Pilih invoice</div>';
       unpaid.forEach(function(o, i) {
-        var sisa = o.total - (o.paid_total || 0) - (o.diskon || 0);
+        var sisa = unpaidSisa(o);
         html += '<label class="redeem-order-option" onclick="selectRedeemOrder(this, \'' + o.id + '\')">';
         html += '<input type="radio" name="redeemOrder" value="' + o.id + '">';
         html += '<div><div class="redeem-order-id">#' + shortId(o.id) + '</div>';
@@ -1936,6 +2119,7 @@
           <label class="modal-label">Nominal yang Dibayar</label>
           <input class="modal-input" type="text" id="tfNominal" placeholder="Masukkan nominal">
           <p class="modal-hint" id="tfSisaLabel">Total tagihan: Rp 45.000</p>
+          <div id="tfBreakdown"></div>
         </div>
 
         <div class="modal-field">
