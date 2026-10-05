@@ -44,6 +44,7 @@ export default function PaymentConfirmations() {
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
+  const [authError, setAuthError] = useState(false);
 
   async function loadData() {
     setLoading(true);
@@ -54,8 +55,9 @@ export default function PaymentConfirmations() {
       });
       if (res.status === 401) {
         setItems([]);
-        alert("Sesi login berakhir. Silakan login ulang.");
+        setAuthError(true);
       } else {
+        setAuthError(false);
         const json = await res.json();
         setItems(json.data || []);
       }
@@ -143,7 +145,20 @@ export default function PaymentConfirmations() {
         </div>
 
         {/* List */}
-        {loading ? (
+        {authError ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+            <p className="text-sm font-bold text-amber-700">Sesi login berakhir.</p>
+            <p className="text-xs text-amber-600 mt-1">
+              Halaman ini butuh sesi Supabase. Silakan login ulang untuk melihat konfirmasi transfer.
+            </p>
+            <button
+              onClick={() => navigate("/login")}
+              className="mt-3 px-4 py-2 rounded-xl bg-amber-500 text-white text-xs font-bold"
+            >
+              Login ulang
+            </button>
+          </div>
+        ) : loading ? (
           <div className="text-center py-12 text-slate-400 font-medium">Memuat...</div>
         ) : items.length === 0 ? (
           <div className="text-center py-12">
