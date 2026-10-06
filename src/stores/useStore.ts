@@ -1847,8 +1847,8 @@ export const useStore = create<PosStore>((set, get) => ({
     });
     if (refundErr) return { error: "Gagal membuat refund: " + refundErr.message };
 
-    for (const item of items) {
-      await supabase.from("refund_items").insert({
+    const { error: itemsErr } = await supabase.from("refund_items").insert(
+      items.map((item) => ({
         id: "ri-" + uuid().replace(/-/g, "").slice(0, 22),
         refund_id: refundId,
         order_item_id: item.order_item_id,
@@ -1856,7 +1856,11 @@ export const useStore = create<PosStore>((set, get) => ({
         quantity: item.quantity,
         price: item.price,
         refund_amount: item.refund_amount,
-      });
+      }))
+    );
+    if (itemsErr) {
+      await supabase.from("refunds").delete().eq("id", refundId);
+      return { error: "Gagal menyimpan rincian refund: " + itemsErr.message };
     }
 
     const newTotal = Math.max(0, order.total - totalRefund);
@@ -1866,13 +1870,18 @@ export const useStore = create<PosStore>((set, get) => ({
       newStatus = "dibatalkan";
     }
 
-    await supabase.from("orders").update({
+    const { error: orderUpdErr } = await supabase.from("orders").update({
       total: newTotal,
       refund_total: newRefundTotal,
       status: newStatus,
       payment_status: newStatus === "dibatalkan" ? "unpaid" : undefined,
       fulfillment_status: newStatus === "dibatalkan" ? "cancelled" : undefined,
     }).eq("id", orderId);
+    if (orderUpdErr) {
+      await supabase.from("refund_items").delete().eq("refund_id", refundId);
+      await supabase.from("refunds").delete().eq("id", refundId);
+      return { error: "Gagal memperbarui order: " + orderUpdErr.message };
+    }
 
     for (const item of items) {
       const { data: orderItem } = await supabase
