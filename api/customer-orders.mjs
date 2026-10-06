@@ -1,4 +1,5 @@
 import { getAdmin } from "./pay.mjs";
+import { verifyPortalToken } from "./customer-lookup.mjs";
 
 const R2_BASE = "https://pub-383108e3bad04ba994957fa1155847a8.r2.dev";
 
@@ -8,13 +9,82 @@ function imgProxy(u) {
   return u;
 }
 
+// Rumus tagihan yang sama persis dengan customer.html / payment-confirm.mjs.
+function sisaOf(o) {
+  return Math.max(0, (o.total || 0) - (o.diskon || 0) - (o.kode_unik || 0) - (o.paid_total || 0));
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (c) => (data += c));
+    req.on("end", () => {
+      try { resolve(JSON.parse(data || "{}")); } catch { reject(new Error("Invalid JSON")); }
+    });
+    req.on("error", reject);
+  });
+}
+
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.end(JSON.stringify(body));
+}
+
+// Customer menutup pesanan sendiri. Syaratnya sengaja ketat:
+// token portal valid, order benar-benar miliknya, status masih 'shipped', dan sudah lunas.
+async function confirmReceived(body, res) {
+  const customerId = verifyPortalToken(body.portal_token);
+  if (!customerId) {
+    json(res, 401, { error: "Sesi login tidak valid. Silakan login ulang." });
+    return;
+  }
+
+  const orderId = String(body.order_id || "").trim();
+  if (!orderId) {
+    json(res, 400, { error: "order_id wajib diisi" });
+    return;
+  }
+
+  const sb = await getAdmin();
+  const { data: order, error } = await sb
+    .from("orders")
+    .select("id, customer_id, total, diskon, kode_unik, paid_total, fulfillment_status")
+    .eq("id", orderId)
+    .single();
+
+  if (error || !order) {
+    json(res, 404, { error: "Order tidak ditemukan" });
+    return;
+  }
+  if (order.customer_id !== customerId) {
+    json(res, 403, { error: "Order bukan milikmu" });
+    return;
+  }
+  if (order.fulfillment_status !== "shipped") {
+    json(res, 409, { error: "Hanya pesanan yang sedang dikirim yang bisa dikonfirmasi" });
+    return;
+  }
+  if (sisaOf(order) > 0) {
+    json(res, 409, { error: "Pesanan belum lunas" });
+    return;
+  }
+
+  const { error: updErr } = await sb
+    .from("orders")
+    .update({ fulfillment_status: "completed" })
+    .eq("id", orderId)
+    .eq("customer_id", customerId)
+    .eq("fulfillment_status", "shipped");
+
+  if (updErr) {
+    json(res, 500, { error: updErr.message });
+    return;
+  }
+  json(res, 200, { ok: true, order_id: orderId, fulfillment_status: "completed" });
 }
 
 export default async function handler(req, res) {
@@ -23,6 +93,21 @@ export default async function handler(req, res) {
     res.end();
     return;
   }
+
+  if (req.method === "POST") {
+    try {
+      const body = await readBody(req);
+      if (String(body.action || "") !== "confirm-received") {
+        json(res, 400, { error: "action tidak dikenal" });
+        return;
+      }
+      await confirmReceived(body, res);
+    } catch (e) {
+      json(res, 500, { error: e.message });
+    }
+    return;
+  }
+
   if (req.method !== "GET") {
     json(res, 405, { error: "Method not allowed" });
     return;

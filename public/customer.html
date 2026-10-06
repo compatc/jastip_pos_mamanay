@@ -505,6 +505,145 @@
     .bridge .bb b { color: #e11d48; }
     .bridge .bn { font-size: 11.5px; color: #94a3b8; margin-top: 5px; line-height: 1.5; }
 
+    /* ===== RIWAYAT v2 — pola Shopee/Tokopedia ===== */
+    .fchips { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 2px; }
+    .fchips::-webkit-scrollbar { display: none; }
+    .fchip {
+      padding: 6px 11px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #64748b;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .fchip b { font-weight: 800; opacity: .65; }
+    .fchip.on { background: #ec4899; color: #fff; border-color: #ec4899; }
+    .fchip.on b { opacity: .9; }
+    .hist-cnt { font-size: 11.5px; color: #94a3b8; font-weight: 700; margin-bottom: 10px; }
+
+    .sc {
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      padding: 11px 12px 10px;
+    }
+    .s-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+    .s-shop { font-size: 12.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+    .s-av {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #fbcfe8, #f9a8d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    .s-right { text-align: right; min-width: 0; }
+    .s-st { font-size: 12px; font-weight: 800; }
+    .s-date { font-size: 10.5px; color: #94a3b8; font-weight: 600; margin-top: 2px; }
+    .chev { color: #cbd5e1; font-weight: 800; }
+    .s-bayar .s-st { color: #dc2626; }
+    .s-dp .s-st { color: #d97706; }
+    .s-proses .s-st { color: #2563eb; }
+    .s-siap .s-st { color: #15803d; }
+    .s-kirim .s-st { color: #7c3aed; }
+    .s-selesai .s-st { color: #059669; }
+    .s-batal .s-st { color: #dc2626; }
+    .s-siap { border-color: #bbf7d0; }
+    .s-bayar { border-color: #fecaca; }
+    .s-dp { border-color: #fed7aa; }
+    .s-batal { border-color: #fecaca; background: #fffbfb; }
+    .s-items { margin-top: 9px; background: #f8fafc; border-radius: 10px; padding: 2px 0; }
+    .si-row { display: flex; align-items: center; padding: 8px 12px; gap: 9px; }
+    .si-row + .si-row { border-top: 1px solid #e9eef4; }
+    .si-img {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+    .si-img.ph {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #fbcfe8, #f9a8d4);
+      font-size: 15px;
+    }
+    .si-info { flex: 1; min-width: 0; }
+    .si-nm { font-size: 12.5px; font-weight: 700; color: #1e293b; line-height: 1.3; }
+    .si-var {
+      display: inline-block;
+      background: #f3e8ff;
+      color: #7c3aed;
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 6px;
+      margin-top: 2px;
+    }
+    .si-qty { font-size: 10.5px; color: #94a3b8; font-weight: 700; }
+    .si-pr { font-size: 12.5px; font-weight: 700; color: #334155; white-space: nowrap; }
+    .s-sum { text-align: right; font-size: 11.5px; color: #64748b; font-weight: 700; margin-top: 8px; }
+    .s-sum b { font-size: 15px; color: #0f172a; font-weight: 800; margin-left: 5px; }
+    .s-act { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .s-x { font-size: 10.5px; font-weight: 700; line-height: 1.4; }
+    .s-x.warn { color: #c2410c; }
+    .s-x.ok { color: #059669; }
+    .s-btns { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+    .s-btn {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 8px 14px;
+      border-radius: 9px;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #475569;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .s-btn.prim { background: linear-gradient(135deg, #ec4899, #f43f5e); border: none; color: #fff; }
+    .s-btn:disabled { opacity: .6; cursor: default; }
+    .s-resi {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 11.5px;
+      color: #475569;
+      display: none;
+    }
+    .s-resi.show { display: block; }
+    .s-notes {
+      margin-top: 8px;
+      padding: 7px 9px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #92400e;
+    }
+    .s-pack { margin-top: 8px; }
+    .s-pack img {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid #e2e8f0;
+      display: block;
+      cursor: pointer;
+    }
+
     /* ===== ORDER CARD ===== */
     .card {
       background: white;
@@ -1490,6 +1629,144 @@
       }
     }
 
+    // ===== RIWAYAT v2 — pola Shopee/Tokopedia =====
+    // Satu sumber kebenaran status di daftar Riwayat. "Lunas" memakai rumus yang sama
+    // dengan tab Invoice (sisa <= 0), supaya order artefak "dp padahal lunas" tidak
+    // muncul sebagai tagihan di dua tempat yang berbeda.
+    var histStatusFilter = 'semua';
+    var histMonthFilter = 'all';
+    var histTotalOrders = 0;
+
+    function histLunas(o) {
+      var fs = o.fulfillment_status || 'belum_ready';
+      return fs !== 'cancelled' && ((o.payment_status || 'unpaid') === 'paid' || unpaidSisa(o) <= 0);
+    }
+
+    function histBucket(o) {
+      var fs = o.fulfillment_status || 'belum_ready';
+      if (fs === 'cancelled') return 'batal';
+      if (fs === 'completed') return 'selesai';
+      if (fs === 'shipped') return 'kirim';
+      if (fs === 'ready') return 'siap';
+      return histLunas(o) ? 'proses' : 'bayar';
+    }
+
+    function histStatus(o) {
+      var fs = o.fulfillment_status || 'belum_ready';
+      var ps = o.payment_status || 'unpaid';
+      if (fs === 'cancelled') return { t: 'Dibatalkan', c: 'batal' };
+      if (fs === 'completed') return { t: 'Selesai', c: 'selesai' };
+      if (fs === 'shipped') return { t: o.resi ? 'Sedang dikirim \u00b7 Resi ' + o.resi : 'Sedang dikirim', c: 'kirim' };
+      if (fs === 'ready') return { t: 'Siap diambil', c: 'siap' };
+      if (histLunas(o)) return { t: 'Sedang disiapkan', c: 'proses' };
+      if (ps === 'dp') return { t: 'Belum lunas', c: 'dp' };
+      return { t: 'Menunggu pembayaran', c: 'bayar' };
+    }
+
+    // Satu tombol aksi per kartu — isinya ikut status, seperti app lain.
+    function histAction(o) {
+      var fs = o.fulfillment_status || 'belum_ready';
+      var ps = o.payment_status || 'unpaid';
+      var sisa = unpaidSisa(o);
+      if (fs === 'cancelled') return { label: 'Pesan Lagi', act: 'again', primary: false };
+      if (fs === 'completed') return { label: 'Beli Lagi', act: 'again', primary: false };
+      if (fs === 'shipped') {
+        return { label: 'Konfirmasi Diterima', act: 'confirm', primary: true, ghost: { label: 'Lihat Resi', act: 'resi' } };
+      }
+      if (histLunas(o)) return { label: 'Lihat Invoice', act: 'invoice', primary: false };
+      if (ps === 'dp') return { label: 'Lunasi ' + fmt(sisa), act: 'pay', primary: true };
+      return { label: 'Bayar ' + fmt(sisa), act: 'pay', primary: true };
+    }
+
+    function histExtra(o) {
+      var fs = o.fulfillment_status || 'belum_ready';
+      var ps = o.payment_status || 'unpaid';
+      var sisa = unpaidSisa(o);
+      if (fs === 'cancelled') {
+        return (o.paid_total || 0) > 0
+          ? '<span class="s-x warn">Sudah dibayar ' + fmt(o.paid_total) + ' &mdash; dikembalikan setelah dicek admin</span>'
+          : '';
+      }
+      if (!histLunas(o)) {
+        if (ps === 'dp') return '<span class="s-x warn">Sudah dibayar ' + fmt(o.paid_total || 0) + ' &middot; sisa ' + fmt(sisa) + '</span>';
+        return '<span class="s-x warn">Sisa ' + fmt(sisa) + '</span>';
+      }
+      if ((o.diskon || 0) > 0) {
+        return '<span class="s-x ok">Diskon poin &minus;' + fmt(o.diskon)
+          + ((o.kode_unik || 0) > 0 ? ' &middot; kode unik &minus;' + fmt(o.kode_unik) : '')
+          + '</span>';
+      }
+      if ((o.kode_unik || 0) > 0) {
+        return '<span class="s-x ok">Kode unik &minus;' + fmt(o.kode_unik) + ' &mdash; transfermu gampang kami kenali</span>';
+      }
+      return '';
+    }
+
+    function histResi(o) {
+      var parts = [];
+      if (o.courier) parts.push('<b>Kurir:</b> ' + escHtml(String(o.courier).toUpperCase()));
+      if (o.resi) parts.push('<b>No. Resi:</b> <span style="font-family:monospace;">' + escHtml(o.resi) + '</span>');
+      else if (o.shipping_method === 'shopee') parts.push('Resi Shopee menyusul');
+      if (o.shipping_method === 'shopee') parts.push('Checkout sendiri di Shopee');
+      return parts.length ? parts.join('<br>') : 'Resi belum tersedia.';
+    }
+
+    function histCardHtml(o, items) {
+      var st = histStatus(o);
+      var ak = histAction(o);
+      var ex = histExtra(o);
+      var nQty = items.reduce(function(s, i) { return s + (i.quantity || 0); }, 0);
+      var itemText = items.map(function(i) { return i.product_name + (i.variant || ''); }).join(' ').toLowerCase();
+      var searchKey = ('#' + shortId(o.id) + ' ' + itemText).toLowerCase();
+      var monthKey = (function(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      })(new Date(o.created_at));
+
+      var h = '<div class="sc s-' + st.c + '" data-order-id="' + o.id + '"'
+        + ' data-st="' + histBucket(o) + '"'
+        + ' data-month="' + monthKey + '"'
+        + ' data-total="' + (o.total || 0) + '"'
+        + ' data-search="' + searchKey.replace(/"/g, '&quot;') + '">';
+
+      h += '<div class="s-top"><div class="s-shop"><span class="s-av">&#128722;</span>jastip_mamanay</div>';
+      h += '<div class="s-right"><div class="s-st">' + escHtml(st.t) + '</div>';
+      h += '<div class="s-date">#' + shortId(o.id) + ' &middot; ' + fmtDate(o.created_at) + ' <span class="chev">&#8250;</span></div></div></div>';
+
+      h += '<div class="s-items">';
+      if (items.length === 0) {
+        h += '<div class="si-row"><div class="si-info"><div class="si-nm">Detail tidak tersedia</div></div></div>';
+      }
+      items.forEach(function(item) {
+        var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
+        h += '<div class="si-row">';
+        h += item.image ? '<img class="si-img" src="' + item.image + '" alt="">' : '<div class="si-img ph">&#128722;</div>';
+        h += '<div class="si-info"><div class="si-nm">' + escHtml(item.product_name) + '</div>';
+        if (item.variant) h += '<div class="si-var">' + escHtml(item.variant) + '</div>';
+        h += '<div class="si-qty">&times;' + item.quantity + '</div></div>';
+        h += '<div class="si-pr">' + fmt(itemTotal) + '</div></div>';
+      });
+      h += '</div>';
+
+      h += '<div class="s-sum">Total (' + nQty + ' barang) <b>' + fmt(o.total) + '</b></div>';
+
+      // Catatan & foto packing tidak disinggung mockup — tetap dipertahankan,
+      // cuma dipindah ke bawah ringkasan supaya daftar tetap ringkas.
+      if (o.notes) h += '<div class="s-notes">&#128172; Catatan: ' + escHtml(o.notes) + '</div>';
+      if (o.packing_photo) h += '<div class="s-pack"><img src="' + o.packing_photo + '" alt="Foto packing" data-act="pack"></div>';
+      h += '<div class="s-resi" id="resi-' + o.id + '">' + histResi(o) + '</div>';
+
+      if (ex || ak) {
+        h += '<div class="s-act">' + (ex || '<span></span>') + '<div class="s-btns">';
+        if (ak.ghost) h += '<button class="s-btn" data-act="' + ak.ghost.act + '">' + escHtml(ak.ghost.label) + '</button>';
+        h += '<button class="s-btn' + (ak.primary ? ' prim' : '') + '" data-act="' + ak.act + '"'
+          + (ak.act === 'pay' ? ' data-sisa="' + unpaidSisa(o) + '"' : '')
+          + '>' + escHtml(ak.label) + '</button>';
+        h += '</div></div>';
+      }
+
+      return h + '</div>';
+    }
+
     function renderHistory(orders, itemsByOrder) {
       var el = document.getElementById('historyContent');
       if (orders.length === 0) {
@@ -1497,181 +1774,179 @@
         return;
       }
       var sorted = orders.slice().sort(function(a, b) {
-        var timeA = (a.payment_status === 'paid') ? (a.updated_at || a.created_at) : a.created_at;
-        var timeB = (b.payment_status === 'paid') ? (b.updated_at || b.created_at) : b.created_at;
-        return new Date(timeB) - new Date(timeA);
+        return new Date(b.created_at) - new Date(a.created_at);
       });
+      histTotalOrders = orders.length;
 
+      var counts = { semua: orders.length, bayar: 0, proses: 0, siap: 0, kirim: 0, selesai: 0, batal: 0 };
       var months = {};
       sorted.forEach(function(o) {
+        counts[histBucket(o)]++;
         var d = new Date(o.created_at);
         var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-        if (!months[key]) months[key] = [];
-        months[key].push(o);
+        months[key] = d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
       });
 
       var html = '';
       html += '<div class="hist-search-wrap"><span class="hist-search-icon">&#128269;</span>';
       html += '<input class="hist-search" type="text" id="histSearchInput" placeholder="Cari produk atau order..." oninput="filterHistory()"></div>';
-      html += '<div class="hist-filter-row" id="histFilterRow" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;">';
-      html += '<button class="hist-month-btn active" data-month="all">Semua</button>';
+
+      // Filter atas = STATUS (bukan bulan), persis app lain. Bulan pindah ke tombol kalender.
+      var chips = [
+        ['semua', 'Semua'], ['bayar', 'Belum Bayar'], ['proses', 'Diproses'],
+        ['siap', 'Siap Diambil'], ['kirim', 'Dikirim'], ['selesai', 'Selesai'], ['batal', 'Dibatalkan']
+      ];
+      html += '<div class="fchips" id="histStatusRow">';
+      chips.forEach(function(c) {
+        html += '<span class="fchip' + (histStatusFilter === c[0] ? ' on' : '') + '" data-st="' + c[0] + '">'
+          + c[1] + ' <b>' + counts[c[0]] + '</b></span>';
+      });
+      html += '<span class="fchip" id="histMonthToggle">&#128197; Bulan</span>';
+      html += '</div>';
+
+      html += '<div class="hist-filter-row" id="histFilterRow" style="display:none;gap:6px;margin-bottom:10px;overflow-x:auto;">';
+      html += '<button class="hist-month-btn' + (histMonthFilter === 'all' ? ' active' : '') + '" data-month="all">Semua bulan</button>';
       Object.keys(months).sort().reverse().forEach(function(m) {
-        var parts = m.split('-');
-        var d = new Date(Number(parts[0]), Number(parts[1]) - 1);
-        var label = d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
-        html += '<button class="hist-month-btn" data-month="' + m + '">' + label + '</button>';
+        html += '<button class="hist-month-btn' + (histMonthFilter === m ? ' active' : '') + '" data-month="' + m + '">'
+          + months[m] + '</button>';
       });
       html += '</div>';
-      html += '<div id="histCount" style="margin-bottom:10px;font-size:12px;color:#94a3b8;font-weight:600;">' + sorted.length + ' order</div>';
+
+      html += '<div class="hist-cnt" id="histCount"></div>';
       html += '<div id="histList">';
-
-      Object.keys(months).sort().reverse().forEach(function(monthKey) {
-        var monthOrders = months[monthKey];
-        var parts = monthKey.split('-');
-        var d = new Date(Number(parts[0]), Number(parts[1]) - 1);
-        var monthLabel = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-        var monthTotal = monthOrders.reduce(function(s, o) { return s + (o.total || 0); }, 0);
-
-        html += '<div class="hist-month-group" data-month="' + monthKey + '">';
-        html += '<div class="hist-month-header">';
-        html += '<span class="hist-month-title">' + monthLabel + '</span>';
-        html += '<span class="hist-month-total">' + monthOrders.length + ' order ┬╖ ' + fmt(monthTotal) + '</span>';
-        html += '</div>';
-
-        monthOrders.forEach(function(o) {
-        var items = itemsByOrder[o.id] || [];
-        var ps = o.payment_status || 'unpaid';
-        var fs = o.fulfillment_status || 'belum_ready';
-        var sisa = unpaidSisa(o);
-
-        var bayarLabel = '', bayarCls = '';
-        if (fs === 'cancelled') { bayarLabel = 'Dibatalkan'; bayarCls = 's-cancelled'; }
-        else if (ps === 'paid') { bayarLabel = 'Lunas'; bayarCls = 's-paid'; }
-        else if (ps === 'dp') { bayarLabel = 'DP'; bayarCls = 's-dp'; }
-        else { bayarLabel = 'Belum Bayar'; bayarCls = 's-unpaid'; }
-
-        var kirimLabel = '', kirimCls = '';
-        if (fs === 'cancelled') { kirimLabel = ''; }
-        else if (fs === 'shipped') { kirimLabel = 'Dikirim'; kirimCls = 's-sent'; }
-        else if (fs === 'completed') { kirimLabel = 'Selesai'; kirimCls = 's-completed'; }
-        else if (fs === 'ready') { kirimLabel = 'Stok Ready'; kirimCls = 's-ready'; }
-        else { kirimLabel = 'Belum Ready'; kirimCls = 's-belum-ready'; }
-
-        var itemText = items.map(function(i) { return i.product_name + (i.variant || ''); }).join(' ').toLowerCase();
-        var searchKey = ('#' + shortId(o.id) + ' ' + itemText).toLowerCase();
-
-        html += '<div class="hist-card" data-search="' + searchKey + '">';
-        html += '<div class="hist-card-header">';
-        html += '<span class="hist-card-id">#' + shortId(o.id) + '</span>';
-        html += '<span class="hist-card-date">' + fmtDate(o.created_at) + '</span>';
-        html += '</div>';
-
-        html += '<div class="hist-card-items">';
-        items.forEach(function(item) {
-          var itemTotal = (item.price - (item.discount || 0)) * item.quantity;
-          var imgHtml = '';
-          if (item.image) {
-            imgHtml = '<img src="' + item.image + '" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">';
-          }
-          html += '<div class="hist-item">';
-          if (imgHtml) html += imgHtml;
-          html += '<div class="hist-item-info"><span class="hist-item-name">' + escHtml(item.product_name);
-          if (item.variant) html += '<span class="hist-variant">' + escHtml(item.variant) + '</span>';
-          html += '</span></div>';
-          html += '<span class="hist-item-price">' + fmt(itemTotal) + '</span>';
-          html += '</div>';
-        });
-        if (items.length === 0) html += '<div style="padding:8px 12px;color:#94a3b8;font-size:12px;">Detail tidak tersedia</div>';
-        html += '</div>';
-
-        var steps = ['belum_ready','ready','shipped','completed'];
-        if (fs !== 'cancelled') {
-          var activeIdx = steps.indexOf(fs);
-          if (activeIdx < 0) activeIdx = 0;
-          html += '<div class="hist-progress">';
-          var stepLabels = ['Diproses','Ready','Dikirim','Selesai'];
-          for (var si = 0; si < steps.length; si++) {
-            var dotCls = si < activeIdx ? 'done' : si === activeIdx ? 'active' : 'pending';
-            var lblCls = si < activeIdx ? 'done' : si === activeIdx ? 'active' : '';
-            html += '<div class="hist-progress-step">';
-            if (si < steps.length - 1) html += '<div class="hist-progress-line ' + (si < activeIdx ? 'done' : '') + '"></div>';
-            html += '<div class="hist-progress-dot ' + dotCls + '">';
-            if (si < activeIdx) html += '&#10003;';
-            else if (si === activeIdx) html += '&#9679;';
-            else html += '&#9675;';
-            html += '</div>';
-            html += '<div class="hist-progress-label ' + lblCls + '">' + stepLabels[si] + '</div>';
-            html += '</div>';
-          }
-          html += '</div>';
-        }
-
-        if (o.notes) {
-          html += '<div class="hist-card-notes"><b>Catatan: </b>' + escHtml(o.notes) + '</div>';
-        }
-
-        if (ps !== 'paid' && sisa > 0) {
-          html += '<div class="hist-card-payment">';
-          html += '<span class="hp-label">Dibayar</span><span class="hp-value">' + fmt(o.paid_total || 0) + '</span>';
-          html += '<span class="hp-label">Sisa</span><span class="hp-value" style="color:#dc2626;">' + fmt(sisa) + '</span>';
-          html += '</div>';
-        }
-
-        html += '<div class="hist-card-footer">';
-        html += '<span class="hist-card-total">' + fmt(o.total) + '</span>';
-        html += '<div style="display:flex;gap:5px;flex-wrap:wrap;">';
-        html += '<span class="hist-status ' + bayarCls + '"><span class="hist-status-dot"></span>' + bayarLabel + '</span>';
-        if (kirimLabel) html += '<span class="hist-status ' + kirimCls + '"><span class="hist-status-dot"></span>' + kirimLabel + '</span>';
-        html += '</div></div>';
-
-        if (o.packing_photo) {
-          html += '<img src="' + o.packing_photo + '" alt="Foto packing" class="hist-pack-thumb" onclick="document.getElementById(\'lightboxImg\').src=\'' + o.packing_photo + '\';document.getElementById(\'lightbox\').classList.add(\'show\')">';
-        }
-        html += '</div>';
-      });
+      sorted.forEach(function(o) {
+        html += histCardHtml(o, itemsByOrder[o.id] || []);
       });
       html += '</div>';
-      html += '</div>';
+
       el.innerHTML = html;
 
-      var filterBtns = el.querySelectorAll('.hist-month-btn');
-      filterBtns.forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          filterMonth(btn.getAttribute('data-month'));
-        });
+      el.querySelectorAll('.fchip[data-st]').forEach(function(c) {
+        c.onclick = function() {
+          histStatusFilter = c.getAttribute('data-st');
+          el.querySelectorAll('.fchip[data-st]').forEach(function(x) {
+            x.classList.toggle('on', x === c);
+          });
+          applyHistFilter();
+        };
       });
+      el.querySelectorAll('.hist-month-btn').forEach(function(btn) {
+        btn.onclick = function() { filterMonth(btn.getAttribute('data-month')); };
+      });
+      var mt = document.getElementById('histMonthToggle');
+      if (mt) {
+        mt.onclick = function() {
+          var row = document.getElementById('histFilterRow');
+          if (row) row.style.display = row.style.display === 'none' ? 'flex' : 'none';
+        };
+      }
+      el.onclick = histActionClick;
+      updateHistMonthChip();
+      applyHistFilter();
+    }
+
+    function updateHistMonthChip() {
+      var mt = document.getElementById('histMonthToggle');
+      if (!mt) return;
+      if (histMonthFilter === 'all') {
+        mt.innerHTML = '&#128197; Bulan';
+        mt.classList.remove('on');
+      } else {
+        var parts = histMonthFilter.split('-');
+        var label = new Date(Number(parts[0]), Number(parts[1]) - 1)
+          .toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+        mt.innerHTML = '&#128197; ' + label;
+        mt.classList.add('on');
+      }
     }
 
     function filterMonth(month) {
+      histMonthFilter = month;
       document.querySelectorAll('.hist-month-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-month') === month);
       });
-      document.querySelectorAll('.hist-month-group').forEach(function(group) {
-        if (month === 'all') {
-          group.style.display = '';
-        } else {
-          group.style.display = group.getAttribute('data-month') === month ? '' : 'none';
-        }
-      });
-      var visible = 0;
-      document.querySelectorAll('#histList .hist-card').forEach(function(card) {
-        if (card.offsetParent !== null) visible++;
-      });
-      var el = document.getElementById('histCount');
-      if (el) el.textContent = visible + ' order';
+      updateHistMonthChip();
+      applyHistFilter();
     }
 
     function filterHistory() {
-      var q = (document.getElementById('histSearchInput').value || '').toLowerCase().trim();
-      var cards = document.querySelectorAll('#histList .hist-card');
+      applyHistFilter();
+    }
+
+    function applyHistFilter() {
+      var searchEl = document.getElementById('histSearchInput');
+      var q = ((searchEl && searchEl.value) || '').toLowerCase().trim();
+      var list = document.getElementById('histList');
+      if (!list) return;
       var visible = 0;
-      cards.forEach(function(card) {
-        var match = !q || (card.getAttribute('data-search') || '').indexOf(q) >= 0;
-        card.style.display = match ? '' : 'none';
-        if (match) visible++;
+      var total = 0;
+      list.querySelectorAll('.sc').forEach(function(card) {
+        var ok = (histStatusFilter === 'semua' || card.getAttribute('data-st') === histStatusFilter)
+          && (histMonthFilter === 'all' || card.getAttribute('data-month') === histMonthFilter)
+          && (!q || (card.getAttribute('data-search') || '').indexOf(q) >= 0);
+        card.style.display = ok ? '' : 'none';
+        if (ok) {
+          visible++;
+          total += Number(card.getAttribute('data-total') || 0);
+        }
       });
-      var el = document.getElementById('histCount');
-      if (el) el.textContent = visible + ' order' + (q ? ' ditemukan' : '');
+      var cnt = document.getElementById('histCount');
+      if (cnt) {
+        cnt.textContent = visible + ' dari ' + histTotalOrders + ' pesanan \u00b7 ' + fmt(total) + ' total belanja';
+      }
+    }
+
+    function histActionClick(e) {
+      var btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      var card = btn.closest('.sc');
+      if (!card) return;
+      var act = btn.getAttribute('data-act');
+      var id = card.getAttribute('data-order-id');
+
+      if (act === 'pay') {
+        openPayMethod([id], parseFloat(btn.getAttribute('data-sisa')) || 0);
+      } else if (act === 'invoice') {
+        window.open('/invoice/' + id, '_blank');
+      } else if (act === 'resi') {
+        var box = document.getElementById('resi-' + id);
+        if (box) box.classList.toggle('show');
+      } else if (act === 'pack') {
+        document.getElementById('lightboxImg').src = btn.getAttribute('src');
+        document.getElementById('lightbox').classList.add('show');
+      } else if (act === 'again') {
+        window.open('/catalog', '_blank');
+      } else if (act === 'confirm') {
+        confirmReceived(id, btn);
+      }
+    }
+
+    // Penutup pesanan oleh customer sendiri. Butuh token portal (bukan cuma customer_id)
+    // karena endpoint ini menulis data — lihat api/customer-orders.mjs.
+    async function confirmReceived(orderId, btn) {
+      var token = (currentCustomer && currentCustomer.portal_token) || '';
+      var oldLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+      try {
+        var res = await fetch(API_BASE + '/api/customer-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'confirm-received', order_id: orderId, portal_token: token })
+        });
+        var data = await res.json();
+        if (!res.ok || data.error) {
+          alert(data.error || 'Gagal konfirmasi penerimaan.');
+          btn.disabled = false;
+          btn.textContent = oldLabel;
+          return;
+        }
+        reloadOrders();
+      } catch (err) {
+        alert('Gagal konfirmasi penerimaan: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = oldLabel;
+      }
     }
 
     function renderCard(order, items, showPay) {

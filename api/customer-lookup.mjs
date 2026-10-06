@@ -1,6 +1,50 @@
+import crypto from "node:crypto";
 import { getAdmin } from "./pay.mjs";
 
 const REDEEM_RATE = 100;
+
+// ---- Token portal (login = 5 digit terakhir HP, tanpa password) ----
+// Token ditandatangani HMAC supaya tulis-ke-db (mis. "Konfirmasi Diterima")
+// tidak bisa dilakukan orang yang cuma menebak customer_id.
+// Kunci: rahasia server, tidak pernah dikirim ke browser.
+const PORTAL_TOKEN_TTL = 60 * 60 * 24 * 30; // 30 hari
+
+function portalSecret() {
+  return (
+    process.env.PORTAL_TOKEN_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    ""
+  );
+}
+
+export function signPortalToken(customerId) {
+  const secret = portalSecret();
+  if (!secret || !customerId) return "";
+  const exp = Math.floor(Date.now() / 1000) + PORTAL_TOKEN_TTL;
+  const sig = crypto
+    .createHmac("sha256", secret)
+    .update(customerId + "." + exp)
+    .digest("hex");
+  return customerId + "." + exp + "." + sig;
+}
+
+export function verifyPortalToken(token) {
+  const secret = portalSecret();
+  if (!secret || !token) return null;
+  const parts = String(token).split(".");
+  if (parts.length !== 3) return null;
+  const [customerId, expRaw, sig] = parts;
+  const exp = Number(expRaw);
+  if (!customerId || !Number.isFinite(exp) || exp * 1000 < Date.now()) return null;
+  const expect = crypto
+    .createHmac("sha256", secret)
+    .update(customerId + "." + exp)
+    .digest("hex");
+  const a = Buffer.from(String(sig), "utf8");
+  const b = Buffer.from(expect, "utf8");
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  return customerId;
+}
 
 function calculateMemberLevel(totalSpent) {
   if (totalSpent >= 10000000) return "platinum";
@@ -141,7 +185,9 @@ export default async function handler(req, res) {
       json(res, 404, { error: "Nomor tidak ditemukan" });
       return;
     }
-    json(res, 200, { customers: matches });
+    json(res, 200, {
+      customers: matches.map((c) => ({ ...c, portal_token: signPortalToken(c.id) })),
+    });
   } catch (e) {
     json(res, 500, { error: e.message });
   }
