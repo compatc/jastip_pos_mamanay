@@ -506,8 +506,54 @@
     .bridge .bn { font-size: 11.5px; color: #94a3b8; margin-top: 5px; line-height: 1.5; }
 
     /* ===== RIWAYAT v2 — pola Shopee/Tokopedia ===== */
-    .fchips { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 2px; }
+    .fchips-wrap { position: relative; }
+    .fchips-wrap::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: -2px;
+      bottom: 2px;
+      width: 34px;
+      background: linear-gradient(90deg, rgba(255,255,255,0), #fff 88%);
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .fchips-wrap::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: -2px;
+      bottom: 2px;
+      width: 26px;
+      background: linear-gradient(270deg, rgba(255,255,255,0), #fff 88%);
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .fchips-wrap.more::after { opacity: 1; }
+    .fchips-wrap.scrolled::before { opacity: 1; }
+    .fc-arrow {
+      position: absolute;
+      right: 7px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: #94a3b8;
+      font-style: normal;
+      line-height: 1;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .fchips-wrap.more .fc-arrow { opacity: 1; }
+    .fchips { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none; }
     .fchips::-webkit-scrollbar { display: none; }
+    .hist-filter-row { scrollbar-width: none; -ms-overflow-style: none; }
+    .hist-filter-row::-webkit-scrollbar { display: none; }
     .fchip {
       padding: 6px 11px;
       border-radius: 20px;
@@ -1796,13 +1842,13 @@
         ['semua', 'Semua'], ['bayar', 'Belum Bayar'], ['proses', 'Diproses'],
         ['siap', 'Siap Diambil'], ['kirim', 'Dikirim'], ['selesai', 'Selesai'], ['batal', 'Dibatalkan']
       ];
-      html += '<div class="fchips" id="histStatusRow">';
+      html += '<div class="fchips-wrap" id="histChipsWrap"><div class="fchips" id="histStatusRow">';
       chips.forEach(function(c) {
         html += '<span class="fchip' + (histStatusFilter === c[0] ? ' on' : '') + '" data-st="' + c[0] + '">'
           + c[1] + ' <b>' + counts[c[0]] + '</b></span>';
       });
       html += '<span class="fchip" id="histMonthToggle">&#128197; Bulan</span>';
-      html += '</div>';
+      html += '</div><i class="fc-arrow">&#10095;</i></div>';
 
       html += '<div class="hist-filter-row" id="histFilterRow" style="display:none;gap:6px;margin-bottom:10px;overflow-x:auto;">';
       html += '<button class="hist-month-btn' + (histMonthFilter === 'all' ? ' active' : '') + '" data-month="all">Semua bulan</button>';
@@ -1820,6 +1866,18 @@
       html += '</div>';
 
       el.innerHTML = html;
+
+      var chipsWrap = document.getElementById('histChipsWrap');
+      var chipsRow = document.getElementById('histStatusRow');
+      if (chipsWrap && chipsRow) {
+        var syncChipsFade = function() {
+          var room = chipsRow.scrollWidth - chipsRow.clientWidth;
+          chipsWrap.classList.toggle('more', room > 2 && chipsRow.scrollLeft < room - 2);
+          chipsWrap.classList.toggle('scrolled', chipsRow.scrollLeft > 2);
+        };
+        chipsRow.onscroll = syncChipsFade;
+        syncChipsFade();
+      }
 
       el.querySelectorAll('.fchip[data-st]').forEach(function(c) {
         c.onclick = function() {
